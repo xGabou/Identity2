@@ -5,11 +5,13 @@ import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
+import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
+import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -45,12 +47,19 @@ public final class Identity2Client {
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
     public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
+    private static final KeyBinding.Category IDENTITY_KEY_CATEGORY = KeyBinding.Category.create(Identifier.of("category.identity2.test"));
 
-    private static final KeyBinding keyBindingC = new KeyBinding(
+    private static final KeyBinding abilityKeyBinding = new KeyBinding(
         "key.identity2.dashminus",
         InputUtil.Type.KEYSYM,
         InputUtil.GLFW_KEY_V,
-        KeyBinding.Category.create(Identifier.of("category.identity2.test"))
+        IDENTITY_KEY_CATEGORY
+    );
+    private static final KeyBinding identityMenuKeyBinding = new KeyBinding(
+        "key.identity2.identity_menu",
+        InputUtil.Type.KEYSYM,
+        InputUtil.GLFW_KEY_G,
+        IDENTITY_KEY_CATEGORY
     );
 
     private static final int fadingTickRequirement = 0;
@@ -79,7 +88,8 @@ public final class Identity2Client {
         platform = platformImpl;
         initialized = true;
 
-        KeyMappingRegistry.register(keyBindingC);
+        KeyMappingRegistry.register(abilityKeyBinding);
+        KeyMappingRegistry.register(identityMenuKeyBinding);
 
         if (platform != null) {
             platform.logClientRegistries();
@@ -89,28 +99,19 @@ public final class Identity2Client {
             NetworkManager.s2c(),
             CustomEntityDataS2CPacketPayload.ID,
             CustomEntityDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> {
-                INSTANCE.onUpdateCustomData(payload);
-                Identity2.LOGGER.info("Packet Recieved!");
-            })
+            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
         );
         NetworkManager.registerReceiver(
             NetworkManager.s2c(),
             CustomEntityStringDataS2CPacketPayload.ID,
             CustomEntityStringDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> {
-                INSTANCE.onUpdateCustomData(payload);
-                Identity2.LOGGER.info("Packet Recieved!");
-            })
+            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
         );
         NetworkManager.registerReceiver(
             NetworkManager.s2c(),
             CustomEntityBoolDataS2CPacketPayload.ID,
             CustomEntityBoolDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> {
-                INSTANCE.onUpdateCustomData(payload);
-                Identity2.LOGGER.info("Packet Recieved!");
-            })
+            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
         );
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
@@ -121,6 +122,10 @@ public final class Identity2Client {
         NetworkManager.sendToServer(new IdentityAbilityPacketPayload(entityId));
     }
 
+    public static void sendMorphRequest(String identityId) {
+        NetworkManager.sendToServer(new IdentityMorphRequestC2SPacketPayload(identityId));
+    }
+
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {
         visualPatchKeys.ensureCapacity(visualPatchKeys.size() + 1);
         visualPatchValues.ensureCapacity(visualPatchValues.size() + 1);
@@ -129,10 +134,16 @@ public final class Identity2Client {
     }
 
     private static void onClientTickEnd(MinecraftClient client) {
+        while (identityMenuKeyBinding.wasPressed()) {
+            if (client.player != null && client.currentScreen == null) {
+                client.setScreen(new IdentitySelectionScreen());
+            }
+        }
+
         int usedAbility = 0;
         Registry<IdentityAbilityDefinition> identityAbilityRegistry = ModRegistries.getIdentityAbilityRegistry();
 
-        while (keyBindingC.wasPressed()) {
+        while (abilityKeyBinding.wasPressed()) {
             ClientPlayerEntity player = client.player;
             if (player == null) {
                 return;
@@ -144,7 +155,6 @@ public final class Identity2Client {
             }
 
             if (identityAbilityRegistry == null) {
-                Identity2.LOGGER.info("Identity Ability Registry missing!");
                 return;
             }
 
@@ -155,8 +165,6 @@ public final class Identity2Client {
                     sendIdentityAbilityPacket(0);
                     usedAbility = 1;
                 }
-            } else {
-                Identity2.LOGGER.info("No Identity Ability");
             }
         }
 
@@ -170,7 +178,6 @@ public final class Identity2Client {
             if (identityAbility != null) {
                 int cd = ((EntityAccessor) client.player).getAbilityCooldown();
                 if (cd > identityAbility.cooldown()) {
-                    Identity2.LOGGER.info("Trying to run ability tick");
                     sendIdentityAbilityPacket(identityAbility.cooldown() + identityAbility.useduration() - cd + 1);
                 }
 
@@ -191,8 +198,6 @@ public final class Identity2Client {
             for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
             }
-        } else {
-            Identity2.LOGGER.info("Entity null.");
         }
     }
 
@@ -211,8 +216,6 @@ public final class Identity2Client {
                     ((EntityAccessor) entity).setCurrentIdentity(entry.value());
                 }
             }
-        } else {
-            Identity2.LOGGER.info("Entity null.");
         }
     }
 
@@ -228,8 +231,6 @@ public final class Identity2Client {
             for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
             }
-        } else {
-            Identity2.LOGGER.info("Entity null.");
         }
     }
 

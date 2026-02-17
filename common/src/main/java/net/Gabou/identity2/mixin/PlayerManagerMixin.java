@@ -3,6 +3,7 @@ package net.Gabou.identity2.mixin;
 import dev.architectury.networking.NetworkManager;
 import java.util.ArrayList;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -46,6 +47,8 @@ public class PlayerManagerMixin {
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.Entry> floatData = new ArrayList<>(0);
+
+        IdentityProgression.ensureClientUnlockCache(player);
 
         NbtComponent customData = ((EntityAccessor) player).getCustomData();
         NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
