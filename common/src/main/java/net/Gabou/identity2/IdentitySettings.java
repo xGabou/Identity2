@@ -99,6 +99,15 @@ public class IdentitySettings {
     //@Comment(value = "Number of kills required to unlock an Identity if killsForIdentity is true.")
     public static int requiredKillsForIdentity = 50;
 
+    //@Comment(value = "If true, killing entities unlocks their identities.")
+    public static boolean enableIdentityKillUnlocks = true;
+
+    //@Comment(value = "Kills required to unlock an identity.")
+    public static int identityKillsRequired = 1;
+
+    //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
+    public static boolean requireUnlockedIdentityForMorph = true;
+
     //@Comment(value = "If true, players with the Warden Identity will have a shorter view range with the darkness effect.")
     public static boolean wardenIsBlinded = true;
 
