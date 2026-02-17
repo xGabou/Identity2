@@ -1,0 +1,27 @@
+_types{
+    publicity[
+        "public"#PUBLIC;
+        "private"#PRIVATE;
+        "protected"#PROTECTED;
+        null#PUBLIC;
+    ];
+    functioninfo{
+        [1]#isOverride:bool;
+        [6]#returntype:String;
+        [7](split_"::")[1]#functionname:String;
+    };
+    classinfo{
+        [0]#packagename:String;
+        [1][0][4]#classname:String;
+        [1][1]#extends:[String];
+        [3]#functions:[functioninfo];
+    };
+};
+_input{
+    JSONFile("") classes map.((id:String)->(class:classinfo));
+};
+main{
+    for(i in _input.classes):
+        if("Item" in _input.classes[i]['extends']):
+            print(_input.classes[i].packagename+"."+_input.classes[i].classname)
+}

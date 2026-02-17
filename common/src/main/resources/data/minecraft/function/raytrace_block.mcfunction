@@ -1,0 +1,3 @@
+execute as @s at @s anchored eyes run runmulti 1 for d1 0 100 1 execute unless entity @e[tag=raytraceDest] run for d2 0 10 1 execute unless entity @e[tag=raytraceDest] positioned ^ ^ ^@(d1) positioned ^ ^ ^0.@(d2) if blockstate ~ ~ ~ solid unless block ~ ~ ~ minecraft:cave_air unless block ~ ~ ~ minecraft:water run summon marker ~ ~ ~ {Tags:[raytraceDest]}
+$execute at @n[tag=raytraceDest] run $(function)
+kill @n[tag=raytraceDest]

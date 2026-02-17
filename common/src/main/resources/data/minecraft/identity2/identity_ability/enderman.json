@@ -1,0 +1,5 @@
+{
+"icon":"minecraft:ender_pearl",
+"cooldown":100,
+"predef":"minecraft:enderman"
+}

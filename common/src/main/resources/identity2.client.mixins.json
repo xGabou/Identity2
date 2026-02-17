@@ -1,0 +1,21 @@
+{
+	"required": true,
+	"package": "net.Gabou.identity2.mixin.client",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ClientWorldMixin",
+		"EntityRendererMixin",
+		"GameRendererMixin",
+		"MinecraftClientMixin",
+		"PlayerEntityRendererMixin",
+		"HeldItemRendererMixin",
+		"EnderDragonEntityRendererMixin",
+		"ClientPlayerInteractionManagerMixin",
+		"ClientPlayNetworkHandlerMixin",
+		"EntityTrackerEntryMixin",
+		"WorldRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

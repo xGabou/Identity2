@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "identity2",
+  "version": "${version}",
+  "name": "Identity2",
+  "description": "",
+  "authors": [
+    "Gabou"
+  ],
+  "contact": {
+    "homepage": ""
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "assets/identity2/icon.png",
+  "accessWidener": "identity2.accesswidener",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.Gabou.identity2.fabric.Identity2Fabric"
+    ],
+    "client": [
+      "net.Gabou.identity2.fabric.client.Identity2FabricClient"
+    ]
+  },
+  "mixins": [
+    "identity2.mixins.json",
+    {
+      "config": "identity2.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "architectury": ">=19.0.1",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}
+
