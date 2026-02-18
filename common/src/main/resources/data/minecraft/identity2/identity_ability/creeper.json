@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:tnt",
+  "cooldown": 200,
+  "predef": "minecraft:creeper"
+}

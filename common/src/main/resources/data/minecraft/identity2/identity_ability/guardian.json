@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:prismarine_shard",
+  "cooldown": 600,
+  "predef": "minecraft:guardian"
+}

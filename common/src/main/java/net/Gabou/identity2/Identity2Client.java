@@ -195,8 +195,19 @@ public final class Identity2Client {
         Entity entity = client.world.getEntityById(packet.entityid());
         if (entity != null) {
             NbtComponent n = ((EntityAccessor) entity).getCustomData();
+            boolean shapeChanged = false;
             for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
+                if ("width_override".equals(entry.key()) || "height_override".equals(entry.key())) {
+                    shapeChanged = true;
+                }
+            }
+            if (shapeChanged) {
+                ((EntityAccessor) entity).setEntityDimensions(entity.getDimensions(entity.getPose()));
+                Entity identity = ((EntityAccessor) entity).getCurrentIdentity();
+                if (identity != null) {
+                    ((EntityAccessor) entity).setStandingEyeHeight(identity.getStandingEyeHeight());
+                }
             }
         }
     }

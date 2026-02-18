@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:potion",
+  "cooldown": 100,
+  "predef": "minecraft:witch"
+}

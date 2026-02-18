@@ -61,41 +61,14 @@ public class EntityIndexMixin{
               at = @At(value = "INVOKE", target = "Lnet/minecraft/util/TypeFilter;downcast(Ljava/lang/Object;)Ljava/lang/Object;"))
     private <T,U extends T> U replaceDowncast(TypeFilter<T,U> filter, T toDowncast) {
         if(net.Gabou.identity2.Identity2.indexOverrideActive!=0){
-        try{
-        if(((EntityAccessor)toDowncast).getIdentityOwner()!=null){
-            net.Gabou.identity2.Identity2.LOGGER.info("Success1! "+((Entity)toDowncast).getName().getString()+" from "+((EntityAccessor)toDowncast).getIdentityOwner().getName().getString());
-            if(filter.downcast(toDowncast)==null){
-                net.Gabou.identity2.Identity2.LOGGER.info("Downcast Failure1!");
-            }
-        }
-        if(((EntityAccessor)toDowncast).getCurrentIdentity()!=null){
-            net.Gabou.identity2.Identity2.LOGGER.info("Success2! "+((EntityAccessor)toDowncast).getCurrentIdentity().getName().getString()+" from "+((Entity)toDowncast).getName().getString());
-            toDowncast=(T)((EntityAccessor)toDowncast).getCurrentIdentity();
             try{
-            if(filter.downcast(toDowncast)==null){
-                net.Gabou.identity2.Identity2.LOGGER.info("Downcast Failure2!");
-            }else{
-                net.Gabou.identity2.Identity2.LOGGER.info("Downcast Success2!");
-            }
-            }catch(Exception n){
-                net.Gabou.identity2.Identity2.LOGGER.info("Downcast Failure3!");
-            }
-            return filter.downcast(toDowncast);
-            /*try{
-            if(filter.downcast((T)((EntityAccessor)toDowncast).getCurrentIdentity())!=null){
-                try{
-                net.Gabou.identity2.Identity2.LOGGER.info("EntityIndexMixin passed! ("+((Entity)toDowncast).getUuidAsString()+"("+toDowncast.getClass().getName()+") to "+((EntityAccessor)toDowncast).getCurrentIdentity().getUuidAsString()+"("+((EntityAccessor)toDowncast).getCurrentIdentity().getClass().getName()+"))");
-                }catch(Exception e){
-                    net.Gabou.identity2.Identity2.LOGGER.info("EntityIndexMixin passed ("+((Entity)toDowncast).getUuidAsString()+" to "+((EntityAccessor)toDowncast).getCurrentIdentity().getUuidAsString()+")");
+                if(((EntityAccessor)toDowncast).getCurrentIdentity()!=null){
+                    toDowncast=(T)((EntityAccessor)toDowncast).getCurrentIdentity();
+                    return filter.downcast(toDowncast);
                 }
-            }
             }catch(Exception e){
-                net.Gabou.identity2.Identity2.LOGGER.info("Well this is awkward. V2");
-            }*/
-        }
-    }catch(Exception e){
-        net.Gabou.identity2.Identity2.LOGGER.info("Something went wrong.");
-    }
+                int x=0;
+            }
         }//else, have a nice day without awkwardness
         return filter.downcast(toDowncast);
     }

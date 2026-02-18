@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:blaze_powder",
+  "cooldown": 60,
+  "predef": "minecraft:blaze"
+}

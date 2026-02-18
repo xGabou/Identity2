@@ -25,7 +25,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.entity.MovementType;
 import net.Gabou.identity2.ModEffects;
-import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.Identity2Client;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
@@ -52,6 +51,7 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PhantomEntity;
 import net.minecraft.entity.mob.ShulkerEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
+import net.minecraft.client.model.ModelPart;
 @Mixin(EntityRenderer.class)
 public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
     @Inject(method = "getAndUpdateRenderState", at = @At("RETURN"), cancellable = true)
@@ -175,39 +175,42 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
                 }
             }
         }
+        NbtCompound nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
+        boolean hasHiddenPartOverrides = false;
+        for (String key : nbt.getKeys()) {
+            if (key.startsWith("hidden_parts.")) {
+                hasHiddenPartOverrides = true;
+                break;
+            }
+        }
 
+        boolean shouldHideHead = false;
+        if (MinecraftClient.getInstance().player != null) {
+            Entity playerIdentity = ((EntityAccessor) MinecraftClient.getInstance().player).getCurrentIdentity();
+            shouldHideHead = playerIdentity instanceof ShulkerEntity;
+        }
 
-        net.minecraft.client.render.entity.model.EntityModel model= Identity2Client.getModel(entity);
-
-        if(model!=null){
-            NbtCompound nbt=((net.Gabou.identity2.util.NbtComponentAccessor)(Object)(((EntityAccessor)entity).getCustomData())).getNbt();
-            for(String key:nbt.getKeys()){
-                if(key.substring(0, 13).matches("hidden_parts."))
-                if(nbt.getBoolean(key,false)){
-                    net.minecraft.client.model.ModelPart part=model.getRootPart().createPartGetter().apply(key.substring(13));
-                    if(part!=null){
-                    part.hidden=true;
-                    }
-                }else{
-                    net.minecraft.client.model.ModelPart part=model.getRootPart().createPartGetter().apply(key.substring(13));
-                    if(part!=null){
-                    part.hidden=false;
+        if (hasHiddenPartOverrides || shouldHideHead) {
+            net.minecraft.client.render.entity.model.EntityModel model = Identity2Client.getModel(entity);
+            if (model != null) {
+                if (hasHiddenPartOverrides) {
+                    for (String key : nbt.getKeys()) {
+                        if (key.startsWith("hidden_parts.")) {
+                            ModelPart part = model.getRootPart().createPartGetter().apply(key.substring(13));
+                            if (part != null) {
+                                part.hidden = nbt.getBoolean(key, false);
+                            }
+                        }
                     }
                 }
-                
-            }
-            if(((EntityAccessor)MinecraftClient.getInstance().player).getCurrentIdentity()!=null)
-            if(((EntityAccessor)MinecraftClient.getInstance().player).getCurrentIdentity() instanceof ShulkerEntity)
-            if(/*(((Entity)entity).equals((MinecraftClient.getInstance().player)))&&(MinecraftClient.getInstance().gameRenderer.getCamera().isThirdPerson()==false)*/true){
-                model.getRootPart().traverse().forEach((partx)->{
-                    net.minecraft.client.model.ModelPart part=partx.createPartGetter().apply("head");
-                if(part!=null){
-                    Identity2.LOGGER.info("hiding part");
-                    part.hidden=true;
-                    //Identity2.LOGGER.info(String.valueOf(part.hidden));
-                    part.xScale=0;
-                }}
-                );
+
+                if (shouldHideHead) {
+                    ModelPart head = model.getRootPart().createPartGetter().apply("head");
+                    if (head != null) {
+                        head.hidden = true;
+                        head.xScale = 0;
+                    }
+                }
             }
         }
 

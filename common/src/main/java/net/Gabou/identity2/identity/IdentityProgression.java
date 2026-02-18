@@ -12,16 +12,20 @@ import java.util.Map;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
+import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.SpawnGroup;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -53,16 +57,55 @@ public final class IdentityProgression {
         return getUnlockedIdentities(player).contains(identityId.toString());
     }
 
+    public static boolean isMorphableIdentity(Identifier identityId) {
+        if (identityId == null || !Registries.ENTITY_TYPE.containsId(identityId)) {
+            return false;
+        }
+        return isMorphableType(Registries.ENTITY_TYPE.get(identityId));
+    }
+
+    public static boolean isMorphableType(EntityType<?> entityType) {
+        if (entityType == null || entityType == EntityType.PLAYER) {
+            return false;
+        }
+        if (entityType.getSpawnGroup() == SpawnGroup.MISC) {
+            return false;
+        }
+        return LivingEntity.class.isAssignableFrom(entityType.getBaseClass());
+    }
+
     public static void morph(ServerPlayerEntity player, Identifier identityId) {
         NbtComponent customData = ((EntityAccessor) player).getCustomData();
-        ((NbtComponentAccessor) (Object) customData).getNbt().putString("model_override", identityId.toString());
+        String value = identityId.toString();
+        NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        nbt.putString("model_override", value);
         ((EntityAccessor) player).setCurrentIdentity(identityId.toString());
+
+        double widthOverride = 0.0;
+        double heightOverride = 0.0;
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity != null) {
+            widthOverride = identity.getDimensions(identity.getPose()).width();
+            heightOverride = identity.getDimensions(identity.getPose()).height();
+            ((EntityAccessor) player).setEntityDimensions(identity.getDimensions(identity.getPose()));
+            ((EntityAccessor) player).setStandingEyeHeight(identity.getStandingEyeHeight());
+        }
+
+        nbt.putDouble("width_override", widthOverride);
+        nbt.putDouble("height_override", heightOverride);
+        syncMorphData(player, value, widthOverride, heightOverride);
     }
 
     public static void clearMorph(ServerPlayerEntity player) {
         NbtComponent customData = ((EntityAccessor) player).getCustomData();
-        ((NbtComponentAccessor) (Object) customData).getNbt().putString("model_override", "");
+        NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        nbt.putString("model_override", "");
+        nbt.putDouble("width_override", 0.0);
+        nbt.putDouble("height_override", 0.0);
         ((EntityAccessor) player).setCurrentIdentity("");
+        ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
+        ((EntityAccessor) player).setStandingEyeHeight(player.getStandingEyeHeight());
+        syncMorphData(player, "", 0.0, 0.0);
     }
 
     public static void ensureClientUnlockCache(ServerPlayerEntity player) {
@@ -82,7 +125,7 @@ public final class IdentityProgression {
         }
 
         Identifier identityId = Registries.ENTITY_TYPE.getId(killed.getType());
-        if (identityId == null || !Registries.ENTITY_TYPE.containsId(identityId)) {
+        if (!isMorphableIdentity(identityId)) {
             return EventResult.pass();
         }
 
@@ -138,6 +181,31 @@ public final class IdentityProgression {
         List<String> sorted = new ArrayList<>(unlocked);
         Collections.sort(sorted);
         return String.join(",", sorted);
+    }
+
+    private static void syncMorphData(ServerPlayerEntity player, String modelOverride, double widthOverride, double heightOverride) {
+        CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
+            player.getId(),
+            List.of(new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride))
+        );
+        CustomEntityDataS2CPacketPayload shapePayload = new CustomEntityDataS2CPacketPayload(
+            player.getId(),
+            List.of(
+                new CustomEntityDataS2CPacket.Entry("width_override", widthOverride),
+                new CustomEntityDataS2CPacket.Entry("height_override", heightOverride)
+            )
+        );
+
+        NetworkManager.sendToPlayer(player, modelPayload);
+        NetworkManager.sendToPlayer(player, shapePayload);
+        if (player.getEntityWorld() instanceof ServerWorld serverWorld) {
+            for (ServerPlayerEntity other : serverWorld.getPlayers()) {
+                if (other != player) {
+                    NetworkManager.sendToPlayer(other, modelPayload);
+                    NetworkManager.sendToPlayer(other, shapePayload);
+                }
+            }
+        }
     }
 
     private static NbtCompound getCustomData(ServerPlayerEntity player) {

@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:wither_skeleton_skull",
+  "cooldown": 120,
+  "predef": "minecraft:wither"
+}

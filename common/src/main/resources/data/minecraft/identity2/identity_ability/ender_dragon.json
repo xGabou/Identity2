@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:dragon_breath",
+  "cooldown": 120,
+  "predef": "minecraft:ender_dragon"
+}

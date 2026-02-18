@@ -71,17 +71,14 @@ public class PlayerManagerMixin {
         CustomEntityDataS2CPacketPayload floatPayload = new CustomEntityDataS2CPacketPayload(player.getId(), floatData);
         sendToWorldPlayers(player, floatPayload);
         NetworkManager.sendToPlayer(player, floatPayload);
-        Identity2.LOGGER.info("Packet Sent! (to owner)");
 
         CustomEntityStringDataS2CPacketPayload stringPayload = new CustomEntityStringDataS2CPacketPayload(player.getId(), stringData);
         sendToWorldPlayers(player, stringPayload);
         NetworkManager.sendToPlayer(player, stringPayload);
-        Identity2.LOGGER.info("Packet Sent! (to owner)");
 
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
         NetworkManager.sendToPlayer(player, boolPayload);
-        Identity2.LOGGER.info("Packet Sent! (to owner)");
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.getEntityWorld().getServer();
         if (accessor.getCommandFunctionManager().getTag(Identifier.of(Identity2.MOD_ID, "on_before_player_join")) != null) {
@@ -100,7 +97,6 @@ public class PlayerManagerMixin {
             for (ServerPlayerEntity player : serverWorld.getPlayers()) {
                 if (player != source) {
                     NetworkManager.sendToPlayer(player, payload);
-                    Identity2.LOGGER.info("Packet Sent!");
                 }
             }
         }

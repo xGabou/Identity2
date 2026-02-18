@@ -1,7 +1,6 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.ModRegistries;
-import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -47,7 +46,6 @@ public class ClientPlayerInteractionManagerMixin {
             net.minecraft.entity.EntityType.getId(((EntityAccessor) player).getCurrentIdentity().getType())
         );
         if (identityAbility != null) {
-            Identity2.LOGGER.info("trying ability attack");
             Identity2Client.sendIdentityAbilityPacket(-3);
             if (identityAbility.override_attack()) {
                 info.cancel();

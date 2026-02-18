@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:emerald",
+  "cooldown": 120,
+  "predef": "minecraft:evoker"
+}

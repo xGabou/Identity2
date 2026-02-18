@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:snowball",
+  "cooldown": 30,
+  "predef": "minecraft:snow_golem"
+}

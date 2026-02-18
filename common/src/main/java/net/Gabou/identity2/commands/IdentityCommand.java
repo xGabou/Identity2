@@ -1,17 +1,16 @@
 package net.Gabou.identity2.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.IdentifierArgumentType;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -45,8 +44,8 @@ public final class IdentityCommand {
             return 0;
         }
 
-        if (!Registries.ENTITY_TYPE.containsId(identityId)) {
-            source.sendError(Text.literal("Unknown identity: " + identityId));
+        if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            source.sendError(Text.literal("Unsupported identity: " + identityId));
             return 0;
         }
 
@@ -89,7 +88,9 @@ public final class IdentityCommand {
             return 0;
         }
 
-        List<String> unlocked = IdentityProgression.getUnlockedIdentities(player);
+        List<String> unlocked = IdentityProgression.getUnlockedIdentities(player).stream()
+            .filter(IdentityCommand::isMorphableIdentityString)
+            .toList();
         if (unlocked.isEmpty()) {
             source.sendMessage(Text.literal("Unlocked identities: none"));
             return 1;
@@ -107,12 +108,17 @@ public final class IdentityCommand {
 
         if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(context.getSource())) {
             List<Identifier> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
-                .map(Identifier::of)
+                .map(IdentityCommand::parseIdentifier)
+                .flatMap(Optional::stream)
+                .filter(IdentityProgression::isMorphableIdentity)
                 .toList();
             return CommandSource.suggestIdentifiers(identifiers, builder);
         }
 
-        return CommandSource.suggestIdentifiers(Registries.ENTITY_TYPE.getIds(), builder);
+        return CommandSource.suggestIdentifiers(
+            net.minecraft.registry.Registries.ENTITY_TYPE.getIds().stream().filter(IdentityProgression::isMorphableIdentity),
+            builder
+        );
     }
 
     private static boolean canSwap(ServerCommandSource source, ServerPlayerEntity player) {
@@ -129,5 +135,21 @@ public final class IdentityCommand {
 
     private static boolean isOperator(ServerCommandSource source) {
         return CommandManager.ADMINS_CHECK.allows(source.getPermissions());
+    }
+
+    private static boolean isMorphableIdentityString(String value) {
+        try {
+            return IdentityProgression.isMorphableIdentity(Identifier.of(value));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static Optional<Identifier> parseIdentifier(String value) {
+        try {
+            return Optional.of(Identifier.of(value));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
     }
 }

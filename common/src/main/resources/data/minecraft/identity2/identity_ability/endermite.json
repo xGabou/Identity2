@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:chorus_fruit",
+  "cooldown": 80,
+  "predef": "minecraft:endermite"
+}

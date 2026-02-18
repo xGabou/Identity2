@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:lead",
+  "cooldown": 40,
+  "predef": "minecraft:llama"
+}

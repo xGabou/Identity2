@@ -129,7 +129,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     }
     @Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
-        if(this.currentIdentity!=null){
+        if(this.currentIdentity!=null && ((Entity)(Object)this).getEntityWorld().isClient()){
             this.currentIdentity.tick();
             
         }
@@ -140,7 +140,6 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
                 this.entityCanFlyEvaluated=false;
             }
             if(this.entityCanFlyEvaluated==false){
-                Identity2.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
                     this.canFly();
                 }
             this.identityOf.noClip=this.noClip;
@@ -318,22 +317,18 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
 
         
         String onLandName=(net.Gabou.identity2.checkonly.EntityMethodChecks.class).getDeclaredMethods()[0].getName();
-        Identity2.LOGGER.info(onLandName);
         try{
         this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),onLandName);
         }catch(
             Exception e
         ){int x=0;}
         if(this.shouldTickBlockCollision()==false){
-            Identity2.LOGGER.info("Reevaluating canFly - blockCollision disabled");
             this.entityCanFly=true;
         }
         if(this.noClip){
-            Identity2.LOGGER.info("Reevaluating canFly - noClip active");
             this.entityCanFly=true;
         }
         this.entityCanFlyEvaluated=true;
-        Identity2.LOGGER.info("Reevaluating canFly - final: "+String.valueOf(this.entityCanFly));
         if(this.identityOf!=null){
         if((Entity)(Object)this.identityOf instanceof PlayerEntity player){
                 if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){

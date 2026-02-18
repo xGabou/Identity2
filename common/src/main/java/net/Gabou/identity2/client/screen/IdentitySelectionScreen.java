@@ -146,6 +146,9 @@ public final class IdentitySelectionScreen extends Screen {
         this.allEntries.clear();
         Set<String> unlocked = readUnlockedIdentities();
         for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
+            if (!IdentityProgression.isMorphableIdentity(id)) {
+                continue;
+            }
             String text = id.toString();
             boolean isUnlocked = unlocked.contains(text);
             this.allEntries.add(new IdentityEntry(id, isUnlocked, text.toLowerCase(Locale.ROOT)));

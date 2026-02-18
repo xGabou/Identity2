@@ -25,7 +25,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.entity.MovementType;
 import net.Gabou.identity2.ModEffects;
-import net.Gabou.identity2.Identity2;
 import net.minecraft.item.Items;
 import net.minecraft.item.Item;
 import java.util.Set;
@@ -80,7 +79,6 @@ public class TypeFilterableListMixin<T>{
                     (T entity)->{
                         if(entity instanceof Entity){
                             if(((EntityAccessor) entity).getCurrentIdentity()!=null){
-                                net.Gabou.identity2.Identity2.LOGGER.info("TypeFilterableListMixinActive");
                                 return ((EntityAccessor) entity).getCurrentIdentity();
                             }else{
                             return entity;

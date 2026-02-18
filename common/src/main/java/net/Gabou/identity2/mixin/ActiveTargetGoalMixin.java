@@ -69,11 +69,6 @@ public class ActiveTargetGoalMixin{
 	@Inject(method = "findClosestTarget", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		Identity2.indexOverrideActive-=1;
-		if(this.targetEntity!=null){
-		if(((EntityAccessor)this.targetEntity).getCurrentIdentity()!=null){
-			Identity2.LOGGER.info("Target Rerouted from "+this.targetEntity.getName().getString()+" to "+((EntityAccessor)this.targetEntity).getCurrentIdentity().getName().getString());
-		}
-		}
 	}
 	
 }

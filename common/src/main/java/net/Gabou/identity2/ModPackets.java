@@ -129,8 +129,8 @@ public final class ModPackets {
             return;
         }
 
-        if (!net.minecraft.registry.Registries.ENTITY_TYPE.containsId(identityId)) {
-            player.sendMessage(net.minecraft.text.Text.literal("Unknown identity: " + identityId), false);
+        if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            player.sendMessage(net.minecraft.text.Text.literal("Unsupported identity: " + identityId), false);
             return;
         }
 

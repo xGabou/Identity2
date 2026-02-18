@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:milk_bucket",
+  "cooldown": 100,
+  "predef": "minecraft:cow"
+}

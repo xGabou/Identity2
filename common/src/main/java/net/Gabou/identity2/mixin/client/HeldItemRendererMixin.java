@@ -64,7 +64,6 @@ import net.minecraft.block.Block;
 import net.minecraft.world.BlockView;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
-import net.Gabou.identity2.Identity2;
 import java.lang.reflect.Field;
 @Mixin(HeldItemRenderer.class)
 public class HeldItemRendererMixin{
@@ -211,7 +210,7 @@ public class HeldItemRendererMixin{
         }
         }
     } catch (Exception e) {
-        Identity2.LOGGER.info("RenderError!");
+        int x=0;
     }
     }
     private void renderLeftArmOverride(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible) {
@@ -323,7 +322,7 @@ public class HeldItemRendererMixin{
         }
         }
     } catch (Exception e) {
-        Identity2.LOGGER.info("RenderError!");
+        int x=0;
     }
     }
 }
