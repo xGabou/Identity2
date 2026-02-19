@@ -29,8 +29,11 @@ dependencies {
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
+    include(modImplementation('me.lucko:fabric-permissions-api:0.6.1'))
+
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7495338"
+    modRuntimeOnly files(rootProject.file("libs/spark-1.10.165-fabric.jar"))
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

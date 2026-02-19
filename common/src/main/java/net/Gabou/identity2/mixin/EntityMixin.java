@@ -69,6 +69,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.util.math.Box;
@@ -78,6 +79,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 @Mixin(Entity.class)
 public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
@@ -331,18 +333,31 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         this.entityCanFlyEvaluated=true;
         if(this.identityOf!=null){
         if((Entity)(Object)this.identityOf instanceof PlayerEntity player){
-                if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){
-                    player.getAbilities().allowFlying=true;
-                    player.getAbilities().flying=true;
-                }else{
-                        player.getAbilities().allowFlying=false;
-                        player.getAbilities().flying=false;
-                }
+                Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
         }
 
         }
         return this.entityCanFly;
+    }
+
+    private void applyIdentityFlightGrant(PlayerEntity player, boolean identityCanFly) {
+        // Do not touch spectator/creative abilities.
+        if (player.isSpectator() || player.getAbilities().creativeMode) {
+            return;
+        }
+
+        if (!identityCanFly) {
+            return;
+        }
+
+        if (!player.getAbilities().allowFlying) {
+            player.getAbilities().allowFlying = true;
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                serverPlayer.sendAbilitiesUpdate();
+            }
+        }
     }
 
 
@@ -369,17 +384,38 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     }
     @Inject(method="getDimensions",at=@At("RETURN"),cancellable=true)
     private void getDimensionsModification(CallbackInfoReturnable info){
-        float width_override=((EntityDimensions)info.getReturnValue()).width();
-        float old_width=width_override;
+        EntityDimensions dimensions = (EntityDimensions) info.getReturnValue();
+        float oldWidth = dimensions.width();
+        float oldHeight = dimensions.height();
+        float widthOverride = oldWidth;
+        float heightOverride = oldHeight;
 
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
-                width_override=((float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get();
+            if (value > 0.0) {
+                widthOverride = (float) value;
+            }
+        }
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get();
+            if (value > 0.0) {
+                heightOverride = (float) value;
+            }
+        }
+
+        float widthScale = oldWidth > 0.0F ? widthOverride / oldWidth : 1.0F;
+        float heightScale = oldHeight > 0.0F ? heightOverride / oldHeight : 1.0F;
+        info.setReturnValue(dimensions.scaled(widthScale, heightScale));
+    }
+    @Inject(method="getHeight",at=@At("HEAD"),cancellable=true)
+    private void getHeightOverride(CallbackInfoReturnable info){
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
+                info.setReturnValue((Float)(float)(double)
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()
                 );
             }
         }
-        info.setReturnValue(((EntityDimensions)info.getReturnValue()).scaled(width_override/old_width,1.0F));
     }
     @Shadow
     private Box boundingBox;
@@ -442,8 +478,11 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         this.identityOf=e;
     }
     public void setCurrentIdentity(String id, NbtCompound data){
+        if (data != null && !data.isEmpty()) {
+            this.setCurrentIdentity(id + data.toString());
+            return;
+        }
         this.setCurrentIdentity(id);
-        //this.currentIdentity=e;
     }
     public void fixAttributes(Entity entity, Entity identity){}
     public void setCurrentIdentity(String id){
@@ -460,8 +499,22 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         if(nbtCompound==null){
             nbtCompound=new NbtCompound().copy();
         }
+        if (nbtCompound.isEmpty()) {
+            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            if (!variantRaw.isBlank()) {
+                try {
+                    nbtCompound = net.minecraft.command.argument.NbtCompoundArgumentType.nbtCompound()
+                        .parse(new com.mojang.brigadier.StringReader(variantRaw));
+                } catch (Exception ignored) {
+                    nbtCompound = new NbtCompound().copy();
+                }
+            }
+        }
         if(id.length()==0){
             this.currentIdentity=null;
+            if((Entity)(Object)this instanceof PlayerEntity player){
+                this.applyIdentityFlightGrant(player, false);
+            }
             return;
         }
         nbtCompound.putString("id", id);
@@ -503,13 +556,8 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             ((EntityAccessor)(this.currentIdentity)).setId(((EntityAccessor)(this.currentIdentity)).getId()*-1);
             //}
             if((Entity)(Object)this instanceof PlayerEntity player){
-                if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){
-                    player.getAbilities().allowFlying=true;
-                    player.getAbilities().flying=true;
-                }else{
-                        player.getAbilities().allowFlying=false;
-                        player.getAbilities().flying=false;
-                }
+                Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
         }
         

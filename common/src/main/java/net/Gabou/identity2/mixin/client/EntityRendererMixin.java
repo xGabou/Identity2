@@ -89,7 +89,6 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
                 if(livingIdentity.isJumping()!=livingEntity.isJumping()){
                     livingIdentity.setJumping(livingEntity.isJumping());
                 }
-                livingIdentity.getAttributes().setFrom(livingEntity.getAttributes());
             LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.limbAnimator;
             LimbAnimatorAccessor source = (LimbAnimatorAccessor) livingEntity.limbAnimator;
 

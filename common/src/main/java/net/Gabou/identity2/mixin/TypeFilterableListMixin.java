@@ -74,21 +74,26 @@ public class TypeFilterableListMixin<T>{
 		if (!this.elementType.isAssignableFrom(type)) {
 			throw new IllegalArgumentException("Don't know how to search for " + type);
 		} else {
-			List<S> list = (List<S>)this.elementsByType
-				.computeIfAbsent(type, typeClass -> (List)this.allElements.stream().map(
-                    (T entity)->{
-                        if(entity instanceof Entity){
-                            if(((EntityAccessor) entity).getCurrentIdentity()!=null){
-                                return ((EntityAccessor) entity).getCurrentIdentity();
-                            }else{
-                            return entity;
-                            }
-                        }else{
-                            return entity;
-                        }
+            if (net.Gabou.identity2.Identity2.indexOverrideActive == 0) {
+                List<S> list = (List<S>) this.elementsByType.computeIfAbsent(
+                    type,
+                    typeClass -> (List) this.allElements.stream().filter(typeClass::isInstance).collect(Util.toArrayList())
+                );
+                return Collections.unmodifiableCollection(list);
+            }
+
+            // ActiveTargetGoal performs identity-aware targeting only while this flag is set.
+            // Do not cache transformed results, otherwise identity substitutions leak to normal queries.
+            List<S> liveList = (List<S>) this.allElements.stream()
+                .map((T entity) -> {
+                    if (entity instanceof Entity && ((EntityAccessor) entity).getCurrentIdentity() != null) {
+                        return (T) ((EntityAccessor) entity).getCurrentIdentity();
                     }
-                ).filter(typeClass::isInstance).collect(Util.toArrayList()));
-			return Collections.unmodifiableCollection(list);
+                    return entity;
+                })
+                .filter(type::isInstance)
+                .collect(Util.toArrayList());
+            return Collections.unmodifiableCollection(liveList);
 		}
 	}
     /*private static void useInject(List<?> entities, TargetPredicate targetPredicate, @Nullable LivingEntity entity, double x, double y, double z,CallbackInfoReturnable info) {

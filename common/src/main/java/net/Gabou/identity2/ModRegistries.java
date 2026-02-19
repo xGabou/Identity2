@@ -24,6 +24,8 @@ public final class ModRegistries {
     ).apply(inst, IdentityAbilityDefinition::new));
 
     public static Registry<IdentityAbilityDefinition> identityAbilityRegistry;
+    private static final long IDENTITY_ABILITY_LOOKUP_RETRY_DELAY_MS = 5000L;
+    private static long nextIdentityAbilityLookupAtMs = 0L;
 
     private static boolean initialized = false;
     private static ModRegistryPlatform platform = ModRegistryPlatform.NOOP;
@@ -50,13 +52,25 @@ public final class ModRegistries {
         identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) BuiltinRegistries.createWrapperLookup()
             .getOptional(IDENTITY_ABILITY_KEY)
             .orElse(null);
+        if (identityAbilityRegistry == null) {
+            nextIdentityAbilityLookupAtMs = System.currentTimeMillis() + IDENTITY_ABILITY_LOOKUP_RETRY_DELAY_MS;
+        } else {
+            nextIdentityAbilityLookupAtMs = 0L;
+        }
         return identityAbilityRegistry;
     }
 
     public static Registry<IdentityAbilityDefinition> getIdentityAbilityRegistry() {
-        if (identityAbilityRegistry == null) {
-            refreshIdentityAbilityRegistry();
+        if (identityAbilityRegistry != null) {
+            return identityAbilityRegistry;
         }
-        return identityAbilityRegistry;
+        if (!initialized) {
+            return null;
+        }
+        long now = System.currentTimeMillis();
+        if (now < nextIdentityAbilityLookupAtMs) {
+            return null;
+        }
+        return refreshIdentityAbilityRegistry();
     }
 }

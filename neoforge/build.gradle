@@ -36,6 +36,7 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7495339"
+    modImplementation "curse.maven:spark-361579:7315224"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')

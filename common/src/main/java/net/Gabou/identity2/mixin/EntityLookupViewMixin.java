@@ -81,13 +81,13 @@ public interface EntityLookupViewMixin{
             //Identity2.LOGGER.info("EntityLookupViewMixin not triggered!");
         }
         }
-        if(info.getReturnValue()!=null){
+        if(Identity2.indexOverrideActive!=0 && info.getReturnValue()!=null){
         Entity returnvalue=((EntityAccessor)info.getReturnValue()).getIdentityOwner();
         if(returnvalue!=null){
             //Identity2.LOGGER.info("EntityLookupViewMixin trigger!");
             info.setReturnValue(returnvalue);
         }
-    }
+        }
     }
     @Inject(method = "getClosestEntity(Lnet/minecraft/registry/tag/TagKey;Lnet/minecraft/entity/ai/TargetPredicate;Lnet/minecraft/entity/LivingEntity;DDDLnet/minecraft/util/math/Box;)Lnet/minecraft/entity/LivingEntity;", at=@At("RETURN"),cancellable=true)
     private static void useInject(TagKey<EntityType<?>> type, TargetPredicate predicate, @Nullable LivingEntity target, double x, double y, double z, Box box,CallbackInfoReturnable info) {
@@ -97,12 +97,12 @@ public interface EntityLookupViewMixin{
             //Identity2.LOGGER.info("EntityLookupViewMixin not triggered!");
         }
         }
-        if(info.getReturnValue()!=null){
+        if(Identity2.indexOverrideActive!=0 && info.getReturnValue()!=null){
         Entity returnvalue=((EntityAccessor)info.getReturnValue()).getIdentityOwner();
         if(returnvalue!=null){
             //Identity2.LOGGER.info("EntityLookupViewMixin trigger 2!");
             info.setReturnValue(returnvalue);
         }
-    }
+        }
     }
 }

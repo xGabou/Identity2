@@ -52,6 +52,7 @@ public class PlayerManagerMixin {
 
         NbtComponent customData = ((EntityAccessor) player).getCustomData();
         NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        boolean identityDataSeen = false;
 
         for (String key : nbt.getKeys()) {
             if (nbt.getFloat(key).isPresent()) {
@@ -59,12 +60,25 @@ public class PlayerManagerMixin {
             }
             if (nbt.getString(key).isPresent()) {
                 stringData.add(new CustomEntityDataS2CPacket.EntryString(key, nbt.getString(key, "")));
-                if ("model_override".equals(key)) {
-                    ((EntityAccessor) player).setCurrentIdentity(nbt.getString(key, ""));
+                if (
+                    "model_override".equals(key) ||
+                    IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(key) ||
+                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                ) {
+                    identityDataSeen = true;
                 }
             }
             if (nbt.getBoolean(key).isPresent()) {
                 boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, nbt.getBoolean(key, false)));
+            }
+        }
+        if (identityDataSeen) {
+            String type = nbt.getString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+            if (type.isBlank()) {
+                type = nbt.getString("model_override", "");
+            }
+            if (!type.isBlank()) {
+                ((EntityAccessor) player).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(nbt.getString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")));
             }
         }
 

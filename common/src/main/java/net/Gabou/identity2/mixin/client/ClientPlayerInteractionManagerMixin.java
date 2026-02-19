@@ -24,10 +24,14 @@ public class ClientPlayerInteractionManagerMixin {
             return;
         }
 
-        if (((EntityAccessor) player).getCurrentIdentity() != null) {
-            if (((EntityAccessor) ((EntityAccessor) player).getCurrentIdentity()).canFly()) {
-                info.setReturnValue(true);
-            }
+        if (player.isSpectator()) {
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity != null && ((EntityAccessor) identity).canFly()) {
+            // Keep flight unlocked for fly-capable identities.
+            info.setReturnValue(false);
         }
     }
 

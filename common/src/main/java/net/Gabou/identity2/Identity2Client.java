@@ -6,6 +6,7 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -63,10 +64,17 @@ public final class Identity2Client {
     );
 
     private static final int fadingTickRequirement = 0;
+    private static final int MAX_PENDING_PACKET_PROCESS_PER_TICK = 256;
+    private static final int MAX_PENDING_PACKET_PROCESS_TICKS = 100;
+    private static final int MAX_PENDING_PACKET_QUEUE_SIZE = 8192;
     private static int lastCooldown = 0;
     private static int ticksSinceUpdate = 0;
     private static boolean isFading = false;
     private static int fadingProgress = 0;
+    private static int pendingPacketProcessTicks = 0;
+    private static final ArrayList<CustomEntityDataS2CPacketPayload> pendingDoubleDataPackets = new ArrayList<>(0);
+    private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(0);
+    private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
 
     static {
         addVisualPatch((identity, entity) -> {
@@ -123,7 +131,11 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId) {
-        NetworkManager.sendToServer(new IdentityMorphRequestC2SPacketPayload(identityId));
+        sendMorphRequest(identityId, "");
+    }
+
+    public static void sendMorphRequest(String identityId, String variantNbt) {
+        NetworkManager.sendToServer(new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
 
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {
@@ -134,65 +146,63 @@ public final class Identity2Client {
     }
 
     private static void onClientTickEnd(MinecraftClient client) {
+        processPendingCustomDataPackets(client);
+
         while (identityMenuKeyBinding.wasPressed()) {
             if (client.player != null && client.currentScreen == null) {
                 client.setScreen(new IdentitySelectionScreen());
             }
         }
 
-        int usedAbility = 0;
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity == null) {
+            return;
+        }
+
         Registry<IdentityAbilityDefinition> identityAbilityRegistry = ModRegistries.getIdentityAbilityRegistry();
+        if (identityAbilityRegistry == null) {
+            return;
+        }
+
+        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(net.minecraft.entity.EntityType.getId(identity.getType()));
+        if (identityAbility == null) {
+            return;
+        }
+
+        int usedAbility = 0;
 
         while (abilityKeyBinding.wasPressed()) {
-            ClientPlayerEntity player = client.player;
-            if (player == null) {
-                return;
-            }
-
-            Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-            if (identity == null) {
-                return;
-            }
-
-            if (identityAbilityRegistry == null) {
-                return;
-            }
-
-            IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(net.minecraft.entity.EntityType.getId(identity.getType()));
-            if (identityAbility != null) {
-                if (((EntityAccessor) player).getAbilityCooldown() == 0) {
-                    ((EntityAccessor) player).setAbilityCooldown(identityAbility.cooldown() + identityAbility.useduration());
-                    sendIdentityAbilityPacket(0);
-                    usedAbility = 1;
-                }
+            if (((EntityAccessor) player).getAbilityCooldown() == 0) {
+                ((EntityAccessor) player).setAbilityCooldown(identityAbility.cooldown() + identityAbility.useduration());
+                sendIdentityAbilityPacket(0);
+                usedAbility = 1;
             }
         }
 
-        if (client.player != null && ((EntityAccessor) client.player).getCurrentIdentity() != null) {
-            if (identityAbilityRegistry == null) {
-                return;
-            }
-            IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(
-                net.minecraft.entity.EntityType.getId(((EntityAccessor) client.player).getCurrentIdentity().getType())
-            );
-            if (identityAbility != null) {
-                int cd = ((EntityAccessor) client.player).getAbilityCooldown();
-                if (cd > identityAbility.cooldown()) {
-                    sendIdentityAbilityPacket(identityAbility.cooldown() + identityAbility.useduration() - cd + 1);
-                }
+        int cd = ((EntityAccessor) player).getAbilityCooldown();
+        if (cd > identityAbility.cooldown()) {
+            sendIdentityAbilityPacket(identityAbility.cooldown() + identityAbility.useduration() - cd + 1);
+        }
 
-                sendIdentityAbilityPacket(-1 - usedAbility);
-            }
+        // Passive tick packet is only needed for identities that implement passive behavior.
+        if (hasPassiveTick(identityAbility)) {
+            sendIdentityAbilityPacket(-1 - usedAbility);
         }
     }
 
     private void onUpdateCustomData(CustomEntityDataS2CPacketPayload packet) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) {
+            enqueuePendingPacket(pendingDoubleDataPackets, packet);
             return;
         }
 
-        Entity entity = client.world.getEntityById(packet.entityid());
+        Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
             NbtComponent n = ((EntityAccessor) entity).getCustomData();
             boolean shapeChanged = false;
@@ -215,17 +225,26 @@ public final class Identity2Client {
     private void onUpdateCustomData(CustomEntityStringDataS2CPacketPayload packet) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) {
+            enqueuePendingPacket(pendingStringDataPackets, packet);
             return;
         }
 
-        Entity entity = client.world.getEntityById(packet.entityid());
+        Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
             NbtComponent n = ((EntityAccessor) entity).getCustomData();
+            boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
-                if (entry.key().matches("model_override")) {
-                    ((EntityAccessor) entity).setCurrentIdentity(entry.value());
+                if (
+                    "model_override".equals(entry.key()) ||
+                    IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key())
+                ) {
+                    identityDataChanged = true;
                 }
+            }
+            if (identityDataChanged) {
+                applyIdentityFromCustomData(entity);
             }
         }
     }
@@ -233,16 +252,177 @@ public final class Identity2Client {
     private void onUpdateCustomData(CustomEntityBoolDataS2CPacketPayload packet) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) {
+            enqueuePendingPacket(pendingBoolDataPackets, packet);
             return;
         }
 
-        Entity entity = client.world.getEntityById(packet.entityid());
+        Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
             NbtComponent n = ((EntityAccessor) entity).getCustomData();
             for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
             }
         }
+    }
+
+    private static void processPendingCustomDataPackets(MinecraftClient client) {
+        if (client.world == null) {
+            return;
+        }
+
+        if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty() && pendingBoolDataPackets.isEmpty()) {
+            pendingPacketProcessTicks = 0;
+            return;
+        }
+
+        pendingPacketProcessTicks++;
+        processPendingDoublePackets(client);
+        processPendingStringPackets(client);
+        processPendingBoolPackets(client);
+
+        // Avoid an unbounded per-tick scan if some queued packets can never resolve.
+        if (pendingPacketProcessTicks > MAX_PENDING_PACKET_PROCESS_TICKS) {
+            pendingDoubleDataPackets.clear();
+            pendingStringDataPackets.clear();
+            pendingBoolDataPackets.clear();
+            pendingPacketProcessTicks = 0;
+        }
+    }
+
+    private static void processPendingDoublePackets(MinecraftClient client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingDoubleDataPackets.size());
+        for (int i = 0; i < max; ) {
+            if (INSTANCE.tryApplyCustomData(client, pendingDoubleDataPackets.get(i))) {
+                pendingDoubleDataPackets.remove(i);
+                max--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private static void processPendingStringPackets(MinecraftClient client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingStringDataPackets.size());
+        for (int i = 0; i < max; ) {
+            if (INSTANCE.tryApplyCustomData(client, pendingStringDataPackets.get(i))) {
+                pendingStringDataPackets.remove(i);
+                max--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private static void processPendingBoolPackets(MinecraftClient client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingBoolDataPackets.size());
+        for (int i = 0; i < max; ) {
+            if (INSTANCE.tryApplyCustomData(client, pendingBoolDataPackets.get(i))) {
+                pendingBoolDataPackets.remove(i);
+                max--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityDataS2CPacketPayload packet) {
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null) {
+            return false;
+        }
+
+        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        boolean shapeChanged = false;
+        for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
+            ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
+            if ("width_override".equals(entry.key()) || "height_override".equals(entry.key())) {
+                shapeChanged = true;
+            }
+        }
+        if (shapeChanged) {
+            ((EntityAccessor) entity).setEntityDimensions(entity.getDimensions(entity.getPose()));
+            Entity identity = ((EntityAccessor) entity).getCurrentIdentity();
+            if (identity != null) {
+                ((EntityAccessor) entity).setStandingEyeHeight(identity.getStandingEyeHeight());
+            }
+        }
+        return true;
+    }
+
+    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityStringDataS2CPacketPayload packet) {
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null) {
+            return false;
+        }
+
+        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        boolean identityDataChanged = false;
+        for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
+            ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
+            if (
+                "model_override".equals(entry.key()) ||
+                IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key())
+            ) {
+                identityDataChanged = true;
+            }
+        }
+        if (identityDataChanged) {
+            applyIdentityFromCustomData(entity);
+        }
+        return true;
+    }
+
+    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityBoolDataS2CPacketPayload packet) {
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null) {
+            return false;
+        }
+
+        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
+            ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
+        }
+        return true;
+    }
+
+    private static Entity resolvePacketTarget(MinecraftClient client, int entityId) {
+        if (client.world != null) {
+            Entity entity = client.world.getEntityById(entityId);
+            if (entity != null) {
+                return entity;
+            }
+        }
+        if (client.player != null && client.player.getId() == entityId) {
+            return client.player;
+        }
+        return null;
+    }
+
+    private static boolean hasPassiveTick(IdentityAbilityDefinition identityAbility) {
+        Identifier predef = identityAbility.bultinability();
+        return predef != null && "shulker".equals(predef.getPath());
+    }
+
+    private void applyIdentityFromCustomData(Entity entity) {
+        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        String type = ((NbtComponentAccessor) (Object) n).getNbt().getString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        if (type.isBlank()) {
+            type = ((NbtComponentAccessor) (Object) n).getNbt().getString("model_override", "");
+        }
+        if (type.isBlank()) {
+            ((EntityAccessor) entity).setCurrentIdentity("");
+            return;
+        }
+        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt().getString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
+    }
+
+    private static <T> void enqueuePendingPacket(ArrayList<T> list, T packet) {
+        if (list.size() >= MAX_PENDING_PACKET_QUEUE_SIZE) {
+            list.remove(0);
+        }
+        list.add(packet);
     }
 
     private static void renderIdentityCooldown(DrawContext matrices, RenderTickCounter deltax) {

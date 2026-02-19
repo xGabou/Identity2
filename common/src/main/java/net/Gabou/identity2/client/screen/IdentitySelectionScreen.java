@@ -3,12 +3,16 @@ package net.Gabou.identity2.client.screen;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.client.identity.IdentityVariantDiscovery;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.MinecraftClient;
@@ -27,12 +31,14 @@ public final class IdentitySelectionScreen extends Screen {
     private final List<IdentityEntry> allEntries = new ArrayList<>();
     private final List<IdentityEntry> filteredEntries = new ArrayList<>();
     private final List<ButtonWidget> rowButtons = new ArrayList<>();
+    private final Map<Identifier, List<IdentityVariant>> variantCache = new HashMap<>();
     private FilterMode filterMode = FilterMode.ALL;
     private TextFieldWidget searchField;
     private ButtonWidget filterButton;
     private ButtonWidget upButton;
     private ButtonWidget downButton;
     private int scrollOffset = 0;
+    private Identifier cachedWorldId = null;
 
     public IdentitySelectionScreen() {
         super(Text.literal("Identity Selection"));
@@ -40,6 +46,8 @@ public final class IdentitySelectionScreen extends Screen {
 
     @Override
     protected void init() {
+        this.cachedWorldId = currentWorldId();
+        this.variantCache.clear();
         buildEntries();
 
         int centerX = this.width / 2;
@@ -111,6 +119,18 @@ public final class IdentitySelectionScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        Identifier worldId = currentWorldId();
+        if (this.cachedWorldId == null && worldId != null) {
+            this.cachedWorldId = worldId;
+        }
+        if (this.cachedWorldId != null && worldId == null) {
+            this.variantCache.clear();
+            this.cachedWorldId = null;
+        }
+        if (this.cachedWorldId != null && worldId != null && !this.cachedWorldId.equals(worldId)) {
+            this.variantCache.clear();
+            this.cachedWorldId = worldId;
+        }
         renderIdentityMenuBackground(context);
         super.render(context, mouseX, mouseY, delta);
         context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, 0xFFFFFF);
@@ -138,8 +158,31 @@ public final class IdentitySelectionScreen extends Screen {
             return;
         }
 
-        Identity2Client.sendMorphRequest(entry.id().toString());
-        this.close();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) {
+            Identity2Client.sendMorphRequest(entry.id().toString());
+            this.close();
+            return;
+        }
+
+        List<IdentityVariant> variants = this.variantCache.computeIfAbsent(
+            entry.id(),
+            id -> IdentityVariantDiscovery.discover(Registries.ENTITY_TYPE.get(id), client.world)
+        );
+        if (variants.isEmpty()) {
+            Identity2Client.sendMorphRequest(entry.id().toString());
+            this.close();
+            return;
+        }
+
+        if (variants.size() == 1) {
+            IdentityVariant variant = variants.getFirst();
+            Identity2Client.sendMorphRequest(entry.id().toString(), IdentityProgression.serializeVariantNbt(variant.variantNbt()));
+            this.close();
+            return;
+        }
+
+        client.setScreen(new IdentityVariantSelectionScreen(this, entry.id(), variants));
     }
 
     private void buildEntries() {
@@ -248,6 +291,20 @@ public final class IdentitySelectionScreen extends Screen {
             }
         }
         return unlocked;
+    }
+
+    @Override
+    public void close() {
+        this.variantCache.clear();
+        super.close();
+    }
+
+    private Identifier currentWorldId() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) {
+            return null;
+        }
+        return client.world.getRegistryKey().getValue();
     }
 
     private enum FilterMode {

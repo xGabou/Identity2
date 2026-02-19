@@ -140,17 +140,8 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "getAttributes()Lnet/minecraft/entity/attribute/AttributeContainer;", at=@At("HEAD"),cancellable=true)
 private void getAttributesIdentity(CallbackInfoReturnable info){
-    try{
-    if(this.saving==false){
-        if(this.currentIdentity!=null){
-            if(this.currentIdentity instanceof LivingEntity livingIdentity){
-                info.setReturnValue(livingIdentity.getAttributes());
-            }
-        }
-    }
-    }catch(Exception e){
-        int x=0;
-    }
+    // Keep vanilla attributes for the host entity (especially players) so
+    // combat damage and other modded attribute changes are not replaced by identity stats.
 }
 
 @Inject(method = "getNextAirUnderwater(I)I", at=@At("HEAD"),cancellable=true)

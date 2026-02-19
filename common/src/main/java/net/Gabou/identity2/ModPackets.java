@@ -13,6 +13,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.command.CommandManager;
@@ -139,7 +140,8 @@ public final class ModPackets {
             return;
         }
 
-        IdentityProgression.morph(player, identityId);
+        NbtCompound variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        IdentityProgression.morph(player, identityId, variantNbt);
     }
 
     private static boolean canSwap(ServerPlayerEntity player) {

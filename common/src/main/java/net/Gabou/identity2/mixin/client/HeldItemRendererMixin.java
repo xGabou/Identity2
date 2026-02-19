@@ -67,6 +67,12 @@ import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
 import java.lang.reflect.Field;
 @Mixin(HeldItemRenderer.class)
 public class HeldItemRendererMixin{
+    // ModelPart origins are in 1/16th block units.
+    // Tune these if the morph arm still needs adjustment.
+    private static final float ARM_TUNE_X = 0.0f;
+    private static final float ARM_TUNE_Y = 0.0f;
+    private static final float ARM_TUNE_Z = -2.0f;
+
     private static Field getFieldFromClassHeirarchy(Class<?> clazz, String fieldName) throws NoSuchFieldException {
         Class<?> current = clazz;
         while (current != null) {
@@ -161,41 +167,15 @@ public class HeldItemRendererMixin{
                 float ox=targetPart.originX;
                 float oy=targetPart.originY;
                 float oz=targetPart.originZ;
-                boolean shouldCancel=false;
-                if(idrenderer instanceof LivingEntityRenderer){
-                    shouldCancel=true;
-                }
-            if(true){
-                targetPart.traverse().forEach((part)->{
-
-                
-                try{
-                    
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, part, sleeveVisible);
-                }catch(Exception e){
-                    int x=0;
-                }
-                
-            });
-        }else{
-            targetPart.traverse().forEach((part)->{
-
-                part.originX+=paox-ox;
-                part.originY+=paoy-oy;
-                part.originZ+=paoz-oz;
-                
-                try{
-                    
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, part, sleeveVisible);
-                }catch(Exception e){
-                    int x=0;
-                }
-                part.originX-=paox-ox;
-                part.originY-=paoy-oy;
-                part.originZ-=paoz-oz;
-                
-            });
-        }
+                // Render a single rooted arm part with a matrix offset.
+                // Avoid per-child origin mutation, which can visually detach/jump the arm.
+                float offsetX = (paox - ox) + ARM_TUNE_X;
+                float offsetY = (paoy - oy) + ARM_TUNE_Y;
+                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
+                matrices.push();
+                matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
+                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
+                matrices.pop();
         } catch (Exception e) {
             int x=0;
             //Identity2.LOGGER.info(" TEXTURE missing");
@@ -219,7 +199,7 @@ public class HeldItemRendererMixin{
         EntityAccessor playerEntity=(EntityAccessor)MinecraftClient.getInstance().player;
 		Entity identity=playerEntity.getCurrentIdentity();
         if(identity==null){
-            renderer.renderRightArm(matrices, queue, light, skinTexture, sleeveVisible);
+            renderer.renderLeftArm(matrices, queue, light, skinTexture, sleeveVisible);
             return;
         }
         //renderer.renderArm(matrices, queue, light, skinTexture, renderer.getModel().rightArm, sleeveVisible);
@@ -273,41 +253,14 @@ public class HeldItemRendererMixin{
                 float ox=targetPart.originX;
                 float oy=targetPart.originY;
                 float oz=targetPart.originZ;
-                boolean shouldCancel=false;
-                if(idrenderer instanceof LivingEntityRenderer){
-                    shouldCancel=true;
-                }
-            if(true){
-                targetPart.traverse().forEach((part)->{
-
-                
-                try{
-                    
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, part, sleeveVisible);
-                }catch(Exception e){
-                    int x=0;
-                }
-                
-            });
-        }else{
-            targetPart.traverse().forEach((part)->{
-
-                part.originX+=paox-ox;
-                part.originY+=paoy-oy;
-                part.originZ+=paoz-oz;
-                
-                try{
-                    
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, part, sleeveVisible);
-                }catch(Exception e){
-                    int x=0;
-                }
-                part.originX-=paox-ox;
-                part.originY-=paoy-oy;
-                part.originZ-=paoz-oz;
-                
-            });
-        }
+                // Mirror X tune for left arm, keep Y/Z the same.
+                float offsetX = (paox - ox) - ARM_TUNE_X;
+                float offsetY = (paoy - oy) + ARM_TUNE_Y;
+                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
+                matrices.push();
+                matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
+                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
+                matrices.pop();
         } catch (Exception e) {
             int x=0;
             //Identity2.LOGGER.info(" TEXTURE missing");
