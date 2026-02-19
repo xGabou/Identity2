@@ -156,7 +156,8 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     @Inject(method = "tick", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
-            
+            boolean hostIsPlayer = ((Entity)(Object)this) instanceof PlayerEntity;
+             
             this.currentIdentity.setPosition(this.getEntityPos());
             this.currentIdentity.setVelocity(this.getVelocity());
             this.currentIdentity.setAir(this.getAir());
@@ -166,7 +167,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             ){
             livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(this.currentIdentity.getEntityWorld().isClient()==false){
+            if(this.currentIdentity.getEntityWorld().isClient()==false && !hostIsPlayer){
                 if(this.currentIdentity instanceof MobEntity mobIdentity){
                     mobIdentity.setAiDisabled(true);
                 }
@@ -175,17 +176,19 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
                 //    mobIdentity.setAiDisabled(false);
                 //}
             }
-            
-            this.setPosition(this.currentIdentity.getEntityPos());
-            this.setVelocity(this.currentIdentity.getVelocity());
-            this.setAir(this.currentIdentity.getAir());
-            if(
-                (this.currentIdentity instanceof LivingEntity livingIdentity)&&
-                ((Entity)(Object)this instanceof LivingEntity livingEntity)
-            ){
-                livingEntity.setHealth(livingIdentity.getHealth());
+             
+            if(!hostIsPlayer){
+                this.setPosition(this.currentIdentity.getEntityPos());
+                this.setVelocity(this.currentIdentity.getVelocity());
+                this.setAir(this.currentIdentity.getAir());
+                if(
+                    (this.currentIdentity instanceof LivingEntity livingIdentity)&&
+                    ((Entity)(Object)this instanceof LivingEntity livingEntity)
+                ){
+                    livingEntity.setHealth(livingIdentity.getHealth());
+                }
             }
-            
+             
         }
 	}
     @Redirect(method = "move",
@@ -429,18 +432,24 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         double center_y=box.minY;
         double new_width=old_width;
         double new_height=old_height;
+        boolean hasOverride=false;
 
         if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
             if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
                 new_width=(double)
                 ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get();
+                hasOverride=true;
             }
         }
         if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
             if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
                 new_height=(double)
                 ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get();
+                hasOverride=true;
             }
+        }
+        if(!hasOverride){
+            return;
         }
         box=box.withMaxX(center_x+new_width/2);
         box=box.withMinX(center_x-new_width/2);
@@ -694,6 +703,9 @@ private void isFlappingWingsIdentity(CallbackInfoReturnable info){
 public boolean shouldTickBlockCollision(){return false;}
 @Inject(method = "shouldTickBlockCollision()Z", at=@At("HEAD"),cancellable=true)
 private void shouldTickBlockCollisionIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof PlayerEntity){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(((EntityAccessor)this.currentIdentity).shouldTickBlockCollision());
     }
@@ -741,6 +753,9 @@ private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnabl
 
 @Inject(method = "collidesWithStateAtPos(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)Z", at=@At("HEAD"),cancellable=true)
 private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof PlayerEntity){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.collidesWithStateAtPos(pos, state));
     }
@@ -784,6 +799,9 @@ private void isPushedByFluidsIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isInsideWall()Z", at=@At("HEAD"),cancellable=true)
 private void isInsideWallIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof PlayerEntity){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.isInsideWall());
     }

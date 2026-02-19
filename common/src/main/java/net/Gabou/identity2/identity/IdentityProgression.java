@@ -32,6 +32,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 public final class IdentityProgression {
+    // Sheep wool visual shape looks wider than the base collision box in this morph setup.
+    // Keep this tunable to match in-game feel.
+    private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
+
     private static final String UNLOCKED_IDENTITIES_KEY = "identity2.unlocked_identities";
     private static final String IDENTITY_KILL_COUNTS_KEY = "identity2.identity_kill_counts";
     public static final String UNLOCKED_IDENTITIES_CACHE_KEY = "identity2.unlocked_identities_cache";
@@ -99,9 +103,17 @@ public final class IdentityProgression {
         double heightOverride = 0.0;
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity != null) {
-            widthOverride = identity.getDimensions(identity.getPose()).width();
-            heightOverride = identity.getDimensions(identity.getPose()).height();
-            ((EntityAccessor) player).setEntityDimensions(identity.getDimensions(identity.getPose()));
+            net.minecraft.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
+            widthOverride = identityDimensions.width();
+            heightOverride = identityDimensions.height();
+
+            if (identity.getType() == EntityType.SHEEP) {
+                widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
+            }
+
+            float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
+            float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+            ((EntityAccessor) player).setEntityDimensions(identityDimensions.scaled(widthScale, heightScale));
             ((EntityAccessor) player).setStandingEyeHeight(identity.getStandingEyeHeight());
         }
 
