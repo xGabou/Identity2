@@ -34,9 +34,15 @@ versionRange = "[19.0.1,)"
 ordering = "AFTER"
 side = "BOTH"
 
+[[dependencies.identity2]]
+modId = "gaboulibs"
+type = "required"
+versionRange = "[1.4,)"
+ordering = "AFTER"
+side = "BOTH"
+
 [[mixins]]
 config = "identity2.mixins.json"
 
 [[mixins]]
 config = "identity2.client.mixins.json"
-

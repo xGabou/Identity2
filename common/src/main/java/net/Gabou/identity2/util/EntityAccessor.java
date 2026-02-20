@@ -1,21 +1,21 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityDimensions;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.phys.Vec3;
 
 public interface EntityAccessor {
     void fixAttributes(Entity entity, Entity identity);
 
-    NbtComponent getCustomData();
+    CustomData getCustomData();
 
     Entity getCurrentIdentity();
 
     void setCurrentIdentity(Entity entity);
 
-    void setCurrentIdentity(String id, NbtCompound data);
+    void setCurrentIdentity(String id, CompoundTag data);
 
     void setCurrentIdentity(String id);
 
@@ -23,7 +23,7 @@ public interface EntityAccessor {
 
     void setTouchingWater(boolean touchingWater);
 
-    void setLastPosition(Vec3d pos);
+    void setLastPosition(Vec3 pos);
 
     void runAddAirTravelEffects();
 
@@ -39,7 +39,7 @@ public interface EntityAccessor {
 
     void setIdentityOf(Entity entity);
 
-    Entity.MoveEffect getMoveEffect();
+    Entity.MovementEmission getMoveEffect();
 
     boolean isFlappingWings();
 
@@ -47,7 +47,7 @@ public interface EntityAccessor {
 
     int getId();
 
-    double getGravity();
+    double getIdentityGravity();
 
     boolean shouldTickBlockCollision();
 

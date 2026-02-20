@@ -1,5 +1,7 @@
 package net.Gabou.identity2;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.Window;
 import dev.architectury.event.events.client.ClientGuiEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.networking.NetworkManager;
@@ -18,28 +20,26 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.EnderDragonRenderer;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.function.BiFunction;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.render.entity.EnderDragonEntityRenderer;
-import net.minecraft.client.render.entity.EntityRenderer;
-import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.model.EntityModel;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.client.util.Window;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.boss.dragon.EnderDragonEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 
 public final class Identity2Client {
     private static final Identity2Client INSTANCE = new Identity2Client();
@@ -48,18 +48,18 @@ public final class Identity2Client {
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
     public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
-    private static final KeyBinding.Category IDENTITY_KEY_CATEGORY = KeyBinding.Category.create(Identifier.of("category.identity2.test"));
+    private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category.register(Identifier.parse("category.identity2.test"));
 
-    private static final KeyBinding abilityKeyBinding = new KeyBinding(
+    private static final KeyMapping abilityKeyBinding = new KeyMapping(
         "key.identity2.dashminus",
-        InputUtil.Type.KEYSYM,
-        InputUtil.GLFW_KEY_V,
+        InputConstants.Type.KEYSYM,
+        InputConstants.KEY_V,
         IDENTITY_KEY_CATEGORY
     );
-    private static final KeyBinding identityMenuKeyBinding = new KeyBinding(
+    private static final KeyMapping identityMenuKeyBinding = new KeyMapping(
         "key.identity2.identity_menu",
-        InputUtil.Type.KEYSYM,
-        InputUtil.GLFW_KEY_G,
+        InputConstants.Type.KEYSYM,
+        InputConstants.KEY_G,
         IDENTITY_KEY_CATEGORY
     );
 
@@ -78,11 +78,11 @@ public final class Identity2Client {
 
     static {
         addVisualPatch((identity, entity) -> {
-            if (identity instanceof EnderDragonEntity dragonIdentity) {
-                dragonIdentity.yawAcceleration += MathHelper.wrapDegrees(entity.getYaw() - identity.getYaw()) * 0.1F;
+            if (identity instanceof EnderDragon dragonIdentity) {
+                dragonIdentity.yRotA += Mth.wrapDegrees(entity.getYRot() - identity.getYRot()) * 0.1F;
             }
             return identity;
-        }, Identifier.of("minecraft:ender_dragon"));
+        }, Identifier.parse("minecraft:ender_dragon"));
     }
 
     private Identity2Client() {
@@ -145,16 +145,16 @@ public final class Identity2Client {
         visualPatchValues.add(value);
     }
 
-    private static void onClientTickEnd(MinecraftClient client) {
+    private static void onClientTickEnd(Minecraft client) {
         processPendingCustomDataPackets(client);
 
-        while (identityMenuKeyBinding.wasPressed()) {
-            if (client.player != null && client.currentScreen == null) {
+        while (identityMenuKeyBinding.consumeClick()) {
+            if (client.player != null && client.screen == null) {
                 client.setScreen(new IdentitySelectionScreen());
             }
         }
 
-        ClientPlayerEntity player = client.player;
+        LocalPlayer player = client.player;
         if (player == null) {
             return;
         }
@@ -169,14 +169,14 @@ public final class Identity2Client {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(net.minecraft.entity.EntityType.getId(identity.getType()));
+        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.getValue(net.minecraft.world.entity.EntityType.getKey(identity.getType()));
         if (identityAbility == null) {
             return;
         }
 
         int usedAbility = 0;
 
-        while (abilityKeyBinding.wasPressed()) {
+        while (abilityKeyBinding.consumeClick()) {
             if (((EntityAccessor) player).getAbilityCooldown() == 0) {
                 ((EntityAccessor) player).setAbilityCooldown(identityAbility.cooldown() + identityAbility.useduration());
                 sendIdentityAbilityPacket(0);
@@ -196,15 +196,15 @@ public final class Identity2Client {
     }
 
     private void onUpdateCustomData(CustomEntityDataS2CPacketPayload packet) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
             enqueuePendingPacket(pendingDoubleDataPackets, packet);
             return;
         }
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            NbtComponent n = ((EntityAccessor) entity).getCustomData();
+            CustomData n = ((EntityAccessor) entity).getCustomData();
             boolean shapeChanged = false;
             for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
@@ -213,25 +213,25 @@ public final class Identity2Client {
                 }
             }
             if (shapeChanged) {
-                ((EntityAccessor) entity).setEntityDimensions(entity.getDimensions(entity.getPose()));
+                entity.refreshDimensions();
                 Entity identity = ((EntityAccessor) entity).getCurrentIdentity();
                 if (identity != null) {
-                    ((EntityAccessor) entity).setStandingEyeHeight(identity.getStandingEyeHeight());
+                    ((EntityAccessor) entity).setStandingEyeHeight(identity.getEyeHeight());
                 }
             }
         }
     }
 
     private void onUpdateCustomData(CustomEntityStringDataS2CPacketPayload packet) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
             enqueuePendingPacket(pendingStringDataPackets, packet);
             return;
         }
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            NbtComponent n = ((EntityAccessor) entity).getCustomData();
+            CustomData n = ((EntityAccessor) entity).getCustomData();
             boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
@@ -250,23 +250,23 @@ public final class Identity2Client {
     }
 
     private void onUpdateCustomData(CustomEntityBoolDataS2CPacketPayload packet) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
             enqueuePendingPacket(pendingBoolDataPackets, packet);
             return;
         }
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            NbtComponent n = ((EntityAccessor) entity).getCustomData();
+            CustomData n = ((EntityAccessor) entity).getCustomData();
             for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
             }
         }
     }
 
-    private static void processPendingCustomDataPackets(MinecraftClient client) {
-        if (client.world == null) {
+    private static void processPendingCustomDataPackets(Minecraft client) {
+        if (client.level == null) {
             return;
         }
 
@@ -289,7 +289,7 @@ public final class Identity2Client {
         }
     }
 
-    private static void processPendingDoublePackets(MinecraftClient client) {
+    private static void processPendingDoublePackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingDoubleDataPackets.size());
         for (int i = 0; i < max; ) {
             if (INSTANCE.tryApplyCustomData(client, pendingDoubleDataPackets.get(i))) {
@@ -301,7 +301,7 @@ public final class Identity2Client {
         }
     }
 
-    private static void processPendingStringPackets(MinecraftClient client) {
+    private static void processPendingStringPackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingStringDataPackets.size());
         for (int i = 0; i < max; ) {
             if (INSTANCE.tryApplyCustomData(client, pendingStringDataPackets.get(i))) {
@@ -313,7 +313,7 @@ public final class Identity2Client {
         }
     }
 
-    private static void processPendingBoolPackets(MinecraftClient client) {
+    private static void processPendingBoolPackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingBoolDataPackets.size());
         for (int i = 0; i < max; ) {
             if (INSTANCE.tryApplyCustomData(client, pendingBoolDataPackets.get(i))) {
@@ -325,13 +325,13 @@ public final class Identity2Client {
         }
     }
 
-    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityDataS2CPacketPayload packet) {
+    private boolean tryApplyCustomData(Minecraft client, CustomEntityDataS2CPacketPayload packet) {
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity == null) {
             return false;
         }
 
-        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        CustomData n = ((EntityAccessor) entity).getCustomData();
         boolean shapeChanged = false;
         for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
             ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
@@ -340,22 +340,22 @@ public final class Identity2Client {
             }
         }
         if (shapeChanged) {
-            ((EntityAccessor) entity).setEntityDimensions(entity.getDimensions(entity.getPose()));
+            entity.refreshDimensions();
             Entity identity = ((EntityAccessor) entity).getCurrentIdentity();
             if (identity != null) {
-                ((EntityAccessor) entity).setStandingEyeHeight(identity.getStandingEyeHeight());
+                ((EntityAccessor) entity).setStandingEyeHeight(identity.getEyeHeight());
             }
         }
         return true;
     }
 
-    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityStringDataS2CPacketPayload packet) {
+    private boolean tryApplyCustomData(Minecraft client, CustomEntityStringDataS2CPacketPayload packet) {
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity == null) {
             return false;
         }
 
-        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        CustomData n = ((EntityAccessor) entity).getCustomData();
         boolean identityDataChanged = false;
         for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
             ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
@@ -373,22 +373,22 @@ public final class Identity2Client {
         return true;
     }
 
-    private boolean tryApplyCustomData(MinecraftClient client, CustomEntityBoolDataS2CPacketPayload packet) {
+    private boolean tryApplyCustomData(Minecraft client, CustomEntityBoolDataS2CPacketPayload packet) {
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity == null) {
             return false;
         }
 
-        NbtComponent n = ((EntityAccessor) entity).getCustomData();
+        CustomData n = ((EntityAccessor) entity).getCustomData();
         for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
             ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
         }
         return true;
     }
 
-    private static Entity resolvePacketTarget(MinecraftClient client, int entityId) {
-        if (client.world != null) {
-            Entity entity = client.world.getEntityById(entityId);
+    private static Entity resolvePacketTarget(Minecraft client, int entityId) {
+        if (client.level != null) {
+            Entity entity = client.level.getEntity(entityId);
             if (entity != null) {
                 return entity;
             }
@@ -405,16 +405,17 @@ public final class Identity2Client {
     }
 
     private void applyIdentityFromCustomData(Entity entity) {
-        NbtComponent n = ((EntityAccessor) entity).getCustomData();
-        String type = ((NbtComponentAccessor) (Object) n).getNbt().getString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        CustomData n = ((EntityAccessor) entity).getCustomData();
+        String type = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
-            type = ((NbtComponentAccessor) (Object) n).getNbt().getString("model_override", "");
+            type = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr("model_override", "");
         }
         if (type.isBlank()) {
             ((EntityAccessor) entity).setCurrentIdentity("");
+            entity.refreshDimensions();
             return;
         }
-        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt().getString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
         ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
     }
 
@@ -425,10 +426,10 @@ public final class Identity2Client {
         list.add(packet);
     }
 
-    private static void renderIdentityCooldown(DrawContext matrices, RenderTickCounter deltax) {
-        float delta = deltax.getTickProgress(false);
-        MinecraftClient client = MinecraftClient.getInstance();
-        ClientPlayerEntity player = client.player;
+    private static void renderIdentityCooldown(GuiGraphics matrices, DeltaTracker deltax) {
+        float delta = deltax.getGameTimeDeltaPartialTick(false);
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
         if (player == null) {
             return;
         }
@@ -444,16 +445,16 @@ public final class Identity2Client {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(net.minecraft.entity.EntityType.getId(identity.getType()));
+        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.getValue(net.minecraft.world.entity.EntityType.getKey(identity.getType()));
         if (identityAbility == null) {
             return;
         }
 
-        if (client.currentScreen instanceof ChatScreen) {
+        if (client.screen instanceof ChatScreen) {
             return;
         }
 
-        double d = client.getWindow().getScaleFactor();
+        double d = client.getWindow().getGuiScale();
         int cd = ((EntityAccessor) player).getAbilityCooldown();
         int max = identityAbility.cooldown() + identityAbility.useduration();
         float cooldownScale = 1 - cd / (float) max;
@@ -475,11 +476,11 @@ public final class Identity2Client {
             fadingProgress = Math.max(0, fadingProgress - 1);
         }
 
-        int width = client.getWindow().getScaledWidth();
-        int height = client.getWindow().getScaledHeight();
+        int width = client.getWindow().getGuiScaledWidth();
+        int height = client.getWindow().getGuiScaledHeight();
         int iconwidth = 17;
 
-        matrices.getMatrices().pushMatrix();
+        matrices.pose().pushMatrix();
         if (cooldownScale != 1) {
             matrices.enableScissor(
                 (int) (0d * d),
@@ -493,19 +494,19 @@ public final class Identity2Client {
             float fadeScalar = fadingProgress / 50f;
             float scale = 1f + (float) Math.sin(fadeScalar * 1.5 * Math.PI) - .25f;
             scale = Math.max(scale, 0.01F);
-            matrices.getMatrices().scaleAround(scale, (int) (width * .95f + iconwidth * .5f), (int) (height * .92f + iconwidth * .5f));
+            matrices.pose().scaleAround(scale, (int) (width * .95f + iconwidth * .5f), (int) (height * .92f + iconwidth * .5f));
         }
 
         ItemStack stack = new ItemStack(identityAbility.icon());
-        matrices.drawItem(stack, (int) (width * .95f), (int) (height * .92f));
+        matrices.renderItem(stack, (int) (width * .95f), (int) (height * .92f));
 
         if (cooldownScale != 1) {
             matrices.disableScissor();
         }
 
-        matrices.getMatrices().popMatrix();
+        matrices.pose().popMatrix();
 
-        lastCooldown = Math.round(MathHelper.lerp(delta, cd - 1, cd));
+        lastCooldown = Math.round(Mth.lerpInt(delta, cd - 1, cd));
     }
 
     private static Field getFieldFromClassHeirarchy(Class<?> clazz, String fieldName) throws NoSuchFieldException {
@@ -523,7 +524,7 @@ public final class Identity2Client {
     }
 
     public static EntityModel getModel(Entity e) {
-        EntityRenderer idrenderer = ((MinecraftClientAccessor) MinecraftClient.getInstance()).getEntityRenderManager().getRenderer(e);
+        EntityRenderer idrenderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(e);
 
         EntityModel eModel = null;
         if (idrenderer instanceof LivingEntityRenderer) {
@@ -537,8 +538,8 @@ public final class Identity2Client {
                 }
             }
         }
-        if (idrenderer instanceof EnderDragonEntityRenderer) {
-            eModel = ((EnderDragonEntityRendererAccessor) (EnderDragonEntityRenderer) idrenderer).getModel();
+        if (idrenderer instanceof EnderDragonRenderer) {
+            eModel = ((EnderDragonEntityRendererAccessor) (EnderDragonRenderer) idrenderer).getModel();
         }
         return eModel;
     }

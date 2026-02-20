@@ -2,23 +2,23 @@ package net.Gabou.identity2.packets;
 
 import java.util.List;
 import net.Gabou.identity2.ModPackets;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryString> entries) implements CustomPayload {
-    public static final CustomPayload.Id<CustomEntityStringDataS2CPacketPayload> ID = new CustomPayload.Id<>(ModPackets.CUSTOM_STRING_DATA_ID);
-    public static final PacketCodec<RegistryByteBuf, CustomEntityStringDataS2CPacketPayload> CODEC = PacketCodec.tuple(
-        PacketCodecs.VAR_INT,
+public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryString> entries) implements CustomPacketPayload {
+    public static final CustomPacketPayload.Type<CustomEntityStringDataS2CPacketPayload> ID = new CustomPacketPayload.Type<>(ModPackets.CUSTOM_STRING_DATA_ID);
+    public static final StreamCodec<RegistryFriendlyByteBuf, CustomEntityStringDataS2CPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.VAR_INT,
         CustomEntityStringDataS2CPacketPayload::entityid,
-        CustomEntityDataS2CPacket.EntryString.CODEC.collect(PacketCodecs.toList()),
+        CustomEntityDataS2CPacket.EntryString.CODEC.apply(ByteBufCodecs.list()),
         CustomEntityStringDataS2CPacketPayload::entries,
         CustomEntityStringDataS2CPacketPayload::new
     );
 
     @Override
-    public CustomPayload.Id<? extends CustomPayload> getId() {
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

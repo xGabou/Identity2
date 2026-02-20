@@ -15,14 +15,14 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 public final class IdentitySelectionScreen extends Screen {
     private static final int ROWS_PER_PAGE = 10;
@@ -30,18 +30,18 @@ public final class IdentitySelectionScreen extends Screen {
 
     private final List<IdentityEntry> allEntries = new ArrayList<>();
     private final List<IdentityEntry> filteredEntries = new ArrayList<>();
-    private final List<ButtonWidget> rowButtons = new ArrayList<>();
+    private final List<Button> rowButtons = new ArrayList<>();
     private final Map<Identifier, List<IdentityVariant>> variantCache = new HashMap<>();
     private FilterMode filterMode = FilterMode.ALL;
-    private TextFieldWidget searchField;
-    private ButtonWidget filterButton;
-    private ButtonWidget upButton;
-    private ButtonWidget downButton;
+    private EditBox searchField;
+    private Button filterButton;
+    private Button upButton;
+    private Button downButton;
     private int scrollOffset = 0;
     private Identifier cachedWorldId = null;
 
     public IdentitySelectionScreen() {
-        super(Text.literal("Identity Selection"));
+        super(Component.literal("Identity Selection"));
     }
 
     @Override
@@ -54,49 +54,49 @@ public final class IdentitySelectionScreen extends Screen {
         int left = centerX - 110;
         int top = 30;
 
-        this.searchField = this.addDrawableChild(new TextFieldWidget(this.textRenderer, left, top, 220, 20, Text.literal("Search")));
-        this.searchField.setPlaceholder(Text.literal("Search identity id"));
-        this.searchField.setChangedListener(value -> refreshEntries(true));
+        this.searchField = this.addRenderableWidget(new EditBox(this.font, left, top, 220, 20, Component.literal("Search")));
+        this.searchField.setHint(Component.literal("Search identity id"));
+        this.searchField.setResponder(value -> refreshEntries(true));
 
-        this.filterButton = this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("Filter: All"), button -> {
+        this.filterButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Filter: All"), button -> {
                 this.filterMode = this.filterMode.next();
                 refreshEntries(true);
-            }).dimensions(left, top + 24, 106, 20).build()
+            }).bounds(left, top + 24, 106, 20).build()
         );
-        this.upButton = this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("Up"), button -> {
+        this.upButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Up"), button -> {
                 if (this.scrollOffset > 0) {
                     this.scrollOffset--;
                     refreshEntries(false);
                 }
-            }).dimensions(left + 110, top + 24, 52, 20).build()
+            }).bounds(left + 110, top + 24, 52, 20).build()
         );
-        this.downButton = this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("Down"), button -> {
+        this.downButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Down"), button -> {
                 if (this.scrollOffset < maxScrollOffset()) {
                     this.scrollOffset++;
                     refreshEntries(false);
                 }
-            }).dimensions(left + 168, top + 24, 52, 20).build()
+            }).bounds(left + 168, top + 24, 52, 20).build()
         );
 
         int listTop = top + 52;
         for (int row = 0; row < ROWS_PER_PAGE; row++) {
             final int rowIndex = row;
-            ButtonWidget rowButton = this.addDrawableChild(
-                ButtonWidget.builder(Text.empty(), button -> selectRow(rowIndex)).dimensions(left, listTop + row * ROW_HEIGHT, 220, 18).build()
+            Button rowButton = this.addRenderableWidget(
+                Button.builder(Component.empty(), button -> selectRow(rowIndex)).bounds(left, listTop + row * ROW_HEIGHT, 220, 18).build()
             );
             this.rowButtons.add(rowButton);
         }
 
-        this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("Return to Original"), button -> {
+        this.addRenderableWidget(
+            Button.builder(Component.literal("Return to Original"), button -> {
                 Identity2Client.sendMorphRequest("");
-                this.close();
-            }).dimensions(left, this.height - 52, 140, 20).build()
+                this.onClose();
+            }).bounds(left, this.height - 52, 140, 20).build()
         );
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close()).dimensions(left + 146, this.height - 52, 74, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Close"), button -> this.onClose()).bounds(left + 146, this.height - 52, 74, 20).build());
 
         this.setInitialFocus(this.searchField);
         refreshEntries(true);
@@ -118,7 +118,7 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         Identifier worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
@@ -133,17 +133,17 @@ public final class IdentitySelectionScreen extends Screen {
         }
         renderIdentityMenuBackground(context);
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, 0xFFFFFF);
-        context.drawTextWithShadow(
-            this.textRenderer,
-            Text.literal("Unlocked: " + unlockedCount() + " / " + this.allEntries.size()),
+        context.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
+        context.drawString(
+            this.font,
+            Component.literal("Unlocked: " + unlockedCount() + " / " + this.allEntries.size()),
             this.width / 2 - 110,
             this.height - 66,
             0xA0A0A0
         );
     }
 
-    private void renderIdentityMenuBackground(DrawContext context) {
+    private void renderIdentityMenuBackground(GuiGraphics context) {
         context.fillGradient(0, 0, this.width, this.height, 0xB0101010, 0xD0101010);
     }
 
@@ -158,27 +158,27 @@ public final class IdentitySelectionScreen extends Screen {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
             Identity2Client.sendMorphRequest(entry.id().toString());
-            this.close();
+            this.onClose();
             return;
         }
 
         List<IdentityVariant> variants = this.variantCache.computeIfAbsent(
             entry.id(),
-            id -> IdentityVariantDiscovery.discover(Registries.ENTITY_TYPE.get(id), client.world)
+            id -> IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.getValue(id), client.level)
         );
         if (variants.isEmpty()) {
             Identity2Client.sendMorphRequest(entry.id().toString());
-            this.close();
+            this.onClose();
             return;
         }
 
         if (variants.size() == 1) {
             IdentityVariant variant = variants.getFirst();
             Identity2Client.sendMorphRequest(entry.id().toString(), IdentityProgression.serializeVariantNbt(variant.variantNbt()));
-            this.close();
+            this.onClose();
             return;
         }
 
@@ -188,7 +188,7 @@ public final class IdentitySelectionScreen extends Screen {
     private void buildEntries() {
         this.allEntries.clear();
         Set<String> unlocked = readUnlockedIdentities();
-        for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
+        for (Identifier id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
             if (!IdentityProgression.isMorphableIdentity(id)) {
                 continue;
             }
@@ -201,7 +201,7 @@ public final class IdentitySelectionScreen extends Screen {
 
     private void refreshEntries(boolean resetScroll) {
         this.filteredEntries.clear();
-        String query = this.searchField == null ? "" : this.searchField.getText().trim().toLowerCase(Locale.ROOT);
+        String query = this.searchField == null ? "" : this.searchField.getValue().trim().toLowerCase(Locale.ROOT);
 
         for (IdentityEntry entry : this.allEntries) {
             if (!query.isEmpty() && !entry.searchableId().contains(query)) {
@@ -223,22 +223,22 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         if (this.filterButton != null) {
-            this.filterButton.setMessage(Text.literal("Filter: " + this.filterMode.label()));
+            this.filterButton.setMessage(Component.literal("Filter: " + this.filterMode.label()));
         }
 
         for (int i = 0; i < this.rowButtons.size(); i++) {
-            ButtonWidget button = this.rowButtons.get(i);
+            Button button = this.rowButtons.get(i);
             int index = this.scrollOffset + i;
             if (index >= 0 && index < this.filteredEntries.size()) {
                 IdentityEntry entry = this.filteredEntries.get(index);
                 boolean lockedForMorph = isLockedForMorph(entry);
                 button.visible = true;
                 button.active = !lockedForMorph;
-                button.setMessage(Text.literal((entry.unlocked() ? "[Unlocked] " : "[Locked] ") + entry.id()));
+                button.setMessage(Component.literal((entry.unlocked() ? "[Unlocked] " : "[Locked] ") + entry.id()));
             } else {
                 button.visible = false;
                 button.active = false;
-                button.setMessage(Text.empty());
+                button.setMessage(Component.empty());
             }
         }
 
@@ -272,13 +272,13 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private static Set<String> readUnlockedIdentities() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return Set.of();
         }
 
         String csv = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-            .getString(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
+            .getStringOr(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (csv == null || csv.isBlank()) {
             return Set.of();
         }
@@ -294,17 +294,17 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         this.variantCache.clear();
-        super.close();
+        super.onClose();
     }
 
     private Identifier currentWorldId() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
             return null;
         }
-        return client.world.getRegistryKey().getValue();
+        return client.level.dimension().identifier();
     }
 
     private enum FilterMode {

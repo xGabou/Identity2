@@ -4,35 +4,31 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.Collection;
 import java.util.OptionalInt;
-import net.minecraft.command.CommandSource;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.command.argument.CommandFunctionArgumentType;
-import net.minecraft.server.function.CommandFunction;
-import net.minecraft.server.function.CommandFunctionManager;
-import net.minecraft.text.Text;
 import org.apache.commons.lang3.mutable.MutableObject;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import net.minecraft.util.math.Vec3d;
-
 import net.Gabou.identity2.Identity2;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.server.ServerFunctionManager;
+import net.minecraft.world.phys.Vec3;
 public class RunMultipleCommand {
-	public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
-		CommandFunctionManager commandFunctionManager = context.getSource().getServer().getCommandFunctionManager();
-		CommandSource.suggestIdentifiers(commandFunctionManager.getFunctionTags(), builder, "#");
-		return CommandSource.suggestIdentifiers(commandFunctionManager.getAllFunctions(), builder);
+	public static final SuggestionProvider<CommandSourceStack> SUGGESTION_PROVIDER = (context, builder) -> {
+		ServerFunctionManager commandFunctionManager = context.getSource().getServer().getFunctions();
+		SharedSuggestionProvider.suggestResource(commandFunctionManager.getTagNames(), builder, "#");
+		return SharedSuggestionProvider.suggestResource(commandFunctionManager.getFunctionNames(), builder);
 	};
 
-	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(
-			CommandManager.literal("runmulti")
-				.requires(CommandManager.requirePermissionLevel(CommandManager.ADMINS_CHECK))
+			Commands.literal("runmulti")
+				.requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
 					.then(
-									CommandManager.argument("name", StringArgumentType.string())
+									Commands.argument("name", StringArgumentType.string())
 						
 							.then(
-								CommandManager.argument("command", StringArgumentType.greedyString())
+								Commands.argument("command", StringArgumentType.greedyString())
 									.suggests(SUGGESTION_PROVIDER)
 									.executes(context -> execute(context.getSource(),StringArgumentType.getString(context, "name"), StringArgumentType.getString(context, "command")))
 							)
@@ -49,11 +45,11 @@ public class RunMultipleCommand {
 		String[] returnval=base.split(splitable,1000);
 		return returnval;
 	}
-	private static int execute(ServerCommandSource source, String seperator, String command) {
-		Vec3d originalPosition=source.getPosition();
+	private static int execute(CommandSourceStack source, String seperator, String command) {
+		Vec3 originalPosition=source.getPosition();
 		for(String singleCommand : splitString(command,"@<"+seperator+">")){
 			Identity2.LOGGER.info(singleCommand);
-		source.getServer().getCommandManager().parseAndExecute(source.withPosition(originalPosition),singleCommand);
+		source.getServer().getCommands().performPrefixedCommand(source.withPosition(originalPosition),singleCommand);
 		}
 		
 		return 1;

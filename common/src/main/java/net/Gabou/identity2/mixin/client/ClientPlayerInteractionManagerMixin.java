@@ -4,22 +4,22 @@ import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.registry.Registry;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.core.Registry;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ClientPlayerInteractionManager.class)
+@Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-    @Inject(method = "isFlyingLocked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true)
     private void forceFlyIdentity(CallbackInfoReturnable<Boolean> info) {
-        PlayerEntity player = MinecraftClient.getInstance().player;
+        Player player = Minecraft.getInstance().player;
         if (player == null) {
             return;
         }
@@ -35,8 +35,8 @@ public class ClientPlayerInteractionManagerMixin {
         }
     }
 
-    @Inject(method = "attackEntity", at = @At("HEAD"), cancellable = true)
-    private void onAttackEntity(PlayerEntity player, Entity target, CallbackInfo info) {
+    @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
+    private void onAttackEntity(Player player, Entity target, CallbackInfo info) {
         if (((EntityAccessor) player).getCurrentIdentity() == null) {
             return;
         }
@@ -46,8 +46,8 @@ public class ClientPlayerInteractionManagerMixin {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(
-            net.minecraft.entity.EntityType.getId(((EntityAccessor) player).getCurrentIdentity().getType())
+        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.getValue(
+            net.minecraft.world.entity.EntityType.getKey(((EntityAccessor) player).getCurrentIdentity().getType())
         );
         if (identityAbility != null) {
             Identity2Client.sendIdentityAbilityPacket(-3);

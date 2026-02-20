@@ -11,20 +11,20 @@ import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.Registry;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 
 public final class ModPackets {
-    public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.of(Identity2.MOD_ID, "set_custom_data_string");
-    public static final Identifier CUSTOM_DOUBLE_DATA_ID = Identifier.of(Identity2.MOD_ID, "set_custom_data_double");
-    public static final Identifier CUSTOM_BOOL_DATA_ID = Identifier.of(Identity2.MOD_ID, "set_custom_data_bool");
-    public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.of(Identity2.MOD_ID, "entity_ability");
-    public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.of(Identity2.MOD_ID, "identity_morph_request");
+    public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
+    public static final Identifier CUSTOM_DOUBLE_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_double");
+    public static final Identifier CUSTOM_BOOL_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_bool");
+    public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
+    public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
 
     private static boolean initialized = false;
 
@@ -48,7 +48,7 @@ public final class ModPackets {
             IdentityAbilityPacketPayload.ID,
             IdentityAbilityPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
-                if (context.getPlayer() instanceof ServerPlayerEntity player) {
+                if (context.getPlayer() instanceof ServerPlayer player) {
                     handleIdentityAbilityPacket(player, payload);
                 }
             })
@@ -59,14 +59,14 @@ public final class ModPackets {
             IdentityMorphRequestC2SPacketPayload.ID,
             IdentityMorphRequestC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
-                if (context.getPlayer() instanceof ServerPlayerEntity player) {
+                if (context.getPlayer() instanceof ServerPlayer player) {
                     handleMorphRequestPacket(player, payload);
                 }
             })
         );
     }
 
-    private static void handleIdentityAbilityPacket(ServerPlayerEntity player, IdentityAbilityPacketPayload payload) {
+    private static void handleIdentityAbilityPacket(ServerPlayer player, IdentityAbilityPacketPayload payload) {
         Registry<IdentityAbilityDefinition> identityAbilityRegistry = ModRegistries.getIdentityAbilityRegistry();
         if (identityAbilityRegistry == null) {
             return;
@@ -77,7 +77,7 @@ public final class ModPackets {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.get(EntityType.getId(identity.getType()));
+        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.getValue(EntityType.getKey(identity.getType()));
         if (identityAbility == null) {
             return;
         }
@@ -85,9 +85,9 @@ public final class ModPackets {
         Identifier prebuilt = identityAbility.bultinability();
         if (payload.entityid() == 0) {
             String command = identityAbility.command();
-            if (!command.isEmpty() && player.getEntityWorld().getServer() != null) {
-                player.getEntityWorld().getServer().getCommandManager().parseAndExecute(
-                    player.getEntityWorld().getServer().getCommandSource().withEntity(player),
+            if (!command.isEmpty() && player.level().getServer() != null) {
+                player.level().getServer().getCommands().performPrefixedCommand(
+                    player.level().getServer().createCommandSourceStack().withEntity(player),
                     command
                 );
             }
@@ -110,9 +110,9 @@ public final class ModPackets {
         }
     }
 
-    private static void handleMorphRequestPacket(ServerPlayerEntity player, IdentityMorphRequestC2SPacketPayload payload) {
+    private static void handleMorphRequestPacket(ServerPlayer player, IdentityMorphRequestC2SPacketPayload payload) {
         if (!canSwap(player)) {
-            player.sendMessage(net.minecraft.text.Text.literal("Identity swapping is disabled."), false);
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity swapping is disabled."), false);
             return;
         }
 
@@ -124,37 +124,37 @@ public final class ModPackets {
 
         Identifier identityId;
         try {
-            identityId = Identifier.of(requested);
+            identityId = Identifier.parse(requested);
         } catch (Exception exception) {
-            player.sendMessage(net.minecraft.text.Text.literal("Unknown identity: " + requested), false);
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity: " + requested), false);
             return;
         }
 
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
             if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
                 String reason = IdentityProgression.getDisabledIdentityReason(identityId);
-                player.sendMessage(
-                    net.minecraft.text.Text.literal(
+                player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal(
                         "Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")")
                     ),
                     false
                 );
                 return;
             }
-            player.sendMessage(net.minecraft.text.Text.literal("Unsupported identity: " + identityId), false);
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unsupported identity: " + identityId), false);
             return;
         }
 
         if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(player) && !IdentityProgression.isUnlocked(player, identityId)) {
-            player.sendMessage(net.minecraft.text.Text.literal("Identity not unlocked: " + identityId), false);
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
             return;
         }
 
-        NbtCompound variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
         IdentityProgression.morph(player, identityId, variantNbt);
     }
 
-    private static boolean canSwap(ServerPlayerEntity player) {
+    private static boolean canSwap(ServerPlayer player) {
         if (IdentitySettings.enableSwaps) {
             return true;
         }
@@ -164,7 +164,7 @@ public final class ModPackets {
         return IdentitySettings.allowedSwappers.contains(player.getName().getString());
     }
 
-    private static boolean isOperator(ServerPlayerEntity player) {
-        return CommandManager.ADMINS_CHECK.allows(player.getCommandSource().getPermissions());
+    private static boolean isOperator(ServerPlayer player) {
+        return Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
     }
 }

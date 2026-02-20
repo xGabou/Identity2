@@ -2,13 +2,7 @@ package net.Gabou.identity2.mixin.client;
 
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.util.math.MathHelper;
 import java.util.List;
-import net.minecraft.client.render.Camera;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,41 +14,31 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.block.AirBlock;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.entity.MovementType;
 import net.Gabou.identity2.ModEffects;
 import net.Gabou.identity2.Identity2Client;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.item.Item;
 import java.util.Set;
 import net.Gabou.identity2.ModBlocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.client.render.entity.EntityRenderer;
-import net.minecraft.client.render.entity.model.EntityModelPartNames;
-import net.minecraft.client.render.entity.state.EntityRenderState;
-import net.minecraft.registry.Registries;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
-import net.minecraft.client.render.entity.EntityRenderManager;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.monster.Phantom;
+import net.minecraft.world.entity.monster.Shulker;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.PhantomEntity;
-import net.minecraft.entity.mob.ShulkerEntity;
-import net.minecraft.entity.boss.dragon.EnderDragonEntity;
-import net.minecraft.client.model.ModelPart;
 @Mixin(EntityRenderer.class)
 public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
-    @Inject(method = "getAndUpdateRenderState", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;", at = @At("RETURN"), cancellable = true)
 	private void getAndUpdateRenderStateModifier(T entity, float tickProgress,CallbackInfoReturnable info) {
 		EntityRenderState entityRenderState=(EntityRenderState)info.getReturnValue();
         if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").isPresent()){
@@ -63,88 +47,88 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
                 if(d.contains("{")){
                     d=d.substring(0,d.indexOf('{'));
                 }
-                if(Registries.ENTITY_TYPE.containsId(Identifier.of(d))){
+                if(BuiltInRegistries.ENTITY_TYPE.containsKey(Identifier.parse(d))){
                     if(((EntityAccessor)entity).getCurrentIdentity()!=null){
                 //Sync identity to entity
                 Entity identity=((EntityAccessor)entity).getCurrentIdentity();
-                EntityRenderer renderer=((MinecraftClientAccessor)MinecraftClient.getInstance()).getEntityRenderManager().getRenderer(identity);
-                EntityRenderer currentRenderer=((MinecraftClientAccessor)MinecraftClient.getInstance()).getEntityRenderManager().getRenderer(entity);
+                EntityRenderer renderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
+                EntityRenderer currentRenderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(entity);
                 {
             //living only:
             
-            identity.setPos(
-                ((Entity)entity).getEntityPos().x,
-                ((Entity)entity).getEntityPos().y,
-                ((Entity)entity).getEntityPos().z
+            identity.setPosRaw(
+                ((Entity)entity).position().x,
+                ((Entity)entity).position().y,
+                ((Entity)entity).position().z
             );
-            if(identity instanceof EnderDragonEntity dragonIdentity){
-                identity.setYaw(entity.getYaw()+180);
+            if(identity instanceof EnderDragon dragonIdentity){
+                identity.setYRot(entity.getYRot()+180);
             }else{
-                identity.setYaw(entity.getYaw());
+                identity.setYRot(entity.getYRot());
             }
             ((EntityAccessor)identity).setLastPosition(
-                ((Entity)entity).getLastRenderPos()
+                ((Entity)entity).oldPosition()
             );
             if((identity instanceof LivingEntity livingIdentity)&&(entity instanceof LivingEntity livingEntity)){
                 if(livingIdentity.isJumping()!=livingEntity.isJumping()){
                     livingIdentity.setJumping(livingEntity.isJumping());
                 }
-            LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.limbAnimator;
-            LimbAnimatorAccessor source = (LimbAnimatorAccessor) livingEntity.limbAnimator;
+            LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.walkAnimation;
+            LimbAnimatorAccessor source = (LimbAnimatorAccessor) livingEntity.walkAnimation;
 
             target.setPrevSpeed(source.getPrevSpeed());
             target.setSpeed(source.getSpeed());
             //target.setPos(source.getPos());
 
-            livingIdentity.handSwinging = livingEntity.handSwinging;//LivingEntity only
-            livingIdentity.handSwingTicks = livingEntity.handSwingTicks;//living only
-            livingIdentity.lastHandSwingProgress = livingEntity.lastHandSwingProgress;//living only
-            livingIdentity.handSwingProgress = livingEntity.handSwingProgress;//living only
-            if((livingIdentity instanceof net.minecraft.entity.mob.ShulkerEntity)==false){
-                livingIdentity.bodyYaw = livingEntity.bodyYaw;//living only
-                livingIdentity.lastBodyYaw = livingEntity.lastBodyYaw;//living only
+            livingIdentity.swinging = livingEntity.swinging;//LivingEntity only
+            livingIdentity.swingTime = livingEntity.swingTime;//living only
+            livingIdentity.oAttackAnim = livingEntity.oAttackAnim;//living only
+            livingIdentity.attackAnim = livingEntity.attackAnim;//living only
+            if((livingIdentity instanceof net.minecraft.world.entity.monster.Shulker)==false){
+                livingIdentity.yBodyRot = livingEntity.yBodyRot;//living only
+                livingIdentity.yBodyRotO = livingEntity.yBodyRotO;//living only
             }
-            livingIdentity.headYaw = livingEntity.headYaw;//living only
-            livingIdentity.lastHeadYaw = livingEntity.lastHeadYaw;//living only
-            livingIdentity.preferredHand = livingEntity.preferredHand;//livingonly
-            livingIdentity.setCurrentHand(livingEntity.getActiveHand());//living only
+            livingIdentity.yHeadRot = livingEntity.yHeadRot;//living only
+            livingIdentity.yHeadRotO = livingEntity.yHeadRotO;//living only
+            livingIdentity.swingingArm = livingEntity.swingingArm;//livingonly
+            livingIdentity.startUsingItem(livingEntity.getUsedItemHand());//living only
             }
-            identity.age = ((Entity)entity).age;//all
-            identity.setOnGround(((Entity)entity).isOnGround());//all entities
-            identity.setVelocity(((Entity)entity).getVelocity());//all entities
-            identity.setSneaking(((Entity)entity).isSneaking());//all entities
+            identity.tickCount = ((Entity)entity).tickCount;//all
+            identity.setOnGround(((Entity)entity).onGround());//all entities
+            identity.setDeltaMovement(((Entity)entity).getDeltaMovement());//all entities
+            identity.setShiftKeyDown(((Entity)entity).isShiftKeyDown());//all entities
             identity.setSprinting(((Entity)entity).isSprinting());//all entities
             identity.setSwimming(((Entity)entity).isSwimming());//all entities
             identity.setPose(((Entity)entity).getPose());//all entities
 
             ((EntityAccessor) identity).setVehicle(((Entity)entity).getVehicle());
-            ((EntityAccessor) identity).setTouchingWater(((Entity)entity).isTouchingWater());
+            ((EntityAccessor) identity).setTouchingWater(((Entity)entity).isInWater());
 
-            if (identity instanceof PhantomEntity) {
-                identity.setPitch(-((Entity)entity).getPitch());
-                identity.lastPitch = -((Entity)entity).lastPitch;//used to be prevPitch
-            } else if((identity instanceof net.minecraft.entity.mob.ShulkerEntity)==false){
-                identity.setPitch(((Entity)entity).getPitch());
-                identity.lastPitch = ((Entity)entity).lastPitch;
+            if (identity instanceof Phantom) {
+                identity.setXRot(-((Entity)entity).getXRot());
+                identity.xRotO = -((Entity)entity).xRotO;//used to be prevPitch
+            } else if((identity instanceof net.minecraft.world.entity.monster.Shulker)==false){
+                identity.setXRot(((Entity)entity).getXRot());
+                identity.xRotO = ((Entity)entity).xRotO;
             }
             //living only
             if((entity instanceof LivingEntity livingEntity)&&(identity instanceof LivingEntity livingIdentity)){
                 //if (IdentityConfig.getInstance().identitiesEquipItems()) {
-                    livingIdentity.equipStack(EquipmentSlot.MAINHAND, livingEntity.getEquippedStack(EquipmentSlot.MAINHAND));
-                    livingIdentity.equipStack(EquipmentSlot.OFFHAND, livingEntity.getEquippedStack(EquipmentSlot.OFFHAND));
+                    livingIdentity.setItemSlot(EquipmentSlot.MAINHAND, livingEntity.getItemBySlot(EquipmentSlot.MAINHAND));
+                    livingIdentity.setItemSlot(EquipmentSlot.OFFHAND, livingEntity.getItemBySlot(EquipmentSlot.OFFHAND));
                 //}
 
                 //if (IdentityConfig.getInstance().identitiesEquipArmor()) {
-                    livingIdentity.equipStack(EquipmentSlot.HEAD, livingEntity.getEquippedStack(EquipmentSlot.HEAD));
-                    livingIdentity.equipStack(EquipmentSlot.CHEST, livingEntity.getEquippedStack(EquipmentSlot.CHEST));
-                    livingIdentity.equipStack(EquipmentSlot.LEGS, livingEntity.getEquippedStack(EquipmentSlot.LEGS));
-                    livingIdentity.equipStack(EquipmentSlot.FEET, livingEntity.getEquippedStack(EquipmentSlot.FEET));
+                    livingIdentity.setItemSlot(EquipmentSlot.HEAD, livingEntity.getItemBySlot(EquipmentSlot.HEAD));
+                    livingIdentity.setItemSlot(EquipmentSlot.CHEST, livingEntity.getItemBySlot(EquipmentSlot.CHEST));
+                    livingIdentity.setItemSlot(EquipmentSlot.LEGS, livingEntity.getItemBySlot(EquipmentSlot.LEGS));
+                    livingIdentity.setItemSlot(EquipmentSlot.FEET, livingEntity.getItemBySlot(EquipmentSlot.FEET));
                 //}
             }
 
             if(entity instanceof LivingEntity){
-                if (identity instanceof MobEntity) {
-                    ((MobEntity) identity).setAttacking(((LivingEntity)entity).isUsingItem());
+                if (identity instanceof Mob) {
+                    ((Mob) identity).setAggressive(((LivingEntity)entity).isUsingItem());
                 }
             }
 
@@ -161,22 +145,22 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
             }*/
 
 
-                identity.setOnFire(entity.isOnFire());
+                identity.setSharedFlagOnFire(entity.isOnFire());
                 }
                 EntityRenderState oldState=entityRenderState;
                 entityRenderState=renderer.createRenderState();
                 //entityRenderState.onFire=oldState.onFire;
 
 
-                renderer.updateRenderState(((EntityAccessor)entity).getCurrentIdentity(),entityRenderState,tickProgress);
+                renderer.extractRenderState(((EntityAccessor)entity).getCurrentIdentity(),entityRenderState,tickProgress);
                         //currentRenderer.updateRenderState(entity,entityRenderState,tickProgress);
                     }
                 }
             }
         }
-        NbtCompound nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
         boolean hasHiddenPartOverrides = false;
-        for (String key : nbt.getKeys()) {
+        for (String key : nbt.keySet()) {
             if (key.startsWith("hidden_parts.")) {
                 hasHiddenPartOverrides = true;
                 break;
@@ -184,29 +168,29 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
         }
 
         boolean shouldHideHead = false;
-        if (MinecraftClient.getInstance().player != null) {
-            Entity playerIdentity = ((EntityAccessor) MinecraftClient.getInstance().player).getCurrentIdentity();
-            shouldHideHead = playerIdentity instanceof ShulkerEntity;
+        if (Minecraft.getInstance().player != null) {
+            Entity playerIdentity = ((EntityAccessor) Minecraft.getInstance().player).getCurrentIdentity();
+            shouldHideHead = playerIdentity instanceof Shulker;
         }
 
         if (hasHiddenPartOverrides || shouldHideHead) {
-            net.minecraft.client.render.entity.model.EntityModel model = Identity2Client.getModel(entity);
+            net.minecraft.client.model.EntityModel model = Identity2Client.getModel(entity);
             if (model != null) {
                 if (hasHiddenPartOverrides) {
-                    for (String key : nbt.getKeys()) {
+                    for (String key : nbt.keySet()) {
                         if (key.startsWith("hidden_parts.")) {
-                            ModelPart part = model.getRootPart().createPartGetter().apply(key.substring(13));
+                            ModelPart part = model.root().createPartLookup().apply(key.substring(13));
                             if (part != null) {
-                                part.hidden = nbt.getBoolean(key, false);
+                                part.skipDraw = nbt.getBooleanOr(key, false);
                             }
                         }
                     }
                 }
 
                 if (shouldHideHead) {
-                    ModelPart head = model.getRootPart().createPartGetter().apply("head");
+                    ModelPart head = model.root().createPartLookup().apply("head");
                     if (head != null) {
-                        head.hidden = true;
+                        head.skipDraw = true;
                         head.xScale = 0;
                     }
                 }

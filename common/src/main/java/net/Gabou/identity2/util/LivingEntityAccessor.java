@@ -1,7 +1,7 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.damagesource.DamageSource;
 import org.jetbrains.annotations.Nullable;
 
 public interface LivingEntityAccessor {

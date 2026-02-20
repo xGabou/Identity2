@@ -16,7 +16,10 @@ public final class Identity2 {
             return;
         }
         initialized = true;
-        ModBlocks.initialize();
+        // NeoForge 1.21.11 freezes built-in registries before this point.
+        // ModBlocks currently performs direct static registration into built-ins,
+        // so defer this bootstrap until it is ported to platform-safe registration.
+        // ModBlocks.initialize();
         ModEffects.initialize();
         ModComponents.initialize();
         ModRegistries.init();

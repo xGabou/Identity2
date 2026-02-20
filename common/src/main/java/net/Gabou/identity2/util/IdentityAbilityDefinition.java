@@ -1,11 +1,11 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.item.Item;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 
 public record IdentityAbilityDefinition(
-    RegistryEntry<Item> icon,
+    Holder<Item> icon,
     String command,
     int cooldown,
     int useduration,

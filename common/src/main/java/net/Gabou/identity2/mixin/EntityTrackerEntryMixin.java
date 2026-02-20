@@ -8,28 +8,28 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.entity.Entity;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.network.EntityTrackerEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(EntityTrackerEntry.class)
+@Mixin(ServerEntity.class)
 public class EntityTrackerEntryMixin {
     @Shadow
     private Entity entity;
 
-    @Inject(method = "startTracking", at = @At("TAIL"))
-    private void sendCustomDataPackets(ServerPlayerEntity player, CallbackInfo info) {
+    @Inject(method = "addPairing", at = @At("TAIL"))
+    private void sendCustomDataPackets(ServerPlayer player, CallbackInfo info) {
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleValues = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringValues = new ArrayList<>(0);
-        NbtCompound data = ((NbtComponentAccessor) (Object) ((EntityAccessor) this.entity).getCustomData()).getNbt();
+        CompoundTag data = ((NbtComponentAccessor) (Object) ((EntityAccessor) this.entity).getCustomData()).getNbt();
 
-        for (String key : data.getKeys()) {
+        for (String key : data.keySet()) {
             Optional<String> strKey = data.getString(key);
             if (strKey.isPresent()) {
                 stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, strKey.get()));

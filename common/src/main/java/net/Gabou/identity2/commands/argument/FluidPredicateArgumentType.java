@@ -13,33 +13,29 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.pattern.CachedBlockPosition;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.registry.entry.RegistryEntryList;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.state.property.Property;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.pattern.BlockInWorld;
+import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.material.FluidState;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.command.argument.BlockArgumentParser;
 
 public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateArgumentType.FluidPredicate> {
 	
 	private static final Collection<String> EXAMPLES = Arrays.asList("water", "minecraft:water", "#water");
-	private final RegistryWrapper<Block> registryWrapper;
+	private final HolderLookup<Block> registryWrapper;
 
-	public FluidPredicateArgumentType(CommandRegistryAccess commandRegistryAccess) {
-		this.registryWrapper = commandRegistryAccess.getOrThrow(RegistryKeys.BLOCK);
+	public FluidPredicateArgumentType(CommandBuildContext commandRegistryAccess) {
+		this.registryWrapper = commandRegistryAccess.lookupOrThrow(Registries.BLOCK);
 	}
 
-	public static FluidPredicateArgumentType fluidPredicate(CommandRegistryAccess commandRegistryAccess) {
+	public static FluidPredicateArgumentType fluidPredicate(CommandBuildContext commandRegistryAccess) {
 		return new FluidPredicateArgumentType(commandRegistryAccess);
 	}
 
@@ -47,21 +43,21 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		return parse(this.registryWrapper, stringReader);
 	}
 
-	public static FluidPredicateArgumentType.FluidPredicate parse(RegistryWrapper<Block> registryWrapper, StringReader reader) throws CommandSyntaxException {//finish
-		return BlockArgumentParser.blockOrTag(registryWrapper, reader, true)
+	public static FluidPredicateArgumentType.FluidPredicate parse(HolderLookup<Block> registryWrapper, StringReader reader) throws CommandSyntaxException {//finish
+		return BlockStateParser.parseForTesting(registryWrapper, reader, true)
 			.map(
 				result -> new FluidPredicateArgumentType.StatePredicate(result.blockState().getFluidState(), result.properties().keySet(), result.nbt()),
 				result -> new FluidPredicateArgumentType.TagPredicate(result.tag(), result.vagueProperties(), result.nbt())
 			);
 	}
 
-	public static Predicate<CachedBlockPosition> getFluidPredicate(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
+	public static Predicate<BlockInWorld> getFluidPredicate(CommandContext<CommandSourceStack> context, String name) throws CommandSyntaxException {
 		return context.getArgument(name, FluidPredicateArgumentType.FluidPredicate.class);
 	}
 
 	@Override
 	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-		return BlockArgumentParser.getSuggestions(this.registryWrapper, builder, true, true);
+		return BlockStateParser.fillSuggestions(this.registryWrapper, builder, true, true);
 	}
 
 	@Override
@@ -69,7 +65,7 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		return EXAMPLES;
 	}
 
-	public interface FluidPredicate extends Predicate<CachedBlockPosition> {
+	public interface FluidPredicate extends Predicate<BlockInWorld> {
 		boolean hasNbt();
 	}
 
@@ -77,17 +73,17 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		private final FluidState state;
 		private final Set<Property<?>> properties;
 		@Nullable
-		private final NbtCompound nbt;
+		private final CompoundTag nbt;
 
-		public StatePredicate(FluidState state, Set<Property<?>> properties, @Nullable NbtCompound nbt) {
+		public StatePredicate(FluidState state, Set<Property<?>> properties, @Nullable CompoundTag nbt) {
 			this.state = state;
 			this.properties = properties;
 			this.nbt = nbt;
 		}
 
-		public boolean test(CachedBlockPosition cachedBlockPosition) {
-			FluidState fluidState = cachedBlockPosition.getBlockState().getFluidState();
-			if (!fluidState.isOf(this.state.getFluid())) {
+		public boolean test(BlockInWorld cachedBlockPosition) {
+			FluidState fluidState = cachedBlockPosition.getState().getFluidState();
+			if (!fluidState.is(this.state.getType())) {
 				return false;
 			} else {
 				/*for (Property<?> property : this.properties) {
@@ -157,18 +153,18 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		}
 	}*/
 	static class TagPredicate implements FluidPredicateArgumentType.FluidPredicate {
-		private final RegistryEntryList<Block> tag;
+		private final HolderSet<Block> tag;
 		@Nullable
-		private final NbtCompound nbt;
+		private final CompoundTag nbt;
 		private final Map<String, String> properties;
 
-		TagPredicate(RegistryEntryList<Block> tag, Map<String, String> properties, @Nullable NbtCompound nbt) {
+		TagPredicate(HolderSet<Block> tag, Map<String, String> properties, @Nullable CompoundTag nbt) {
 			this.tag = tag;
 			this.properties = properties;
 			this.nbt = nbt;
 		}
 
-		public boolean test(CachedBlockPosition cachedBlockPosition) {
+		public boolean test(BlockInWorld cachedBlockPosition) {
 			return false;
 		}
 

@@ -1,5 +1,7 @@
 {
-	"description": "Soulbound",
+	"description": {
+		"text": "Soulbound"
+	},
 	"supported_items": [
 		"minecraft:stick"
 	],
@@ -19,6 +21,6 @@
 		"any"
 	],
 	"effects": {
-		"minecraft:keep_on_death": {}
+		"minecraft:prevent_equipment_drop": {}
 	}
 }

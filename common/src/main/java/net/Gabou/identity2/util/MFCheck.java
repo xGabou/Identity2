@@ -3,9 +3,6 @@ package net.Gabou.identity2.util;
 import org.objectweb.asm.*;
 import java.io.IOException;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Opcodes;
-
 public class MFCheck {
     public static boolean isMethodEmpty(Class<?> clazz, String methodName) throws IOException {
         ClassReader reader = new ClassReader(clazz.getName());

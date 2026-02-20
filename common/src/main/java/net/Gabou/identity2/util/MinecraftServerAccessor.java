@@ -1,7 +1,7 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.server.function.CommandFunctionManager;
+import net.minecraft.server.ServerFunctionManager;
 
 public interface MinecraftServerAccessor {
-    CommandFunctionManager getCommandFunctionManager();
+    ServerFunctionManager getCommandFunctionManager();
 }

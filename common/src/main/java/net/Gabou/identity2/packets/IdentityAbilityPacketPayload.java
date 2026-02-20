@@ -1,21 +1,21 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record IdentityAbilityPacketPayload(int entityid) implements CustomPayload {
-    public static final CustomPayload.Id<IdentityAbilityPacketPayload> ID = new CustomPayload.Id<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);
-    public static final PacketCodec<RegistryByteBuf, IdentityAbilityPacketPayload> CODEC = PacketCodec.tuple(
-        PacketCodecs.VAR_INT,
+public record IdentityAbilityPacketPayload(int entityid) implements CustomPacketPayload {
+    public static final CustomPacketPayload.Type<IdentityAbilityPacketPayload> ID = new CustomPacketPayload.Type<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);
+    public static final StreamCodec<RegistryFriendlyByteBuf, IdentityAbilityPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.VAR_INT,
         IdentityAbilityPacketPayload::entityid,
         IdentityAbilityPacketPayload::new
     );
 
     @Override
-    public CustomPayload.Id<? extends CustomPayload> getId() {
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

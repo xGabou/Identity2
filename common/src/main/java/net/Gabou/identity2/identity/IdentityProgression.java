@@ -18,19 +18,19 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.command.argument.NbtCompoundArgumentType;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.item.component.CustomData;
 
 public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
@@ -58,23 +58,23 @@ public final class IdentityProgression {
         EntityEvent.LIVING_DEATH.register(IdentityProgression::onLivingDeath);
     }
 
-    public static List<String> getUnlockedIdentities(ServerPlayerEntity player) {
+    public static List<String> getUnlockedIdentities(ServerPlayer player) {
         ensureClientUnlockCache(player);
-        return new ArrayList<>(getCustomData(player).get(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
+        return new ArrayList<>(getCustomData(player).read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
     }
 
-    public static boolean isUnlocked(ServerPlayerEntity player, Identifier identityId) {
+    public static boolean isUnlocked(ServerPlayer player, Identifier identityId) {
         return getUnlockedIdentities(player).contains(identityId.toString());
     }
 
     public static boolean isMorphableIdentity(Identifier identityId) {
-        if (identityId == null || !Registries.ENTITY_TYPE.containsId(identityId)) {
+        if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
         }
         if (isIdentityTemporarilyDisabled(identityId)) {
             return false;
         }
-        return isMorphableType(Registries.ENTITY_TYPE.get(identityId));
+        return isMorphableType(BuiltInRegistries.ENTITY_TYPE.getValue(identityId));
     }
 
     public static boolean isIdentityTemporarilyDisabled(Identifier identityId) {
@@ -101,7 +101,7 @@ public final class IdentityProgression {
         if (entityType == null || entityType == EntityType.PLAYER) {
             return false;
         }
-        if (entityType.getSpawnGroup() == SpawnGroup.MISC) {
+        if (entityType.getCategory() == MobCategory.MISC) {
             return false;
         }
         // 1.21.11 mappings return Entity.class from EntityType#getBaseClass(),
@@ -109,16 +109,16 @@ public final class IdentityProgression {
         return true;
     }
 
-    public static void morph(ServerPlayerEntity player, Identifier identityId) {
-        morph(player, identityId, new NbtCompound());
+    public static void morph(ServerPlayer player, Identifier identityId) {
+        morph(player, identityId, new CompoundTag());
     }
 
-    public static void morph(ServerPlayerEntity player, Identifier identityId, NbtCompound variantNbt) {
-        NbtComponent customData = ((EntityAccessor) player).getCustomData();
+    public static void morph(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+        CustomData customData = ((EntityAccessor) player).getCustomData();
         String value = identityId.toString();
-        NbtCompound safeVariant = variantNbt == null ? new NbtCompound() : variantNbt.copy();
+        CompoundTag safeVariant = variantNbt == null ? new CompoundTag() : variantNbt.copy();
         String serializedVariant = serializeVariantNbt(safeVariant);
-        NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
         nbt.putString("model_override", value);
         nbt.putString(SELECTED_IDENTITY_TYPE_KEY, value);
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant);
@@ -137,7 +137,7 @@ public final class IdentityProgression {
             return;
         }
 
-        net.minecraft.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
+        net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
         widthOverride = identityDimensions.width();
         heightOverride = identityDimensions.height();
 
@@ -147,17 +147,17 @@ public final class IdentityProgression {
 
         float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
         float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
-        ((EntityAccessor) player).setEntityDimensions(identityDimensions.scaled(widthScale, heightScale));
-        ((EntityAccessor) player).setStandingEyeHeight(identity.getStandingEyeHeight());
+        ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
+        ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
 
         nbt.putDouble("width_override", widthOverride);
         nbt.putDouble("height_override", heightOverride);
         syncMorphData(player, value, serializedVariant, widthOverride, heightOverride);
     }
 
-    public static void clearMorph(ServerPlayerEntity player) {
-        NbtComponent customData = ((EntityAccessor) player).getCustomData();
-        NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+    public static void clearMorph(ServerPlayer player) {
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(SELECTED_IDENTITY_TYPE_KEY, "");
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
@@ -165,28 +165,91 @@ public final class IdentityProgression {
         nbt.putDouble("height_override", 0.0);
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
-        ((EntityAccessor) player).setStandingEyeHeight(player.getStandingEyeHeight());
+        ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
         syncMorphData(player, "", "", 0.0, 0.0);
     }
 
-    public static void ensureClientUnlockCache(ServerPlayerEntity player) {
-        NbtCompound customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(customData.get(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
+    public static void restoreMorphFromSavedData(ServerPlayer player) {
+        CompoundTag nbt = getCustomData(player);
+        String type = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        if (type.isBlank()) {
+            type = nbt.getStringOr("model_override", "");
+        }
+
+        if (type.isBlank()) {
+            nbt.putString("model_override", "");
+            nbt.putString(SELECTED_IDENTITY_TYPE_KEY, "");
+            nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
+            nbt.putDouble("width_override", 0.0);
+            nbt.putDouble("height_override", 0.0);
+            ((EntityAccessor) player).setCurrentIdentity("");
+            ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
+            ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            return;
+        }
+
+        CompoundTag variant = parseVariantNbt(nbt.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, ""));
+        ((EntityAccessor) player).setCurrentIdentity(type, variant);
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity == null) {
+            nbt.putDouble("width_override", 0.0);
+            nbt.putDouble("height_override", 0.0);
+            ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
+            ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            return;
+        }
+
+        net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
+        double widthOverride = identityDimensions.width();
+        double heightOverride = identityDimensions.height();
+
+        if (identity.getType() == EntityType.SHEEP) {
+            widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
+        }
+
+        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
+        ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
+
+        nbt.putString("model_override", type);
+        nbt.putString(SELECTED_IDENTITY_TYPE_KEY, type);
+        nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializeVariantNbt(variant));
+        nbt.putDouble("width_override", widthOverride);
+        nbt.putDouble("height_override", heightOverride);
+    }
+
+    public static void restoreMorphFromSavedDataAndSync(ServerPlayer player) {
+        restoreMorphFromSavedData(player);
+        CompoundTag nbt = getCustomData(player);
+        String modelOverride = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        if (modelOverride.isBlank()) {
+            modelOverride = nbt.getStringOr("model_override", "");
+        }
+        String variant = nbt.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, "");
+        double widthOverride = nbt.getDoubleOr("width_override", 0.0);
+        double heightOverride = nbt.getDoubleOr("height_override", 0.0);
+        syncMorphData(player, modelOverride, variant, widthOverride, heightOverride);
+    }
+
+    public static void ensureClientUnlockCache(ServerPlayer player) {
+        CompoundTag customData = getCustomData(player);
+        List<String> unlocked = new ArrayList<>(customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
     }
 
     private static EventResult onLivingDeath(LivingEntity killed, DamageSource source) {
-        if (!IdentitySettings.enableIdentityKillUnlocks || killed.getEntityWorld().isClient()) {
+        if (!IdentitySettings.enableIdentityKillUnlocks || killed.level().isClientSide()) {
             return EventResult.pass();
         }
 
-        Entity attacker = source.getAttacker();
-        ServerPlayerEntity player = null;
-        if (attacker instanceof ServerPlayerEntity directPlayer) {
+        Entity attacker = source.getEntity();
+        ServerPlayer player = null;
+        if (attacker instanceof ServerPlayer directPlayer) {
             player = directPlayer;
         } else if (attacker != null) {
             Entity owner = ((EntityAccessor) attacker).getIdentityOwner();
-            if (owner instanceof ServerPlayerEntity ownerPlayer) {
+            if (owner instanceof ServerPlayer ownerPlayer) {
                 player = ownerPlayer;
             }
         }
@@ -195,7 +258,7 @@ public final class IdentityProgression {
             return EventResult.pass();
         }
 
-        Identifier identityId = Registries.ENTITY_TYPE.getId(killed.getType());
+        Identifier identityId = BuiltInRegistries.ENTITY_TYPE.getKey(killed.getType());
         if (!isMorphableIdentity(identityId)) {
             return EventResult.pass();
         }
@@ -207,23 +270,23 @@ public final class IdentityProgression {
         }
 
         if (unlockIdentity(player, identityId)) {
-            player.sendMessage(Text.literal("Unlocked identity: " + identityId), false);
+            player.displayClientMessage(Component.literal("Unlocked identity: " + identityId), false);
             Identity2.LOGGER.info("Unlocked identity {} for {}", identityId, player.getName().getString());
         }
 
         return EventResult.pass();
     }
 
-    private static int incrementKillCount(ServerPlayerEntity player, Identifier identityId) {
-        NbtCompound nbt = getCustomData(player);
-        Map<String, Integer> killMap = new HashMap<>(nbt.get(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+    private static int incrementKillCount(ServerPlayer player, Identifier identityId) {
+        CompoundTag nbt = getCustomData(player);
+        Map<String, Integer> killMap = new HashMap<>(nbt.read(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
         int kills = killMap.getOrDefault(identityId.toString(), 0) + 1;
         killMap.put(identityId.toString(), kills);
-        nbt.put(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, killMap);
+        nbt.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, killMap);
         return kills;
     }
 
-    private static boolean unlockIdentity(ServerPlayerEntity player, Identifier identityId) {
+    private static boolean unlockIdentity(ServerPlayer player, Identifier identityId) {
         List<String> unlocked = getUnlockedIdentities(player);
         String key = identityId.toString();
         if (unlocked.contains(key)) {
@@ -231,8 +294,8 @@ public final class IdentityProgression {
         }
 
         unlocked.add(key);
-        NbtCompound customData = getCustomData(player);
-        customData.put(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
+        CompoundTag customData = getCustomData(player);
+        customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
         NetworkManager.sendToPlayer(
             player,
@@ -254,7 +317,7 @@ public final class IdentityProgression {
         return String.join(",", sorted);
     }
 
-    private static void syncMorphData(ServerPlayerEntity player, String modelOverride, String variant, double widthOverride, double heightOverride) {
+    private static void syncMorphData(ServerPlayer player, String modelOverride, String variant, double widthOverride, double heightOverride) {
         CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
             player.getId(),
             List.of(
@@ -273,8 +336,8 @@ public final class IdentityProgression {
 
         NetworkManager.sendToPlayer(player, modelPayload);
         NetworkManager.sendToPlayer(player, shapePayload);
-        if (player.getEntityWorld() instanceof ServerWorld serverWorld) {
-            for (ServerPlayerEntity other : serverWorld.getPlayers()) {
+        if (player.level() instanceof ServerLevel serverWorld) {
+            for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
                     NetworkManager.sendToPlayer(other, modelPayload);
                     NetworkManager.sendToPlayer(other, shapePayload);
@@ -283,26 +346,26 @@ public final class IdentityProgression {
         }
     }
 
-    private static NbtCompound getCustomData(ServerPlayerEntity player) {
-        NbtComponent customData = ((EntityAccessor) player).getCustomData();
+    private static CompoundTag getCustomData(ServerPlayer player) {
+        CustomData customData = ((EntityAccessor) player).getCustomData();
         return ((NbtComponentAccessor) (Object) customData).getNbt();
     }
 
-    public static String serializeVariantNbt(NbtCompound variantNbt) {
+    public static String serializeVariantNbt(CompoundTag variantNbt) {
         if (variantNbt == null || variantNbt.isEmpty()) {
             return "";
         }
         return variantNbt.copy().toString();
     }
 
-    public static NbtCompound parseVariantNbt(String raw) {
+    public static CompoundTag parseVariantNbt(String raw) {
         if (raw == null || raw.isBlank()) {
-            return new NbtCompound();
+            return new CompoundTag();
         }
         try {
-            return NbtCompoundArgumentType.nbtCompound().parse(new StringReader(raw));
+            return CompoundTagArgument.compoundTag().parse(new StringReader(raw));
         } catch (Exception ignored) {
-            return new NbtCompound();
+            return new CompoundTag();
         }
     }
 }

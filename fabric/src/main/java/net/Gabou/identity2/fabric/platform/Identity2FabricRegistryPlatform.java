@@ -5,7 +5,7 @@ import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 import net.fabricmc.fabric.api.event.registry.DynamicRegistrySetupCallback;
-import net.minecraft.registry.Registry;
+import net.minecraft.core.Registry;
 
 public final class Identity2FabricRegistryPlatform implements ModRegistryPlatform {
     private static boolean callbackRegistered = false;
@@ -22,7 +22,7 @@ public final class Identity2FabricRegistryPlatform implements ModRegistryPlatfor
 
         DynamicRegistrySetupCallback.EVENT.register(registryView -> {
             for (Registry<?> entry : registryView.stream().toList()) {
-                if (entry.getKey().equals(ModRegistries.IDENTITY_ABILITY_KEY)) {
+                if (entry.key().equals(ModRegistries.IDENTITY_ABILITY_KEY)) {
                     ModRegistries.identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) entry;
                     return;
                 }

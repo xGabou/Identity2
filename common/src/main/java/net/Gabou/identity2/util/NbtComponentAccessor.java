@@ -1,7 +1,7 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 
 public interface NbtComponentAccessor {
-    NbtCompound getNbt();
+    CompoundTag getNbt();
 }

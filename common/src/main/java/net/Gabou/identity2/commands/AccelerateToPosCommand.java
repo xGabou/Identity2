@@ -4,58 +4,54 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.command.argument.EntityArgumentType;
-//import net.minecraft.command.argument.RegistryEntryReferenceArgumentType;
-import net.minecraft.command.argument.Vec3ArgumentType;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.command.CommandSource;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 
 
 
 public class AccelerateToPosCommand {
-	private static final SimpleCommandExceptionType INVULNERABLE_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.damage.invulnerable"));
+	private static final SimpleCommandExceptionType INVULNERABLE_EXCEPTION = new SimpleCommandExceptionType(Component.translatable("commands.damage.invulnerable"));
 
-	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(
-			CommandManager.literal("acceleratetopos")
-				.requires(CommandManager.requirePermissionLevel(CommandManager.ADMINS_CHECK))
+			Commands.literal("acceleratetopos")
+				.requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
 				.then(
-					CommandManager.argument("target", EntityArgumentType.entity())
+					Commands.argument("target", EntityArgument.entity())
 						.then(
-							CommandManager.argument("pos", Vec3ArgumentType.vec3())
+							Commands.argument("pos", Vec3Argument.vec3())
 						    
                                         .executes(
                                             context -> execute(
                                                 context.getSource(),
-                                                EntityArgumentType.getEntity(context, "target"),
-                                                Vec3ArgumentType.getVec3(context,"pos"),
+                                                EntityArgument.getEntity(context, "target"),
+                                                Vec3Argument.getVec3(context,"pos"),
 												1.0F,
 												0.0F
                                             )
                                         )
-							.then(CommandManager.argument("mult", FloatArgumentType.floatArg())
+							.then(Commands.argument("mult", FloatArgumentType.floatArg())
 									 .executes(
                                             context -> execute(
                                                 context.getSource(),
-                                                EntityArgumentType.getEntity(context, "target"),
-                                                Vec3ArgumentType.getVec3(context,"pos"),
+                                                EntityArgument.getEntity(context, "target"),
+                                                Vec3Argument.getVec3(context,"pos"),
                                                 FloatArgumentType.getFloat(context,"mult"),
 												0.0F
                                             )
                                         )
-								  .then(CommandManager.argument("antimult", FloatArgumentType.floatArg())
+								  .then(Commands.argument("antimult", FloatArgumentType.floatArg())
 									 .executes(
                                             context -> execute(
                                                 context.getSource(),
-                                                EntityArgumentType.getEntity(context, "target"),
-                                                Vec3ArgumentType.getVec3(context,"pos"),
+                                                EntityArgument.getEntity(context, "target"),
+                                                Vec3Argument.getVec3(context,"pos"),
                                                 FloatArgumentType.getFloat(context,"mult"),
 												FloatArgumentType.getFloat(context,"antimult")
                                             )
@@ -70,10 +66,10 @@ public class AccelerateToPosCommand {
 		);
 	}
 
-	private static int execute(CommandSource source, Entity target, Vec3d xyz,float mult,float antimult) throws CommandSyntaxException {
-		Vec3d pos=target.getEntityPos();
-		target.setVelocity(target.getVelocity().multiply(antimult).add(xyz.subtract(pos).multiply(mult)));
-        target.velocityDirty=true;
+	private static int execute(SharedSuggestionProvider source, Entity target, Vec3 xyz,float mult,float antimult) throws CommandSyntaxException {
+		Vec3 pos=target.position();
+		target.setDeltaMovement(target.getDeltaMovement().scale(antimult).add(xyz.subtract(pos).scale(mult)));
+        target.needsSync=true;
 		//if (target.damage(source.getWorld(), damageSource, amount)) {
 			//source.sendFeedback(() -> Text.translatable("commands.damage.success", amount, target.getDisplayName()), true);
 			//return 1;

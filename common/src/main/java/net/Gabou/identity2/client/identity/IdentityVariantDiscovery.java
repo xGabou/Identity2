@@ -7,17 +7,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.identity.IdentityVariant;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.storage.NbtReadView;
-import net.minecraft.storage.NbtWriteView;
-import net.minecraft.storage.ReadView;
-import net.minecraft.util.DyeColor;
-import net.minecraft.util.ErrorReporter;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
 
 public final class IdentityVariantDiscovery {
     private static final List<String> CANDIDATE_KEYS = List.of("Color", "Variant", "variant", "Type", "type", "Skin", "skin", "Form", "form");
@@ -27,13 +27,13 @@ public final class IdentityVariantDiscovery {
     private IdentityVariantDiscovery() {
     }
 
-    public static List<IdentityVariant> discover(EntityType<?> type, ClientWorld world) {
+    public static List<IdentityVariant> discover(EntityType<?> type, ClientLevel world) {
         if (type == null || world == null) {
             return List.of(defaultVariant(type));
         }
 
         try {
-            Identifier typeId = EntityType.getId(type);
+            Identifier typeId = EntityType.getKey(type);
             if (typeId == null) {
                 return List.of(defaultVariant(type));
             }
@@ -54,14 +54,14 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId, ClientWorld world) {
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         if (type == EntityType.SHEEP) {
             List<IdentityVariant> variants = new ArrayList<>(16);
             for (int i = 0; i < 16; i++) {
-                NbtCompound nbt = new NbtCompound();
+                CompoundTag nbt = new CompoundTag();
                 nbt.putByte("Color", (byte) i);
-                DyeColor color = DyeColor.byIndex(i);
-                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getId()), nbt));
+                DyeColor color = DyeColor.byId(i);
+                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
             }
             return variants;
         }
@@ -70,7 +70,7 @@ public final class IdentityVariantDiscovery {
             List<IdentityVariant> variants = new ArrayList<>(5);
             String[] names = {"Lucy", "Wild", "Gold", "Cyan", "Blue"};
             for (int i = 0; i < names.length; i++) {
-                NbtCompound nbt = new NbtCompound();
+                CompoundTag nbt = new CompoundTag();
                 nbt.putInt("Variant", i);
                 variants.add(new IdentityVariant(typeId, "Axolotl " + names[i], nbt));
             }
@@ -87,7 +87,7 @@ public final class IdentityVariantDiscovery {
         return List.of();
     }
 
-    private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, Identifier typeId, ClientWorld world) {
+    private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Set<String> keys = Set.of("variant", "Variant");
         Map<String, IdentityVariant> out = new LinkedHashMap<>();
         for (int i = 0; i < MAX_CAT_SAMPLES; i++) {
@@ -96,17 +96,17 @@ public final class IdentityVariantDiscovery {
                 continue;
             }
 
-            NbtCompound nbt = writeEntityData(entity, world);
+            CompoundTag nbt = writeEntityData(entity, world);
             if (nbt == null) {
                 continue;
             }
 
             for (String key : keys) {
-                String value = nbt.getString(key, "");
+                String value = nbt.getStringOr(key, "");
                 if (value.isBlank()) {
                     continue;
                 }
-                NbtCompound variant = new NbtCompound();
+                CompoundTag variant = new CompoundTag();
                 variant.putString(key, value);
                 out.putIfAbsent(value, new IdentityVariant(typeId, "Cat " + capitalize(value), variant));
             }
@@ -115,13 +115,13 @@ public final class IdentityVariantDiscovery {
         return new ArrayList<>(out.values());
     }
 
-    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, Identifier typeId, ClientWorld world) {
+    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baseEntity = createEntity(type, world);
         if (baseEntity == null) {
             return List.of();
         }
 
-        NbtCompound baseline = writeEntityData(baseEntity, world);
+        CompoundTag baseline = writeEntityData(baseEntity, world);
         if (baseline == null || baseline.isEmpty()) {
             return List.of();
         }
@@ -139,7 +139,7 @@ public final class IdentityVariantDiscovery {
 
         List<IdentityVariant> variants = new ArrayList<>();
         for (int value = 0; value <= MAX_NUMERIC_VARIANT_VALUE; value++) {
-            NbtCompound probe = baseline.copy();
+            CompoundTag probe = baseline.copy();
             putNumeric(probe, key, numericKind, value);
 
             Entity candidate = createEntity(type, world);
@@ -150,12 +150,12 @@ public final class IdentityVariantDiscovery {
                 continue;
             }
 
-            NbtCompound roundTrip = writeEntityData(candidate, world);
+            CompoundTag roundTrip = writeEntityData(candidate, world);
             if (roundTrip == null || !matchesNumeric(roundTrip, key, numericKind, value)) {
                 continue;
             }
 
-            NbtCompound variant = new NbtCompound();
+            CompoundTag variant = new CompoundTag();
             putNumeric(variant, key, numericKind, value);
             String displayName = buildGenericDisplayName(typeId, key, value);
             variants.add(new IdentityVariant(typeId, displayName, variant));
@@ -164,7 +164,7 @@ public final class IdentityVariantDiscovery {
         return variants;
     }
 
-    private static String findCandidateKey(NbtCompound baseline) {
+    private static String findCandidateKey(CompoundTag baseline) {
         for (String key : CANDIDATE_KEYS) {
             if (baseline.contains(key)) {
                 return key;
@@ -175,35 +175,35 @@ public final class IdentityVariantDiscovery {
 
     private static String buildGenericDisplayName(Identifier typeId, String key, int value) {
         String entityName = capitalize(typeId.getPath().replace('_', ' '));
-        if ("Color".equals(key) && typeId.equals(EntityType.getId(EntityType.SHEEP))) {
-            DyeColor color = DyeColor.byIndex(value % 16);
-            return "Sheep " + capitalize(color.getId());
+        if ("Color".equals(key) && typeId.equals(EntityType.getKey(EntityType.SHEEP))) {
+            DyeColor color = DyeColor.byId(value % 16);
+            return "Sheep " + capitalize(color.getName());
         }
         return entityName + " " + key + " " + value;
     }
 
-    private static Entity createEntity(EntityType<?> type, ClientWorld world) {
+    private static Entity createEntity(EntityType<?> type, ClientLevel world) {
         try {
-            return type.create(world, SpawnReason.COMMAND);
+            return type.create(world, EntitySpawnReason.COMMAND);
         } catch (Throwable ignored) {
             return null;
         }
     }
 
-    private static NbtCompound writeEntityData(Entity entity, ClientWorld world) {
+    private static CompoundTag writeEntityData(Entity entity, ClientLevel world) {
         try {
-            NbtWriteView writeView = NbtWriteView.create(ErrorReporter.EMPTY, world.getRegistryManager());
-            entity.writeData(writeView);
-            return writeView.getNbt();
+            TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess());
+            entity.saveWithoutId(writeView);
+            return writeView.buildResult();
         } catch (Throwable ignored) {
             return null;
         }
     }
 
-    private static boolean readEntityData(Entity entity, ClientWorld world, NbtCompound nbt) {
+    private static boolean readEntityData(Entity entity, ClientLevel world, CompoundTag nbt) {
         try {
-            ReadView readView = NbtReadView.create(ErrorReporter.EMPTY, world.getRegistryManager(), nbt);
-            entity.readData(readView);
+            ValueInput readView = TagValueInput.create(ProblemReporter.DISCARDING, world.registryAccess(), nbt);
+            entity.load(readView);
             return true;
         } catch (Throwable ignored) {
             return false;
@@ -211,12 +211,12 @@ public final class IdentityVariantDiscovery {
     }
 
     private static IdentityVariant defaultVariant(EntityType<?> type) {
-        Identifier typeId = type == null ? Identifier.of("minecraft:pig") : EntityType.getId(type);
+        Identifier typeId = type == null ? Identifier.parse("minecraft:pig") : EntityType.getKey(type);
         return defaultVariant(typeId);
     }
 
     private static IdentityVariant defaultVariant(Identifier typeId) {
-        return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')), new NbtCompound());
+        return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')), new CompoundTag());
     }
 
     private static String capitalize(String text) {
@@ -242,7 +242,7 @@ public final class IdentityVariantDiscovery {
         return out.toString();
     }
 
-    private static NumericKind detectNumericKind(NbtCompound nbt, String key) {
+    private static NumericKind detectNumericKind(CompoundTag nbt, String key) {
         if (nbt.getByte(key).isPresent()) {
             return NumericKind.BYTE;
         }
@@ -258,7 +258,7 @@ public final class IdentityVariantDiscovery {
         return null;
     }
 
-    private static void putNumeric(NbtCompound nbt, String key, NumericKind kind, int value) {
+    private static void putNumeric(CompoundTag nbt, String key, NumericKind kind, int value) {
         switch (kind) {
             case BYTE -> nbt.putByte(key, (byte) value);
             case SHORT -> nbt.putShort(key, (short) value);
@@ -267,7 +267,7 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static boolean matchesNumeric(NbtCompound nbt, String key, NumericKind kind, int expected) {
+    private static boolean matchesNumeric(CompoundTag nbt, String key, NumericKind kind, int expected) {
         return switch (kind) {
             case BYTE -> nbt.getByte(key).isPresent() && nbt.getByte(key).get() == (byte) expected;
             case SHORT -> nbt.getShort(key).isPresent() && nbt.getShort(key).get() == (short) expected;

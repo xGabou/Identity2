@@ -4,22 +4,22 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
-import net.minecraft.item.Item;
-import net.minecraft.registry.BuiltinRegistries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.Registry;
+import net.minecraft.data.registries.VanillaRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.Item;
 
 public final class ModRegistries {
-    public static final RegistryKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
-        RegistryKey.ofRegistry(Identifier.of("identity2", "identity_ability"));
+    public static final ResourceKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("identity2", "identity_ability"));
 
     public static final Codec<IdentityAbilityDefinition> IDENTITY_ABILITY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-        Item.ENTRY_CODEC.fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
+        Item.CODEC.fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
         Codec.STRING.optionalFieldOf("command", "").forGetter(IdentityAbilityDefinition::command),
         Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
         Codec.INT.optionalFieldOf("use_duration", 0).forGetter(IdentityAbilityDefinition::useduration),
-        Identifier.CODEC.optionalFieldOf("predef", Identifier.of("null")).forGetter(IdentityAbilityDefinition::bultinability),
+        Identifier.CODEC.optionalFieldOf("predef", Identifier.parse("null")).forGetter(IdentityAbilityDefinition::bultinability),
         Codec.BOOL.optionalFieldOf("override_attack", false).forGetter(IdentityAbilityDefinition::override_attack)
     ).apply(inst, IdentityAbilityDefinition::new));
 
@@ -49,8 +49,8 @@ public final class ModRegistries {
 
     @SuppressWarnings("unchecked")
     public static Registry<IdentityAbilityDefinition> refreshIdentityAbilityRegistry() {
-        identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) BuiltinRegistries.createWrapperLookup()
-            .getOptional(IDENTITY_ABILITY_KEY)
+        identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) VanillaRegistries.createLookup()
+            .lookup(IDENTITY_ABILITY_KEY)
             .orElse(null);
         if (identityAbilityRegistry == null) {
             nextIdentityAbilityLookupAtMs = System.currentTimeMillis() + IDENTITY_ABILITY_LOOKUP_RETRY_DELAY_MS;

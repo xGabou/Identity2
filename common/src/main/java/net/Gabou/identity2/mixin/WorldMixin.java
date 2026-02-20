@@ -1,11 +1,6 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
-import net.minecraft.util.math.MathHelper;
 import java.util.List;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,48 +12,28 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.block.AirBlock;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.entity.MovementType;
 import net.Gabou.identity2.ModEffects;
-import net.minecraft.item.Items;
-import net.minecraft.item.Item;
+import net.minecraft.world.level.Level;
 import java.util.Set;
-import net.minecraft.registry.tag.FluidTags;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.ExecuteCommand;
-import net.minecraft.command.CommandSource;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.command.CommandRegistryAccess;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import net.minecraft.server.command.CommandManager;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
-import net.minecraft.item.Item;
-import net.minecraft.item.SpawnEggItem;
-import net.minecraft.world.World;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Hand;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Overwrite;
-@Mixin(World.class)
+@Mixin(Level.class)
 public class WorldMixin{
     
     private static final int HORIZONTAL_LIMIT = Identity2.maxWorldSize;
-    @ModifyConstant(constant=@Constant(intValue=30000000),method="isValidHorizontally")
+    @ModifyConstant(constant=@Constant(intValue=30000000),method="isInWorldBoundsHorizontal")
     private static int isValidHorizontallyA(int x){
         return Identity2.maxWorldSize;
     }
-    @ModifyConstant(constant=@Constant(intValue=-30000000),method="isValidHorizontally")
+    @ModifyConstant(constant=@Constant(intValue=-30000000),method="isInWorldBoundsHorizontal")
     private static int isValidHorizontallyB(int x){
         return -Identity2.maxWorldSize;
     }
@@ -67,11 +42,11 @@ public class WorldMixin{
     }
     public int getTopY(Heightmap.Type heightmap, int x, int z) {
           if (x >= -30000000 && z >= -30000000 && x < 30000000 && z < 30000000) {*/
-    @ModifyConstant(constant=@Constant(intValue=30000000),method="getTopY")
+    @ModifyConstant(constant=@Constant(intValue=30000000),method="getHeight")
     private static int getTopYA(int x){
         return Identity2.maxWorldSize;
     }
-    @ModifyConstant(constant=@Constant(intValue=-30000000),method="getTopY")
+    @ModifyConstant(constant=@Constant(intValue=-30000000),method="getHeight")
     private static int getTopYB(int x){
         return -Identity2.maxWorldSize;
     }

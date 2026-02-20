@@ -2,6 +2,10 @@ package net.Gabou.identity2.mixin;
 
 import dev.architectury.networking.NetworkManager;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -11,80 +15,76 @@ import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.ClientConnection;
-import net.minecraft.server.PlayerManager;
-import net.minecraft.server.function.CommandFunction;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ConnectedClientData;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.functions.CommandFunction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(PlayerManager.class)
+@Mixin(PlayerList.class)
 public class PlayerManagerMixin {
+    private static final int DELAYED_MORPH_REAPPLY_TICKS = 20;
+    private static final Map<UUID, Integer> DELAYED_MORPH_REAPPLY = new HashMap<>();
+
+    @Shadow
+    public ServerPlayer getPlayer(UUID uuid) {
+        return null;
+    }
+
     @Inject(method = "remove", at = @At("HEAD"))
-    private static void removeInject(ServerPlayerEntity player, CallbackInfo info) {
-        MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.getEntityWorld().getServer();
-        if (accessor.getCommandFunctionManager().getTag(Identifier.of(Identity2.MOD_ID, "on_before_player_leave")) != null) {
-            for (CommandFunction<ServerCommandSource> function : accessor.getCommandFunctionManager()
-                .getTag(Identifier.of(Identity2.MOD_ID, "on_before_player_leave"))) {
+    private static void removeInject(ServerPlayer player, CallbackInfo info) {
+        DELAYED_MORPH_REAPPLY.remove(player.getUUID());
+        MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
+        if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
+            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+                .getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
-                    player.getEntityWorld().getServer().getCommandSource().withEntity(player).withPosition(player.getEntityPos()).withSilent()
+                    player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
                 );
             }
         }
     }
 
-    @Inject(method = "onPlayerConnect", at = @At("TAIL"))
-    private static void playerConnectInject(ClientConnection connection, ServerPlayerEntity player, ConnectedClientData clientData, CallbackInfo info) {
+    @Inject(method = "placeNewPlayer", at = @At("TAIL"))
+    private static void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
-        ArrayList<CustomEntityDataS2CPacket.Entry> floatData = new ArrayList<>(0);
+        ArrayList<CustomEntityDataS2CPacket.Entry> doubleData = new ArrayList<>(0);
 
         IdentityProgression.ensureClientUnlockCache(player);
+        IdentityProgression.restoreMorphFromSavedData(player);
 
-        NbtComponent customData = ((EntityAccessor) player).getCustomData();
-        NbtCompound nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
-        boolean identityDataSeen = false;
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
 
-        for (String key : nbt.getKeys()) {
-            if (nbt.getFloat(key).isPresent()) {
-                floatData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getFloat(key, 0)));
+        for (String key : nbt.keySet()) {
+            if (nbt.getDouble(key).isPresent()) {
+                doubleData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getDoubleOr(key, 0.0)));
+            } else if (nbt.getFloat(key).isPresent()) {
+                doubleData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getFloatOr(key, 0.0F)));
             }
             if (nbt.getString(key).isPresent()) {
-                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, nbt.getString(key, "")));
-                if (
-                    "model_override".equals(key) ||
-                    IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(key) ||
-                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
-                ) {
-                    identityDataSeen = true;
-                }
+                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, nbt.getStringOr(key, "")));
             }
             if (nbt.getBoolean(key).isPresent()) {
-                boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, nbt.getBoolean(key, false)));
-            }
-        }
-        if (identityDataSeen) {
-            String type = nbt.getString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
-            if (type.isBlank()) {
-                type = nbt.getString("model_override", "");
-            }
-            if (!type.isBlank()) {
-                ((EntityAccessor) player).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(nbt.getString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")));
+                boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, nbt.getBooleanOr(key, false)));
             }
         }
 
-        CustomEntityDataS2CPacketPayload floatPayload = new CustomEntityDataS2CPacketPayload(player.getId(), floatData);
-        sendToWorldPlayers(player, floatPayload);
-        NetworkManager.sendToPlayer(player, floatPayload);
+        CustomEntityDataS2CPacketPayload doublePayload = new CustomEntityDataS2CPacketPayload(player.getId(), doubleData);
+        sendToWorldPlayers(player, doublePayload);
+        NetworkManager.sendToPlayer(player, doublePayload);
 
         CustomEntityStringDataS2CPacketPayload stringPayload = new CustomEntityStringDataS2CPacketPayload(player.getId(), stringData);
         sendToWorldPlayers(player, stringPayload);
@@ -94,21 +94,48 @@ public class PlayerManagerMixin {
         sendToWorldPlayers(player, boolPayload);
         NetworkManager.sendToPlayer(player, boolPayload);
 
-        MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.getEntityWorld().getServer();
-        if (accessor.getCommandFunctionManager().getTag(Identifier.of(Identity2.MOD_ID, "on_before_player_join")) != null) {
-            for (CommandFunction<ServerCommandSource> function : accessor.getCommandFunctionManager()
-                .getTag(Identifier.of(Identity2.MOD_ID, "on_before_player_join"))) {
+        // Re-apply morph shape one second later to avoid login-time race conditions
+        // where dimensions are still being initialized by vanilla/mods.
+        DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
+
+        MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
+        if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {
+            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+                .getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
-                    player.getEntityWorld().getServer().getCommandSource().withEntity(player).withPosition(player.getEntityPos()).withSilent()
+                    player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
                 );
             }
         }
     }
 
-    private static <T extends net.minecraft.network.packet.CustomPayload> void sendToWorldPlayers(ServerPlayerEntity source, T payload) {
-        if (source.getEntityWorld() instanceof ServerWorld serverWorld) {
-            for (ServerPlayerEntity player : serverWorld.getPlayers()) {
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void identity2$delayedMorphReapply(CallbackInfo info) {
+        if (DELAYED_MORPH_REAPPLY.isEmpty()) {
+            return;
+        }
+
+        Iterator<Map.Entry<UUID, Integer>> iterator = DELAYED_MORPH_REAPPLY.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, Integer> entry = iterator.next();
+            int remaining = entry.getValue() - 1;
+            if (remaining > 0) {
+                entry.setValue(remaining);
+                continue;
+            }
+
+            ServerPlayer player = this.getPlayer(entry.getKey());
+            if (player != null) {
+                IdentityProgression.restoreMorphFromSavedDataAndSync(player);
+            }
+            iterator.remove();
+        }
+    }
+
+    private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
+        if (source.level() instanceof ServerLevel serverWorld) {
+            for (ServerPlayer player : serverWorld.players()) {
                 if (player != source) {
                     NetworkManager.sendToPlayer(player, payload);
                 }

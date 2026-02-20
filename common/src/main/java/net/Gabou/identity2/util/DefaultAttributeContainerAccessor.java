@@ -1,10 +1,10 @@
 package net.Gabou.identity2.util;
 
 import java.util.Map;
-import net.minecraft.entity.attribute.EntityAttribute;
-import net.minecraft.entity.attribute.EntityAttributeInstance;
-import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.core.Holder;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 
 public interface DefaultAttributeContainerAccessor {
-    Map<RegistryEntry<EntityAttribute>, EntityAttributeInstance> getInstances();
+    Map<Holder<Attribute>, AttributeInstance> getInstances();
 }

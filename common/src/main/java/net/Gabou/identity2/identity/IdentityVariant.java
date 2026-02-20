@@ -1,9 +1,9 @@
 package net.Gabou.identity2.identity;
 
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.Identifier;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 
-public record IdentityVariant(Identifier entityTypeId, String displayName, NbtCompound variantNbt) {
+public record IdentityVariant(Identifier entityTypeId, String displayName, CompoundTag variantNbt) {
     public IdentityVariant {
         if (entityTypeId == null) {
             throw new IllegalArgumentException("entityTypeId cannot be null");
@@ -11,7 +11,7 @@ public record IdentityVariant(Identifier entityTypeId, String displayName, NbtCo
         if (displayName == null || displayName.isBlank()) {
             displayName = entityTypeId.toString();
         }
-        variantNbt = variantNbt == null ? new NbtCompound() : variantNbt.copy();
+        variantNbt = variantNbt == null ? new CompoundTag() : variantNbt.copy();
     }
 }
 
