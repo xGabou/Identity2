@@ -131,6 +131,16 @@ public final class ModPackets {
         }
 
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
+                String reason = IdentityProgression.getDisabledIdentityReason(identityId);
+                player.sendMessage(
+                    net.minecraft.text.Text.literal(
+                        "Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")")
+                    ),
+                    false
+                );
+                return;
+            }
             player.sendMessage(net.minecraft.text.Text.literal("Unsupported identity: " + identityId), false);
             return;
         }

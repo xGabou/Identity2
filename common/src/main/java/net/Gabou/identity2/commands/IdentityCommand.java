@@ -45,6 +45,13 @@ public final class IdentityCommand {
         }
 
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
+                String reason = IdentityProgression.getDisabledIdentityReason(identityId);
+                source.sendError(
+                    Text.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
+                );
+                return 0;
+            }
             source.sendError(Text.literal("Unsupported identity: " + identityId));
             return 0;
         }

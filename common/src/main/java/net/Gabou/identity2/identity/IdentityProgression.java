@@ -7,6 +7,7 @@ import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ public final class IdentityProgression {
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
     private static final Codec<List<String>> STRING_LIST_CODEC = Codec.STRING.listOf();
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
+    private static final Map<Identifier, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -69,7 +71,30 @@ public final class IdentityProgression {
         if (identityId == null || !Registries.ENTITY_TYPE.containsId(identityId)) {
             return false;
         }
+        if (isIdentityTemporarilyDisabled(identityId)) {
+            return false;
+        }
         return isMorphableType(Registries.ENTITY_TYPE.get(identityId));
+    }
+
+    public static boolean isIdentityTemporarilyDisabled(Identifier identityId) {
+        return identityId != null && DISABLED_IDENTITIES.containsKey(identityId);
+    }
+
+    public static String getDisabledIdentityReason(Identifier identityId) {
+        if (identityId == null) {
+            return "";
+        }
+        return DISABLED_IDENTITIES.getOrDefault(identityId, "");
+    }
+
+    public static void disableIdentity(Identifier identityId, String reason) {
+        if (identityId == null) {
+            return;
+        }
+        String safeReason = reason == null || reason.isBlank() ? "load failure" : reason;
+        DISABLED_IDENTITIES.put(identityId, safeReason);
+        Identity2.LOGGER.error("Temporarily disabled identity {}: {}", identityId, safeReason);
     }
 
     public static boolean isMorphableType(EntityType<?> entityType) {
@@ -102,20 +127,28 @@ public final class IdentityProgression {
         double widthOverride = 0.0;
         double heightOverride = 0.0;
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity != null) {
-            net.minecraft.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
-            widthOverride = identityDimensions.width();
-            heightOverride = identityDimensions.height();
-
-            if (identity.getType() == EntityType.SHEEP) {
-                widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
-            }
-
-            float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
-            float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
-            ((EntityAccessor) player).setEntityDimensions(identityDimensions.scaled(widthScale, heightScale));
-            ((EntityAccessor) player).setStandingEyeHeight(identity.getStandingEyeHeight());
+        if (identity == null) {
+            nbt.putString("model_override", "");
+            nbt.putString(SELECTED_IDENTITY_TYPE_KEY, "");
+            nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
+            nbt.putDouble("width_override", 0.0);
+            nbt.putDouble("height_override", 0.0);
+            syncMorphData(player, "", "", 0.0, 0.0);
+            return;
         }
+
+        net.minecraft.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
+        widthOverride = identityDimensions.width();
+        heightOverride = identityDimensions.height();
+
+        if (identity.getType() == EntityType.SHEEP) {
+            widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
+        }
+
+        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        ((EntityAccessor) player).setEntityDimensions(identityDimensions.scaled(widthScale, heightScale));
+        ((EntityAccessor) player).setStandingEyeHeight(identity.getStandingEyeHeight());
 
         nbt.putDouble("width_override", widthOverride);
         nbt.putDouble("height_override", heightOverride);

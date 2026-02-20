@@ -81,6 +81,9 @@ import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.ActionResult;
+import net.minecraft.text.Text;
+import java.lang.reflect.Method;
 @Mixin(Entity.class)
 public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     @Shadow
@@ -315,15 +318,15 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     public boolean entityCanFly=false;
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
+    private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
     public boolean canFly(){
         if(this.entityCanFlyEvaluated==false){
 
         
-        String onLandName=(net.Gabou.identity2.checkonly.EntityMethodChecks.class).getDeclaredMethods()[0].getName();
         try{
-        this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),onLandName);
+        this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),FALL_METHOD_NAME);
         }catch(
             Exception e
         ){int x=0;}
@@ -343,6 +346,24 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
 
         }
         return this.entityCanFly;
+    }
+
+    private static String identity2$resolveFallMethodName() {
+        try {
+            for (Method method : Entity.class.getDeclaredMethods()) {
+                Class<?>[] params = method.getParameterTypes();
+                if (method.getReturnType() == Void.TYPE
+                    && params.length == 4
+                    && params[0] == Double.TYPE
+                    && params[1] == Boolean.TYPE
+                    && params[2] == BlockState.class
+                    && params[3] == BlockPos.class) {
+                    return method.getName();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "fall";
     }
 
     private void applyIdentityFlightGrant(PlayerEntity player, boolean identityCanFly) {
@@ -526,38 +547,44 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             }
             return;
         }
-        nbtCompound.putString("id", id);
-            if(((Entity)(Object)this).getEntityWorld() instanceof ServerWorld){
-                //nbtCompound.putBoolean("NoAI",true);
-            }
-            EntityType<?> newType=Registries.ENTITY_TYPE.get(Identifier.of(id/*((NbtComponentAccessor)(Object)this.getCustomData()).getNbt().getString("model_override").get())*/));
-            Vec3d pos=new Vec3d(0,0,0);
-            BlockPos blockPos = BlockPos.ofFloored(pos);
-            /*if (!World.isValid(blockPos)) {
-                throw INVALID_POSITION_EXCEPTION.create();
-            }*//* else if (source.getWorld().getDifficulty() == Difficulty.PEACEFUL && !entityType.isAllowedInPeaceful()) {
-                throw FAILED_PEACEFUL_EXCEPTION.create();
-            }*/ /*else*/ {
+        Identifier identityId;
+        try {
+            identityId = Identifier.of(id);
+        } catch (Exception e) {
+            this.deactivateIdentityAfterFailure(null, "invalid id");
+            return;
+        }
+        if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
+            this.deactivateIdentityAfterFailure(identityId, IdentityProgression.getDisabledIdentityReason(identityId));
+            return;
+        }
+        if (!Registries.ENTITY_TYPE.containsId(identityId)) {
+            this.deactivateIdentityAfterFailure(identityId, "entity type missing");
+            return;
+        }
 
-                World serverWorld = (World)((Entity)(Object)this).getEntityWorld();
-                Entity entity = EntityType.loadEntityWithPassengers(nbtCompound, serverWorld, SpawnReason.COMMAND, entityx -> {
-                    entityx.refreshPositionAndAngles(pos.x, pos.y, pos.z, entityx.getYaw(), entityx.getPitch());
-                    return entityx;
-                });
-                if (entity == null) {
-                    return;
-                    //throw FAILED_EXCEPTION.create();
-                } else {
-                    /*if (initialize && entity instanceof MobEntity mobEntity) {
-                        mobEntity.initialize(source.getWorld(), source.getWorld().getLocalDifficulty(entity.getBlockPos()), SpawnReason.COMMAND, null);
-                    }*/
-                        entity.setId(-this.getId());
-                        ((EntityAccessor)entity).fixAttributes((Entity)(Object)this, entity);
-                        this.currentIdentity=entity;
-                        ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
-                    
-                }
+        nbtCompound.putString("id", identityId.toString());
+        Vec3d pos=new Vec3d(0,0,0);
+        try {
+            World serverWorld = (World)((Entity)(Object)this).getEntityWorld();
+            Entity entity = EntityType.loadEntityWithPassengers(nbtCompound, serverWorld, SpawnReason.COMMAND, entityx -> {
+                entityx.refreshPositionAndAngles(pos.x, pos.y, pos.z, entityx.getYaw(), entityx.getPitch());
+                return entityx;
+            });
+            if (entity == null) {
+                throw new IllegalStateException("loadEntityWithPassengers returned null");
             }
+            entity.setId(-this.getId());
+            ((EntityAccessor)entity).fixAttributes((Entity)(Object)this, entity);
+            this.currentIdentity=entity;
+            ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
+        } catch (Throwable throwable) {
+            String reason = throwable.getClass().getSimpleName();
+            IdentityProgression.disableIdentity(identityId, reason);
+            Identity2.LOGGER.error("Failed to load identity {}. It has been disabled for this runtime.", identityId, throwable);
+            this.deactivateIdentityAfterFailure(identityId, reason);
+            return;
+        }
         
         if(this.currentIdentity!=null){
             ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
@@ -570,6 +597,29 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             }
         }
         
+    }
+    private void deactivateIdentityAfterFailure(@Nullable Identifier identityId, String reason) {
+        this.currentIdentity = null;
+        NbtCompound nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
+        nbt.putString("model_override", "");
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        nbt.putDouble("width_override", 0.0);
+        nbt.putDouble("height_override", 0.0);
+
+        if ((Entity) (Object) this instanceof PlayerEntity player) {
+            this.applyIdentityFlightGrant(player, false);
+            this.setEntityDimensions(((Entity) (Object) this).getDimensions(((Entity) (Object) this).getPose()));
+            this.setStandingEyeHeight(((Entity) (Object) this).getStandingEyeHeight());
+            if (player instanceof ServerPlayerEntity serverPlayer && identityId != null) {
+                serverPlayer.sendMessage(
+                    Text.literal(
+                        "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
+                    ),
+                    false
+                );
+            }
+        }
     }
     @Shadow
     protected boolean touchingWater;
@@ -813,7 +863,10 @@ private void isInsideWallIdentity(CallbackInfoReturnable info){
 @Inject(method = "interact(Lnet/minecraft/entity/player/PlayerEntity;Lnet/minecraft/util/Hand;)Lnet/minecraft/util/ActionResult;", at=@At("HEAD"),cancellable=true)
 private void interactIdentity(PlayerEntity player, Hand hand, CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.interact(player, hand));
+        ActionResult actionResult = this.currentIdentity.interact(player, hand);
+        if (actionResult != ActionResult.PASS) {
+            info.setReturnValue(actionResult);
+        }
     }
 }
 
