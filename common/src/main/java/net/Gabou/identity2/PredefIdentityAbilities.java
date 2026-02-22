@@ -9,7 +9,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -17,8 +20,11 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.equine.Llama;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.monster.Shulker;
@@ -47,6 +53,12 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public final class PredefIdentityAbilities {
+    private static final float GENERIC_MIN_DAMAGE = 2.0F;
+    private static final float GENERIC_MAX_DAMAGE = 10.0F;
+    private static final double GENERIC_STRIKE_RANGE = 4.5D;
+    private static final double GENERIC_DASH_STRENGTH = 0.75D;
+    private static final double GENERIC_DASH_UP = 0.18D;
+
     abstract static class IdentityAbility {
         public void execute(Entity player) {
         }
@@ -63,8 +75,27 @@ public final class PredefIdentityAbilities {
     }
 
     public static final Map<Identifier, IdentityAbility> predef = create();
+    private static final IdentityAbility genericMobAbility = createGenericMobAbility();
 
     private PredefIdentityAbilities() {
+    }
+
+    public static boolean hasFallbackAbility(Identifier identityTypeId) {
+        if (identityTypeId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityTypeId)) {
+            return false;
+        }
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(identityTypeId);
+        if (type == null || type == EntityType.PLAYER) {
+            return false;
+        }
+        return type.getCategory() != MobCategory.MISC;
+    }
+
+    public static IdentityAbility resolveFallbackAbility(Identifier identityTypeId) {
+        if (!hasFallbackAbility(identityTypeId)) {
+            return null;
+        }
+        return genericMobAbility;
     }
 
     private static Map<Identifier, IdentityAbility> create() {
@@ -72,8 +103,32 @@ public final class PredefIdentityAbilities {
 
         map.put(Identifier.parse("ghast"), new IdentityAbility() {
             @Override
+            public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
+                Level world = player.level();
+                HitResult target = player.pick(128.0D, 0.0F, false);
+                Vec3 look = player.getViewVector(1.0F);
+                Vec3 spawnPos = player.getEyePosition().add(look.scale(1.6D));
+                Vec3 targetPos = target != null ? target.getLocation() : spawnPos.add(look.scale(48.0D));
+                Vec3 direction = targetPos.subtract(spawnPos);
+                if (direction.lengthSqr() < 1.0E-6D) {
+                    direction = look;
+                }
+                if (!player.isSilent()) {
+                    world.levelEvent(null, LevelEvent.SOUND_GHAST_FIREBALL, player.blockPosition(), 0);
+                }
+                LargeFireball fireball = new LargeFireball(world, livingPlayer, direction.normalize(), 1);
+                fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+                world.addFreshEntity(fireball);
+                if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
+                    ghastIdentity.setCharging(false);
+                }
+            }
+
+            @Override
             public void tick(Entity player, int cooldown) {
-                HitResult target = player.pick(1000, 0, false);
                 Level world = player.level();
 
                 if (cooldown == 10 && !player.isSilent()) {
@@ -82,23 +137,8 @@ public final class PredefIdentityAbilities {
                 if (cooldown > 10 && ((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
                     ghastIdentity.setCharging(true);
                 }
-
-                if (cooldown == 20) {
-                    Vec3 look = player.getViewVector(1.0F);
-                    Vec3 direction = new Vec3(
-                        target.getLocation().x - (player.getX() + look.x * 4.0),
-                        target.getLocation().y - (0.5 + player.getY(0.5)),
-                        target.getLocation().z - (player.getZ() + look.z * 4.0)
-                    );
-                    if (!player.isSilent()) {
-                        world.levelEvent(null, LevelEvent.SOUND_GHAST_FIREBALL, player.blockPosition(), 0);
-                    }
-                    LargeFireball fireball = new LargeFireball(world, (LivingEntity) player, direction.normalize(), 1);
-                    fireball.setPos(player.getX() + look.x * 4.0, player.getY(0.5) + 0.5, player.getZ() + look.z * 4.0);
-                    world.addFreshEntity(fireball);
-                    if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
-                        ghastIdentity.setCharging(false);
-                    }
+                if (cooldown <= 1 && ((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
+                    ghastIdentity.setCharging(false);
                 }
             }
         });
@@ -151,8 +191,12 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
-                if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() != 100) {
+                if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() == 0) {
                     ((ShulkerEntityAccessor) shulker).setPeekAmount(100);
+                    return;
+                }
+                if (!tryShootShulkerBullet(player, shulker)) {
+                    ((ShulkerEntityAccessor) shulker).setPeekAmount(0);
                 }
             }
 
@@ -160,9 +204,6 @@ public final class PredefIdentityAbilities {
             public void passivetick(Entity player, boolean usedLastTick) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
-                }
-                if (!usedLastTick && ((ShulkerEntityAccessor) shulker).runGetPeekAmount() != 0) {
-                    ((ShulkerEntityAccessor) shulker).setPeekAmount(0);
                 }
                 if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(), shulker)) {
                     BlockPos pos = shulker.blockPosition();
@@ -178,21 +219,7 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return true;
                 }
-                if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() != 0) {
-                    double range = 128;
-                    double rangeSq = Mth.square(range);
-                    Vec3 start = player.getEyePosition(1);
-                    Vec3 look = player.getViewVector(1);
-                    Vec3 end = start.add(look.x * range, look.y * range, look.z * range);
-                    AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0, 1.0, 1.0);
-                    HitResult target = ProjectileUtil.getEntityHitResult(player, start, end, box, EntitySelector.CAN_BE_PICKED, rangeSq);
-                    if (target != null && target.getType() == HitResult.Type.ENTITY) {
-                        shulker.level().addFreshEntity(
-                            new ShulkerBullet(shulker.level(), shulker, ((EntityHitResult) target).getEntity(), shulker.getAttachFace().getAxis())
-                        );
-                        shulker.playSound(SoundEvents.SHULKER_SHOOT, 2.0F, 1.0F);
-                    }
-                }
+                tryShootShulkerBullet(player, shulker);
                 return true;
             }
 
@@ -331,21 +358,59 @@ public final class PredefIdentityAbilities {
         map.put(Identifier.parse("guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
-                List<Player> targets = player.level().getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(50.0D));
-                for (Player target : targets) {
-                    if (target != player) {
-                        target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 20 * 60, 2));
+                Level world = player.level();
+                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                boolean elder = currentIdentity != null && currentIdentity.getType() == EntityType.ELDER_GUARDIAN;
+                EntityHitResult hit = findLivingTarget(player, 30.0D);
+                if (hit != null && hit.getEntity() instanceof LivingEntity livingTarget) {
+                    renderGuardianBeam(world, player.getEyePosition(1.0F), livingTarget.getEyePosition(1.0F));
+                    livingTarget.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, elder ? 20 * 30 : 20 * 20, elder ? 2 : 1));
+                    livingTarget.hurt(player.damageSources().mobAttack((LivingEntity) player), elder ? 8.0F : 4.0F);
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GUARDIAN_ATTACK, SoundSource.HOSTILE, 1.0F, 1.0F);
+                }
+
+                if (elder) {
+                    List<Player> targets = player.level().getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(50.0D));
+                    for (Player target : targets) {
+                        if (target != player) {
+                            target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 20 * 60, 2));
+                        }
                     }
                 }
+            }
+        });
+        
+        map.put(Identifier.parse("iron_golem"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
+                Level world = player.level();
+                EntityHitResult hit = findLivingTarget(player, 6.0D);
+                if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.IRON_GOLEM_ATTACK, SoundSource.HOSTILE, 0.7F, 0.7F);
+                    return;
+                }
+
+                float damage = 14.0F;
+                target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+                Vec3 look = player.getViewVector(1.0F).normalize();
+                target.push(look.x * 1.6D, 0.65D, look.z * 1.6D);
+                world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.IRON_GOLEM_ATTACK, SoundSource.HOSTILE, 1.0F, 0.85F);
             }
         });
 
         map.put(Identifier.parse("llama"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
                 Level world = player.level();
                 Vec3 look = player.getViewVector(1.0F);
-                LlamaSpit spit = new LlamaSpit(world, (Llama) ((EntityAccessor) player).getCurrentIdentity());
+                LlamaSpit spit = new LlamaSpit(EntityType.LLAMA_SPIT, world);
+                spit.setOwner(livingPlayer);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(1.0));
                 spit.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 spit.shoot(look.x, look.y, look.z, 1.5F, 10.0F);
@@ -397,15 +462,20 @@ public final class PredefIdentityAbilities {
 
             @Override
             public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
                 Level world = player.level();
                 ThrownSplashPotion potionEntity = new ThrownSplashPotion(net.minecraft.world.entity.EntityType.SPLASH_POTION, world);
-                potionEntity.setOwner(player);
+                potionEntity.setOwner(livingPlayer);
                 Holder<Potion> potion = validPotions.get(world.random.nextInt(validPotions.size()));
                 ItemStack potionStack = new ItemStack(Items.SPLASH_POTION);
                 potionStack.set(DataComponents.POTION_CONTENTS, new PotionContents(potion));
                 potionEntity.setItem(potionStack);
                 potionEntity.setXRot(-20.0F);
                 Vec3 look = player.getViewVector(1.0F);
+                Vec3 spawnPos = player.getEyePosition().add(look.scale(0.8D));
+                potionEntity.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 potionEntity.shoot(look.x(), look.y(), look.z(), 0.75F, 8.0F);
                 world.playSound(
                     null,
@@ -447,18 +517,125 @@ public final class PredefIdentityAbilities {
         map.put(Identifier.parse("ender_dragon"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
                 Level world = player.level();
                 Vec3 look = player.getViewVector(1.0F);
-                Vec3 velocity = look.scale(0.5);
-                Vec3 spawnPos = player.getEyePosition().add(look.scale(2.0));
-                DragonFireball fireball = new DragonFireball(world, (LivingEntity) player, velocity);
+                Vec3 spawnPos = player.getEyePosition().add(look.scale(1.4D));
+                HitResult target = player.pick(96.0D, 0.0F, false);
+                Vec3 targetPos = target != null ? target.getLocation() : spawnPos.add(look.scale(48.0D));
+                Vec3 direction = targetPos.subtract(spawnPos);
+                if (direction.lengthSqr() < 1.0E-6D) {
+                    direction = look;
+                }
+
+                DragonFireball fireball = new DragonFireball(world, livingPlayer, direction.normalize());
                 fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
-                fireball.setOwner(player);
                 world.addFreshEntity(fireball);
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
             }
         });
 
         return map;
+    }
+
+    private static EntityHitResult findLivingTarget(Entity player, double range) {
+        Vec3 start = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 end = start.add(look.scale(range));
+        return ProjectileUtil.getEntityHitResult(
+            player,
+            start,
+            end,
+            player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.2D),
+            candidate -> candidate != player && candidate instanceof LivingEntity,
+            range * range
+        );
+    }
+
+    private static boolean tryShootShulkerBullet(Entity player, Shulker shulker) {
+        if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() == 0) {
+            return false;
+        }
+        double range = 128.0D;
+        double rangeSq = Mth.square(range);
+        Vec3 start = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 end = start.add(look.x * range, look.y * range, look.z * range);
+        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D, 1.0D, 1.0D);
+        HitResult target = ProjectileUtil.getEntityHitResult(player, start, end, box, EntitySelector.CAN_BE_PICKED, rangeSq);
+        if (target == null || target.getType() != HitResult.Type.ENTITY) {
+            return false;
+        }
+        shulker.level().addFreshEntity(
+            new ShulkerBullet(shulker.level(), shulker, ((EntityHitResult) target).getEntity(), shulker.getAttachFace().getAxis())
+        );
+        shulker.playSound(SoundEvents.SHULKER_SHOOT, 2.0F, 1.0F);
+        return true;
+    }
+
+    private static void renderGuardianBeam(Level world, Vec3 from, Vec3 to) {
+        if (!(world instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Vec3 delta = to.subtract(from);
+        double distance = delta.length();
+        if (distance < 1.0E-4D) {
+            return;
+        }
+        Vec3 step = delta.normalize().scale(0.35D);
+        int points = Mth.ceil(distance / 0.35D);
+        Vec3 cursor = from;
+        for (int i = 0; i <= points; i++) {
+            serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK, cursor.x, cursor.y, cursor.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            cursor = cursor.add(step);
+        }
+    }
+
+    private static IdentityAbility createGenericMobAbility() {
+        return new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
+                Level world = player.level();
+                Vec3 look = player.getViewVector(1.0F);
+                Vec3 start = livingPlayer.getEyePosition(1.0F);
+                Vec3 end = start.add(look.scale(GENERIC_STRIKE_RANGE));
+                AABB hitBox = livingPlayer.getBoundingBox().expandTowards(look.scale(GENERIC_STRIKE_RANGE)).inflate(1.0D);
+                EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                    livingPlayer,
+                    start,
+                    end,
+                    hitBox,
+                    candidate -> candidate != player && candidate.isPickable() && candidate instanceof LivingEntity,
+                    GENERIC_STRIKE_RANGE * GENERIC_STRIKE_RANGE
+                );
+
+                if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+                    float damage = resolveGenericDamage(player);
+                    target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+                    target.push(look.x * 0.45D, 0.10D, look.z * 0.45D);
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 0.85F, 0.95F);
+                    return;
+                }
+
+                player.setDeltaMovement(player.getDeltaMovement().add(look.x * GENERIC_DASH_STRENGTH, GENERIC_DASH_UP, look.z * GENERIC_DASH_STRENGTH));
+                world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.75F, 1.05F);
+            }
+        };
+    }
+
+    private static float resolveGenericDamage(Entity player) {
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity instanceof LivingEntity livingIdentity) {
+            double attackDamage = livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            if (attackDamage > 0.0D) {
+                return (float) Mth.clamp(attackDamage, GENERIC_MIN_DAMAGE, GENERIC_MAX_DAMAGE);
+            }
+        }
+        return 4.0F;
     }
 }

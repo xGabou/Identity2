@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -24,12 +25,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerList.class)
 public class PlayerManagerMixin {
@@ -131,6 +134,29 @@ public class PlayerManagerMixin {
             }
             iterator.remove();
         }
+    }
+
+    @Inject(method = "respawn", at = @At("RETURN"))
+    private void identity2$onRespawn(ServerPlayer player, boolean alive, Entity.RemovalReason reason, CallbackInfoReturnable<ServerPlayer> cir) {
+        ServerPlayer respawned = cir.getReturnValue();
+        if (respawned == null) {
+            return;
+        }
+
+        if (!alive && IdentitySettings.loseAllMorphsOnDeath) {
+            int removed = IdentityProgression.clearUnlockedIdentities(respawned);
+            IdentityProgression.clearMorph(respawned);
+            if (removed > 0) {
+                respawned.displayClientMessage(net.minecraft.network.chat.Component.literal("All unlocked identities were removed on death."), false);
+            }
+        }
+
+        if (!alive && IdentitySettings.revokeIdentityOnDeath) {
+            IdentityProgression.clearMorph(respawned);
+        }
+
+        IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
+        DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {

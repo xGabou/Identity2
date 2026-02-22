@@ -30,6 +30,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -37,6 +38,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -47,6 +49,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -113,14 +117,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
         this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
-            
-            if(this.entityCanFlyTickEvaluated==false){
-                this.entityCanFlyTickEvaluated=true;
-                this.entityCanFlyEvaluated=false;
-            }
-            if(this.entityCanFlyEvaluated==false){
-                    this.canFly();
-                }
+            this.canFly();
             this.identityOf.noPhysics=this.noPhysics;
         }
     }
@@ -130,10 +127,13 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             info.setReturnValue(false);
         }
 	}
-    @Inject(method = "tick", at=@At("RETURN"))
+	@Inject(method = "tick", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
+            if (hostIsPlayer) {
+                this.identity2$applyMorphAquaticBreathing((Player) (Object) this);
+            }
              
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
@@ -292,13 +292,24 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     public boolean entityCanFly=false;
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
+    private boolean identity2$grantedMayfly = false;
+    private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
+    private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
     public boolean canFly(){
-        if(this.entityCanFlyEvaluated==false){
+        long gameTime = 0L;
+        Entity self = (Entity)(Object)this;
+        if (self.level() != null) {
+            gameTime = self.level().getGameTime();
+        }
+        boolean shouldReevaluate = !this.entityCanFlyEvaluated
+            || this.entityCanFlyLastEvalTick == Long.MIN_VALUE
+            || (gameTime - this.entityCanFlyLastEvalTick) >= ENTITY_FLY_REEVAL_TICKS;
+        if(shouldReevaluate){
 
-        Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
+        Boolean taggedFlight = IdentityTraitTags.resolveFlight(self.getType());
         if (Boolean.TRUE.equals(taggedFlight)) {
             this.entityCanFly = true;
         } else if (Boolean.FALSE.equals(taggedFlight)) {
@@ -317,6 +328,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             }
         }
         this.entityCanFlyEvaluated=true;
+        this.entityCanFlyLastEvalTick = gameTime;
         if(this.identityOf!=null){
         if((Entity)(Object)this.identityOf instanceof Player player){
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
@@ -349,15 +361,27 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     private void applyIdentityFlightGrant(Player player, boolean identityCanFly) {
         // Do not touch spectator/creative abilities.
         if (player.isSpectator() || player.getAbilities().instabuild) {
+            this.identity2$grantedMayfly = false;
             return;
         }
 
-        if (!identityCanFly) {
+        if (identityCanFly) {
+            if (!player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = true;
+                if (player instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.onUpdateAbilities();
+                }
+            }
+            this.identity2$grantedMayfly = true;
             return;
         }
 
-        if (!player.getAbilities().mayfly) {
-            player.getAbilities().mayfly = true;
+        if (this.identity2$grantedMayfly) {
+            player.getAbilities().mayfly = false;
+            if (player.getAbilities().flying) {
+                player.getAbilities().flying = false;
+            }
+            this.identity2$grantedMayfly = false;
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.onUpdateAbilities();
             }
@@ -375,14 +399,15 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         if (this.currentIdentity == null) {
             return;
         }
+        this.applyIdentityFlightGrant(player, ((EntityAccessor) this.currentIdentity).canFly());
 
         EntityType<?> identityType = this.currentIdentity.getType();
-        if (Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identityType)) && player.isUnderWater()) {
-            player.setAirSupply(player.getMaxAirSupply());
-        }
-
         if (IdentityTraitTags.burnsInDaylight(identityType) && this.identity2$shouldBurnInDaylight(player)) {
             player.igniteForSeconds(8.0F);
+        }
+
+        if (IdentityTraitTags.hasSlowFalling(identityType) && !player.onGround() && player.getDeltaMovement().y < 0.0D) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 10, 0, false, false, true));
         }
     }
 
@@ -398,6 +423,34 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
         BlockPos pos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
         return player.level().canSeeSky(pos);
+    }
+
+    private void identity2$applyMorphAquaticBreathing(Player player) {
+        if (this.currentIdentity == null) {
+            return;
+        }
+        EntityType<?> identityType = this.currentIdentity.getType();
+        boolean requiresWater = Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identityType));
+        if (!requiresWater && this.currentIdentity instanceof LivingEntity livingIdentity) {
+            requiresWater = livingIdentity.canBreatheUnderwater();
+        }
+        if (!requiresWater) {
+            return;
+        }
+
+        if (player.isInWaterOrRain()) {
+            player.setAirSupply(player.getMaxAirSupply());
+            return;
+        }
+
+        int nextAir = ((LivingEntityAccessor) player).getNextAirUnderwater(player.getAirSupply());
+        player.setAirSupply(nextAir);
+        if (nextAir <= -20) {
+            player.setAirSupply(0);
+            if (player.level() instanceof ServerLevel serverLevel) {
+                player.hurtServer(serverLevel, player.damageSources().dryOut(), 2.0F);
+            }
+        }
     }
 
 
@@ -533,6 +586,9 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     public void fixAttributes(Entity entity, Entity identity){}
     public void setCurrentIdentity(String id){
         this.noPhysics=false;
+        this.entityCanFlyEvaluated = false;
+        this.entityCanFlyTickEvaluated = false;
+        this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         CompoundTag nbtCompound=null;
         if(id.contains("{")){
             try{
@@ -558,10 +614,14 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
         if(id.length()==0){
             this.currentIdentity=null;
+            this.entityCanFly = false;
             ((Entity)(Object)this).refreshDimensions();
             this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
             if((Entity)(Object)this instanceof Player player){
                 this.applyIdentityFlightGrant(player, false);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.refreshScaledHealth(serverPlayer);
+                }
             }
             return;
         }
@@ -614,18 +674,29 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             if((Entity)(Object)this instanceof Player player){
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
+                if (player instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.refreshScaledHealth(serverPlayer);
+                }
             }
         }
         
     }
     private void deactivateIdentityAfterFailure(@Nullable Identifier identityId, String reason) {
         this.currentIdentity = null;
+        this.entityCanFly = false;
+        this.entityCanFlyEvaluated = false;
+        this.entityCanFlyTickEvaluated = false;
+        this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        nbt.putString(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY, "");
+        nbt.putString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY, "");
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
+        nbt.putDouble(IdentityProgression.TRANSITION_START_TICK_KEY, 0.0D);
+        nbt.putDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D);
 
         if ((Entity) (Object) this instanceof Player player) {
             this.applyIdentityFlightGrant(player, false);

@@ -120,8 +120,7 @@ private void getAttributesIdentity(CallbackInfoReturnable info){
 private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            //info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirUnderwater(air));
-            info.setReturnValue(air);
+            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirUnderwater(air));
         }
     }
 }
@@ -129,8 +128,7 @@ private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
 private void getNextAirOnLandIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            //info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirOnLand(air));
-            info.setReturnValue(air);
+            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirOnLand(air));
         }
     }
 }

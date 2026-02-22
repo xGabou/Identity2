@@ -32,6 +32,11 @@ public final class IdentityTraitTags {
         Identifier.fromNamespaceAndPath("identity2", "burns_in_daylight")
     );
 
+    public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
+        Registries.ENTITY_TYPE,
+        Identifier.fromNamespaceAndPath("identity2", "slow_falling")
+    );
+
     private IdentityTraitTags() {
     }
 
@@ -44,6 +49,11 @@ public final class IdentityTraitTags {
         Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId == null) {
             return Boolean.FALSE;
+        }
+
+        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_FLY), tagId(VANILLA_CAN_FLY));
+        if (assignmentOverride != null) {
+            return assignmentOverride;
         }
 
         if (containsTypeId(nullToEmpty(IdentitySettings.removedFlyingEntities), typeId)) {
@@ -72,6 +82,11 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
+        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_BREATHE_UNDERWATER), tagId(EntityTypeTags.CAN_BREATHE_UNDER_WATER));
+        if (assignmentOverride != null) {
+            return assignmentOverride;
+        }
+
         if (containsTypeId(nullToEmpty(IdentitySettings.removedAquaticEntities), typeId)) {
             return Boolean.FALSE;
         }
@@ -87,7 +102,124 @@ public final class IdentityTraitTags {
         if (type == null) {
             return false;
         }
+        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (typeId != null) {
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
+            if (assignmentOverride != null) {
+                return assignmentOverride;
+            }
+        }
         return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
+    }
+
+    public static boolean hasSlowFalling(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (typeId != null) {
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(SLOW_FALLING));
+            if (assignmentOverride != null) {
+                return assignmentOverride;
+            }
+        }
+        return type.is(SLOW_FALLING);
+    }
+
+    @Nullable
+    private static Boolean resolveAssignmentOverride(Identifier typeId, Identifier... acceptedTagIds) {
+        if (typeId == null || acceptedTagIds == null || acceptedTagIds.length == 0) {
+            return null;
+        }
+
+        List<String> removed = nullToEmpty(IdentitySettings.removedEntityTypeTagAssignments);
+        for (String raw : removed) {
+            TagAssignment assignment = parseTagAssignment(raw);
+            if (assignment == null) {
+                continue;
+            }
+            if (matchesTag(assignment.tagId(), acceptedTagIds) && matchesType(assignment.entityTypeId(), typeId)) {
+                return Boolean.FALSE;
+            }
+        }
+
+        List<String> extra = nullToEmpty(IdentitySettings.extraEntityTypeTagAssignments);
+        for (String raw : extra) {
+            TagAssignment assignment = parseTagAssignment(raw);
+            if (assignment == null) {
+                continue;
+            }
+            if (matchesTag(assignment.tagId(), acceptedTagIds) && matchesType(assignment.entityTypeId(), typeId)) {
+                return Boolean.TRUE;
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean matchesTag(Identifier entryTag, Identifier[] acceptedTagIds) {
+        if (entryTag == null) {
+            return false;
+        }
+        String entryFull = entryTag.toString();
+        String entryPath = entryTag.getPath();
+        for (Identifier accepted : acceptedTagIds) {
+            if (accepted == null) {
+                continue;
+            }
+            if (entryFull.equals(accepted.toString()) || entryPath.equals(accepted.getPath())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesType(Identifier entryType, Identifier typeId) {
+        if (entryType == null || typeId == null) {
+            return false;
+        }
+        return entryType.toString().equals(typeId.toString()) || entryType.getPath().equals(typeId.getPath());
+    }
+
+    @Nullable
+    private static TagAssignment parseTagAssignment(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String normalized = raw.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        int separator = normalized.indexOf('=');
+        if (separator <= 0 || separator >= normalized.length() - 1) {
+            return null;
+        }
+
+        Identifier tagId = parseIdentifierLoose(normalized.substring(0, separator).trim());
+        Identifier entityTypeId = parseIdentifierLoose(normalized.substring(separator + 1).trim());
+        if (tagId == null || entityTypeId == null) {
+            return null;
+        }
+        return new TagAssignment(tagId, entityTypeId);
+    }
+
+    @Nullable
+    private static Identifier parseIdentifierLoose(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            if (value.contains(":")) {
+                return Identifier.parse(value);
+            }
+            return Identifier.fromNamespaceAndPath("minecraft", value);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Identifier tagId(TagKey<EntityType<?>> tag) {
+        return tag.location();
     }
 
     private static boolean containsTypeId(List<String> entries, Identifier typeId) {
@@ -110,5 +242,8 @@ public final class IdentityTraitTags {
 
     private static List<String> nullToEmpty(List<String> entries) {
         return entries == null ? Collections.emptyList() : entries;
+    }
+
+    private record TagAssignment(Identifier tagId, Identifier entityTypeId) {
     }
 }

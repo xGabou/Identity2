@@ -13,6 +13,9 @@ public class IdentitySettings {
     //@Comment(value = "Whether a player's equipped identity is revoked on death.")
     public static boolean revokeIdentityOnDeath = false;
 
+    //@Comment(value = "If true, all unlocked morphs are removed when the player dies.")
+    public static boolean loseAllMorphsOnDeath = false;
+
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
 
@@ -105,6 +108,15 @@ public class IdentitySettings {
     //@Comment(value = "Kills required to unlock an identity.")
     public static int identityKillsRequired = 1;
 
+    //@Comment(value = "Morph transition duration in ticks for dynamic model blending.")
+    public static int morphTransitionTicks = 30;
+    //@Comment(value = "If true, morph transitions spawn swirl particles. Model blending remains active either way.")
+    public static boolean enableMorphTransitionParticles = true;
+    //@Comment(value = "If true, unlocked morph acquisition plays tendril-style particles from target to player.")
+    public static boolean enableMorphAcquisitionTendrils = true;
+    //@Comment(value = "Duration in ticks of the morph acquisition tendril animation.")
+    public static int morphAcquisitionAnimationTicks = 26;
+
     //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
     public static boolean requireUnlockedIdentityForMorph = true;
 
@@ -126,4 +138,10 @@ public class IdentitySettings {
     public static List<String> removedFlyingEntities = new ArrayList<>();
     //@Comment(value = "List of entities to forcibly include as flying.")
     public static List<String> extraFlyingEntities = new ArrayList<>();
+
+    //@Comment(value = "Runtime tag additions in the format 'namespace:tag=namespace:entity'. Example: 'identity2:slow_falling=yourmod:blue_jay'")
+    public static List<String> extraEntityTypeTagAssignments = new ArrayList<>();
+
+    //@Comment(value = "Runtime tag removals in the format 'namespace:tag=namespace:entity'.")
+    public static List<String> removedEntityTypeTagAssignments = new ArrayList<>();
 }

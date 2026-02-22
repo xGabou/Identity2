@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
@@ -77,4 +79,32 @@ subprojects {
             // retrieving dependencies.
         }
     }
+
 }
+tasks.register("discordWebhook") {
+    doLast {
+        def webhookUrl = System.getenv("DISCORD_WEBHOOK_URL")
+        def changelogText = rootProject.file("IdentityChangeLog.md").text
+
+        def payload = [
+                username: "Build Bot",
+                allowed_mentions: [ parse: ["roles"] ],
+                content: "**New release published!** 🎉\n" +
+                        "<@&1363945953546997810>\n" + // role mention
+                        "Project: ${mod_name}\n" +
+                        "Version: v${version}-1.21.1\n\n" +
+                        "${changelogText.take(1900)}"
+        ]
+
+        println "Sending release notification to Discord..."
+        def connection = new URL(webhookUrl).openConnection()
+        connection.with {
+            doOutput = true
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json")
+            outputStream.withWriter("UTF-8") { it << JsonOutput.toJson(payload) }
+            println "Webhook sent with response code: ${responseCode}"
+        }
+    }
+}
+

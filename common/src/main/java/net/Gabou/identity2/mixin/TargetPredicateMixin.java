@@ -22,13 +22,56 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(TargetingConditions.class)
 public class TargetPredicateMixin{
+    @Inject(
+        method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    private void identity2$skipHostileVsHostileMorph(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+        if (!IdentitySettings.hostilesIgnoreHostileIdentityPlayer) {
+            return;
+        }
+        if (!(tester instanceof Monster)) {
+            return;
+        }
+        if (!(target instanceof Player)) {
+            return;
+        }
+
+        Entity currentIdentity = ((EntityAccessor) target).getCurrentIdentity();
+        if (!(currentIdentity instanceof LivingEntity identityLiving)) {
+            return;
+        }
+
+        EntityType<?> testerType = tester.getType();
+        EntityType<?> identityType = identityLiving.getType();
+        if (testerType == null || identityType == null) {
+            return;
+        }
+
+        if (testerType == identityType) {
+            info.setReturnValue(false);
+            return;
+        }
+
+        if (testerType.getCategory() == MobCategory.MONSTER && identityType.getCategory() == MobCategory.MONSTER) {
+            info.setReturnValue(false);
+        }
+    }
+
     /*@Inject(method = "test", at=@At("HEAD"),cancellable=true)
     private static void testIdentityFix(ServerWorld world, @Nullable LivingEntity tester, LivingEntity target,CallbackInfoReturnable info) {
         if(((EntityAccessor)target).getCurrentIdentity()!=null){

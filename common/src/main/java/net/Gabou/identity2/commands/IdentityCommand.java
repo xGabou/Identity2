@@ -1,23 +1,41 @@
 package net.Gabou.identity2.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 
 public final class IdentityCommand {
+    private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
+
     private IdentityCommand() {
     }
 
@@ -34,6 +52,118 @@ public final class IdentityCommand {
                 )
                 .then(Commands.literal("clear").executes(context -> clear(context.getSource())))
                 .then(Commands.literal("list").executes(context -> list(context.getSource())))
+                .then(
+                    Commands.literal("unlock")
+                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                        .then(
+                            Commands.argument("identity_id", IdentifierArgument.id())
+                                .suggests(IdentityCommand::suggestMorphableIdentities)
+                                .executes(context -> unlockIdentity(context.getSource(), IdentifierArgument.getId(context, "identity_id"), null))
+                                .then(
+                                    Commands.argument("target", EntityArgument.player())
+                                        .executes(
+                                            context -> unlockIdentity(
+                                                context.getSource(),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                EntityArgument.getPlayer(context, "target")
+                                            )
+                                        )
+                                )
+                        )
+                        .then(
+                            Commands.literal("all")
+                                .executes(context -> unlockAll(context.getSource(), null))
+                                .then(
+                                    Commands.argument("target", EntityArgument.player())
+                                        .executes(context -> unlockAll(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                                )
+                        )
+                )
+                .then(
+                    Commands.literal("ability")
+                        .then(Commands.literal("list").executes(context -> listAbilities(context.getSource())))
+                        .then(
+                            Commands.literal("info")
+                                .then(
+                                    Commands.argument("identity_id", IdentifierArgument.id())
+                                        .suggests(IdentityCommand::suggestMorphableIdentities)
+                                        .executes(context -> abilityInfo(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
+                                )
+                        )
+                        .then(Commands.literal("current").executes(context -> currentAbilityInfo(context.getSource())))
+                )
+                .then(
+                    Commands.literal("config")
+                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                        .then(Commands.literal("list").executes(context -> listConfig(context.getSource())))
+                        .then(
+                            Commands.literal("get")
+                                .then(
+                                    Commands.argument("key", StringArgumentType.word())
+                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                        .executes(context -> getConfig(context.getSource(), StringArgumentType.getString(context, "key")))
+                                )
+                        )
+                        .then(
+                            Commands.literal("set")
+                                .then(
+                                    Commands.argument("key", StringArgumentType.word())
+                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                        .then(
+                                            Commands.argument("value", StringArgumentType.greedyString())
+                                                .executes(
+                                                    context -> setConfig(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "key"),
+                                                        StringArgumentType.getString(context, "value")
+                                                    )
+                                                )
+                                        )
+                                )
+                        )
+                        .then(
+                            Commands.literal("add")
+                                .then(
+                                    Commands.argument("key", StringArgumentType.word())
+                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                        .then(
+                                            Commands.argument("value", StringArgumentType.greedyString())
+                                                .executes(
+                                                    context -> addConfigListValue(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "key"),
+                                                        StringArgumentType.getString(context, "value")
+                                                    )
+                                                )
+                                        )
+                                )
+                        )
+                        .then(
+                            Commands.literal("remove")
+                                .then(
+                                    Commands.argument("key", StringArgumentType.word())
+                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                        .then(
+                                            Commands.argument("value", StringArgumentType.greedyString())
+                                                .executes(
+                                                    context -> removeConfigListValue(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "key"),
+                                                        StringArgumentType.getString(context, "value")
+                                                    )
+                                                )
+                                        )
+                                )
+                        )
+                        .then(
+                            Commands.literal("clear")
+                                .then(
+                                    Commands.argument("key", StringArgumentType.word())
+                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                        .executes(context -> clearConfigList(context.getSource(), StringArgumentType.getString(context, "key")))
+                                )
+                        )
+                )
         );
     }
 
@@ -107,6 +237,258 @@ public final class IdentityCommand {
         return 1;
     }
 
+    private static int unlockIdentity(CommandSourceStack source, Identifier identityId, ServerPlayer target) {
+        if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
+                String reason = IdentityProgression.getDisabledIdentityReason(identityId);
+                source.sendFailure(
+                    Component.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
+                );
+                return 0;
+            }
+            source.sendFailure(Component.literal("Unsupported identity: " + identityId));
+            return 0;
+        }
+
+        ServerPlayer resolvedTarget = target;
+        if (resolvedTarget == null) {
+            resolvedTarget = source.getPlayer();
+        }
+        if (resolvedTarget == null) {
+            source.sendFailure(Component.literal("Specify a target player."));
+            return 0;
+        }
+
+        boolean granted = IdentityProgression.grantIdentity(resolvedTarget, identityId);
+        if (!granted) {
+            source.sendSystemMessage(Component.literal(resolvedTarget.getName().getString() + " already has " + identityId));
+            return 1;
+        }
+
+        String targetName = resolvedTarget.getName().getString();
+        source.sendSuccess(
+            () -> Component.literal("Unlocked identity " + identityId + " for " + targetName),
+            true
+        );
+        return 1;
+    }
+
+    private static int unlockAll(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer resolvedTarget = target;
+        if (resolvedTarget == null) {
+            resolvedTarget = source.getPlayer();
+        }
+        if (resolvedTarget == null) {
+            source.sendFailure(Component.literal("Specify a target player."));
+            return 0;
+        }
+
+        int granted = IdentityProgression.grantAllMorphableIdentities(resolvedTarget);
+        String targetName = resolvedTarget.getName().getString();
+        source.sendSuccess(
+            () -> Component.literal("Unlocked " + granted + " identities for " + targetName),
+            true
+        );
+        return granted;
+    }
+
+    private static int listConfig(CommandSourceStack source) {
+        if (CONFIG_FIELDS.isEmpty()) {
+            source.sendSystemMessage(Component.literal("No editable config keys found."));
+            return 1;
+        }
+        source.sendSystemMessage(Component.literal("Config keys (" + CONFIG_FIELDS.size() + "): " + String.join(", ", CONFIG_FIELDS.keySet())));
+        return CONFIG_FIELDS.size();
+    }
+
+    private static int getConfig(CommandSourceStack source, String key) {
+        Field field = CONFIG_FIELDS.get(key);
+        if (field == null) {
+            source.sendFailure(Component.literal("Unknown config key: " + key));
+            return 0;
+        }
+
+        Object value = getConfigFieldValue(field);
+        source.sendSystemMessage(Component.literal(key + " = " + formatConfigValue(value)));
+        return 1;
+    }
+
+    private static int setConfig(CommandSourceStack source, String key, String rawValue) {
+        Field field = CONFIG_FIELDS.get(key);
+        if (field == null) {
+            source.sendFailure(Component.literal("Unknown config key: " + key));
+            return 0;
+        }
+
+        Class<?> type = field.getType();
+        if (List.class.isAssignableFrom(type)) {
+            source.sendFailure(Component.literal("Config key " + key + " is a list. Use /identity config add/remove/clear."));
+            return 0;
+        }
+
+        Object parsed;
+        try {
+            parsed = parseScalarConfigValue(type, rawValue);
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(Component.literal("Invalid value for " + key + ": " + exception.getMessage()));
+            return 0;
+        }
+
+        try {
+            field.set(null, parsed);
+        } catch (IllegalAccessException exception) {
+            source.sendFailure(Component.literal("Failed to set " + key + ": " + exception.getMessage()));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"), true);
+        return 1;
+    }
+
+    private static int addConfigListValue(CommandSourceStack source, String key, String value) {
+        Field field = CONFIG_FIELDS.get(key);
+        if (field == null) {
+            source.sendFailure(Component.literal("Unknown config key: " + key));
+            return 0;
+        }
+
+        if (!List.class.isAssignableFrom(field.getType())) {
+            source.sendFailure(Component.literal("Config key " + key + " is not a list."));
+            return 0;
+        }
+
+        List<String> values = getOrCreateConfigStringList(field);
+        if (values.contains(value)) {
+            source.sendSystemMessage(Component.literal("Value already present in " + key + ": " + value));
+            return 1;
+        }
+
+        values.add(value);
+        source.sendSuccess(() -> Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"), true);
+        return 1;
+    }
+
+    private static int removeConfigListValue(CommandSourceStack source, String key, String value) {
+        Field field = CONFIG_FIELDS.get(key);
+        if (field == null) {
+            source.sendFailure(Component.literal("Unknown config key: " + key));
+            return 0;
+        }
+
+        if (!List.class.isAssignableFrom(field.getType())) {
+            source.sendFailure(Component.literal("Config key " + key + " is not a list."));
+            return 0;
+        }
+
+        List<String> values = getOrCreateConfigStringList(field);
+        if (!values.remove(value)) {
+            source.sendSystemMessage(Component.literal("Value not present in " + key + ": " + value));
+            return 1;
+        }
+
+        source.sendSuccess(() -> Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"), true);
+        return 1;
+    }
+
+    private static int clearConfigList(CommandSourceStack source, String key) {
+        Field field = CONFIG_FIELDS.get(key);
+        if (field == null) {
+            source.sendFailure(Component.literal("Unknown config key: " + key));
+            return 0;
+        }
+
+        if (!List.class.isAssignableFrom(field.getType())) {
+            source.sendFailure(Component.literal("Config key " + key + " is not a list."));
+            return 0;
+        }
+
+        List<String> values = getOrCreateConfigStringList(field);
+        int removed = values.size();
+        values.clear();
+        source.sendSuccess(() -> Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"), true);
+        return removed;
+    }
+
+    private static int listAbilities(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Only players can list abilities."));
+            return 0;
+        }
+
+        List<Identifier> candidates = collectAbilityCandidates(source, player);
+        List<String> lines = new ArrayList<>();
+        int builtinCount = 0;
+        int fallbackCount = 0;
+        int noneCount = 0;
+
+        for (Identifier id : candidates) {
+            AbilityInfo info = resolveAbilityInfo(id);
+            if (!info.hasAny()) {
+                noneCount++;
+                continue;
+            }
+            if (info.usesGenericFallback()) {
+                fallbackCount++;
+            } else {
+                builtinCount++;
+            }
+            lines.add(id + " -> " + info.summary());
+        }
+
+        if (lines.isEmpty()) {
+            source.sendSystemMessage(Component.literal("No abilities found for current identity set."));
+            return 1;
+        }
+
+        source.sendSystemMessage(
+            Component.literal(
+                "Abilities (" + lines.size() + "): " + builtinCount + " specific, " + fallbackCount + " fallback, " + noneCount + " none"
+            )
+        );
+        for (String line : lines) {
+            source.sendSystemMessage(Component.literal(line));
+        }
+        return lines.size();
+    }
+
+    private static int abilityInfo(CommandSourceStack source, Identifier identityId) {
+        if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            source.sendFailure(Component.literal("Unsupported identity: " + identityId));
+            return 0;
+        }
+
+        AbilityInfo info = resolveAbilityInfo(identityId);
+        if (!info.hasAny()) {
+            source.sendSystemMessage(Component.literal("Ability for " + identityId + ": none"));
+            return 1;
+        }
+
+        source.sendSystemMessage(Component.literal("Ability for " + identityId + ": " + info.summary()));
+        return 1;
+    }
+
+    private static int currentAbilityInfo(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Only players can query current ability."));
+            return 0;
+        }
+
+        Entity current = ((EntityAccessor) player).getCurrentIdentity();
+        if (current == null) {
+            source.sendSystemMessage(Component.literal("Current ability: none (not morphed)."));
+            return 1;
+        }
+
+        Identifier id = EntityType.getKey(current.getType());
+        if (id == null) {
+            source.sendSystemMessage(Component.literal("Current ability: none (unknown identity type)."));
+            return 1;
+        }
+        return abilityInfo(source, id);
+    }
+
     private static CompletableFuture<Suggestions> suggestUnlockedIdentities(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
         ServerPlayer player = context.getSource().getPlayer();
         if (player == null) {
@@ -126,6 +508,17 @@ public final class IdentityCommand {
             net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
             builder
         );
+    }
+
+    private static CompletableFuture<Suggestions> suggestMorphableIdentities(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        return SharedSuggestionProvider.suggestResource(
+            BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
+            builder
+        );
+    }
+
+    private static CompletableFuture<Suggestions> suggestConfigKeys(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        return SharedSuggestionProvider.suggest(CONFIG_FIELDS.keySet(), builder);
     }
 
     private static boolean canSwap(CommandSourceStack source, ServerPlayer player) {
@@ -157,6 +550,189 @@ public final class IdentityCommand {
             return Optional.of(Identifier.parse(value));
         } catch (Exception ignored) {
             return Optional.empty();
+        }
+    }
+
+    private static Map<String, Field> createConfigFieldMap() {
+        List<Field> fields = new ArrayList<>();
+        for (Field field : IdentitySettings.class.getFields()) {
+            int modifiers = field.getModifiers();
+            if (!Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers) || field.isSynthetic()) {
+                continue;
+            }
+            fields.add(field);
+        }
+        fields.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+
+        Map<String, Field> out = new LinkedHashMap<>();
+        for (Field field : fields) {
+            out.put(field.getName(), field);
+        }
+        return Collections.unmodifiableMap(out);
+    }
+
+    private static Object parseScalarConfigValue(Class<?> type, String rawValue) {
+        String trimmed = rawValue == null ? "" : rawValue.trim();
+        if (type == boolean.class || type == Boolean.class) {
+            String normalized = trimmed.toLowerCase(Locale.ROOT);
+            return switch (normalized) {
+                case "true", "1", "yes", "on", "enabled" -> true;
+                case "false", "0", "no", "off", "disabled" -> false;
+                default -> throw new IllegalArgumentException("expected boolean (true/false/on/off/1/0)");
+            };
+        }
+        if (type == int.class || type == Integer.class) {
+            try {
+                return Integer.parseInt(trimmed);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("expected integer");
+            }
+        }
+        if (type == float.class || type == Float.class) {
+            try {
+                return Float.parseFloat(trimmed);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("expected float");
+            }
+        }
+        if (type == double.class || type == Double.class) {
+            try {
+                return Double.parseDouble(trimmed);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("expected decimal number");
+            }
+        }
+        if (type == long.class || type == Long.class) {
+            try {
+                return Long.parseLong(trimmed);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("expected long integer");
+            }
+        }
+        if (type == String.class) {
+            return "null".equalsIgnoreCase(trimmed) ? null : rawValue;
+        }
+        throw new IllegalArgumentException("unsupported type: " + type.getSimpleName());
+    }
+
+    private static Object getConfigFieldValue(Field field) {
+        try {
+            return field.get(null);
+        } catch (IllegalAccessException exception) {
+            return "<inaccessible>";
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> getOrCreateConfigStringList(Field field) {
+        try {
+            Object value = field.get(null);
+            if (value instanceof List<?> existing) {
+                return (List<String>) existing;
+            }
+            List<String> created = new ArrayList<>();
+            field.set(null, created);
+            return created;
+        } catch (IllegalAccessException exception) {
+            throw new IllegalStateException("Failed to access config list field " + field.getName(), exception);
+        }
+    }
+
+    private static String formatConfigValue(Object value) {
+        if (value instanceof List<?> list) {
+            return list.toString();
+        }
+        return String.valueOf(value);
+    }
+
+    private static List<Identifier> collectAbilityCandidates(CommandSourceStack source, ServerPlayer player) {
+        if (!IdentitySettings.requireUnlockedIdentityForMorph || isOperator(source)) {
+            return BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity).sorted().toList();
+        }
+
+        return IdentityProgression.getUnlockedIdentities(player).stream()
+            .map(IdentityCommand::parseIdentifier)
+            .flatMap(Optional::stream)
+            .filter(IdentityProgression::isMorphableIdentity)
+            .sorted()
+            .toList();
+    }
+
+    private static AbilityInfo resolveAbilityInfo(Identifier identityId) {
+        if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
+            return AbilityInfo.none();
+        }
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(identityId);
+        if (type == null) {
+            return AbilityInfo.none();
+        }
+
+        IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type);
+        Identifier predefFromDefinition = definition == null ? null : definition.bultinability();
+        Identifier predefKey = isNullIdentifier(predefFromDefinition) ? identityId : predefFromDefinition;
+
+        boolean hasSpecificPredef = hasSpecificPredef(predefKey);
+        boolean hasFallback = PredefIdentityAbilities.hasFallbackAbility(identityId);
+        if (definition == null && !hasSpecificPredef && !hasFallback) {
+            return AbilityInfo.none();
+        }
+
+        int cooldown = definition == null ? 20 : definition.cooldown();
+        int useDuration = definition == null ? 0 : definition.useduration();
+        boolean overrideAttack = definition != null && definition.override_attack();
+        String command = definition == null ? "" : definition.command();
+        Identifier predefLabel = hasSpecificPredef ? predefKey : null;
+        boolean genericFallback = !hasSpecificPredef && hasFallback;
+
+        return new AbilityInfo(cooldown, useDuration, overrideAttack, command, predefLabel, genericFallback);
+    }
+
+    private static boolean hasSpecificPredef(Identifier prebuilt) {
+        if (prebuilt == null || isNullIdentifier(prebuilt)) {
+            return false;
+        }
+
+        if (PredefIdentityAbilities.predef.containsKey(prebuilt)) {
+            return true;
+        }
+
+        Identifier minecraftAlias = Identifier.fromNamespaceAndPath("minecraft", prebuilt.getPath());
+        if (PredefIdentityAbilities.predef.containsKey(minecraftAlias)) {
+            return true;
+        }
+
+        return PredefIdentityAbilities.predef.containsKey(Identifier.fromNamespaceAndPath("identity2", prebuilt.getPath()));
+    }
+
+    private static boolean isNullIdentifier(Identifier id) {
+        return id == null || "null".equals(id.getPath());
+    }
+
+    private record AbilityInfo(
+        int cooldown,
+        int useDuration,
+        boolean overrideAttack,
+        String command,
+        Identifier predef,
+        boolean genericFallback
+    ) {
+        static AbilityInfo none() {
+            return new AbilityInfo(0, 0, false, "", null, false);
+        }
+
+        boolean hasAny() {
+            return this.predef != null || this.genericFallback || (this.command != null && !this.command.isBlank());
+        }
+
+        boolean usesGenericFallback() {
+            return this.genericFallback;
+        }
+
+        String summary() {
+            String source = this.genericFallback ? "generic_fallback" : (this.predef != null ? "predef:" + this.predef : "command_only");
+            String commandText = (this.command != null && !this.command.isBlank()) ? " command=\"" + this.command + "\"" : "";
+            String overrideText = this.overrideAttack ? " override_attack=true" : "";
+            return source + " cooldown=" + this.cooldown + " use_duration=" + this.useDuration + overrideText + commandText;
         }
     }
 }

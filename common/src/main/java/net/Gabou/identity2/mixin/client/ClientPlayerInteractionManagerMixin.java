@@ -46,8 +46,8 @@ public class ClientPlayerInteractionManagerMixin {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = identityAbilityRegistry.getValue(
-            net.minecraft.world.entity.EntityType.getKey(((EntityAccessor) player).getCurrentIdentity().getType())
+        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(
+            ((EntityAccessor) player).getCurrentIdentity().getType()
         );
         if (identityAbility != null) {
             Identity2Client.sendIdentityAbilityPacket(-3);

@@ -6,6 +6,7 @@ import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
 import net.minecraft.data.registries.VanillaRegistries;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
@@ -72,5 +73,33 @@ public final class ModRegistries {
             return null;
         }
         return refreshIdentityAbilityRegistry();
+    }
+
+    public static IdentityAbilityDefinition resolveIdentityAbility(EntityType<?> type) {
+        Registry<IdentityAbilityDefinition> registry = getIdentityAbilityRegistry();
+        if (registry == null || type == null) {
+            return null;
+        }
+
+        Identifier typeId = EntityType.getKey(type);
+        if (typeId == null) {
+            return null;
+        }
+
+        IdentityAbilityDefinition exact = registry.getValue(typeId);
+        if (exact != null) {
+            return exact;
+        }
+
+        // Compatibility fallback: many datapacks define abilities by path only
+        // under minecraft/identity2 namespace. Try these aliases for modded types.
+        IdentityAbilityDefinition minecraftAlias = registry.getValue(
+            Identifier.fromNamespaceAndPath("minecraft", typeId.getPath())
+        );
+        if (minecraftAlias != null) {
+            return minecraftAlias;
+        }
+
+        return registry.getValue(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, typeId.getPath()));
     }
 }
