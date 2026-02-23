@@ -1,0 +1,12 @@
+﻿{
+  "category.identity2.test": "Identity 2",
+  "key.identity2.primary_ability": "Capacité principale",
+  "key.identity2.secondary_ability": "Capacité secondaire",
+  "key.identity2.identity_menu": "Menu d'identité",
+  "key.identity2.favorite_morph_1": "Morph favori 1",
+  "key.identity2.favorite_morph_2": "Morph favori 2",
+  "key.identity2.favorite_morph_3": "Morph favori 3",
+  "key.identity2.favorite_save_1": "Enregistrer favori 1",
+  "key.identity2.favorite_save_2": "Enregistrer favori 2",
+  "key.identity2.favorite_save_3": "Enregistrer favori 3"
+}

@@ -20,7 +20,21 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 
 public final class IdentityVariantDiscovery {
-    private static final List<String> CANDIDATE_KEYS = List.of("Color", "Variant", "variant", "Type", "type", "Skin", "skin", "Form", "form");
+    private static final List<String> CANDIDATE_KEYS = List.of(
+        "Color",
+        "Variant",
+        "variant",
+        "Type",
+        "type",
+        "Skin",
+        "skin",
+        "Form",
+        "form",
+        "Age",
+        "IsBaby",
+        "Baby",
+        "VillagerLevel"
+    );
     private static final int MAX_NUMERIC_VARIANT_VALUE = 31;
     private static final int MAX_CAT_SAMPLES = 32;
 

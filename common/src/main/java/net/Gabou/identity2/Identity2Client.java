@@ -57,10 +57,16 @@ public final class Identity2Client {
     public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
     private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category.register(Identifier.parse("category.identity2.test"));
 
-    private static final KeyMapping abilityKeyBinding = new KeyMapping(
-        "key.identity2.dashminus",
+    private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
+        "key.identity2.primary_ability",
         InputConstants.Type.KEYSYM,
         InputConstants.KEY_V,
+        IDENTITY_KEY_CATEGORY
+    );
+    private static final KeyMapping secondaryAbilityKeyBinding = new KeyMapping(
+        "key.identity2.secondary_ability",
+        InputConstants.Type.KEYSYM,
+        InputConstants.KEY_B,
         IDENTITY_KEY_CATEGORY
     );
     private static final KeyMapping identityMenuKeyBinding = new KeyMapping(
@@ -142,7 +148,8 @@ public final class Identity2Client {
         platform = platformImpl;
         initialized = true;
 
-        KeyMappingRegistry.register(abilityKeyBinding);
+        KeyMappingRegistry.register(primaryAbilityKeyBinding);
+        KeyMappingRegistry.register(secondaryAbilityKeyBinding);
         KeyMappingRegistry.register(identityMenuKeyBinding);
         KeyMappingRegistry.register(favoriteMorphSlot1KeyBinding);
         KeyMappingRegistry.register(favoriteMorphSlot2KeyBinding);
@@ -238,26 +245,42 @@ public final class Identity2Client {
             return;
         }
 
-        int cooldown = identityAbility != null ? identityAbility.cooldown() : 20;
+        int primaryCooldown = resolvePrimaryCooldown(identity, identityAbility);
+        int secondaryCooldown = resolveSecondaryCooldown(identity, identityAbility);
         int useDuration = identityAbility != null ? identityAbility.useduration() : 0;
-        int usedAbility = 0;
+        int usedPrimaryAbility = 0;
 
-        while (abilityKeyBinding.consumeClick()) {
+        while (primaryAbilityKeyBinding.consumeClick()) {
             if (((EntityAccessor) player).getAbilityCooldown() == 0) {
-                ((EntityAccessor) player).setAbilityCooldown(cooldown + useDuration);
-                sendIdentityAbilityPacket(0);
-                usedAbility = 1;
+                ((EntityAccessor) player).setAbilityCooldown(primaryCooldown + useDuration);
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PRIMARY);
+                usedPrimaryAbility = 1;
             }
         }
 
-        int cd = ((EntityAccessor) player).getAbilityCooldown();
-        if (cd > cooldown) {
-            sendIdentityAbilityPacket(cooldown + useDuration - cd + 1);
+        while (secondaryAbilityKeyBinding.consumeClick()) {
+            if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
+                ((EntityAccessor) player).setSecondaryAbilityCooldown(secondaryCooldown);
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
+            }
         }
 
-        // Passive tick packet is only needed for identities that implement passive behavior.
-        if (hasPassiveTick(identityAbility, identity)) {
-            sendIdentityAbilityPacket(-1 - usedAbility);
+        int primaryCd = ((EntityAccessor) player).getAbilityCooldown();
+        if (primaryCd > primaryCooldown) {
+            sendIdentityAbilityPacket(primaryCooldown + useDuration - primaryCd + 1);
+        }
+
+        if (identity.getType() == net.minecraft.world.entity.EntityType.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
+            disableMovementInputs(client, player);
+            while (client.options.keyAttack.consumeClick()) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+            }
+            while (client.options.keyUse.consumeClick()) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+            }
+            if (((EntityAccessor) player).getCurrentIdentity() != null) {
+                player.setDeltaMovement(player.getDeltaMovement().multiply(0.0D, 1.0D, 0.0D));
+            }
         }
     }
 
@@ -469,13 +492,35 @@ public final class Identity2Client {
         return null;
     }
 
-    private static boolean hasPassiveTick(IdentityAbilityDefinition identityAbility, Entity identity) {
-        if (identityAbility == null) {
-            Identifier identityTypeId = net.minecraft.world.entity.EntityType.getKey(identity.getType());
-            return identityTypeId != null && "shulker".equals(identityTypeId.getPath());
+    private static int resolvePrimaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
+        if (identityAbility != null) {
+            return Math.max(0, identityAbility.cooldown());
         }
-        Identifier predef = identityAbility.bultinability();
-        return predef != null && "shulker".equals(predef.getPath());
+        return 20;
+    }
+
+    private static int resolveSecondaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityType.ELDER_GUARDIAN) {
+            return Math.max(0, IdentitySettings.elderGuardianMiningFatigueCooldownTicks);
+        }
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityType.SHULKER) {
+            return Math.max(0, IdentitySettings.shulkerTeleportCooldownTicks);
+        }
+        if (identityAbility != null) {
+            return Math.max(0, identityAbility.cooldown());
+        }
+        return 20;
+    }
+
+    private static void disableMovementInputs(Minecraft client, LocalPlayer player) {
+        if (client == null || player == null) {
+            return;
+        }
+        client.options.keyUp.setDown(false);
+        client.options.keyDown.setDown(false);
+        client.options.keyLeft.setDown(false);
+        client.options.keyRight.setDown(false);
+        client.options.keyJump.setDown(false);
     }
 
     private static boolean hasPredefFallback(Entity identity) {

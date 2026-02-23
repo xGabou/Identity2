@@ -2,6 +2,8 @@ package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.ModPackets;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -42,7 +44,13 @@ public class ClientPlayerInteractionManagerMixin {
 
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void onAttackEntity(Player player, Entity target, CallbackInfo info) {
-        if (((EntityAccessor) player).getCurrentIdentity() == null) {
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity == null) {
+            return;
+        }
+        if (currentIdentity.getType() == net.minecraft.world.entity.EntityType.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
+            Identity2Client.sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+            info.cancel();
             return;
         }
 
@@ -52,13 +60,11 @@ public class ClientPlayerInteractionManagerMixin {
         }
 
         IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(
-            ((EntityAccessor) player).getCurrentIdentity().getType()
+            currentIdentity.getType()
         );
-        if (identityAbility != null) {
-            Identity2Client.sendIdentityAbilityPacket(-3);
-            if (identityAbility.override_attack()) {
-                info.cancel();
-            }
+        if (identityAbility != null && identityAbility.override_attack()) {
+            Identity2Client.sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+            info.cancel();
         }
     }
 

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "identity:item/endgame_jar_base",
+    "layer1": "identity:item/endgame_jar_glow"
+  },
+  "overrides": []
+}

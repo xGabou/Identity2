@@ -1,0 +1,12 @@
+﻿{
+  "category.identity2.test": "Identity 2",
+  "key.identity2.primary_ability": "Основная способность",
+  "key.identity2.secondary_ability": "Вторичная способность",
+  "key.identity2.identity_menu": "Меню идентичности",
+  "key.identity2.favorite_morph_1": "Избранный морф 1",
+  "key.identity2.favorite_morph_2": "Избранный морф 2",
+  "key.identity2.favorite_morph_3": "Избранный морф 3",
+  "key.identity2.favorite_save_1": "Сохранить избранное 1",
+  "key.identity2.favorite_save_2": "Сохранить избранное 2",
+  "key.identity2.favorite_save_3": "Сохранить избранное 3"
+}

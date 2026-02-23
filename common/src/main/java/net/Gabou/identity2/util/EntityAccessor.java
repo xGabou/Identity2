@@ -56,4 +56,8 @@ public interface EntityAccessor {
     int getAbilityCooldown();
 
     void setAbilityCooldown(int cooldown);
+
+    int getSecondaryAbilityCooldown();
+
+    void setSecondaryAbilityCooldown(int cooldown);
 }

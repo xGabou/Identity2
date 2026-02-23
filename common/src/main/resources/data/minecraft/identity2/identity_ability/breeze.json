@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:wind_charge",
+  "cooldown": 50,
+  "predef": "minecraft:breeze"
+}

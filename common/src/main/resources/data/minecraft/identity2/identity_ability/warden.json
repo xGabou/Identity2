@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:sculk_shrieker",
+  "cooldown": 120,
+  "predef": "minecraft:warden"
+}

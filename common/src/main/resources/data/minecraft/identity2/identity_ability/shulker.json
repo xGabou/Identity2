@@ -1,7 +1,7 @@
 {
 "icon":"minecraft:shulker_shell",
-"cooldown":1,
+"cooldown":10,
 "use_duration":0,
-"override_attack":true,
+"override_attack":false,
 "predef":"minecraft:shulker"
 }

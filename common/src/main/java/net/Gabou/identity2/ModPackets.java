@@ -39,6 +39,11 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "identity_villager_trade_request"
     );
+    public static final int ABILITY_ACTION_PRIMARY = 0;
+    public static final int ABILITY_ACTION_SECONDARY = -4;
+    public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
+    public static final int ABILITY_ACTION_PASSIVE = -1;
+    public static final int ABILITY_ACTION_PASSIVE_USED = -2;
 
     private static boolean initialized = false;
 
@@ -107,7 +112,13 @@ public final class ModPackets {
         }
 
         PredefIdentityAbilities.IdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
-        if (payload.entityid() == 0) {
+        if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
+            int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
+            EntityAccessor accessor = (EntityAccessor) player;
+            if (accessor.getAbilityCooldown() > 0) {
+                return;
+            }
+            accessor.setAbilityCooldown(configuredCooldown);
             if (!command.isEmpty() && player.level().getServer() != null) {
                 player.level().getServer().getCommands().performPrefixedCommand(
                     player.level().getServer().createCommandSourceStack().withEntity(player),
@@ -120,17 +131,52 @@ public final class ModPackets {
             return;
         }
 
+        if (payload.entityid() == ABILITY_ACTION_SECONDARY) {
+            if (predefAbility == null) {
+                return;
+            }
+            EntityAccessor accessor = (EntityAccessor) player;
+            if (accessor.getSecondaryAbilityCooldown() > 0) {
+                return;
+            }
+            accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
+            predefAbility.executeSecondary(player);
+            return;
+        }
+
         if (predefAbility == null) {
             return;
         }
 
-        if (payload.entityid() == -1 || payload.entityid() == -2) {
-            predefAbility.passivetick(player, payload.entityid() == -2);
-        } else if (payload.entityid() == -3) {
+        if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
+            predefAbility.passivetick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
+        } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
             predefAbility.overrideAttack(player);
         } else {
             predefAbility.tick(player, payload.entityid());
         }
+    }
+
+    private static int resolvePrimaryAbilityCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
+        if (identityAbility != null) {
+            return Math.max(0, identityAbility.cooldown() + identityAbility.useduration());
+        }
+        return 20;
+    }
+
+    private static int resolveSecondaryAbilityCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
+        if (identity != null) {
+            if (identity.getType() == EntityType.ELDER_GUARDIAN) {
+                return Math.max(0, IdentitySettings.elderGuardianMiningFatigueCooldownTicks);
+            }
+            if (identity.getType() == EntityType.SHULKER) {
+                return Math.max(0, IdentitySettings.shulkerTeleportCooldownTicks);
+            }
+        }
+        if (identityAbility != null) {
+            return Math.max(0, identityAbility.cooldown());
+        }
+        return 20;
     }
 
     private static PredefIdentityAbilities.IdentityAbility resolvePredefAbility(Identifier prebuilt, Identifier identityTypeId) {

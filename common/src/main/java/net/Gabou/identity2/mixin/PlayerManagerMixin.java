@@ -9,6 +9,8 @@ import java.util.UUID;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.progression.MorphChargeManager;
+import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -143,7 +145,12 @@ public class PlayerManagerMixin {
             return;
         }
 
-        if (!alive && IdentitySettings.loseAllMorphsOnDeath) {
+        if (!alive) {
+            MorphChargeManager.applyDeathPenalty(respawned);
+        }
+
+        boolean shouldLoseMorphsOnDeath = !alive && ProgressionConfig.shouldLoseMorphsOnDeath(respawned.getServer());
+        if (shouldLoseMorphsOnDeath) {
             int removed = IdentityProgression.clearUnlockedIdentities(respawned);
             IdentityProgression.clearMorph(respawned);
             if (removed > 0) {

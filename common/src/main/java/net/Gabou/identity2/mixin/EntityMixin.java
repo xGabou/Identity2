@@ -23,6 +23,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -116,6 +117,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             this.currentIdentity.tick();
             
         }
+        this.identity2$applyShulkerOpenVisualState();
         this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
             this.canFly();
@@ -191,12 +193,21 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
 
 
     public int abilityCooldown=0;
+    public int secondaryAbilityCooldown=0;
 
     public int getAbilityCooldown(){
         return this.abilityCooldown;
     }
     public void setAbilityCooldown(int cooldown){
         this.abilityCooldown=cooldown;
+    }
+
+    public int getSecondaryAbilityCooldown() {
+        return this.secondaryAbilityCooldown;
+    }
+
+    public void setSecondaryAbilityCooldown(int cooldown) {
+        this.secondaryAbilityCooldown = cooldown;
     }
 
 
@@ -267,6 +278,12 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     private void commandOnTick(CallbackInfo info){
         if(this.abilityCooldown>0){
             this.abilityCooldown-=1;
+        }
+        if(this.secondaryAbilityCooldown>0){
+            this.secondaryAbilityCooldown-=1;
+        }
+        if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
+            IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
         if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").isPresent()){
             String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").get();
@@ -410,6 +427,44 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         if (IdentityTraitTags.hasSlowFalling(identityType) && !player.onGround() && player.getDeltaMovement().y < 0.0D) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 10, 0, false, false, true));
         }
+        this.identity2$applyShulkerMovementLock(player, identityType);
+        this.identity2$applyGuardianWaterMobility(player, identityType);
+    }
+
+    private void identity2$applyShulkerOpenVisualState() {
+        Entity self = (Entity)(Object)this;
+        if (!(self instanceof Player player)) {
+            return;
+        }
+        if (!(this.currentIdentity instanceof net.minecraft.world.entity.monster.Shulker shulker)) {
+            return;
+        }
+        boolean open = PredefIdentityAbilities.isShulkerOpen(player);
+        int targetPeek = open ? 100 : 0;
+        if (((net.Gabou.identity2.util.ShulkerEntityAccessor) shulker).runGetPeekAmount() != targetPeek) {
+            ((net.Gabou.identity2.util.ShulkerEntityAccessor) shulker).setPeekAmount(targetPeek);
+        }
+    }
+
+    private void identity2$applyShulkerMovementLock(Player player, EntityType<?> identityType) {
+        if (identityType != EntityType.SHULKER) {
+            return;
+        }
+        if (!PredefIdentityAbilities.isShulkerOpen(player)) {
+            return;
+        }
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(0.0D, motion.y, 0.0D);
+    }
+
+    private void identity2$applyGuardianWaterMobility(Player player, EntityType<?> identityType) {
+        if (identityType != EntityType.GUARDIAN && identityType != EntityType.ELDER_GUARDIAN) {
+            return;
+        }
+        if (!player.isInWater()) {
+            return;
+        }
+        player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 12, 0, false, false, true));
     }
 
     private boolean identity2$shouldBurnInDaylight(Player player) {
@@ -665,6 +720,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
                 throw new IllegalStateException("loadEntityWithPassengers returned null");
             }
             entity.setId(-this.getId());
+            this.identity2$applyIdentityVariantState(entity, nbtCompound);
             ((EntityAccessor)entity).fixAttributes((Entity)(Object)this, entity);
             this.currentIdentity=entity;
             ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
@@ -693,6 +749,251 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
         
     }
+
+    private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
+        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
+            return;
+        }
+
+        if (variantNbt.getBoolean("IsBaby").isPresent()) {
+            boolean baby = variantNbt.getBooleanOr("IsBaby", false);
+            identity2$invokeOneArg(identityEntity, "setBaby", baby);
+            if (!variantNbt.getInt("Age").isPresent() && !variantNbt.getByte("Age").isPresent()) {
+                identity2$invokeOneArg(identityEntity, "setAge", baby ? -24000 : 0);
+            }
+        } else if (variantNbt.getBoolean("Baby").isPresent()) {
+            boolean baby = variantNbt.getBooleanOr("Baby", false);
+            identity2$invokeOneArg(identityEntity, "setBaby", baby);
+            if (!variantNbt.getInt("Age").isPresent() && !variantNbt.getByte("Age").isPresent()) {
+                identity2$invokeOneArg(identityEntity, "setAge", baby ? -24000 : 0);
+            }
+        }
+
+        if (variantNbt.getInt("Age").isPresent()) {
+            identity2$invokeOneArg(identityEntity, "setAge", variantNbt.getIntOr("Age", 0));
+        } else if (variantNbt.getByte("Age").isPresent()) {
+            identity2$invokeOneArg(identityEntity, "setAge", (int) variantNbt.getByteOr("Age", (byte) 0));
+        }
+
+        if (identityEntity instanceof net.minecraft.world.entity.npc.villager.Villager) {
+            identity2$applyVillagerVariantState(identityEntity, variantNbt);
+        }
+    }
+
+    private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
+        Object villagerData = identity2$invokeNoArg(identityEntity, "getVillagerData");
+        if (villagerData == null) {
+            return;
+        }
+
+        Object updatedVillagerData = villagerData;
+        String professionRaw = variantNbt.getStringOr("VillagerProfession", "");
+        if (!professionRaw.isBlank()) {
+            Identifier professionId = identity2$parseIdentifier(professionRaw);
+            Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
+            if (profession != null) {
+                Object professionHolder = identity2$wrapAsHolder(BuiltInRegistries.VILLAGER_PROFESSION, profession);
+                Object next = professionHolder != null ? identity2$invokeOneArg(updatedVillagerData, "setProfession", professionHolder) : null;
+                if (next == null) {
+                    next = identity2$invokeOneArg(updatedVillagerData, "setProfession", profession);
+                }
+                if (next != null) {
+                    updatedVillagerData = next;
+                }
+            }
+        }
+
+        String typeRaw = variantNbt.getStringOr("VillagerType", "");
+        if (!typeRaw.isBlank()) {
+            Identifier typeId = identity2$parseIdentifier(typeRaw);
+            Object villagerType = identity2$resolveRegistryValue("VILLAGER_TYPE", typeId);
+            if (villagerType != null) {
+                Object typeHolder = identity2$wrapAsHolder(BuiltInRegistries.VILLAGER_TYPE, villagerType);
+                Object next = typeHolder != null ? identity2$invokeOneArg(updatedVillagerData, "setType", typeHolder) : null;
+                if (next == null) {
+                    next = identity2$invokeOneArg(updatedVillagerData, "setType", villagerType);
+                }
+                if (next == null) {
+                    next = typeHolder != null ? identity2$invokeOneArg(updatedVillagerData, "withType", typeHolder) : null;
+                }
+                if (next == null) {
+                    next = identity2$invokeOneArg(updatedVillagerData, "withType", villagerType);
+                }
+                if (next != null) {
+                    updatedVillagerData = next;
+                }
+            }
+        }
+
+        if (variantNbt.getInt("VillagerLevel").isPresent()) {
+            Object next = identity2$invokeOneArg(updatedVillagerData, "setLevel", Math.max(1, variantNbt.getIntOr("VillagerLevel", 1)));
+            if (next == null) {
+                next = identity2$invokeOneArg(updatedVillagerData, "withLevel", Math.max(1, variantNbt.getIntOr("VillagerLevel", 1)));
+            }
+            if (next != null) {
+                updatedVillagerData = next;
+            }
+        }
+
+        if (identity2$invokeOneArg(identityEntity, "setVillagerData", updatedVillagerData) == null) {
+            return;
+        }
+
+        identity2$clearVillagerOffers(identityEntity);
+        identity2$invokeNoArg(identityEntity, "updateTrades");
+        identity2$invokeNoArg(identityEntity, "restock");
+    }
+
+    private static void identity2$clearVillagerOffers(Object villager) {
+        Object offers = identity2$invokeNoArg(villager, "getOffers");
+        if (offers instanceof List<?> list) {
+            list.clear();
+            return;
+        }
+        if (offers != null) {
+            identity2$invokeNoArg(offers, "clear");
+        }
+    }
+
+    @Nullable
+    private static Identifier identity2$parseIdentifier(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            if (raw.contains(":")) {
+                return Identifier.parse(raw);
+            }
+            return Identifier.fromNamespaceAndPath("minecraft", raw);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Object identity2$resolveRegistryValue(String registryField, @Nullable Identifier id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            Object registry = BuiltInRegistries.class.getField(registryField).get(null);
+            if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
+                @SuppressWarnings("unchecked")
+                net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
+                return cast.getValue(id);
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static Object identity2$wrapAsHolder(Object registry, Object value) {
+        if (registry == null || value == null) {
+            return null;
+        }
+        for (Method method : registry.getClass().getMethods()) {
+            if (!method.getName().equals("wrapAsHolder") || method.getParameterCount() != 1) {
+                continue;
+            }
+            if (!identity2$isAssignable(method.getParameterTypes()[0], value.getClass())) {
+                continue;
+            }
+            try {
+                return method.invoke(registry, value);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (arg != null && !identity2$isAssignable(paramType, arg.getClass())) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, arg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static List<Method> identity2$getAllMethods(Class<?> type) {
+        List<Method> methods = Lists.newArrayList();
+        Set<String> signatures = new java.util.LinkedHashSet<>();
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                String signature = method.getName() + "#" + method.getParameterCount();
+                for (Class<?> parameterType : method.getParameterTypes()) {
+                    signature += ":" + parameterType.getName();
+                }
+                if (signatures.add(signature)) {
+                    methods.add(method);
+                }
+            }
+        }
+        return methods;
+    }
+
+    private static boolean identity2$isAssignable(Class<?> paramType, Class<?> argType) {
+        if (paramType.isAssignableFrom(argType)) {
+            return true;
+        }
+        if (paramType == int.class && argType == Integer.class) {
+            return true;
+        }
+        if (paramType == boolean.class && argType == Boolean.class) {
+            return true;
+        }
+        if (paramType == byte.class && argType == Byte.class) {
+            return true;
+        }
+        if (paramType == short.class && argType == Short.class) {
+            return true;
+        }
+        if (paramType == long.class && argType == Long.class) {
+            return true;
+        }
+        if (paramType == float.class && argType == Float.class) {
+            return true;
+        }
+        if (paramType == double.class && argType == Double.class) {
+            return true;
+        }
+        return false;
+    }
+
     private void deactivateIdentityAfterFailure(@Nullable Identifier identityId, String reason) {
         this.currentIdentity = null;
         this.entityCanFly = false;

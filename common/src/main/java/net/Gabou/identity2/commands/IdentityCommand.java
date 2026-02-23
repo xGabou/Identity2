@@ -268,7 +268,9 @@ public final class IdentityCommand {
             return 0;
         }
 
-        IdentityProgression.morph(player, identityId);
+        if (!IdentityProgression.morph(player, identityId)) {
+            return 0;
+        }
         source.sendSuccess(() -> Component.literal("Morphed into " + identityId), false);
         return 1;
     }

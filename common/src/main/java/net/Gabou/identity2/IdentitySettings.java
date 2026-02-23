@@ -14,7 +14,13 @@ public class IdentitySettings {
     public static boolean revokeIdentityOnDeath = false;
 
     //@Comment(value = "If true, all unlocked morphs are removed when the player dies.")
-    public static boolean loseAllMorphsOnDeath = false;
+    public static boolean loseAllMorphsOnDeath = true;
+
+    //@Comment(value = "If true, morph unlock loss on death is disabled. This requires cheats unless explicitly overridden.")
+    public static boolean disableMorphLossOnDeath = false;
+
+    //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
+    public static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
 
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
@@ -120,11 +126,103 @@ public class IdentitySettings {
     //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
     public static boolean requireUnlockedIdentityForMorph = true;
 
+    //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
+    public static boolean enableMorphChargeSystem = false;
+    //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
+    public static boolean EnableMorphCharges = false;
+
+    //@Comment(value = "Default number of charges gained per qualifying kill.")
+    public static int defaultChargeGainPerKill = 1;
+
+    //@Comment(value = "Charge cost paid when selecting a morph.")
+    public static int defaultMorphUseChargeCost = 1;
+
+    //@Comment(value = "If true, dying while morphed removes charges from the active morph.")
+    public static boolean removeMorphChargeOnDeath = true;
+
+    //@Comment(value = "How many charges are removed on death when removeMorphChargeOnDeath is true.")
+    public static int morphDeathChargePenalty = 1;
+
+    //@Comment(value = "Per-identity charge gain overrides in the format 'namespace:entity=value'.")
+    public static List<String> chargeGainByIdentity = new ArrayList<>();
+
+    //@Comment(value = "Per-identity charge cost overrides in the format 'namespace:entity=value'.")
+    public static List<String> chargeCostByIdentity = new ArrayList<>();
+
+    //@Comment(value = "Per-identity death charge penalty overrides in the format 'namespace:entity=value'.")
+    public static List<String> chargeDeathPenaltyByIdentity = new ArrayList<>();
+
+    //@Comment(value = "If true, soul jar storage/protection is enabled.")
+    public static boolean enableSoulJarSystem = false;
+    //@Comment(value = "Identity 2.0 alias for enableSoulJarSystem.")
+    public static boolean EnableSoulJars = false;
+
+    //@Comment(value = "Per-tier soul jar capacities in the format 'tier=value'.")
+    public static List<String> soulJarTierCapacities = new ArrayList<>(
+        List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
+    );
+
+    //@Comment(value = "Per-tier soul jar item mapping in the format 'tier=namespace:item'.")
+    public static List<String> soulJarTierItems = new ArrayList<>(
+        List.of(
+            "mud=minecraft:clay_ball",
+            "glass=minecraft:glass_bottle",
+            "reinforced=minecraft:echo_shard",
+            "true_soul=minecraft:nether_star"
+        )
+    );
+
+    //@Comment(value = "Optional per-tier recipe id mapping in the format 'tier=namespace:recipe'.")
+    public static List<String> soulJarTierRecipes = new ArrayList<>();
+
+    //@Comment(value = "Tier key used for the endgame true soul jar.")
+    public static String trueSoulJarTier = "true_soul";
+
+    //@Comment(value = "If true, morphs stored in true soul jars are treated as permanent.")
+    public static boolean trueSoulJarGrantsPermanent = true;
+
+    //@Comment(value = "If true, morphs stored in true soul jars ignore charge death penalties.")
+    public static boolean trueSoulJarPreventsDeathPenalty = true;
+
+    //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
+    public static boolean enablePermanentMorphs = false;
+    //@Comment(value = "Identity 2.0 alias for enablePermanentMorphs.")
+    public static boolean EnablePermanentJarMorphs = false;
+
+    //@Comment(value = "Default kills required to permanently bind a stored morph.")
+    public static int defaultPermanentKillRequirement = 250;
+
+    //@Comment(value = "Per-identity permanent requirement overrides in the format 'namespace:entity=value'.")
+    public static List<String> permanentKillRequirementByIdentity = new ArrayList<>();
+
+    //@Comment(value = "If true, players can absorb permanent morphs for account-bound permanence.")
+    public static boolean enableSoulAbsorption = false;
+    //@Comment(value = "Identity 2.0 alias for enableSoulAbsorption.")
+    public static boolean EnableSoulAbsorption = false;
+
+    //@Comment(value = "Elder Guardian active ability radius in blocks.")
+    public static double elderGuardianMiningFatigueRadius = 50.0D;
+
+    //@Comment(value = "Elder Guardian active ability Mining Fatigue duration in ticks.")
+    public static int elderGuardianMiningFatigueDurationTicks = 20 * 60;
+
+    //@Comment(value = "Elder Guardian active ability Mining Fatigue amplifier (0-based).")
+    public static int elderGuardianMiningFatigueAmplifier = 2;
+
+    //@Comment(value = "Elder Guardian active ability cooldown in ticks. Set to 0 to use datapack cooldown.")
+    public static int elderGuardianMiningFatigueCooldownTicks = 600;
+
+    //@Comment(value = "Shulker secondary teleport cooldown in ticks.")
+    public static int shulkerTeleportCooldownTicks = 80;
+
     //@Comment(value = "If true, players with the Warden Identity will have a shorter view range with the darkness effect.")
     public static boolean wardenIsBlinded = true;
 
     //@Comment(value = "If true, players with the Warden Identity will blind other nearby players.")
     public static boolean wardenBlindsNearby = true;
+
+    //@Comment(value = "If true, each player is morphed into a random unlocked identity once per Minecraft day.")
+    public static boolean randomMorphEveryDay = false;
 
     //@Comment(value = "The Identity type that is forced on all players")
     public static String forcedIdentity = null;

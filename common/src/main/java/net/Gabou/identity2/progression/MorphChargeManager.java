@@ -1,0 +1,139 @@
+package net.Gabou.identity2.progression;
+
+import com.mojang.serialization.Codec;
+import java.util.HashMap;
+import java.util.Map;
+import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.component.CustomData;
+
+public final class MorphChargeManager {
+    private static final String MORPH_CHARGES_KEY = "identity2.progression.morph_charges";
+    private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
+
+    private MorphChargeManager() {
+    }
+
+    public static int getCharges(ServerPlayer player, Identifier identityId) {
+        if (player == null || identityId == null) {
+            return 0;
+        }
+        Map<String, Integer> charges = getChargeMap(player);
+        return Math.max(0, charges.getOrDefault(identityId.toString(), 0));
+    }
+
+    public static void addCharges(ServerPlayer player, Identifier identityId, int amount) {
+        if (player == null || identityId == null || amount <= 0) {
+            return;
+        }
+        Map<String, Integer> charges = getChargeMap(player);
+        String key = identityId.toString();
+        charges.put(key, Math.max(0, charges.getOrDefault(key, 0)) + amount);
+        setChargeMap(player, charges);
+    }
+
+    public static boolean tryConsumeMorphCharge(ServerPlayer player, Identifier identityId, CompoundTag variantNbt, boolean notifyPlayer) {
+        if (player == null || identityId == null) {
+            return false;
+        }
+        if (!ProgressionConfig.enableMorphCharges()) {
+            return true;
+        }
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            return true;
+        }
+        if (PermanentMorphManager.isPermanentMorph(player, identityId, variantNbt)) {
+            return true;
+        }
+
+        int cost = Math.max(1, ProgressionConfigHelper.resolveChargeCost(identityId));
+        int available = getCharges(player, identityId);
+        if (available < cost) {
+            if (notifyPlayer) {
+                player.displayClientMessage(Component.literal("Not enough charges for morph: " + identityId + " (" + available + "/" + cost + ")"), false);
+            }
+            return false;
+        }
+
+        Map<String, Integer> charges = getChargeMap(player);
+        String key = identityId.toString();
+        charges.put(key, Math.max(0, available - cost));
+        setChargeMap(player, charges);
+        return true;
+    }
+
+    public static void onIdentityKilled(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+        if (player == null || identityId == null) {
+            return;
+        }
+        if (!ProgressionConfig.enableMorphCharges()) {
+            return;
+        }
+        int gain = Math.max(0, ProgressionConfigHelper.resolveChargeGain(identityId));
+        if (gain <= 0) {
+            return;
+        }
+        addCharges(player, identityId, gain);
+    }
+
+    public static void applyDeathPenalty(ServerPlayer player) {
+        if (player == null || !ProgressionConfig.enableMorphCharges() || !IdentitySettings.removeMorphChargeOnDeath) {
+            return;
+        }
+
+        CompoundTag customData = getCustomData(player);
+        String selectedType = customData.getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        if (selectedType.isBlank()) {
+            selectedType = customData.getStringOr("model_override", "");
+        }
+        if (selectedType.isBlank()) {
+            return;
+        }
+
+        Identifier identityId;
+        try {
+            identityId = Identifier.parse(selectedType);
+        } catch (Exception ignored) {
+            return;
+        }
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            return;
+        }
+
+        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(customData.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
+        if (PermanentMorphManager.hasDeathLossProtection(player, identityId, variantNbt)) {
+            return;
+        }
+
+        int penalty = Math.max(1, ProgressionConfigHelper.resolveChargeDeathPenalty(identityId));
+        int available = getCharges(player, identityId);
+        if (available <= 0) {
+            return;
+        }
+        Map<String, Integer> charges = getChargeMap(player);
+        String key = identityId.toString();
+        charges.put(key, Math.max(0, available - penalty));
+        setChargeMap(player, charges);
+    }
+
+    private static Map<String, Integer> getChargeMap(ServerPlayer player) {
+        CompoundTag customData = getCustomData(player);
+        return new HashMap<>(customData.read(MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+    }
+
+    private static void setChargeMap(ServerPlayer player, Map<String, Integer> charges) {
+        CompoundTag customData = getCustomData(player);
+        customData.store(MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
+    }
+
+    private static CompoundTag getCustomData(ServerPlayer player) {
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        return ((NbtComponentAccessor) (Object) customData).getNbt();
+    }
+}

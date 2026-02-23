@@ -1,6 +1,7 @@
 package net.Gabou.identity2;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -9,7 +10,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
+import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.ShulkerEntityAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,13 +27,16 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
@@ -48,12 +57,15 @@ import net.minecraft.world.entity.projectile.hurtingprojectile.WitherSkull;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownSplashPotion;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.npc.villager.VillagerType;
 import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.LevelEvent;
@@ -71,9 +83,13 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_STRIKE_RANGE = 4.5D;
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
+    public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
 
     abstract static class IdentityAbility {
         public void execute(Entity player) {
+        }
+
+        public void executeSecondary(Entity player) {
         }
 
         public void tick(Entity player, int cooldown) {
@@ -204,55 +220,35 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
-                if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() == 0) {
-                    ((ShulkerEntityAccessor) shulker).setPeekAmount(100);
+                if (!(player instanceof ServerPlayer serverPlayer)) {
                     return;
                 }
-                if (!tryShootShulkerBullet(player, shulker)) {
-                    ((ShulkerEntityAccessor) shulker).setPeekAmount(0);
+                boolean open = !isShulkerOpen(player);
+                setShulkerOpenState(serverPlayer, open);
+                ((ShulkerEntityAccessor) shulker).setPeekAmount(open ? 100 : 0);
+                if (open) {
+                    Vec3 motion = player.getDeltaMovement();
+                    player.setDeltaMovement(0.0D, motion.y, 0.0D);
                 }
             }
 
             @Override
-            public void passivetick(Entity player, boolean usedLastTick) {
+            public void executeSecondary(Entity player) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
-                if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(), shulker)) {
-                    BlockPos pos = shulker.blockPosition();
-                    ((ShulkerEntityAccessor) shulker).runTryAttachOrTeleport();
-                    if (!pos.equals(shulker.blockPosition())) {
-                        player.teleportTo(shulker.getX(), shulker.getY(), shulker.getZ());
-                    }
-                }
+                tryTeleportShulkerToNewAnchor(player, shulker);
             }
 
             @Override
             public boolean overrideAttack(Entity player) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
-                    return true;
-                }
-                tryShootShulkerBullet(player, shulker);
-                return true;
-            }
-
-            private boolean canStay(BlockPos pos, Direction direction, Shulker entity) {
-                if (isInvalidPosition(pos, entity)) {
                     return false;
                 }
-                Direction opposite = direction.getOpposite();
-                if (!entity.level().loadedAndEntityCanStandOnFace(pos.relative(direction), entity, opposite)) {
+                if (!isShulkerOpen(player)) {
                     return false;
                 }
-                AABB box = Shulker.getProgressAabb(entity.getScale(), opposite, 1.0F, pos.getBottomCenter()).deflate(1.0E-6);
-                return entity.level().noCollision(entity, box);
-            }
-
-            private boolean isInvalidPosition(BlockPos pos, Shulker entity) {
-                if (entity.level().getBlockState(pos).isAir()) {
-                    return false;
-                }
-                return !entity.level().getBlockState(pos).is(net.minecraft.world.level.block.Blocks.MOVING_PISTON) || !pos.equals(entity.blockPosition());
+                return tryShootShulkerBullet(player, shulker);
             }
         });
 
@@ -385,25 +381,46 @@ public final class PredefIdentityAbilities {
         map.put(Identifier.parse("guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
-                Level world = player.level();
-                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
-                boolean elder = currentIdentity != null && currentIdentity.getType() == EntityType.ELDER_GUARDIAN;
-                EntityHitResult hit = findLivingTarget(player, 30.0D);
-                if (hit != null && hit.getEntity() instanceof LivingEntity livingTarget) {
-                    renderGuardianBeam(world, player.getEyePosition(1.0F), livingTarget.getEyePosition(1.0F));
-                    livingTarget.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, elder ? 20 * 30 : 20 * 20, elder ? 2 : 1));
-                    livingTarget.hurt(player.damageSources().mobAttack((LivingEntity) player), elder ? 8.0F : 4.0F);
-                    world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GUARDIAN_ATTACK, SoundSource.HOSTILE, 1.0F, 1.0F);
-                }
+                executeGuardianLaser(player);
+            }
+        });
 
-                if (elder) {
-                    List<Player> targets = player.level().getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(50.0D));
-                    for (Player target : targets) {
-                        if (target != player) {
-                            target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 20 * 60, 2));
-                        }
-                    }
+        map.put(Identifier.parse("elder_guardian"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeGuardianLaser(player);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!(player.level() instanceof ServerLevel serverLevel)) {
+                    return;
                 }
+                double radius = Math.max(1.0D, IdentitySettings.elderGuardianMiningFatigueRadius);
+                int duration = Math.max(20, IdentitySettings.elderGuardianMiningFatigueDurationTicks);
+                int amplifier = Math.max(0, IdentitySettings.elderGuardianMiningFatigueAmplifier);
+                List<Player> targets = serverLevel.getEntitiesOfClass(Player.class, player.getBoundingBox().inflate(radius), target -> target != player);
+                for (Player target : targets) {
+                    if (target.isSpectator()) {
+                        continue;
+                    }
+                    target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, duration, amplifier, false, true, true));
+                }
+                serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.HOSTILE, 1.0F, 1.0F);
+            }
+        });
+
+        map.put(Identifier.parse("warden"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeWardenSonicBoom(player);
+            }
+        });
+
+        map.put(Identifier.parse("breeze"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeBreezeWindProjectile(player);
             }
         });
         
@@ -581,25 +598,199 @@ public final class PredefIdentityAbilities {
         );
     }
 
-    private static boolean tryShootShulkerBullet(Entity player, Shulker shulker) {
-        if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() == 0) {
+    private static void executeGuardianLaser(Entity player) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        EntityHitResult hit = findLivingTarget(player, 30.0D);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity livingTarget)) {
+            return;
+        }
+        renderGuardianBeam(world, player.getEyePosition(1.0F), livingTarget.getEyePosition(1.0F));
+        livingTarget.hurt(player.damageSources().mobAttack(livingPlayer), 6.0F);
+        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GUARDIAN_ATTACK, SoundSource.HOSTILE, 1.0F, 1.0F);
+    }
+
+    public static boolean isShulkerOpen(Entity player) {
+        if (player == null) {
             return false;
         }
-        double range = 128.0D;
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        return ((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr(SHULKER_OPEN_STATE_KEY, false);
+    }
+
+    private static void setShulkerOpenState(ServerPlayer player, boolean open) {
+        if (player == null) {
+            return;
+        }
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean(SHULKER_OPEN_STATE_KEY, open);
+        syncBoolData(player, SHULKER_OPEN_STATE_KEY, open);
+    }
+
+    private static void syncBoolData(ServerPlayer player, String key, boolean value) {
+        if (player == null || key == null || key.isBlank()) {
+            return;
+        }
+        CustomEntityBoolDataS2CPacketPayload payload = new CustomEntityBoolDataS2CPacketPayload(
+            player.getId(),
+            List.of(new CustomEntityDataS2CPacket.EntryBool(key, value))
+        );
+        NetworkManager.sendToPlayer(player, payload);
+        if (player.level() instanceof ServerLevel serverLevel) {
+            for (ServerPlayer other : serverLevel.players()) {
+                if (other != player) {
+                    NetworkManager.sendToPlayer(other, payload);
+                }
+            }
+        }
+    }
+
+    private static boolean tryShootShulkerBullet(Entity player, Shulker shulker) {
+        if (player == null || shulker == null || player.level().isClientSide() || !isShulkerOpen(player)) {
+            return false;
+        }
+        if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() == 0) {
+            ((ShulkerEntityAccessor) shulker).setPeekAmount(100);
+        }
+        double range = 64.0D;
         double rangeSq = Mth.square(range);
         Vec3 start = player.getEyePosition(1.0F);
         Vec3 look = player.getViewVector(1.0F);
-        Vec3 end = start.add(look.x * range, look.y * range, look.z * range);
-        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D, 1.0D, 1.0D);
+        Vec3 end = start.add(look.scale(range));
+        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D);
         HitResult target = ProjectileUtil.getEntityHitResult(player, start, end, box, EntitySelector.CAN_BE_PICKED, rangeSq);
-        if (target == null || target.getType() != HitResult.Type.ENTITY) {
+        Entity targetEntity = null;
+        if (target instanceof EntityHitResult entityTarget) {
+            targetEntity = entityTarget.getEntity();
+        } else {
+            targetEntity = findNearestForwardLivingTarget(player, range);
+        }
+        if (!(targetEntity instanceof LivingEntity)) {
             return false;
         }
-        shulker.level().addFreshEntity(
-            new ShulkerBullet(shulker.level(), shulker, ((EntityHitResult) target).getEntity(), shulker.getAttachFace().getAxis())
-        );
-        shulker.playSound(SoundEvents.SHULKER_SHOOT, 2.0F, 1.0F);
+        ShulkerBullet bullet = new ShulkerBullet(shulker.level(), shulker, targetEntity, shulker.getAttachFace().getAxis());
+        boolean spawned = shulker.level().addFreshEntity(bullet);
+        if (spawned) {
+            shulker.playSound(SoundEvents.SHULKER_SHOOT, 2.0F, 1.0F);
+        }
+        return spawned;
+    }
+
+    private static LivingEntity findNearestForwardLivingTarget(Entity player, double range) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+        Vec3 eye = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F).normalize();
+        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(2.0D);
+        double bestDistance = Double.MAX_VALUE;
+        LivingEntity best = null;
+        for (LivingEntity candidate : serverLevel.getEntitiesOfClass(LivingEntity.class, box, entity -> entity != player && entity.isAlive() && entity.isPickable())) {
+            Vec3 toCandidate = candidate.getEyePosition(1.0F).subtract(eye);
+            double distanceSq = toCandidate.lengthSqr();
+            if (distanceSq > (range * range) || distanceSq < 1.0E-6D) {
+                continue;
+            }
+            double forward = toCandidate.normalize().dot(look);
+            if (forward < 0.75D) {
+                continue;
+            }
+            if (distanceSq < bestDistance) {
+                bestDistance = distanceSq;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private static boolean tryTeleportShulkerToNewAnchor(Entity player, Shulker shulker) {
+        if (player == null || shulker == null || shulker.level().isClientSide()) {
+            return false;
+        }
+        if (player instanceof LivingEntity livingPlayer) {
+            for (int i = 0; i < 16; i++) {
+                double offsetX = (livingPlayer.getRandom().nextDouble() - 0.5D) * 24.0D;
+                double offsetY = livingPlayer.getRandom().nextInt(13) - 6;
+                double offsetZ = (livingPlayer.getRandom().nextDouble() - 0.5D) * 24.0D;
+                if (livingPlayer.randomTeleport(livingPlayer.getX() + offsetX, livingPlayer.getY() + offsetY, livingPlayer.getZ() + offsetZ, true)) {
+                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHULKER_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
+                    return true;
+                }
+            }
+        }
+
+        BlockPos previous = shulker.blockPosition();
+        ((ShulkerEntityAccessor) shulker).runTryAttachOrTeleport();
+        if (previous.equals(shulker.blockPosition())) {
+            return false;
+        }
+        player.teleportTo(shulker.getX(), shulker.getY(), shulker.getZ());
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHULKER_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
         return true;
+    }
+
+    private static void executeWardenSonicBoom(Entity player) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        EntityHitResult hit = findLivingTarget(player, 15.0D);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+
+        Vec3 from = player.getEyePosition(1.0F);
+        Vec3 to = target.getEyePosition(1.0F);
+        renderSonicBoom(player.level(), from, to);
+        target.hurt(resolveSonicBoomDamageSource(player, livingPlayer), 10.0F);
+        Vec3 pushDirection = to.subtract(from).normalize();
+        target.push(pushDirection.x * 2.5D, 0.5D, pushDirection.z * 2.5D);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 1.0F);
+    }
+
+    private static void executeBreezeWindProjectile(Entity player) {
+        if (player.level().isClientSide()) {
+            return;
+        }
+        boolean spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
+        if (!spawned) {
+            spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "wind_charge"));
+        }
+        if (!spawned) {
+            EntityHitResult hit = findLivingTarget(player, 20.0D);
+            if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+                Vec3 look = player.getViewVector(1.0F).normalize();
+                target.push(look.x * 1.5D, 0.45D, look.z * 1.5D);
+                renderSonicBoom(player.level(), player.getEyePosition(1.0F), target.getEyePosition(1.0F));
+            }
+        }
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BREEZE_SHOOT, SoundSource.HOSTILE, 1.0F, 1.0F);
+    }
+
+    private static boolean spawnWindProjectile(Entity player, Identifier projectileId) {
+        if (player == null || projectileId == null) {
+            return false;
+        }
+        EntityType<?> projectileType = BuiltInRegistries.ENTITY_TYPE.getValue(projectileId);
+        if (projectileType == null) {
+            return false;
+        }
+        Entity projectile = null;
+        try {
+            projectile = projectileType.create(player.level(), EntitySpawnReason.COMMAND);
+        } catch (Throwable ignored) {
+        }
+        if (!(projectile instanceof net.minecraft.world.entity.projectile.Projectile projectileEntity)) {
+            return false;
+        }
+
+        Vec3 look = player.getViewVector(1.0F).normalize();
+        Vec3 spawnPos = player.getEyePosition().add(look.scale(1.2D));
+        projectileEntity.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+        projectileEntity.setOwner(player);
+        projectileEntity.shoot(look.x, look.y, look.z, 1.6F, 0.0F);
+        return player.level().addFreshEntity(projectileEntity);
     }
 
     private static void renderGuardianBeam(Level world, Vec3 from, Vec3 to) {
@@ -618,6 +809,45 @@ public final class PredefIdentityAbilities {
             serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK, cursor.x, cursor.y, cursor.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
             cursor = cursor.add(step);
         }
+    }
+
+    private static void renderSonicBoom(Level world, Vec3 from, Vec3 to) {
+        if (!(world instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Vec3 delta = to.subtract(from);
+        double distance = delta.length();
+        if (distance < 1.0E-4D) {
+            return;
+        }
+        Vec3 step = delta.normalize().scale(0.5D);
+        int points = Mth.ceil(distance / 0.5D);
+        Vec3 cursor = from;
+        for (int i = 0; i <= points; i++) {
+            serverLevel.sendParticles(ParticleTypes.SONIC_BOOM, cursor.x, cursor.y, cursor.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            cursor = cursor.add(step);
+        }
+    }
+
+    private static DamageSource resolveSonicBoomDamageSource(Entity player, LivingEntity attacker) {
+        if (player == null) {
+            return attacker.damageSources().generic();
+        }
+        if (attacker == null) {
+            return player.damageSources().generic();
+        }
+        Object damageSources = invokeNoArg(player, "damageSources");
+        if (damageSources != null) {
+            Object source = invokeOneArg(damageSources, "sonicBoom", attacker);
+            if (source instanceof DamageSource damageSource) {
+                return damageSource;
+            }
+            source = invokeNoArg(damageSources, "sonicBoom");
+            if (source instanceof DamageSource damageSource) {
+                return damageSource;
+            }
+        }
+        return player.damageSources().mobAttack(attacker);
     }
 
     private static IdentityAbility createGenericMobAbility() {
@@ -729,6 +959,7 @@ public final class PredefIdentityAbilities {
             return true;
         }
 
+        syncVillagerVariantData(serverPlayer, villagerIdentity);
         serverPlayer.displayClientMessage(Component.literal("Acquired villager job: " + professionId), true);
         return true;
     }
@@ -961,11 +1192,7 @@ public final class PredefIdentityAbilities {
             return false;
         }
 
-        Registry<?> professionRegistry = getBuiltInRegistry("VILLAGER_PROFESSION");
-        if (professionRegistry == null) {
-            return false;
-        }
-        Object profession = getRegistryValue(professionRegistry, professionId);
+        VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.getValue(professionId);
         if (profession == null) {
             return false;
         }
@@ -975,7 +1202,26 @@ public final class PredefIdentityAbilities {
             return false;
         }
 
-        Object updatedVillagerData = invokeOneArg(villagerData, "setProfession", profession);
+        Object updatedVillagerData = null;
+        Holder<VillagerProfession> professionHolder = null;
+        try {
+            professionHolder = BuiltInRegistries.VILLAGER_PROFESSION.wrapAsHolder(profession);
+        } catch (Throwable ignored) {
+        }
+        if (professionHolder != null) {
+            updatedVillagerData = invokeOneArg(villagerData, "setProfession", professionHolder);
+        }
+        if (updatedVillagerData == null) {
+            updatedVillagerData = invokeOneArg(villagerData, "setProfession", profession);
+        }
+        if (updatedVillagerData == null) {
+            if (professionHolder != null) {
+                updatedVillagerData = invokeOneArg(villagerData, "withProfession", professionHolder);
+            }
+        }
+        if (updatedVillagerData == null) {
+            updatedVillagerData = invokeOneArg(villagerData, "withProfession", profession);
+        }
         if (updatedVillagerData == null) {
             return false;
         }
@@ -993,9 +1239,75 @@ public final class PredefIdentityAbilities {
         invokeIntArg(villagerIdentity, "setVillagerXp", 0);
         invokeIntArg(villagerIdentity, "setExperience", 0);
         clearVillagerOffers(villagerIdentity);
-        invokeNoArg(villagerIdentity, "updateTrades");
+        invokeVillagerUpdateTrades(villagerIdentity);
         invokeNoArg(villagerIdentity, "restock");
         return true;
+    }
+
+    private static void syncVillagerVariantData(ServerPlayer player, Villager villagerIdentity) {
+        if (player == null || villagerIdentity == null) {
+            return;
+        }
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag variant = IdentityProgression.parseVariantNbt(nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
+        Object villagerData = invokeNoArg(villagerIdentity, "getVillagerData");
+        if (villagerData == null) {
+            return;
+        }
+
+        Object profession = invokeNoArg(villagerData, "getProfession");
+        Identifier professionId = resolveRegistryIdentifier("VILLAGER_PROFESSION", profession);
+        if (professionId != null) {
+            variant.putString("VillagerProfession", professionId.toString());
+        }
+
+        Object villagerType = invokeNoArg(villagerData, "getType");
+        Identifier typeId = resolveRegistryIdentifier("VILLAGER_TYPE", villagerType);
+        if (typeId != null) {
+            variant.putString("VillagerType", typeId.toString());
+        }
+
+        Object level = invokeNoArg(villagerData, "getLevel");
+        if (level instanceof Number number) {
+            variant.putInt("VillagerLevel", Math.max(1, number.intValue()));
+        }
+
+        IdentityProgression.updateCurrentVariantAndSync(player, variant);
+    }
+
+    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
+        Registry<?> registry = getBuiltInRegistry(registryField);
+        if (registry == null || value == null) {
+            return null;
+        }
+        Identifier direct = getRegistryKey(registry, value);
+        if (direct != null) {
+            return direct;
+        }
+        Object normalized = normalizeLookupValue(value);
+        if (normalized != null) {
+            return getRegistryKey(registry, normalized);
+        }
+        return null;
+    }
+
+    private static void invokeVillagerUpdateTrades(Villager villagerIdentity) {
+        if (villagerIdentity == null) {
+            return;
+        }
+        if (invokeNoArg(villagerIdentity, "updateTrades") != null) {
+            return;
+        }
+
+        Object level = invokeNoArg(villagerIdentity, "level");
+        if (level instanceof ServerLevel serverLevel) {
+            invokeOneArg(villagerIdentity, "updateTrades", serverLevel);
+            return;
+        }
+        if (level != null) {
+            invokeOneArg(villagerIdentity, "updateTrades", level);
+        }
     }
 
     private static void clearVillagerOffers(Villager villagerIdentity) {
@@ -1013,11 +1325,14 @@ public final class PredefIdentityAbilities {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
         }
-        for (Method method : target.getClass().getMethods()) {
+        for (Method method : getAllMethods(target.getClass())) {
             if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
                 continue;
             }
             try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
                 return method.invoke(target);
             } catch (Throwable ignored) {
             }
@@ -1029,7 +1344,7 @@ public final class PredefIdentityAbilities {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
         }
-        for (Method method : target.getClass().getMethods()) {
+        for (Method method : getAllMethods(target.getClass())) {
             if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
                 continue;
             }
@@ -1038,6 +1353,9 @@ public final class PredefIdentityAbilities {
                 continue;
             }
             try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
                 Object result = method.invoke(target, arg);
                 return result == null ? target : result;
             } catch (Throwable ignored) {
@@ -1050,7 +1368,7 @@ public final class PredefIdentityAbilities {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
         }
-        for (Method method : target.getClass().getMethods()) {
+        for (Method method : getAllMethods(target.getClass())) {
             if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
                 continue;
             }
@@ -1059,12 +1377,33 @@ public final class PredefIdentityAbilities {
                 continue;
             }
             try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
                 Object result = method.invoke(target, value);
                 return result == null ? target : result;
             } catch (Throwable ignored) {
             }
         }
         return null;
+    }
+
+    private static List<Method> getAllMethods(Class<?> type) {
+        List<Method> methods = new ArrayList<>();
+        Set<String> signatures = new LinkedHashSet<>();
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                String signature = method.getName() + "#" + method.getParameterCount();
+                Class<?>[] params = method.getParameterTypes();
+                for (Class<?> param : params) {
+                    signature += ":" + param.getName();
+                }
+                if (signatures.add(signature)) {
+                    methods.add(method);
+                }
+            }
+        }
+        return methods;
     }
 
     @SuppressWarnings("unchecked")
@@ -1085,9 +1424,50 @@ public final class PredefIdentityAbilities {
             return null;
         }
         try {
-            return ((Registry<Object>) registry).getValue(id);
+            Object value = ((Registry<Object>) registry).getValue(id);
+            if (value == null) {
+                value = invokeOneArg(registry, "getValue", id);
+            }
+            if (value == null) {
+                value = invokeOneArg(registry, "get", id);
+            }
+            return normalizeLookupValue(value);
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static Object wrapAsHolder(Registry<?> registry, Object value) {
+        if (registry == null || value == null) {
+            return null;
+        }
+        Object unwrapped = normalizeLookupValue(value);
+        for (Method method : registry.getClass().getMethods()) {
+            if (!method.getName().equals("wrapAsHolder") || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> parameterType = method.getParameterTypes()[0];
+            Object candidate = unwrapped != null ? unwrapped : value;
+            if (!parameterType.isAssignableFrom(candidate.getClass())) {
+                continue;
+            }
+            try {
+                return method.invoke(registry, candidate);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object normalizeLookupValue(Object value) {
+        Object normalized = value;
+        if (normalized instanceof Optional<?> optional) {
+            normalized = optional.orElse(null);
+        }
+        if (normalized == null) {
+            return null;
+        }
+        Object unwrapped = unwrapHolderValue(normalized);
+        return unwrapped != null ? unwrapped : normalized;
     }
 }
