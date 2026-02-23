@@ -24,14 +24,17 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.player.PlayerSkin;
+import java.util.Map;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 @Mixin(AvatarRenderer.class)
@@ -42,10 +45,8 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
     this.renderHand(matrices, queue, light, skinTexture,arm, sleeveVisible);
     }
     @Inject(method = "extractRenderState", at = @At("TAIL"), require = 0)
-    private void identity2$overridePlayerSkin(Object avatarEntity, AvatarRenderState renderState, float tickProgress, CallbackInfo info) {
-        if (!(avatarEntity instanceof Entity entity)) {
-            return;
-        }
+    private void identity2$overridePlayerSkin(Avatar avatarEntity, AvatarRenderState renderState, float tickProgress, CallbackInfo info) {
+        net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
         String selectedType = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
@@ -67,10 +68,33 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
             }
         }
         String name = nameRaw.isEmpty() ? "Player" : nameRaw;
-        PlayerSkin skin = Minecraft.getInstance().getSkinManager().createLookup(new GameProfile(uuid, name), false).get();
+        PlayerSkin skin = identity2$resolvePlayerSkin(uuid, name);
         if (skin != null) {
             renderState.skin = skin;
         }
+    }
+
+    private static PlayerSkin identity2$resolvePlayerSkin(UUID uuid, String name) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener connection = minecraft.getConnection();
+        if (connection != null) {
+            PlayerInfo playerInfo = connection.getPlayerInfo(uuid);
+            if (playerInfo == null && name != null && !name.isBlank()) {
+                playerInfo = connection.getPlayerInfo(name);
+            }
+            if (playerInfo == null) {
+                GameProfile profile = new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name);
+                Map<UUID, PlayerInfo> seenPlayers = connection.getSeenPlayers();
+                playerInfo = seenPlayers.computeIfAbsent(profile.id(), ignored -> new PlayerInfo(profile, false));
+            }
+            if (playerInfo != null) {
+                PlayerSkin playerSkin = playerInfo.getSkin();
+                if (playerSkin != null) {
+                    return playerSkin;
+                }
+            }
+        }
+        return minecraft.getSkinManager().createLookup(new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name), false).get();
     }
     /*@Inject(method = "updateRenderState", at = @At("TAIL"))
 	private void getAndUpdateRenderStateModifier(AbstractClientPlayerEntity entity,PlayerEntityRenderState playerEntityRenderState, float tickProgress,CallbackInfo info) {

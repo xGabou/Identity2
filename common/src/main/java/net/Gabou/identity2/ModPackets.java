@@ -8,6 +8,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -16,9 +17,16 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.Level;
+
+import java.util.UUID;
 
 public final class ModPackets {
     public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
@@ -27,6 +35,10 @@ public final class ModPackets {
     public static final Identifier MORPH_ACQUISITION_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
     public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
     public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
+    public static final Identifier IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "identity_villager_trade_request"
+    );
 
     private static boolean initialized = false;
 
@@ -64,6 +76,17 @@ public final class ModPackets {
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleMorphRequestPacket(player, payload);
+                }
+            })
+        );
+
+        NetworkManager.registerReceiver(
+            NetworkManager.c2s(),
+            IdentityVillagerTradeRequestC2SPacketPayload.ID,
+            IdentityVillagerTradeRequestC2SPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    handleVillagerTradeRequestPacket(player, payload);
                 }
             })
         );
@@ -184,6 +207,46 @@ public final class ModPackets {
         }
 
         IdentityProgression.morph(player, identityId, variantNbt);
+    }
+
+    private static void handleVillagerTradeRequestPacket(ServerPlayer requester, IdentityVillagerTradeRequestC2SPacketPayload payload) {
+        UUID targetUuid;
+        try {
+            targetUuid = UUID.fromString(payload.targetUuid());
+        } catch (Exception ignored) {
+            return;
+        }
+
+        Level level = requester.level();
+        if(level == null) {
+            return;
+        }
+        MinecraftServer server = level.getServer();
+        if (server == null) return;
+
+        ServerPlayer target = server.getPlayerList().getPlayer(targetUuid);
+        if (target == null) return;
+
+        if (target == requester && !IdentitySettings.canTradeWithHimSelf) {
+            requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Self villager trading is disabled."), false);
+            return;
+        }
+
+        if (target.level() != level) {
+            requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Target player is in another dimension."), false);
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) target).getCurrentIdentity();
+        if (identity instanceof Villager villagerIdentity) {
+            villagerIdentity.mobInteract(requester, InteractionHand.MAIN_HAND);
+            return;
+        }
+        if (identity instanceof WanderingTrader traderIdentity) {
+            traderIdentity.mobInteract(requester, InteractionHand.MAIN_HAND);
+            return;
+        }
+        requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Target is not morphed as a villager."), false);
     }
 
     private static boolean canSwap(ServerPlayer player) {

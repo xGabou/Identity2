@@ -3,16 +3,24 @@ package net.Gabou.identity2;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.ShulkerEntityAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -39,18 +47,23 @@ import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
 import net.minecraft.world.entity.projectile.hurtingprojectile.WitherSkull;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownSplashPotion;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.chat.Component;
 
 public final class PredefIdentityAbilities {
     private static final float GENERIC_MIN_DAMAGE = 2.0F;
@@ -278,6 +291,20 @@ public final class PredefIdentityAbilities {
                     1.0F,
                     1.0F
                 );
+            }
+        });
+
+        map.put(Identifier.parse("villager"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                openVillagerTrade(player);
+            }
+        });
+
+        map.put(Identifier.parse("wandering_trader"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                openVillagerTrade(player);
             }
         });
 
@@ -637,5 +664,430 @@ public final class PredefIdentityAbilities {
             }
         }
         return 4.0F;
+    }
+
+    private static void openVillagerTrade(Entity player) {
+        if (!(player instanceof Player tradingPlayer)) {
+            return;
+        }
+        if (tryAcquireVillagerProfession(player)) {
+            return;
+        }
+        if (!IdentitySettings.canTradeWithHimSelf) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.displayClientMessage(Component.literal("Self villager trading is disabled."), false);
+            }
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity instanceof Villager villagerIdentity) {
+            villagerIdentity.mobInteract(tradingPlayer, InteractionHand.MAIN_HAND);
+            return;
+        }
+        if (identity instanceof WanderingTrader traderIdentity) {
+            traderIdentity.mobInteract(tradingPlayer, InteractionHand.MAIN_HAND);
+        }
+    }
+
+    private static boolean tryAcquireVillagerProfession(Entity player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return false;
+        }
+        if (!serverPlayer.isShiftKeyDown()) {
+            return false;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (!(identity instanceof Villager villagerIdentity)) {
+            return false;
+        }
+
+        HitResult hit = serverPlayer.pick(5.0D, 0.0F, false);
+        if (!(hit instanceof net.minecraft.world.phys.BlockHitResult blockHit)) {
+            serverPlayer.displayClientMessage(Component.literal("Look at a villager workstation block to acquire a job."), true);
+            return true;
+        }
+
+        BlockPos workstationPos = blockHit.getBlockPos();
+        BlockState state = serverPlayer.level().getBlockState(workstationPos);
+        Object poiReference = resolvePoiReference(state);
+        Identifier professionId = null;
+        if (poiReference != null) {
+            professionId = resolveProfessionForPoi(poiReference);
+        }
+        if (professionId == null) {
+            professionId = resolveProfessionForWorkstationBlock(state);
+        }
+        if (professionId == null) {
+            serverPlayer.displayClientMessage(Component.literal("That block is not a valid villager workstation."), true);
+            return true;
+        }
+
+        if (!applyVillagerProfession(villagerIdentity, professionId)) {
+            serverPlayer.displayClientMessage(Component.literal("Could not apply villager profession: " + professionId), true);
+            return true;
+        }
+
+        serverPlayer.displayClientMessage(Component.literal("Acquired villager job: " + professionId), true);
+        return true;
+    }
+
+    private static Object resolvePoiReference(BlockState state) {
+        Object poi = invokePoiLookup("net.minecraft.world.entity.ai.village.poi.PoiTypes", state);
+        if (poi != null) {
+            return poi;
+        }
+        return invokePoiLookup("net.minecraft.world.poi.PointOfInterestTypes", state);
+    }
+
+    private static Object invokePoiLookup(String className, BlockState state) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            Set<Method> methods = new LinkedHashSet<>();
+            for (Method method : clazz.getDeclaredMethods()) {
+                methods.add(method);
+            }
+            for (Method method : clazz.getMethods()) {
+                methods.add(method);
+            }
+            for (Method method : methods) {
+                if (!Modifier.isStatic(method.getModifiers())) {
+                    continue;
+                }
+                if (method.getParameterCount() != 1) {
+                    continue;
+                }
+                Class<?> parameterType = method.getParameterTypes()[0];
+                if (!(parameterType.isInstance(state) || parameterType.isAssignableFrom(BlockState.class))) {
+                    continue;
+                }
+                if (!Optional.class.isAssignableFrom(method.getReturnType())) {
+                    continue;
+                }
+                if (!method.canAccess(null)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(null, state);
+                if (result instanceof Optional<?> optional && optional.isPresent()) {
+                    return optional.get();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static Identifier resolveProfessionForWorkstationBlock(BlockState state) {
+        if (state == null) {
+            return null;
+        }
+        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        if (blockId == null) {
+            return null;
+        }
+        return switch (blockId.getPath()) {
+            case "blast_furnace" -> Identifier.fromNamespaceAndPath("minecraft", "armorer");
+            case "smoker" -> Identifier.fromNamespaceAndPath("minecraft", "butcher");
+            case "cartography_table" -> Identifier.fromNamespaceAndPath("minecraft", "cartographer");
+            case "brewing_stand" -> Identifier.fromNamespaceAndPath("minecraft", "cleric");
+            case "composter" -> Identifier.fromNamespaceAndPath("minecraft", "farmer");
+            case "barrel" -> Identifier.fromNamespaceAndPath("minecraft", "fisherman");
+            case "fletching_table" -> Identifier.fromNamespaceAndPath("minecraft", "fletcher");
+            case "cauldron" -> Identifier.fromNamespaceAndPath("minecraft", "leatherworker");
+            case "lectern" -> Identifier.fromNamespaceAndPath("minecraft", "librarian");
+            case "stonecutter" -> Identifier.fromNamespaceAndPath("minecraft", "mason");
+            case "loom" -> Identifier.fromNamespaceAndPath("minecraft", "shepherd");
+            case "smithing_table" -> Identifier.fromNamespaceAndPath("minecraft", "toolsmith");
+            case "grindstone" -> Identifier.fromNamespaceAndPath("minecraft", "weaponsmith");
+            default -> null;
+        };
+    }
+
+    private static Identifier resolveProfessionForPoi(Object poiReference) {
+        Registry<?> professionRegistry = getBuiltInRegistry("VILLAGER_PROFESSION");
+        if (professionRegistry == null || poiReference == null) {
+            return null;
+        }
+
+        Identifier poiId = resolvePoiIdentifier(poiReference);
+        for (Object profession : professionRegistry) {
+            if (profession == null) {
+                continue;
+            }
+            Identifier professionId = getRegistryKey(professionRegistry, profession);
+            if (professionId == null || "none".equals(professionId.getPath())) {
+                continue;
+            }
+
+            if (poiId != null && professionId.getPath().equals(poiId.getPath())) {
+                return professionId;
+            }
+            if (professionMatchesPoi(profession, poiReference)) {
+                return professionId;
+            }
+        }
+        return null;
+    }
+
+    private static boolean professionMatchesPoi(Object profession, Object poiReference) {
+        if (profession == null || poiReference == null) {
+            return false;
+        }
+
+        for (String methodName : List.of("heldWorkstation", "heldJobSite", "acquirableJobSite", "acquirableWorkstation")) {
+            Object resolved = invokeNoArg(profession, methodName);
+            if (resolved == null) {
+                continue;
+            }
+            if (resolved instanceof Predicate<?> rawPredicate) {
+                if (testPredicate(rawPredicate, poiReference)) {
+                    return true;
+                }
+                continue;
+            }
+            if (valuesEquivalent(resolved, poiReference)) {
+                return true;
+            }
+        }
+
+        for (Method method : profession.getClass().getMethods()) {
+            if (method.getParameterCount() != 0) {
+                continue;
+            }
+            String lower = method.getName().toLowerCase();
+            if (!lower.contains("work") && !lower.contains("job")) {
+                continue;
+            }
+            try {
+                Object resolved = method.invoke(profession);
+                if (resolved instanceof Predicate<?> rawPredicate && testPredicate(rawPredicate, poiReference)) {
+                    return true;
+                }
+                if (valuesEquivalent(resolved, poiReference)) {
+                    return true;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean testPredicate(Predicate<?> predicate, Object value) {
+        if (predicate == null || value == null) {
+            return false;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Predicate<Object> cast = (Predicate<Object>) predicate;
+            return cast.test(value);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean valuesEquivalent(Object left, Object right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        if (left.equals(right)) {
+            return true;
+        }
+        Object leftValue = unwrapHolderValue(left);
+        Object rightValue = unwrapHolderValue(right);
+        if (leftValue != null && leftValue.equals(right)) {
+            return true;
+        }
+        if (rightValue != null && left.equals(rightValue)) {
+            return true;
+        }
+        return leftValue != null && rightValue != null && leftValue.equals(rightValue);
+    }
+
+    private static Object unwrapHolderValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            Method method = value.getClass().getMethod("value");
+            if (method.getParameterCount() == 0) {
+                return method.invoke(value);
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static Identifier resolvePoiIdentifier(Object poiReference) {
+        Registry<?> poiRegistry = getBuiltInRegistry("POINT_OF_INTEREST_TYPE", "POI_TYPE");
+        if (poiRegistry == null || poiReference == null) {
+            return null;
+        }
+
+        Identifier direct = getRegistryKey(poiRegistry, poiReference);
+        if (direct != null) {
+            return direct;
+        }
+
+        Object value = unwrapHolderValue(poiReference);
+        if (value != null) {
+            return getRegistryKey(poiRegistry, value);
+        }
+        return null;
+    }
+
+    private static Registry<?> getBuiltInRegistry(String... fieldNames) {
+        if (fieldNames == null) {
+            return null;
+        }
+        for (String name : fieldNames) {
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            try {
+                Object value = BuiltInRegistries.class.getField(name).get(null);
+                if (value instanceof Registry<?> registry) {
+                    return registry;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static boolean applyVillagerProfession(Villager villagerIdentity, Identifier professionId) {
+        if (villagerIdentity == null || professionId == null) {
+            return false;
+        }
+
+        Registry<?> professionRegistry = getBuiltInRegistry("VILLAGER_PROFESSION");
+        if (professionRegistry == null) {
+            return false;
+        }
+        Object profession = getRegistryValue(professionRegistry, professionId);
+        if (profession == null) {
+            return false;
+        }
+
+        Object villagerData = invokeNoArg(villagerIdentity, "getVillagerData");
+        if (villagerData == null) {
+            return false;
+        }
+
+        Object updatedVillagerData = invokeOneArg(villagerData, "setProfession", profession);
+        if (updatedVillagerData == null) {
+            return false;
+        }
+
+        Object levelOneData = invokeIntArg(updatedVillagerData, "setLevel", 1);
+        if (levelOneData != null) {
+            updatedVillagerData = levelOneData;
+        }
+
+        Object applied = invokeOneArg(villagerIdentity, "setVillagerData", updatedVillagerData);
+        if (applied == null) {
+            return false;
+        }
+
+        invokeIntArg(villagerIdentity, "setVillagerXp", 0);
+        invokeIntArg(villagerIdentity, "setExperience", 0);
+        clearVillagerOffers(villagerIdentity);
+        invokeNoArg(villagerIdentity, "updateTrades");
+        invokeNoArg(villagerIdentity, "restock");
+        return true;
+    }
+
+    private static void clearVillagerOffers(Villager villagerIdentity) {
+        Object offers = invokeNoArg(villagerIdentity, "getOffers");
+        if (offers instanceof List<?> list) {
+            list.clear();
+            return;
+        }
+        if (offers != null) {
+            invokeNoArg(offers, "clear");
+        }
+    }
+
+    private static Object invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                return method.invoke(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeOneArg(Object target, String methodName, Object arg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (arg == null || !paramType.isAssignableFrom(arg.getClass())) {
+                continue;
+            }
+            try {
+                Object result = method.invoke(target, arg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeIntArg(Object target, String methodName, int value) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (!(paramType == int.class || paramType == Integer.class)) {
+                continue;
+            }
+            try {
+                Object result = method.invoke(target, value);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Identifier getRegistryKey(Registry<?> registry, Object value) {
+        if (registry == null || value == null) {
+            return null;
+        }
+        try {
+            return ((Registry<Object>) registry).getKey(value);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object getRegistryValue(Registry<?> registry, Identifier id) {
+        if (registry == null || id == null) {
+            return null;
+        }
+        try {
+            return ((Registry<Object>) registry).getValue(id);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 }

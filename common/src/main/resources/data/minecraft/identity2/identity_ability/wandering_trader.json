@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:emerald",
+  "cooldown": 20,
+  "predef": "minecraft:wandering_trader"
+}

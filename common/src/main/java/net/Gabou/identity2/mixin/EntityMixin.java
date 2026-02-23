@@ -48,6 +48,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.fish.WaterAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -429,17 +430,26 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         if (this.currentIdentity == null) {
             return;
         }
-        EntityType<?> identityType = this.currentIdentity.getType();
-        boolean requiresWater = Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identityType));
-        if (!requiresWater && this.currentIdentity instanceof LivingEntity livingIdentity) {
-            requiresWater = livingIdentity.canBreatheUnderwater();
+        if (((Entity)(Object)this).level().isClientSide()) {
+            return;
         }
-        if (!requiresWater) {
+        if (!(this.currentIdentity instanceof WaterAnimal)) {
             return;
         }
 
-        // Keep aquatic morphs breathable both in and out of water.
-        player.setAirSupply(player.getMaxAirSupply());
+        if (player.isInWater()) {
+            player.setAirSupply(player.getMaxAirSupply());
+            return;
+        }
+
+        // WaterAnimal morphs must lose air on land. Players naturally regain +4 air on land,
+        // so subtract 5 here to match a net -1/tick depletion like vanilla fish logic.
+        int nextAir = player.getAirSupply() - 5;
+        player.setAirSupply(nextAir);
+        if (nextAir <= -20 && player.level() instanceof ServerLevel serverLevel) {
+            player.setAirSupply(0);
+            player.hurtServer(serverLevel, player.damageSources().drown(), 2.0F);
+        }
     }
 
 

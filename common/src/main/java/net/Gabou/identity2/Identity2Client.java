@@ -17,6 +17,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -44,6 +45,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.function.BiFunction;
 
 public final class Identity2Client {
@@ -192,6 +194,13 @@ public final class Identity2Client {
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
         NetworkManager.sendToServer(new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
+    }
+
+    public static void sendVillagerTradeRequest(UUID targetUuid) {
+        if (targetUuid == null) {
+            return;
+        }
+        NetworkManager.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
     }
 
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {

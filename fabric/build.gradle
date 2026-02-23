@@ -65,7 +65,7 @@ modrinth {
     changelog = rootProject.file("IdentityChangeLog.md").text
     gameVersions = ["1.21.1"]
     loaders = ["fabric"]
-    versionType = "release"
+    versionType = "beta"
     dependencies {
         required.project "mOgUt4GM"
         required.project "lhGA9TYQ"
@@ -79,7 +79,7 @@ curseforge {
     project {
         id = "1238155"
         changelog = rootProject.file("IdentityChangeLog.md")
-        releaseType = "release" // options: alpha, beta, release
+        releaseType = "beta" // options: alpha, beta, release
         addGameVersion "1.21.1"
         addGameVersion "Fabric"
         mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {

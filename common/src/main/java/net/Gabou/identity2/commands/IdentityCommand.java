@@ -32,6 +32,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.InteractionHand;
 
 public final class IdentityCommand {
     private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
@@ -165,6 +168,75 @@ public final class IdentityCommand {
                         )
                 )
         );
+
+        dispatcher.register(
+            Commands.literal("identity_villager")
+                .then(
+                    Commands.literal("trade")
+                        .then(Commands.literal("myself").executes(context -> tradeVillagerMyself(context.getSource())))
+                        .then(
+                            Commands.argument("target", EntityArgument.player())
+                                .executes(context -> tradeVillagerTarget(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                        )
+                )
+        );
+    }
+
+    private static int tradeVillagerMyself(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Only players can use villager trade."));
+            return 0;
+        }
+        if (!IdentitySettings.canTradeWithHimSelf) {
+            source.sendFailure(Component.literal("Self villager trading is disabled."));
+            return 0;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity instanceof Villager villagerIdentity) {
+            villagerIdentity.mobInteract(player, InteractionHand.MAIN_HAND);
+            return 1;
+        }
+        if (identity instanceof WanderingTrader traderIdentity) {
+            traderIdentity.mobInteract(player, InteractionHand.MAIN_HAND);
+            return 1;
+        }
+
+        source.sendFailure(Component.literal("You must be morphed as a villager to self-trade."));
+        return 0;
+    }
+
+    private static int tradeVillagerTarget(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer requester = source.getPlayer();
+        if (requester == null) {
+            source.sendFailure(Component.literal("Only players can use villager trade."));
+            return 0;
+        }
+        if (target == null) {
+            source.sendFailure(Component.literal("Target player not found."));
+            return 0;
+        }
+        if (target == requester) {
+            return tradeVillagerMyself(source);
+        }
+        if (target.level() != requester.level()) {
+            source.sendFailure(Component.literal("Target player is in another dimension."));
+            return 0;
+        }
+
+        Entity identity = ((EntityAccessor) target).getCurrentIdentity();
+        if (identity instanceof Villager villagerIdentity) {
+            villagerIdentity.mobInteract(requester, InteractionHand.MAIN_HAND);
+            return 1;
+        }
+        if (identity instanceof WanderingTrader traderIdentity) {
+            traderIdentity.mobInteract(requester, InteractionHand.MAIN_HAND);
+            return 1;
+        }
+
+        source.sendFailure(Component.literal("Target is not morphed as a villager."));
+        return 0;
     }
 
     private static int morph(CommandSourceStack source, Identifier identityId) {
