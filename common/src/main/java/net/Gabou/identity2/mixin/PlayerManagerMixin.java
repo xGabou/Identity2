@@ -149,7 +149,7 @@ public class PlayerManagerMixin {
             MorphChargeManager.applyDeathPenalty(respawned);
         }
 
-        boolean shouldLoseMorphsOnDeath = !alive && ProgressionConfig.shouldLoseMorphsOnDeath(respawned.getServer());
+        boolean shouldLoseMorphsOnDeath = !alive && ProgressionConfig.shouldLoseMorphsOnDeath(respawned.level().getServer());
         if (shouldLoseMorphsOnDeath) {
             int removed = IdentityProgression.clearUnlockedIdentities(respawned);
             IdentityProgression.clearMorph(respawned);
