@@ -15,6 +15,7 @@ public final class ModCreativeTabs {
             .title(Component.translatable("itemGroup.identity2"))
             .icon(() -> new ItemStack(ModItems.SOUL_CATALYST.get()))
             .displayItems((parameters, output) -> {
+                output.accept(ModItems.IDENTITY_BOOK.get());
                 output.accept(ModItems.MUD_JAR.get());
                 output.accept(ModItems.GLASS_JAR.get());
                 output.accept(ModItems.REINFORCED_JAR.get());

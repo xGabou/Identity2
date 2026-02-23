@@ -9,6 +9,7 @@ import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
+import net.Gabou.identity2.client.screen.IdentityProgressionScreen;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -19,6 +20,7 @@ import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -186,6 +188,12 @@ public final class Identity2Client {
             MorphAcquisitionS2CPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> onMorphAcquisition(payload))
         );
+        NetworkManager.registerReceiver(
+            NetworkManager.s2c(),
+            OpenProgressionScreenS2CPacketPayload.ID,
+            OpenProgressionScreenS2CPacketPayload.CODEC,
+            (payload, context) -> context.queue(Identity2Client::openProgressionScreen)
+        );
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -215,6 +223,14 @@ public final class Identity2Client {
         visualPatchValues.ensureCapacity(visualPatchValues.size() + 1);
         visualPatchKeys.add(id);
         visualPatchValues.add(value);
+    }
+
+    private static void openProgressionScreen() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return;
+        }
+        client.setScreen(new IdentityProgressionScreen());
     }
 
     private static void onClientTickEnd(Minecraft client) {

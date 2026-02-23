@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "FEA",
+    "BDB",
+    "CGH"
+  ],
+  "key": {
+    "A": "minecraft:paper",
+    "B": "minecraft:leather",
+    "C": "minecraft:ink_sac",
+    "D": "minecraft:book",
+    "E": "minecraft:amethyst_shard",
+    "F": "minecraft:feather",
+    "G": "minecraft:ender_pearl",
+    "H": "minecraft:glow_ink_sac"
+  },
+  "result": {
+    "id": "identity2:identity_book",
+    "count": 1
+  }
+}

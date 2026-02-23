@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.ModItems;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
@@ -28,6 +29,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -102,6 +104,10 @@ public class PlayerManagerMixin {
         // Re-apply morph shape one second later to avoid login-time race conditions
         // where dimensions are still being initialized by vanilla/mods.
         DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
+        ItemStack identityBook = new ItemStack(ModItems.IDENTITY_BOOK.get());
+        if (!player.addItem(identityBook)) {
+            player.drop(identityBook, false);
+        }
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {

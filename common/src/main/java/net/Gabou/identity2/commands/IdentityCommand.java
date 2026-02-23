@@ -167,6 +167,7 @@ public final class IdentityCommand {
                                 )
                         )
                 )
+                .then(IdentityProgressionCommand.progressionSubcommand())
         );
 
         dispatcher.register(

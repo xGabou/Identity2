@@ -29,7 +29,6 @@ import net.minecraft.world.entity.LivingEntity;
 
 public final class IdentitySelectionScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
-    private static final int MIN_ROWS = 6;
     private static final int MAX_ROWS = 14;
 
     private final List<IdentityEntry> allEntries = new ArrayList<>();
@@ -59,6 +58,8 @@ public final class IdentitySelectionScreen extends Screen {
     private int previewTop;
     private int previewWidth;
     private int previewHeight;
+    private boolean compactLayout;
+    private int rowHeight = ROW_HEIGHT;
 
     public IdentitySelectionScreen() {
         super(Component.literal("Identity Selection"));
@@ -69,19 +70,32 @@ public final class IdentitySelectionScreen extends Screen {
         this.cachedWorldId = currentWorldId();
         this.variantCache.clear();
         clearPreviewEntities();
+        this.rowButtons.clear();
         buildEntries();
 
-        this.panelWidth = Math.max(320, Math.min(this.width - 18, 760));
-        this.panelHeight = Math.max(280, Math.min(this.height - 18, 460));
+        this.panelWidth = Math.max(180, Math.min(760, this.width - 12));
+        this.panelWidth = Math.min(this.panelWidth, Math.max(1, this.width - 4));
+        this.panelHeight = Math.max(170, Math.min(460, this.height - 12));
+        this.panelHeight = Math.min(this.panelHeight, Math.max(1, this.height - 4));
         this.panelLeft = (this.width - this.panelWidth) / 2;
         this.panelTop = (this.height - this.panelHeight) / 2;
 
-        int contentWidth = this.panelWidth - 24;
-        int maxListWidth = Math.max(140, contentWidth - 140);
-        this.listWidth = Mth.clamp((int) (contentWidth * 0.58F), 140, maxListWidth);
-        this.previewWidth = contentWidth - this.listWidth - 10;
-        this.listLeft = this.panelLeft + 12;
-        this.previewLeft = this.listLeft + this.listWidth + 10;
+        int padding = this.panelWidth < 360 ? 8 : 12;
+        int contentWidth = this.panelWidth - padding * 2;
+        this.compactLayout = contentWidth < 360 || this.panelHeight < 270;
+        this.rowHeight = this.compactLayout ? 20 : ROW_HEIGHT;
+        this.listLeft = this.panelLeft + padding;
+
+        if (this.compactLayout) {
+            this.listWidth = contentWidth;
+            this.previewLeft = this.listLeft;
+            this.previewWidth = 0;
+        } else {
+            int maxListWidth = Math.max(140, contentWidth - 140);
+            this.listWidth = Mth.clamp((int) (contentWidth * 0.58F), 140, maxListWidth);
+            this.previewWidth = contentWidth - this.listWidth - 10;
+            this.previewLeft = this.listLeft + this.listWidth + 10;
+        }
 
         int searchLeft = this.listLeft;
         int searchTop = this.panelTop + 22;
@@ -92,11 +106,17 @@ public final class IdentitySelectionScreen extends Screen {
         this.searchField.setResponder(value -> refreshEntries(true));
 
         int controlsTop = searchTop + 24;
+        int controlsGap = 4;
+        int controlHeight = this.compactLayout ? 18 : 20;
+        int controlUnit = Math.max(1, (this.listWidth - controlsGap * 2) / 3);
+        int filterWidth = controlUnit;
+        int upWidth = controlUnit;
+        int downWidth = Math.max(1, this.listWidth - filterWidth - upWidth - controlsGap * 2);
         this.filterButton = this.addRenderableWidget(
             Button.builder(Component.literal("Filter: All"), button -> {
                 this.filterMode = this.filterMode.next();
                 refreshEntries(true);
-            }).bounds(searchLeft, controlsTop, 120, 20).build()
+            }).bounds(searchLeft, controlsTop, filterWidth, controlHeight).build()
         );
         this.upButton = this.addRenderableWidget(
             Button.builder(Component.literal("Up"), button -> {
@@ -104,7 +124,7 @@ public final class IdentitySelectionScreen extends Screen {
                     this.scrollOffset--;
                     refreshEntries(false);
                 }
-            }).bounds(searchLeft + 126, controlsTop, 56, 20).build()
+            }).bounds(searchLeft + filterWidth + controlsGap, controlsTop, upWidth, controlHeight).build()
         );
         this.downButton = this.addRenderableWidget(
             Button.builder(Component.literal("Down"), button -> {
@@ -112,28 +132,29 @@ public final class IdentitySelectionScreen extends Screen {
                     this.scrollOffset++;
                     refreshEntries(false);
                 }
-            }).bounds(searchLeft + 188, controlsTop, 60, 20).build()
+            }).bounds(searchLeft + filterWidth + upWidth + controlsGap * 2, controlsTop, downWidth, controlHeight).build()
         );
 
         int footerY = this.panelTop + this.panelHeight - 28;
-        this.listTop = controlsTop + 28;
+        this.listTop = controlsTop + controlHeight + 8;
         int listBottom = footerY - 8;
         this.previewTop = this.listTop;
-        this.previewHeight = listBottom - this.listTop;
-        int listHeight = Math.max(ROW_HEIGHT * MIN_ROWS, listBottom - this.listTop);
-        this.rowsPerPage = Math.max(MIN_ROWS, Math.min(MAX_ROWS, listHeight / ROW_HEIGHT));
+        this.previewHeight = Math.max(0, listBottom - this.listTop);
+        int availableListHeight = Math.max(0, listBottom - this.listTop);
+        this.rowsPerPage = Math.max(2, Math.min(MAX_ROWS, availableListHeight / this.rowHeight));
 
         for (int row = 0; row < this.rowsPerPage; row++) {
             final int rowIndex = row;
             Button rowButton = this.addRenderableWidget(
                 Button.builder(Component.empty(), button -> selectRow(rowIndex))
-                    .bounds(searchLeft, this.listTop + row * ROW_HEIGHT, this.listWidth, ROW_HEIGHT - 2)
+                    .bounds(searchLeft, this.listTop + row * this.rowHeight, this.listWidth, this.rowHeight - 2)
                     .build()
             );
             this.rowButtons.add(rowButton);
         }
 
-        int footerButtonWidth = (this.panelWidth - 24 - 8) / 2;
+        int footerButtonGap = 8;
+        int footerButtonWidth = (this.panelWidth - 24 - footerButtonGap * 2) / 3;
         this.addRenderableWidget(
             Button.builder(Component.literal("Return to Original"), button -> {
                 Identity2Client.sendMorphRequest("");
@@ -141,8 +162,13 @@ public final class IdentitySelectionScreen extends Screen {
             }).bounds(searchLeft, footerY, footerButtonWidth, 20).build()
         );
         this.addRenderableWidget(
+            Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().setScreen(new IdentityProgressionScreen()))
+                .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
+                .build()
+        );
+        this.addRenderableWidget(
             Button.builder(Component.literal("Close"), button -> this.onClose())
-                .bounds(searchLeft + footerButtonWidth + 8, footerY, footerButtonWidth, 20)
+                .bounds(searchLeft + (footerButtonWidth + footerButtonGap) * 2, footerY, footerButtonWidth, 20)
                 .build()
         );
 
@@ -195,21 +221,23 @@ public final class IdentitySelectionScreen extends Screen {
             this.panelTop + this.panelHeight - 40,
             0xBCD4D9
         );
-        context.drawString(
-            this.font,
-            Component.literal(
-                "Fav1: " + Identity2Client.getFavoriteLabel(0)
-                    + "  Fav2: " + Identity2Client.getFavoriteLabel(1)
-                    + "  Fav3: " + Identity2Client.getFavoriteLabel(2)
-            ),
-            this.listLeft,
-            this.panelTop + this.panelHeight - 52,
-            0x92B6BE
-        );
+        if (!this.compactLayout) {
+            context.drawString(
+                this.font,
+                Component.literal(
+                    "Fav1: " + Identity2Client.getFavoriteLabel(0)
+                        + "  Fav2: " + Identity2Client.getFavoriteLabel(1)
+                        + "  Fav3: " + Identity2Client.getFavoriteLabel(2)
+                ),
+                this.listLeft,
+                this.panelTop + this.panelHeight - 52,
+                0x92B6BE
+            );
+        }
         context.drawString(
             this.font,
             Component.literal("Showing: " + this.filteredEntries.size()),
-            this.previewLeft + 10,
+            (this.compactLayout ? this.listLeft : this.previewLeft + 10),
             this.panelTop + this.panelHeight - 40,
             0x9EC4C9
         );
@@ -228,8 +256,10 @@ public final class IdentitySelectionScreen extends Screen {
     private void renderPanelSections(GuiGraphics context) {
         context.fill(this.listLeft - 2, this.listTop - 2, this.listLeft + this.listWidth + 2, this.listTop + this.previewHeight + 2, 0x66203342);
         context.fill(this.listLeft, this.listTop, this.listLeft + this.listWidth, this.listTop + this.previewHeight, 0x6E12202A);
-        context.fill(this.previewLeft - 2, this.previewTop - 2, this.previewLeft + this.previewWidth + 2, this.previewTop + this.previewHeight + 2, 0x66304B54);
-        context.fill(this.previewLeft, this.previewTop, this.previewLeft + this.previewWidth, this.previewTop + this.previewHeight, 0x6E0F1B24);
+        if (!this.compactLayout && this.previewWidth > 32) {
+            context.fill(this.previewLeft - 2, this.previewTop - 2, this.previewLeft + this.previewWidth + 2, this.previewTop + this.previewHeight + 2, 0x66304B54);
+            context.fill(this.previewLeft, this.previewTop, this.previewLeft + this.previewWidth, this.previewTop + this.previewHeight, 0x6E0F1B24);
+        }
     }
 
     private void renderRowEntityPreviews(GuiGraphics context, float delta) {
@@ -261,6 +291,9 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private void renderPreviewPane(GuiGraphics context, int mouseX, int mouseY, float delta) {
+        if (this.compactLayout || this.previewWidth <= 32) {
+            return;
+        }
         IdentityEntry focused = hoveredEntry(mouseX, mouseY);
         if (focused == null) {
             focused = firstVisibleEntry();
@@ -489,7 +522,7 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         if (this.filterButton != null) {
-            this.filterButton.setMessage(Component.literal("Filter: " + this.filterMode.label()));
+            this.filterButton.setMessage(Component.literal(this.compactLayout ? this.filterMode.label() : ("Filter: " + this.filterMode.label())));
         }
 
         for (int i = 0; i < this.rowButtons.size(); i++) {

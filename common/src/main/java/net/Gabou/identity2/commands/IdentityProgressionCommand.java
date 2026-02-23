@@ -1,10 +1,13 @@
 package net.Gabou.identity2.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.List;
+import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
@@ -22,187 +25,212 @@ public final class IdentityProgressionCommand {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-            Commands.literal("identity_progression")
-                .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
-                .then(
-                    Commands.literal("charges")
-                        .then(
-                            Commands.literal("get")
-                                .then(
-                                    Commands.argument("identity_id", IdentifierArgument.id())
-                                        .executes(context -> getCharges(
-                                            context.getSource(),
-                                            IdentifierArgument.getId(context, "identity_id"),
-                                            null
-                                        ))
-                                        .then(
-                                            Commands.argument("target", EntityArgument.player())
-                                                .executes(context -> getCharges(
-                                                    context.getSource(),
-                                                    IdentifierArgument.getId(context, "identity_id"),
-                                                    EntityArgument.getPlayer(context, "target")
-                                                ))
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("add")
-                                .then(
-                                    Commands.argument("identity_id", IdentifierArgument.id())
-                                        .then(
-                                            Commands.argument("amount", IntegerArgumentType.integer(1))
-                                                .executes(context -> addCharges(
-                                                    context.getSource(),
-                                                    IdentifierArgument.getId(context, "identity_id"),
-                                                    IntegerArgumentType.getInteger(context, "amount"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> addCharges(
-                                                            context.getSource(),
-                                                            IdentifierArgument.getId(context, "identity_id"),
-                                                            IntegerArgumentType.getInteger(context, "amount"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                )
-                .then(
-                    Commands.literal("jar")
-                        .then(
-                            Commands.literal("list")
-                                .executes(context -> listJars(context.getSource(), null))
-                                .then(
-                                    Commands.argument("target", EntityArgument.player())
-                                        .executes(context -> listJars(context.getSource(), EntityArgument.getPlayer(context, "target")))
-                                )
-                        )
-                        .then(
-                            Commands.literal("create")
-                                .then(
-                                    Commands.argument("jar_id", StringArgumentType.word())
-                                        .then(
-                                            Commands.argument("tier", StringArgumentType.word())
-                                                .executes(context -> createJar(
-                                                    context.getSource(),
-                                                    StringArgumentType.getString(context, "jar_id"),
-                                                    StringArgumentType.getString(context, "tier"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> createJar(
-                                                            context.getSource(),
-                                                            StringArgumentType.getString(context, "jar_id"),
-                                                            StringArgumentType.getString(context, "tier"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("upgrade")
-                                .then(
-                                    Commands.argument("jar_id", StringArgumentType.word())
-                                        .then(
-                                            Commands.argument("tier", StringArgumentType.word())
-                                                .executes(context -> upgradeJar(
-                                                    context.getSource(),
-                                                    StringArgumentType.getString(context, "jar_id"),
-                                                    StringArgumentType.getString(context, "tier"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> upgradeJar(
-                                                            context.getSource(),
-                                                            StringArgumentType.getString(context, "jar_id"),
-                                                            StringArgumentType.getString(context, "tier"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("store")
-                                .then(
-                                    Commands.argument("jar_id", StringArgumentType.word())
-                                        .then(
-                                            Commands.argument("identity_id", IdentifierArgument.id())
-                                                .executes(context -> storeMorph(
-                                                    context.getSource(),
-                                                    StringArgumentType.getString(context, "jar_id"),
-                                                    IdentifierArgument.getId(context, "identity_id"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> storeMorph(
-                                                            context.getSource(),
-                                                            StringArgumentType.getString(context, "jar_id"),
-                                                            IdentifierArgument.getId(context, "identity_id"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("remove")
-                                .then(
-                                    Commands.argument("jar_id", StringArgumentType.word())
-                                        .then(
-                                            Commands.argument("identity_id", IdentifierArgument.id())
-                                                .executes(context -> removeMorph(
-                                                    context.getSource(),
-                                                    StringArgumentType.getString(context, "jar_id"),
-                                                    IdentifierArgument.getId(context, "identity_id"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> removeMorph(
-                                                            context.getSource(),
-                                                            StringArgumentType.getString(context, "jar_id"),
-                                                            IdentifierArgument.getId(context, "identity_id"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("absorb")
-                                .then(
-                                    Commands.argument("jar_id", StringArgumentType.word())
-                                        .then(
-                                            Commands.argument("identity_id", IdentifierArgument.id())
-                                                .executes(context -> absorbMorph(
-                                                    context.getSource(),
-                                                    StringArgumentType.getString(context, "jar_id"),
-                                                    IdentifierArgument.getId(context, "identity_id"),
-                                                    null
-                                                ))
-                                                .then(
-                                                    Commands.argument("target", EntityArgument.player())
-                                                        .executes(context -> absorbMorph(
-                                                            context.getSource(),
-                                                            StringArgumentType.getString(context, "jar_id"),
-                                                            IdentifierArgument.getId(context, "identity_id"),
-                                                            EntityArgument.getPlayer(context, "target")
-                                                        ))
-                                                )
-                                        )
-                                )
-                        )
-                )
-        );
+        dispatcher.register(buildProgressionLiteral("identity_progression"));
+    }
+
+    public static LiteralArgumentBuilder<CommandSourceStack> progressionSubcommand() {
+        return buildProgressionLiteral("progression");
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> buildProgressionLiteral(String rootLiteral) {
+        return Commands.literal(rootLiteral)
+            .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+            .then(
+                Commands.literal("ui")
+                    .executes(context -> openUi(context.getSource(), null))
+                    .then(
+                        Commands.argument("target", EntityArgument.player())
+                            .executes(context -> openUi(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                    )
+            )
+            .then(
+                Commands.literal("charges")
+                    .then(
+                        Commands.literal("get")
+                            .then(
+                                Commands.argument("identity_id", IdentifierArgument.id())
+                                    .executes(context -> getCharges(
+                                        context.getSource(),
+                                        IdentifierArgument.getId(context, "identity_id"),
+                                        null
+                                    ))
+                                    .then(
+                                        Commands.argument("target", EntityArgument.player())
+                                            .executes(context -> getCharges(
+                                                context.getSource(),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                EntityArgument.getPlayer(context, "target")
+                                            ))
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("add")
+                            .then(
+                                Commands.argument("identity_id", IdentifierArgument.id())
+                                    .then(
+                                        Commands.argument("amount", IntegerArgumentType.integer(1))
+                                            .executes(context -> addCharges(
+                                                context.getSource(),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                IntegerArgumentType.getInteger(context, "amount"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> addCharges(
+                                                        context.getSource(),
+                                                        IdentifierArgument.getId(context, "identity_id"),
+                                                        IntegerArgumentType.getInteger(context, "amount"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+            )
+            .then(
+                Commands.literal("jar")
+                    .then(
+                        Commands.literal("list")
+                            .executes(context -> listJars(context.getSource(), null))
+                            .then(
+                                Commands.argument("target", EntityArgument.player())
+                                    .executes(context -> listJars(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                            )
+                    )
+                    .then(
+                        Commands.literal("create")
+                            .then(
+                                Commands.argument("jar_id", StringArgumentType.word())
+                                    .then(
+                                        Commands.argument("tier", StringArgumentType.word())
+                                            .executes(context -> createJar(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "jar_id"),
+                                                StringArgumentType.getString(context, "tier"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> createJar(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "jar_id"),
+                                                        StringArgumentType.getString(context, "tier"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("upgrade")
+                            .then(
+                                Commands.argument("jar_id", StringArgumentType.word())
+                                    .then(
+                                        Commands.argument("tier", StringArgumentType.word())
+                                            .executes(context -> upgradeJar(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "jar_id"),
+                                                StringArgumentType.getString(context, "tier"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> upgradeJar(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "jar_id"),
+                                                        StringArgumentType.getString(context, "tier"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("store")
+                            .then(
+                                Commands.argument("jar_id", StringArgumentType.word())
+                                    .then(
+                                        Commands.argument("identity_id", IdentifierArgument.id())
+                                            .executes(context -> storeMorph(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "jar_id"),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> storeMorph(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "jar_id"),
+                                                        IdentifierArgument.getId(context, "identity_id"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("remove")
+                            .then(
+                                Commands.argument("jar_id", StringArgumentType.word())
+                                    .then(
+                                        Commands.argument("identity_id", IdentifierArgument.id())
+                                            .executes(context -> removeMorph(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "jar_id"),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> removeMorph(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "jar_id"),
+                                                        IdentifierArgument.getId(context, "identity_id"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("absorb")
+                            .then(
+                                Commands.argument("jar_id", StringArgumentType.word())
+                                    .then(
+                                        Commands.argument("identity_id", IdentifierArgument.id())
+                                            .executes(context -> absorbMorph(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "jar_id"),
+                                                IdentifierArgument.getId(context, "identity_id"),
+                                                null
+                                            ))
+                                            .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                    .executes(context -> absorbMorph(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "jar_id"),
+                                                        IdentifierArgument.getId(context, "identity_id"),
+                                                        EntityArgument.getPlayer(context, "target")
+                                                    ))
+                                            )
+                                    )
+                            )
+                    )
+            );
+    }
+
+    private static int openUi(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer player = resolveTarget(source, target);
+        if (player == null) {
+            source.sendFailure(Component.literal("Specify a target player."));
+            return 0;
+        }
+        NetworkManager.sendToPlayer(player, new OpenProgressionScreenS2CPacketPayload());
+        source.sendSuccess(() -> Component.literal("Opened progression UI for " + player.getName().getString()), false);
+        return 1;
     }
 
     private static int getCharges(CommandSourceStack source, Identifier identityId, ServerPlayer target) {

@@ -20,7 +20,6 @@ import net.minecraft.world.entity.LivingEntity;
 
 public final class IdentityVariantSelectionScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
-    private static final int MIN_ROWS = 6;
     private static final int MAX_ROWS = 14;
 
     private final Screen parent;
@@ -48,6 +47,8 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private int previewTop;
     private int previewWidth;
     private int previewHeight;
+    private boolean compactLayout;
+    private int rowHeight = ROW_HEIGHT;
 
     public IdentityVariantSelectionScreen(
         Screen parent,
@@ -70,28 +71,45 @@ public final class IdentityVariantSelectionScreen extends Screen {
     protected void init() {
         this.cachedWorldId = currentWorldId();
         clearPreviewEntities();
+        this.rowButtons.clear();
 
-        this.panelWidth = Math.max(320, Math.min(this.width - 18, 760));
-        this.panelHeight = Math.max(280, Math.min(this.height - 18, 460));
+        this.panelWidth = Math.max(180, Math.min(760, this.width - 12));
+        this.panelWidth = Math.min(this.panelWidth, Math.max(1, this.width - 4));
+        this.panelHeight = Math.max(170, Math.min(460, this.height - 12));
+        this.panelHeight = Math.min(this.panelHeight, Math.max(1, this.height - 4));
         this.panelLeft = (this.width - this.panelWidth) / 2;
         this.panelTop = (this.height - this.panelHeight) / 2;
 
-        int contentWidth = this.panelWidth - 24;
-        int maxListWidth = Math.max(140, contentWidth - 140);
-        this.listWidth = Mth.clamp((int) (contentWidth * 0.58F), 140, maxListWidth);
-        this.previewWidth = contentWidth - this.listWidth - 10;
-        this.listLeft = this.panelLeft + 12;
-        this.previewLeft = this.listLeft + this.listWidth + 10;
+        int padding = this.panelWidth < 360 ? 8 : 12;
+        int contentWidth = this.panelWidth - padding * 2;
+        this.compactLayout = contentWidth < 360 || this.panelHeight < 270;
+        this.rowHeight = this.compactLayout ? 20 : ROW_HEIGHT;
+        this.listLeft = this.panelLeft + padding;
+
+        if (this.compactLayout) {
+            this.listWidth = contentWidth;
+            this.previewLeft = this.listLeft;
+            this.previewWidth = 0;
+        } else {
+            int maxListWidth = Math.max(140, contentWidth - 140);
+            this.listWidth = Mth.clamp((int) (contentWidth * 0.58F), 140, maxListWidth);
+            this.previewWidth = contentWidth - this.listWidth - 10;
+            this.previewLeft = this.listLeft + this.listWidth + 10;
+        }
 
         int controlsLeft = this.listLeft;
         int controlsTop = this.panelTop + 22;
+        int controlHeight = this.compactLayout ? 18 : 20;
+        int buttonGap = 6;
+        int halfWidth = Math.max(1, (this.listWidth - buttonGap) / 2);
+        int secondWidth = Math.max(1, this.listWidth - halfWidth - buttonGap);
         this.upButton = this.addRenderableWidget(
             Button.builder(Component.literal("Up"), button -> {
                 if (this.scrollOffset > 0) {
                     this.scrollOffset--;
                     refreshRows();
                 }
-            }).bounds(controlsLeft, controlsTop, 56, 20).build()
+            }).bounds(controlsLeft, controlsTop, halfWidth, controlHeight).build()
         );
         this.downButton = this.addRenderableWidget(
             Button.builder(Component.literal("Down"), button -> {
@@ -99,22 +117,22 @@ public final class IdentityVariantSelectionScreen extends Screen {
                     this.scrollOffset++;
                     refreshRows();
                 }
-            }).bounds(controlsLeft + 62, controlsTop, 56, 20).build()
+            }).bounds(controlsLeft + halfWidth + buttonGap, controlsTop, secondWidth, controlHeight).build()
         );
 
         int footerY = this.panelTop + this.panelHeight - 28;
-        this.listTop = controlsTop + 28;
+        this.listTop = controlsTop + controlHeight + 8;
         int listBottom = footerY - 8;
         this.previewTop = this.listTop;
-        this.previewHeight = listBottom - this.listTop;
-        int listHeight = Math.max(ROW_HEIGHT * MIN_ROWS, listBottom - this.listTop);
-        this.rowsPerPage = Math.max(MIN_ROWS, Math.min(MAX_ROWS, listHeight / ROW_HEIGHT));
+        this.previewHeight = Math.max(0, listBottom - this.listTop);
+        int availableListHeight = Math.max(0, listBottom - this.listTop);
+        this.rowsPerPage = Math.max(2, Math.min(MAX_ROWS, availableListHeight / this.rowHeight));
 
         for (int row = 0; row < this.rowsPerPage; row++) {
             final int rowIndex = row;
             Button rowButton = this.addRenderableWidget(
                 Button.builder(Component.empty(), button -> selectRow(rowIndex))
-                    .bounds(controlsLeft, this.listTop + row * ROW_HEIGHT, this.listWidth, ROW_HEIGHT - 2)
+                    .bounds(controlsLeft, this.listTop + row * this.rowHeight, this.listWidth, this.rowHeight - 2)
                     .build()
             );
             this.rowButtons.add(rowButton);
@@ -174,8 +192,20 @@ public final class IdentityVariantSelectionScreen extends Screen {
         renderRowEntityPreviews(context, delta);
         renderPreviewPane(context, mouseX, mouseY, delta);
 
-        context.drawCenteredString(this.font, Component.literal("Variants: " + this.entityTypeId), this.width / 2, this.panelTop + 8, 0xF3FBF8);
-        context.drawString(this.font, Component.literal("Showing: " + this.variants.size()), this.previewLeft + 10, this.panelTop + this.panelHeight - 40, 0x9EC4C9);
+        context.drawCenteredString(
+            this.font,
+            Component.literal(this.compactLayout ? "Variants" : ("Variants: " + this.entityTypeId)),
+            this.width / 2,
+            this.panelTop + 8,
+            0xF3FBF8
+        );
+        context.drawString(
+            this.font,
+            Component.literal("Showing: " + this.variants.size()),
+            (this.compactLayout ? this.listLeft : this.previewLeft + 10),
+            this.panelTop + this.panelHeight - 40,
+            0x9EC4C9
+        );
     }
 
     private void renderBackground(GuiGraphics context) {
@@ -191,8 +221,10 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private void renderPanelSections(GuiGraphics context) {
         context.fill(this.listLeft - 2, this.listTop - 2, this.listLeft + this.listWidth + 2, this.listTop + this.previewHeight + 2, 0x66203342);
         context.fill(this.listLeft, this.listTop, this.listLeft + this.listWidth, this.listTop + this.previewHeight, 0x6E12202A);
-        context.fill(this.previewLeft - 2, this.previewTop - 2, this.previewLeft + this.previewWidth + 2, this.previewTop + this.previewHeight + 2, 0x66304B54);
-        context.fill(this.previewLeft, this.previewTop, this.previewLeft + this.previewWidth, this.previewTop + this.previewHeight, 0x6E0F1B24);
+        if (!this.compactLayout && this.previewWidth > 32) {
+            context.fill(this.previewLeft - 2, this.previewTop - 2, this.previewLeft + this.previewWidth + 2, this.previewTop + this.previewHeight + 2, 0x66304B54);
+            context.fill(this.previewLeft, this.previewTop, this.previewLeft + this.previewWidth, this.previewTop + this.previewHeight, 0x6E0F1B24);
+        }
     }
 
     private void renderRowEntityPreviews(GuiGraphics context, float delta) {
@@ -224,6 +256,9 @@ public final class IdentityVariantSelectionScreen extends Screen {
     }
 
     private void renderPreviewPane(GuiGraphics context, int mouseX, int mouseY, float delta) {
+        if (this.compactLayout || this.previewWidth <= 32) {
+            return;
+        }
         IdentityVariant focused = hoveredVariant(mouseX, mouseY);
         if (focused == null) {
             focused = firstVisibleVariant();
