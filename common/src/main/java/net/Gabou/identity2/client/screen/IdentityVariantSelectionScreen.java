@@ -2,8 +2,10 @@ package net.Gabou.identity2.client.screen;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
@@ -24,6 +26,9 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private final Screen parent;
     private final Identifier entityTypeId;
     private final List<IdentityVariant> variants;
+    private final Set<String> unlockedVariantTokens;
+    private final boolean wildcardUnlocked;
+    private final boolean enforceUnlocks;
     private final List<Button> rowButtons = new ArrayList<>();
     private final Map<String, LivingEntity> previewEntityCache = new HashMap<>();
     private Button upButton;
@@ -44,11 +49,21 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private int previewWidth;
     private int previewHeight;
 
-    public IdentityVariantSelectionScreen(Screen parent, Identifier entityTypeId, List<IdentityVariant> variants) {
+    public IdentityVariantSelectionScreen(
+        Screen parent,
+        Identifier entityTypeId,
+        List<IdentityVariant> variants,
+        Set<String> unlockedVariantTokens,
+        boolean wildcardUnlocked,
+        boolean enforceUnlocks
+    ) {
         super(Component.literal("Identity Variants"));
         this.parent = parent;
         this.entityTypeId = entityTypeId;
         this.variants = variants == null ? List.of() : new ArrayList<>(variants);
+        this.unlockedVariantTokens = unlockedVariantTokens == null ? Set.of() : new HashSet<>(unlockedVariantTokens);
+        this.wildcardUnlocked = wildcardUnlocked;
+        this.enforceUnlocks = enforceUnlocks;
     }
 
     @Override
@@ -230,9 +245,16 @@ public final class IdentityVariantSelectionScreen extends Screen {
             textY + 26,
             0x9CB6BB
         );
+        context.drawString(
+            this.font,
+            Component.literal(isVariantLocked(focused) ? "Locked" : "Unlocked"),
+            textX,
+            textY + 38,
+            isVariantLocked(focused) ? 0xD68E8E : 0x72D9AD
+        );
 
         int boxLeft = this.previewLeft + 8;
-        int boxTop = this.previewTop + 44;
+        int boxTop = this.previewTop + 52;
         int boxRight = this.previewLeft + this.previewWidth - 8;
         int boxBottom = this.previewTop + this.previewHeight - 10;
         context.fill(boxLeft, boxTop, boxRight, boxBottom, 0x6813212C);
@@ -331,9 +353,10 @@ public final class IdentityVariantSelectionScreen extends Screen {
             int index = this.scrollOffset + i;
             if (index >= 0 && index < this.variants.size()) {
                 IdentityVariant variant = this.variants.get(index);
+                boolean locked = isVariantLocked(variant);
                 button.visible = true;
-                button.active = true;
-                button.setMessage(Component.literal("      " + variant.displayName()));
+                button.active = !locked;
+                button.setMessage(Component.literal("      " + (locked ? "[L] " : "[U] ") + variant.displayName()));
             } else {
                 button.visible = false;
                 button.active = false;
@@ -355,9 +378,22 @@ public final class IdentityVariantSelectionScreen extends Screen {
         }
 
         IdentityVariant variant = this.variants.get(index);
+        if (isVariantLocked(variant)) {
+            return;
+        }
         String variantData = IdentityProgression.serializeVariantNbt(variant.variantNbt());
         Identity2Client.sendMorphRequest(this.entityTypeId.toString(), variantData);
         this.onClose();
+    }
+
+    private boolean isVariantLocked(IdentityVariant variant) {
+        if (!this.enforceUnlocks) {
+            return false;
+        }
+        if (this.wildcardUnlocked) {
+            return false;
+        }
+        return !this.unlockedVariantTokens.contains(IdentityProgression.toVariantUnlockToken(variant.variantNbt()));
     }
 
     private Identifier currentWorldId() {

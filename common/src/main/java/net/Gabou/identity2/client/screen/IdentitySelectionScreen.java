@@ -21,6 +21,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
@@ -36,6 +37,8 @@ public final class IdentitySelectionScreen extends Screen {
     private final List<Button> rowButtons = new ArrayList<>();
     private final Map<Identifier, List<IdentityVariant>> variantCache = new HashMap<>();
     private final Map<Identifier, LivingEntity> previewEntityCache = new HashMap<>();
+    private Set<String> unlockedIdentityIds = Set.of();
+    private Map<String, Set<String>> unlockedVariantTokens = Map.of();
     private FilterMode filterMode = FilterMode.ALL;
     private EditBox searchField;
     private Button filterButton;
@@ -390,7 +393,7 @@ public final class IdentitySelectionScreen extends Screen {
 
         List<IdentityVariant> variants = this.variantCache.computeIfAbsent(
             entry.id(),
-            id -> IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.getValue(id), client.level)
+            id -> discoverVariants(id, client)
         );
         if (variants.isEmpty()) {
             Identity2Client.sendMorphRequest(entry.id().toString());
@@ -400,23 +403,63 @@ public final class IdentitySelectionScreen extends Screen {
 
         if (variants.size() == 1) {
             IdentityVariant variant = variants.getFirst();
+            if (isVariantLockedForMorph(entry.id(), variant)) {
+                return;
+            }
             Identity2Client.sendMorphRequest(entry.id().toString(), IdentityProgression.serializeVariantNbt(variant.variantNbt()));
             this.onClose();
             return;
         }
 
-        client.setScreen(new IdentityVariantSelectionScreen(this, entry.id(), variants));
+        Set<String> unlockedTokensForType = this.unlockedVariantTokens.get(entry.id().toString());
+        boolean wildcardUnlocked = !IdentitySettings.requireUnlockedIdentityForMorph || unlockedTokensForType == null;
+        client.setScreen(
+            new IdentityVariantSelectionScreen(
+                this,
+                entry.id(),
+                variants,
+                unlockedTokensForType == null ? Set.of() : unlockedTokensForType,
+                wildcardUnlocked,
+                IdentitySettings.requireUnlockedIdentityForMorph
+            )
+        );
+    }
+
+    private List<IdentityVariant> discoverVariants(Identifier id, Minecraft client) {
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(id)) {
+            return discoverUnlockedPlayerSkinVariants();
+        }
+        return IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.getValue(id), client.level);
+    }
+
+    private List<IdentityVariant> discoverUnlockedPlayerSkinVariants() {
+        Set<String> tokens = this.unlockedVariantTokens.get(IdentityProgression.PLAYER_IDENTITY_ID.toString());
+        if (tokens == null || tokens.isEmpty()) {
+            return List.of(new IdentityVariant(IdentityProgression.PLAYER_IDENTITY_ID, "Current Player Skin", new CompoundTag()));
+        }
+
+        List<IdentityVariant> variants = new ArrayList<>();
+        for (String token : tokens) {
+            CompoundTag variantNbt = IdentityProgression.fromVariantUnlockToken(token);
+            String name = variantNbt.getStringOr(IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
+            String uuid = variantNbt.getStringOr(IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
+            String display = !name.isEmpty() ? "Skin: " + name : (!uuid.isEmpty() ? "Skin: " + uuid : "Player Skin");
+            variants.add(new IdentityVariant(IdentityProgression.PLAYER_IDENTITY_ID, display, variantNbt));
+        }
+        variants.sort(Comparator.comparing(IdentityVariant::displayName));
+        return variants;
     }
 
     private void buildEntries() {
         this.allEntries.clear();
-        Set<String> unlocked = readUnlockedIdentities();
+        this.unlockedIdentityIds = readUnlockedIdentities();
+        this.unlockedVariantTokens = readUnlockedVariantTokens();
         for (Identifier id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
             if (!IdentityProgression.isMorphableIdentity(id)) {
                 continue;
             }
             String text = id.toString();
-            boolean isUnlocked = unlocked.contains(text);
+            boolean isUnlocked = this.unlockedIdentityIds.contains(text);
             this.allEntries.add(new IdentityEntry(id, isUnlocked, text.toLowerCase(Locale.ROOT), formatDisplayName(id)));
         }
         this.allEntries.sort(Comparator.comparing(IdentityEntry::displayName));
@@ -494,6 +537,20 @@ public final class IdentitySelectionScreen extends Screen {
         return !entry.unlocked();
     }
 
+    private boolean isVariantLockedForMorph(Identifier identityId, IdentityVariant variant) {
+        if (!IdentitySettings.requireUnlockedIdentityForMorph) {
+            return false;
+        }
+        if (!this.unlockedIdentityIds.contains(identityId.toString())) {
+            return true;
+        }
+        Set<String> tokens = this.unlockedVariantTokens.get(identityId.toString());
+        if (tokens == null) {
+            return false;
+        }
+        return !tokens.contains(IdentityProgression.toVariantUnlockToken(variant.variantNbt()));
+    }
+
     private static Set<String> readUnlockedIdentities() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
@@ -514,6 +571,49 @@ public final class IdentitySelectionScreen extends Screen {
             }
         }
         return unlocked;
+    }
+
+    private static Map<String, Set<String>> readUnlockedVariantTokens() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return Map.of();
+        }
+
+        String serialized = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+            .getStringOr(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
+        if (serialized == null || serialized.isBlank()) {
+            return Map.of();
+        }
+
+        Map<String, Set<String>> result = new HashMap<>();
+        for (String entry : serialized.split(",")) {
+            String trimmed = entry == null ? "" : entry.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int equalsIndex = trimmed.indexOf('=');
+            if (equalsIndex <= 0 || equalsIndex >= trimmed.length() - 1) {
+                continue;
+            }
+
+            String identityId = trimmed.substring(0, equalsIndex).trim();
+            String tokenData = trimmed.substring(equalsIndex + 1).trim();
+            if (identityId.isEmpty() || tokenData.isEmpty()) {
+                continue;
+            }
+
+            Set<String> tokens = new HashSet<>();
+            for (String token : tokenData.split("\\|")) {
+                String normalized = token == null ? "" : token.trim();
+                if (!normalized.isEmpty()) {
+                    tokens.add(normalized);
+                }
+            }
+            if (!tokens.isEmpty()) {
+                result.put(identityId, tokens);
+            }
+        }
+        return result;
     }
 
     @Override

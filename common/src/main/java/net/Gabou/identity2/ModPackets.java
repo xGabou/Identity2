@@ -171,12 +171,18 @@ public final class ModPackets {
             return;
         }
 
-        if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(player) && !IdentityProgression.isUnlocked(player, identityId)) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
-            return;
+        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(player)) {
+            if (!IdentityProgression.isUnlocked(player, identityId)) {
+                player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
+                return;
+            }
+            if (!IdentityProgression.isVariantUnlocked(player, identityId, variantNbt)) {
+                player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity variant not unlocked: " + identityId), false);
+                return;
+            }
         }
 
-        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
         IdentityProgression.morph(player, identityId, variantNbt);
     }
 

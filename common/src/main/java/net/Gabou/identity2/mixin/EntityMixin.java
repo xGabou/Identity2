@@ -438,19 +438,8 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             return;
         }
 
-        if (player.isInWaterOrRain()) {
-            player.setAirSupply(player.getMaxAirSupply());
-            return;
-        }
-
-        int nextAir = ((LivingEntityAccessor) player).getNextAirUnderwater(player.getAirSupply());
-        player.setAirSupply(nextAir);
-        if (nextAir <= -20) {
-            player.setAirSupply(0);
-            if (player.level() instanceof ServerLevel serverLevel) {
-                player.hurtServer(serverLevel, player.damageSources().dryOut(), 2.0F);
-            }
-        }
+        // Keep aquatic morphs breathable both in and out of water.
+        player.setAirSupply(player.getMaxAirSupply());
     }
 
 
@@ -630,6 +619,19 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             identityId = Identifier.parse(id);
         } catch (Exception e) {
             this.deactivateIdentityAfterFailure(null, "invalid id");
+            return;
+        }
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            this.currentIdentity = null;
+            this.entityCanFly = false;
+            ((Entity)(Object)this).refreshDimensions();
+            this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
+            if((Entity)(Object)this instanceof Player player){
+                this.applyIdentityFlightGrant(player, false);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.refreshScaledHealth(serverPlayer);
+                }
+            }
             return;
         }
         if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
