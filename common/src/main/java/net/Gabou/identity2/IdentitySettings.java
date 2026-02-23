@@ -165,10 +165,10 @@ public class IdentitySettings {
     //@Comment(value = "Per-tier soul jar item mapping in the format 'tier=namespace:item'.")
     public static List<String> soulJarTierItems = new ArrayList<>(
         List.of(
-            "mud=minecraft:clay_ball",
-            "glass=minecraft:glass_bottle",
-            "reinforced=minecraft:echo_shard",
-            "true_soul=minecraft:nether_star"
+            "mud=identity2:mud_jar",
+            "glass=identity2:glass_jar",
+            "reinforced=identity2:reinforced_jar",
+            "true_soul=identity2:endgame_jar"
         )
     );
 

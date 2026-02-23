@@ -20,6 +20,8 @@ public final class Identity2 {
         // ModBlocks currently performs direct static registration into built-ins,
         // so defer this bootstrap until it is ported to platform-safe registration.
         // ModBlocks.initialize();
+        ModItems.initialize();
+        ModCreativeTabs.initialize();
         ModEffects.initialize();
         ModComponents.initialize();
         ModRegistries.init();

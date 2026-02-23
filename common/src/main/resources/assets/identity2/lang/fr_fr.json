@@ -8,5 +8,11 @@
   "key.identity2.favorite_morph_3": "Morph favori 3",
   "key.identity2.favorite_save_1": "Enregistrer favori 1",
   "key.identity2.favorite_save_2": "Enregistrer favori 2",
-  "key.identity2.favorite_save_3": "Enregistrer favori 3"
+  "key.identity2.favorite_save_3": "Enregistrer favori 3",
+  "item.identity2.mud_jar": "Jarre d'ame en boue",
+  "item.identity2.glass_jar": "Jarre d'ame en verre",
+  "item.identity2.reinforced_jar": "Jarre d'ame renforcee",
+  "item.identity2.endgame_jar": "Jarre d'ame ultime",
+  "item.identity2.soul_catalyst": "Catalyseur d'ame",
+  "itemGroup.identity2": "Identity 2"
 }

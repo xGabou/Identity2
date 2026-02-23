@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "identity:item/reinforced_jar"
+    "layer0": "identity2:item/reinforced_jar"
   }
 }

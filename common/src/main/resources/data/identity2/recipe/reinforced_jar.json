@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IOI",
+    "OGO",
+    "IOI"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "O": "minecraft:obsidian",
+    "G": "identity2:glass_jar"
+  },
+  "result": {
+    "id": "identity2:reinforced_jar",
+    "count": 1
+  }
+}

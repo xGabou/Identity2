@@ -8,5 +8,11 @@
   "key.identity2.favorite_morph_3": "收藏变形 3",
   "key.identity2.favorite_save_1": "保存收藏 1",
   "key.identity2.favorite_save_2": "保存收藏 2",
-  "key.identity2.favorite_save_3": "保存收藏 3"
+  "key.identity2.favorite_save_3": "保存收藏 3",
+  "item.identity2.mud_jar": "泥土灵魂罐",
+  "item.identity2.glass_jar": "玻璃灵魂罐",
+  "item.identity2.reinforced_jar": "强化灵魂罐",
+  "item.identity2.endgame_jar": "终极灵魂罐",
+  "item.identity2.soul_catalyst": "灵魂催化剂",
+  "itemGroup.identity2": "Identity 2"
 }

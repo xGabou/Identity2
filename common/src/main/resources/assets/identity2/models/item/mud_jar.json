@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "identity:item/mud_jar"
+    "layer0": "identity2:item/mud_jar"
   }
 }

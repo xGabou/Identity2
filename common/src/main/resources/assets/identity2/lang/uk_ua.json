@@ -8,5 +8,11 @@
   "key.identity2.favorite_morph_3": "Улюблений морф 3",
   "key.identity2.favorite_save_1": "Зберегти улюблене 1",
   "key.identity2.favorite_save_2": "Зберегти улюблене 2",
-  "key.identity2.favorite_save_3": "Зберегти улюблене 3"
+  "key.identity2.favorite_save_3": "Зберегти улюблене 3",
+  "item.identity2.mud_jar": "Глиняна банка душ",
+  "item.identity2.glass_jar": "Скляна банка душ",
+  "item.identity2.reinforced_jar": "Посилена банка душ",
+  "item.identity2.endgame_jar": "Кінцева банка душ",
+  "item.identity2.soul_catalyst": "Каталізатор душ",
+  "itemGroup.identity2": "Identity 2"
 }

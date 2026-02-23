@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "identity2:reinforced_jar",
+    "minecraft:nether_star",
+    "minecraft:echo_shard",
+    "minecraft:dragon_breath"
+  ],
+  "result": {
+    "id": "identity2:endgame_jar",
+    "count": 1
+  }
+}

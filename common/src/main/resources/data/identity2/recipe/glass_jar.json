@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GGG",
+    "GMG",
+    "GGG"
+  ],
+  "key": {
+    "G": "minecraft:glass",
+    "M": "identity2:mud_jar"
+  },
+  "result": {
+    "id": "identity2:glass_jar",
+    "count": 1
+  }
+}

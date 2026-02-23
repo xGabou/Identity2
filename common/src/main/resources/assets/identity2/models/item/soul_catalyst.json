@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "identity:item/soul_catalyst"
+    "layer0": "identity2:item/soul_catalyst"
   }
 }

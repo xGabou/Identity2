@@ -311,6 +311,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
+    private boolean identity2$grantedVexNoPhysics = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
@@ -406,12 +407,34 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
     }
 
-    private void identity2$applyMorphPassiveTraits() {
-        Entity self = (Entity)(Object)this;
-        if (self.level().isClientSide()) {
+    private void identity2$applyVexNoClip(Player player) {
+        boolean shouldNoClip = this.currentIdentity != null
+            && this.currentIdentity.getType() == EntityType.VEX
+            && player.getAbilities().flying;
+
+        if (shouldNoClip) {
+            if (!player.noPhysics) {
+                player.noPhysics = true;
+            }
+            this.identity2$grantedVexNoPhysics = true;
             return;
         }
+
+        if (this.identity2$grantedVexNoPhysics) {
+            if (!player.isSpectator()) {
+                player.noPhysics = false;
+            }
+            this.identity2$grantedVexNoPhysics = false;
+        }
+    }
+
+    private void identity2$applyMorphPassiveTraits() {
+        Entity self = (Entity)(Object)this;
         if (!(self instanceof Player player)) {
+            return;
+        }
+        this.identity2$applyVexNoClip(player);
+        if (self.level().isClientSide()) {
             return;
         }
         if (this.currentIdentity == null) {

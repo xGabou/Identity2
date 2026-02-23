@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AEA",
+    "ESE",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:amethyst_shard",
+    "E": "minecraft:ender_pearl",
+    "S": "minecraft:nether_star",
+    "B": "minecraft:blaze_powder"
+  },
+  "result": {
+    "id": "identity2:soul_catalyst",
+    "count": 1
+  }
+}
