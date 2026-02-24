@@ -68,7 +68,7 @@ modrinth {
     versionNumber = "NeoForge-${project.version}"
     versionName = "Identity ${mod_version}"
     changelog = rootProject.file("IdentityChangeLog.md").text
-    gameVersions = ["1.21.11"]
+    gameVersions = ["1.21.9"]
     loaders = ["neoforge"]
     versionType = "beta"
     dependencies {
@@ -84,7 +84,7 @@ curseforge {
         id = "1238155"
         changelog = rootProject.file("IdentityChangeLog.md")
         releaseType = "beta" // options: alpha, beta, release
-        addGameVersion "1.21.11"
+        addGameVersion "1.21.9"
         addGameVersion "NeoForge"
         mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
             displayName = "NeoForge-${version}"
