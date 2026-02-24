@@ -1,261 +1,385 @@
 package net.Gabou.identity2.mixin.client;
 
-import com.google.common.collect.Lists;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import java.util.List;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-import java.util.Set;
-import net.Gabou.identity2.ModBlocks;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.lang.reflect.Field;
+import java.util.Locale;
+import java.util.Map;
+import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
-import net.Gabou.identity2.util.LimbAnimatorAccessor;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import com.llamalad7.mixinextras.sugar.Local;
-import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.PartNames;
 import net.minecraft.client.renderer.ItemInHandRenderer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import java.lang.reflect.Field;
+import net.minecraft.world.entity.EntityType;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
 @Mixin(ItemInHandRenderer.class)
-public class HeldItemRendererMixin{
+public class HeldItemRendererMixin {
     // ModelPart origins are in 1/16th block units.
     // Tune these if the morph arm still needs adjustment.
     private static final float ARM_TUNE_X = 0.0f;
     private static final float ARM_TUNE_Y = 0.0f;
     private static final float ARM_TUNE_Z = -2.0f;
+    private static final String[] RIGHT_HAND_PART_CANDIDATES = new String[] {
+        PartNames.RIGHT_ARM,
+        "rightArm",
+        PartNames.RIGHT_FRONT_LEG,
+        "rightFrontLeg",
+        "right_front_foot",
+        "rightFrontFoot",
+        PartNames.RIGHT_HIND_LEG,
+        "rightRearLeg",
+        "right_hind_foot",
+        "rightRearFoot",
+        PartNames.RIGHT_WING,
+        "rightWing",
+        "right_wing_tip",
+        "rightWingTip",
+        "right_fin",
+        "rightFin",
+        "right_tentacle",
+        "rightTentacle",
+        "right_claw",
+        "rightClaw",
+        "right"
+    };
+    private static final String[] LEFT_HAND_PART_CANDIDATES = new String[] {
+        PartNames.LEFT_ARM,
+        "leftArm",
+        PartNames.LEFT_FRONT_LEG,
+        "leftFrontLeg",
+        "left_front_foot",
+        "leftFrontFoot",
+        PartNames.LEFT_HIND_LEG,
+        "leftRearLeg",
+        "left_hind_foot",
+        "leftRearFoot",
+        PartNames.LEFT_WING,
+        "leftWing",
+        "left_wing_tip",
+        "leftWingTip",
+        "left_fin",
+        "leftFin",
+        "left_tentacle",
+        "leftTentacle",
+        "left_claw",
+        "leftClaw",
+        "left"
+    };
+    private static Field modelPartChildrenField;
 
     private static Field getFieldFromClassHeirarchy(Class<?> clazz, String fieldName) throws NoSuchFieldException {
         Class<?> current = clazz;
         while (current != null) {
             try {
                 Field field = current.getDeclaredField(fieldName);
-                field.setAccessible(true); // Strip Java access checks
+                field.setAccessible(true);
                 return field;
             } catch (NoSuchFieldException e) {
-                current = current.getSuperclass(); // Move up the hierarchy
+                current = current.getSuperclass();
             }
         }
         throw new NoSuchFieldException("Field '" + fieldName + "' not found in class hierarchy.");
     }
-    @Redirect(method = "renderPlayerArm",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/ResourceLocation;Z)V"))
-    private void rahir(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
-        renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
+
+    @Redirect(
+        method = "renderPlayerArm",
+        require = 1,
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+        )
+    )
+    private void identity2$redirectRenderPlayerRightArm(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible
+    ) {
+        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
-    @Redirect(method = "renderMapHand",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/ResourceLocation;Z)V"))
-    private void rar(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
-        renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
+
+    @Redirect(
+        method = "renderMapHand",
+        require = 1,
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+        )
+    )
+    private void identity2$redirectRenderMapRightArm(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible
+    ) {
+        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
-    @Redirect(method = "renderPlayerArm",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/ResourceLocation;Z)V"))
-    private void rahil(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
-        renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
+
+    @Redirect(
+        method = "renderPlayerArm",
+        require = 1,
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+        )
+    )
+    private void identity2$redirectRenderPlayerLeftArm(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible
+    ) {
+        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }
-    @Redirect(method = "renderMapHand",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/ResourceLocation;Z)V"))
-    private void ral(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
-        renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
+
+    @Redirect(
+        method = "renderMapHand",
+        require = 1,
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+        )
+    )
+    private void identity2$redirectRenderMapLeftArm(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible
+    ) {
+        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }
-    
-    private void renderRightArmOverride(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible) {
-        
-        try{
-        EntityAccessor playerEntity=(EntityAccessor)Minecraft.getInstance().player;
-		Entity identity=playerEntity.getCurrentIdentity();
-        if(identity==null){
+
+    private void identity2$renderArmOverride(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible,
+        boolean rightArm
+    ) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                return;
+            }
+
+            Entity identity = ((EntityAccessor) client.player).getCurrentIdentity();
+            if (identity == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                return;
+            }
+
+            EntityRenderer<?, ?> identityRenderer = ((MinecraftClientAccessor) client).getEntityRenderManager().getRenderer(identity);
+            if (identityRenderer == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                return;
+            }
+
+            EntityModel<?> identityModel = null;
+            if (identityRenderer instanceof LivingEntityRenderer livingRenderer) {
+                identityModel = livingRenderer.getModel();
+            } else if (identityRenderer instanceof EnderDragonRenderer dragonRenderer) {
+                identityModel = ((EnderDragonEntityRendererAccessor) dragonRenderer).getModel();
+            }
+
+            if (identityModel == null) {
+                if (identity.getType() == EntityType.PLAYER) {
+                    identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                }
+                return;
+            }
+
+            ModelPart identityArm = identity2$resolveIdentityHandPart(identityModel, rightArm);
+            if (identityArm == null) {
+                if (identity.getType() == EntityType.PLAYER) {
+                    identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                }
+                return;
+            }
+
+            ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer);
+            ResourceLocation texture = identityTexture == null ? skinTexture : identityTexture;
+
+            float offsetX = (rightArm ? 2.0F : -2.0F) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
+            float offsetY = ARM_TUNE_Y;
+            float offsetZ = ARM_TUNE_Z;
+
+            matrices.pushPose();
+            matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
+            identity2$renderModelPart(identityModel, identityArm, matrices, queue, light, texture);
+            matrices.popPose();
+        } catch (Exception ignored) {
+            identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+        }
+    }
+
+    private static void identity2$renderModelPart(
+        EntityModel<?> model,
+        ModelPart part,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation texture
+    ) {
+        part.resetPose();
+        part.visible = true;
+        RenderType renderType = model.renderType(texture);
+        VertexConsumer consumer = queue.getBuffer(renderType);
+        part.render(matrices, consumer, light, OverlayTexture.NO_OVERLAY);
+    }
+
+    private static void identity2$renderVanillaHand(
+        PlayerRenderer renderer,
+        PoseStack matrices,
+        MultiBufferSource queue,
+        int light,
+        ResourceLocation skinTexture,
+        boolean sleeveVisible,
+        boolean rightArm
+    ) {
+        if (rightArm) {
             renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
-            return;
-        }
-        //renderer.renderArm(matrices, queue, light, skinTexture, renderer.getModel().rightArm, sleeveVisible);
-        if(((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").isPresent()){
-            String d=((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").get();
-            if((d.length()!=0)){
-                if(identity==null){
-                    playerEntity.setCurrentIdentity(d);
-                    identity=playerEntity.getCurrentIdentity();
-                }
-                
-        
-        
-        EntityRenderer idrenderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
-        ModelPart targetPart=null;
-        
-        EntityModel eModel=null;
-        if(idrenderer instanceof LivingEntityRenderer){
-            try{
-            eModel=((LivingEntityRenderer)idrenderer).getModel();
-            }catch(Exception e){
-                eModel=(EntityModel)getFieldFromClassHeirarchy(eModel.getClass(),"model").get((Object)eModel);
-            }
-        }
-        if(idrenderer instanceof EnderDragonRenderer){
-            eModel=((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor)(EnderDragonRenderer)idrenderer).getModel();
-        }
-        if(eModel!=null){
-        targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_ARM);
-        if(targetPart==null){
-            targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_FRONT_LEG);
-        }
-        
-        ResourceLocation texture=null;
-        if(idrenderer instanceof LivingEntityRenderer lidr){
-            texture=lidr.getTextureLocation((LivingEntityRenderState)lidr.createRenderState());
-        }else{
-            try{
-            texture=(ResourceLocation)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
-            }catch(Exception e){
-                int x=0;
-            }
-        }
-        if((targetPart!=null)&&(texture!=null)){
-            ResourceLocation ftexture=texture;
-            try {
-
-                float paox=((PlayerModel)renderer.getModel()).rightArm.x;
-                float paoy=((PlayerModel)renderer.getModel()).rightArm.y;
-                float paoz=((PlayerModel)renderer.getModel()).rightArm.z;
-                float ox=targetPart.x;
-                float oy=targetPart.y;
-                float oz=targetPart.z;
-                // Render a single rooted arm part with a matrix offset.
-                // Avoid per-child origin mutation, which can visually detach/jump the arm.
-                float offsetX = (paox - ox) + ARM_TUNE_X;
-                float offsetY = (paoy - oy) + ARM_TUNE_Y;
-                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
-                matrices.pushPose();
-                matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
-                matrices.popPose();
-        } catch (Exception e) {
-            int x=0;
-            //Identity2.LOGGER.info(" TEXTURE missing");
-        }
-                                        
-                }
-            }else{
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).rightArm, sleeveVisible);
-            }
-        }else{
-            ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).rightArm, sleeveVisible);
-        }
-        }
-    } catch (Exception e) {
-        int x=0;
-    }
-    }
-    private void renderLeftArmOverride(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture, boolean sleeveVisible) {
-        
-        try{
-        EntityAccessor playerEntity=(EntityAccessor)Minecraft.getInstance().player;
-		Entity identity=playerEntity.getCurrentIdentity();
-        if(identity==null){
+        } else {
             renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
-            return;
         }
-        //renderer.renderArm(matrices, queue, light, skinTexture, renderer.getModel().rightArm, sleeveVisible);
-        if(((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").isPresent()){
-            String d=((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").get();
-            if((d.length()!=0)){
-                if(identity==null){
-                    playerEntity.setCurrentIdentity(d);
-                    identity=playerEntity.getCurrentIdentity();
-                }
-                
-        
-        
-        EntityRenderer idrenderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
-        ModelPart targetPart=null;
-        
-        EntityModel eModel=null;
-        if(idrenderer instanceof LivingEntityRenderer){
-            try{
-            eModel=((LivingEntityRenderer)idrenderer).getModel();
-            }catch(Exception e){
-                eModel=(EntityModel)getFieldFromClassHeirarchy(eModel.getClass(),"model").get((Object)eModel);
-            }
-        }
-        if(idrenderer instanceof EnderDragonRenderer){
-            eModel=((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor)(EnderDragonRenderer)idrenderer).getModel();
-        }
-        if(eModel!=null){
-        targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_ARM);
-        if(targetPart==null){
-            targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_FRONT_LEG);
-        }
-        
-        ResourceLocation texture=null;
-        if(idrenderer instanceof LivingEntityRenderer lidr){
-            texture=lidr.getTextureLocation((LivingEntityRenderState)lidr.createRenderState());
-        }else{
-            try{
-            texture=(ResourceLocation)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
-            }catch(Exception e){
-                int x=0;
-            }
-        }
-        if((targetPart!=null)&&(texture!=null)){
-            ResourceLocation ftexture=texture;
-            try {
-
-                float paox=((PlayerModel)renderer.getModel()).leftArm.x;
-                float paoy=((PlayerModel)renderer.getModel()).leftArm.y;
-                float paoz=((PlayerModel)renderer.getModel()).leftArm.z;
-                float ox=targetPart.x;
-                float oy=targetPart.y;
-                float oz=targetPart.z;
-                // Mirror X tune for left arm, keep Y/Z the same.
-                float offsetX = (paox - ox) - ARM_TUNE_X;
-                float offsetY = (paoy - oy) + ARM_TUNE_Y;
-                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
-                matrices.pushPose();
-                matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
-                matrices.popPose();
-        } catch (Exception e) {
-            int x=0;
-            //Identity2.LOGGER.info(" TEXTURE missing");
-        }
-                                        
-                }
-            }else{
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).leftArm, sleeveVisible);
-            }
-        }else{
-            ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).leftArm, sleeveVisible);
-        }
-        }
-    } catch (Exception e) {
-        int x=0;
     }
+
+    private static ModelPart identity2$resolveIdentityHandPart(EntityModel<?> model, boolean rightArm) {
+        ModelPart root = model.root();
+        ModelPart exact = identity2$findPartByNames(root, rightArm ? RIGHT_HAND_PART_CANDIDATES : LEFT_HAND_PART_CANDIDATES);
+        if (exact != null && !exact.isEmpty()) {
+            return exact;
+        }
+
+        ModelPart preferred = identity2$findNamedSidePart(root, rightArm, true);
+        if (preferred != null) {
+            return preferred;
+        }
+
+        ModelPart anySide = identity2$findNamedSidePart(root, rightArm, false);
+        if (anySide != null) {
+            return anySide;
+        }
+
+        if (exact != null) {
+            return exact;
+        }
+
+        for (ModelPart part : root.getAllParts()) {
+            if (!part.isEmpty()) {
+                return part;
+            }
+        }
+        return null;
+    }
+
+    private static ModelPart identity2$findPartByNames(ModelPart root, String[] candidates) {
+        java.util.function.Function<String, ModelPart> lookup = root.createPartLookup();
+        for (String candidate : candidates) {
+            ModelPart part = lookup.apply(candidate);
+            if (part != null) {
+                return part;
+            }
+        }
+        return null;
+    }
+
+    private static ModelPart identity2$findNamedSidePart(ModelPart root, boolean rightArm, boolean requirePreferredToken) {
+        return identity2$findNamedSidePartRecursive(root, rightArm, requirePreferredToken);
+    }
+
+    private static ModelPart identity2$findNamedSidePartRecursive(ModelPart part, boolean rightArm, boolean requirePreferredToken) {
+        Map<String, ModelPart> children = identity2$getModelPartChildren(part);
+        if (children == null || children.isEmpty()) {
+            return null;
+        }
+
+        String sideToken = rightArm ? "right" : "left";
+        ModelPart fallback = null;
+        for (Map.Entry<String, ModelPart> entry : children.entrySet()) {
+            String name = entry.getKey();
+            ModelPart child = entry.getValue();
+            String lower = name.toLowerCase(Locale.ROOT);
+            boolean sideMatch = lower.contains(sideToken);
+            boolean preferredToken = lower.contains("arm")
+                || lower.contains("hand")
+                || lower.contains("wing")
+                || lower.contains("front")
+                || lower.contains("leg")
+                || lower.contains("foot")
+                || lower.contains("claw")
+                || lower.contains("tentacle")
+                || lower.contains("fin");
+
+            if (sideMatch && (!requirePreferredToken || preferredToken) && !child.isEmpty()) {
+                return child;
+            }
+            ModelPart nested = identity2$findNamedSidePartRecursive(child, rightArm, requirePreferredToken);
+            if (nested != null) {
+                return nested;
+            }
+            if (sideMatch && fallback == null) {
+                fallback = child;
+            }
+        }
+        return fallback;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, ModelPart> identity2$getModelPartChildren(ModelPart part) {
+        try {
+            if (modelPartChildrenField == null) {
+                modelPartChildrenField = getFieldFromClassHeirarchy(ModelPart.class, "children");
+            }
+            return (Map<String, ModelPart>) modelPartChildrenField.get(part);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static ResourceLocation identity2$resolveIdentityTexture(EntityRenderer<?, ?> identityRenderer) {
+        if (identityRenderer instanceof LivingEntityRenderer livingRenderer) {
+            try {
+                return (ResourceLocation) livingRenderer.getTextureLocation((LivingEntityRenderState) livingRenderer.createRenderState());
+            } catch (Throwable ignored) {
+            }
+        }
+        if (identityRenderer instanceof EnderDragonRenderer) {
+            try {
+                return (ResourceLocation) getFieldFromClassHeirarchy(identityRenderer.getClass(), "DRAGON_LOCATION").get(null);
+            } catch (Throwable ignored) {
+            }
+        }
+        try {
+            return (ResourceLocation) getFieldFromClassHeirarchy(identityRenderer.getClass(), "TEXTURE").get(identityRenderer);
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 }
-
-

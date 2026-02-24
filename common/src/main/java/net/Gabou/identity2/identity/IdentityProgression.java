@@ -633,7 +633,7 @@ public final class IdentityProgression {
 
             CompoundTag playerSkinVariant = new CompoundTag();
             playerSkinVariant.putString(PLAYER_SKIN_UUID_VARIANT_KEY, killedPlayer.getUUID().toString());
-            playerSkinVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, killedPlayer.getGameProfile().name());
+            playerSkinVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, killedPlayer.getGameProfile().getName());
             return new UnlockTarget(PLAYER_IDENTITY_ID, playerSkinVariant);
         }
 

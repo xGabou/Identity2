@@ -36,7 +36,7 @@ public class ClientPlayNetworkHandlerMixin{
     @Inject(method = "handleSetEntityData", at = @At("HEAD"))
 	private void onIdentityTrackerUpdate(ClientboundSetEntityDataPacket packet,CallbackInfo info) {
         if(packet.id()<0){
-            PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener)(Object)this, Minecraft.getInstance().packetProcessor());
+            PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener)(Object)this, Minecraft.getInstance());
             Entity entity = this.level.getEntity(-packet.id());
             if (entity != null) {
                 Entity identity=((EntityAccessor)entity).getCurrentIdentity();
@@ -47,4 +47,3 @@ public class ClientPlayNetworkHandlerMixin{
         }
     }
 }
-

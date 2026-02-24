@@ -22,7 +22,6 @@
     "EntityTrackerEntryMixin",
     "EnderDragonEntityMixin",
     "EntityIndexMixin",
-    "EntityLookupViewMixin",
     "ActiveTargetGoalMixin",
     "TypeFilterableListMixin",
     "EntityTrackingSectionMixin",

@@ -24,28 +24,31 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Avatar;
-import net.minecraft.world.entity.player.PlayerSkin;
-import java.util.Map;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
-@Mixin(AvatarRenderer.class)
+@Mixin(PlayerRenderer.class)
 public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.PlayerEntityRendererAccessor{
     @Shadow
-    private void renderHand(PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {}
-    public void callRenderArm(PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {
+    private void renderHand(PoseStack matrices, MultiBufferSource queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {}
+    public void callRenderArm(PoseStack matrices, MultiBufferSource queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {
     this.renderHand(matrices, queue, light, skinTexture,arm, sleeveVisible);
     }
-    @Inject(method = "extractRenderState", at = @At("TAIL"), require = 0)
-    private void identity2$overridePlayerSkin(Avatar avatarEntity, AvatarRenderState renderState, float tickProgress, CallbackInfo info) {
+    @Inject(
+        method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V",
+        at = @At("TAIL"),
+        require = 0
+    )
+    private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, PlayerRenderState renderState, float tickProgress, CallbackInfo info) {
         net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
         String selectedType = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
@@ -82,11 +85,6 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
             if (playerInfo == null && name != null && !name.isBlank()) {
                 playerInfo = connection.getPlayerInfo(name);
             }
-            if (playerInfo == null) {
-                GameProfile profile = new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name);
-                Map<UUID, PlayerInfo> seenPlayers = connection.getSeenPlayers();
-                playerInfo = seenPlayers.computeIfAbsent(profile.id(), ignored -> new PlayerInfo(profile, false));
-            }
             if (playerInfo != null) {
                 PlayerSkin playerSkin = playerInfo.getSkin();
                 if (playerSkin != null) {
@@ -94,7 +92,7 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
                 }
             }
         }
-        return minecraft.getSkinManager().createLookup(new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name), false).get();
+        return minecraft.getSkinManager().getInsecureSkin(new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name));
     }
     /*@Inject(method = "updateRenderState", at = @At("TAIL"))
 	private void getAndUpdateRenderStateModifier(AbstractClientPlayerEntity entity,PlayerEntityRenderState playerEntityRenderState, float tickProgress,CallbackInfo info) {
@@ -110,4 +108,3 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
         }
 	}*/
 }
-

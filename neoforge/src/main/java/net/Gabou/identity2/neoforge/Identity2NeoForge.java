@@ -16,7 +16,7 @@ public final class Identity2NeoForge {
         ModRegistries.setPlatform(new Identity2NeoForgeRegistryPlatform());
         Identity2.init();
 
-        if (FMLEnvironment.getDist() == Dist.CLIENT) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
             Identity2NeoForgeClient.initialize();
         }
     }

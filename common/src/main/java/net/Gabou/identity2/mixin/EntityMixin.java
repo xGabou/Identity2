@@ -52,6 +52,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.WaterAnimal;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -117,7 +118,9 @@ public class EntityMixin implements EntityAccessor{
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
         boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-        if(this.currentIdentity!=null && !hostIsPlayer){
+        boolean hostClientSide = ((Entity)(Object)this).level().isClientSide();
+        boolean shouldSkipClientTick = hostClientSide && hostIsPlayer && this.currentIdentity instanceof EnderDragon;
+        if(this.currentIdentity!=null && (!hostIsPlayer || hostClientSide) && !shouldSkipClientTick){
             this.currentIdentity.tick();
             
         }

@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ClientWorldMixin",
+		"EntityRenderDispatcherMixin",
 		"EntityRendererMixin",
 		"GameRendererMixin",
 		"MinecraftClientMixin",

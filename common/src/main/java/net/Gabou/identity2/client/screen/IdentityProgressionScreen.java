@@ -20,7 +20,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
@@ -146,11 +145,9 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        if (event.button() == 0) {
-            InventorySlotView slot = findInventorySlot(mouseX, mouseY);
+    public boolean mouseClicked(double d, double e, int i) {
+        if (i == 0) {
+            InventorySlotView slot = findInventorySlot(d, e);
             if (slot != null) {
                 ItemStack stack = getInventoryStack(slot.index());
                 if (SoulJarChargeStorage.isPotentialSoulJarItem(stack)) {
@@ -167,7 +164,7 @@ public final class IdentityProgressionScreen extends Screen {
                 return true;
             }
 
-            int clickedRow = rowAt(mouseX, mouseY);
+            int clickedRow = rowAt(d, e);
             if (clickedRow >= 0) {
                 int entryIndex = this.scrollOffset + clickedRow;
                 if (entryIndex >= 0 && entryIndex < this.chargeEntries.size()) {
@@ -177,14 +174,14 @@ public final class IdentityProgressionScreen extends Screen {
                 }
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return super.mouseClicked( d,  e,  i);
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0 && !this.draggedJarStack.isEmpty()) {
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0 && !this.draggedJarStack.isEmpty()) {
             boolean alreadyRequested = this.pendingRequest;
-            if (isWithinDropZone(event.x(), event.y())) {
+            if (isWithinDropZone(mouseX, mouseY)) {
                 this.pendingRequest = true;
                 this.statusText = "Selecting jar...";
                 Identity2Client.sendProgressionJarSelect(this.draggedJarSlot);
@@ -196,7 +193,7 @@ public final class IdentityProgressionScreen extends Screen {
             refreshButtons();
             return true;
         }
-        return super.mouseReleased(event);
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override

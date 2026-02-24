@@ -9,6 +9,14 @@ architectury {
     neoForge()
 }
 
+loom {
+    runs {
+        client {
+            runDir "run-client"
+        }
+    }
+}
+
 configurations {
     common {
         canBeResolved = true
@@ -37,7 +45,7 @@ dependencies {
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7670954"
+    modImplementation "curse.maven:gabous-libs-1367332:7670968"
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }
@@ -64,7 +72,7 @@ modrinth {
     versionNumber = "NeoForge-${project.version}"
     versionName = "Identity ${mod_version}"
     changelog = rootProject.file("IdentityChangeLog.md").text
-    gameVersions = ["1.21.9"]
+    gameVersions = ["1.21.8"]
     loaders = ["neoforge"]
     versionType = "beta"
     dependencies {
@@ -80,7 +88,7 @@ curseforge {
         id = "1238155"
         changelog = rootProject.file("IdentityChangeLog.md")
         releaseType = "beta" // options: alpha, beta, release
-        addGameVersion "1.21.9"
+        addGameVersion "1.21.8"
         addGameVersion "NeoForge"
         mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
             displayName = "NeoForge-${version}"

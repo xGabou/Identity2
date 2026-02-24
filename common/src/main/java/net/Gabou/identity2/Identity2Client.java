@@ -64,8 +64,7 @@ public final class Identity2Client {
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
     public static final ArrayList<ResourceLocation> visualPatchKeys = new ArrayList<>(0);
-    private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category
-            .register(ResourceLocation.parse("category.identity2.test"));
+    private static final String IDENTITY_KEY_CATEGORY = "category.identity2.test";
 
     private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
             "key.identity2.primary_ability",
