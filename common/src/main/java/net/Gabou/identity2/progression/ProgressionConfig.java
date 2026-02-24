@@ -22,19 +22,19 @@ public final class ProgressionConfig {
     }
 
     public static boolean enableMorphCharges() {
-        return IdentitySettings.enableMorphChargeSystem || IdentitySettings.EnableMorphCharges;
+        return resolveAliasedBoolean(IdentitySettings.enableMorphChargeSystem, IdentitySettings.EnableMorphCharges, true);
     }
 
     public static boolean enableSoulJars() {
-        return IdentitySettings.enableSoulJarSystem || IdentitySettings.EnableSoulJars;
+        return resolveAliasedBoolean(IdentitySettings.enableSoulJarSystem, IdentitySettings.EnableSoulJars, false);
     }
 
     public static boolean enablePermanentJarMorphs() {
-        return IdentitySettings.enablePermanentMorphs || IdentitySettings.EnablePermanentJarMorphs;
+        return resolveAliasedBoolean(IdentitySettings.enablePermanentMorphs, IdentitySettings.EnablePermanentJarMorphs, false);
     }
 
     public static boolean enableSoulAbsorption() {
-        return IdentitySettings.enableSoulAbsorption || IdentitySettings.EnableSoulAbsorption;
+        return resolveAliasedBoolean(IdentitySettings.enableSoulAbsorption, IdentitySettings.EnableSoulAbsorption, false);
     }
 
     public static boolean requireChargeForMorphing() {
@@ -117,5 +117,15 @@ public final class ProgressionConfig {
             out.put(tier, value);
         }
         return out;
+    }
+
+    private static boolean resolveAliasedBoolean(boolean primary, boolean alias, boolean defaultValue) {
+        if (primary != defaultValue) {
+            return primary;
+        }
+        if (alias != defaultValue) {
+            return alias;
+        }
+        return primary;
     }
 }

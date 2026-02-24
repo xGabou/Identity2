@@ -116,7 +116,8 @@ public class EntityMixin implements EntityAccessor{
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
-        if(this.currentIdentity!=null){
+        boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
+        if(this.currentIdentity!=null && !hostIsPlayer){
             this.currentIdentity.tick();
             
         }
@@ -146,6 +147,7 @@ public class EntityMixin implements EntityAccessor{
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
             
              
+            this.currentIdentity.setInvulnerable(hostIsPlayer);
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
@@ -159,7 +161,9 @@ public class EntityMixin implements EntityAccessor{
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
-                this.currentIdentity.tick();
+                if (!hostIsPlayer) {
+                    this.currentIdentity.tick();
+                }
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
@@ -239,54 +243,8 @@ public class EntityMixin implements EntityAccessor{
 
 
 
-    @Inject(method="onRemoval",at=@At("HEAD"),cancellable=true)
-    private void commandOnRemoved(Entity.RemovalReason reason,CallbackInfo info){
-        if(reason.shouldDestroy()){
-            String reasonType="";
-            if(reason==Entity.RemovalReason.KILLED){
-                reasonType="killed";
-            }else if(reason==Entity.RemovalReason.DISCARDED){
-                reasonType="discarded";
-            }else if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK){
-                reasonType="unloaded_chunk";
-            }else if(reason==Entity.RemovalReason.UNLOADED_WITH_PLAYER){
-                reasonType="unloaded_player";
-            }else if(reason==Entity.RemovalReason.CHANGED_DIMENSION){
-                reasonType="dimension_change";
-            }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
-                        );
-                        
-                    }
-                }
-            }
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
-                        );
-                        
-                    }
-                }
-            }
-        }
-    }
-    
-
-
-
-
     @Inject(method="baseTick",at=@At("HEAD"),cancellable=true)
-    private void commandOnTick(CallbackInfo info){
+    private void identity2$baseTick(CallbackInfo info){
         if(this.abilityCooldown>0){
             this.abilityCooldown-=1;
         }
@@ -296,20 +254,6 @@ public class EntityMixin implements EntityAccessor{
         if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
-                        );
-                        
-                    }
-                }
-            }
-            
-        
     }
     
 
@@ -347,14 +291,8 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyEvaluated=true;
         //QualityCommands.LOGGER.info("Reevaluating canFly - final: "+String.valueOf(this.entityCanFly));
         if(this.identityOf!=null){
-        if((Entity)(Object)this.identityOf instanceof Player player){
-                if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){
-                    player.getAbilities().mayfly=true;
-                    player.getAbilities().flying=true;
-                }else{
-                        player.getAbilities().mayfly=false;
-                        player.getAbilities().flying=false;
-                }
+            if((Entity)(Object)this.identityOf instanceof Player player){
+                this.applyIdentityFlightGrant(player, this.entityCanFly);
             }
         }
 
@@ -1188,7 +1126,7 @@ private void getMoveEffectIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at=@At("HEAD"),cancellable=true)
 private void onDamagedActual(DamageSource source,CallbackInfo info){
-    if(this.currentIdentity!=null){
+    if(this.currentIdentity!=null && !(((Entity)(Object)this) instanceof Player) && !this.currentIdentity.isRemoved()){
         this.currentIdentity.handleDamageEvent(source);
     }
 }

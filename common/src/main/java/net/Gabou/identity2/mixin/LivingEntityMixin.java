@@ -176,6 +176,10 @@ public SoundEvent getDeathSound(){return null;}
 
 @Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable info){
+    if (this.identityOf != null) {
+        info.setReturnValue(null);
+        return;
+    }
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
@@ -186,6 +190,10 @@ private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable inf
 }
 @Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getDeathSoundIdentity(CallbackInfoReturnable info){
+    if (this.identityOf != null) {
+        info.setReturnValue(null);
+        return;
+    }
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
@@ -304,4 +312,3 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
 }
 //Tons of Redirects - End
 }
-

@@ -57,6 +57,7 @@ public final class IdentityProgression {
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
     private static final Identifier HEALTH_SCALING_MODIFIER_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
     public static final Identifier PLAYER_IDENTITY_ID = Identifier.fromNamespaceAndPath("minecraft", "player");
+    private static final Identifier GIANT_EASTER_EGG_ID = Identifier.fromNamespaceAndPath("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
 
@@ -172,7 +173,7 @@ public final class IdentityProgression {
             previousType = BASE_PLAYER_TRANSITION_SENTINEL;
             previousVariant = "";
         }
-        double transitionDuration = Math.max(0, IdentitySettings.morphTransitionTicks);
+        double transitionDuration = resolveTransitionDurationTicks();
         double transitionStart = player.level() != null ? player.level().getGameTime() : 0.0D;
         setTransitionData(nbt, previousType, previousVariant, transitionStart, transitionDuration);
         if (transitionDuration <= 0.0D) {
@@ -239,7 +240,7 @@ public final class IdentityProgression {
             previousType = BASE_PLAYER_TRANSITION_SENTINEL;
             previousVariant = "";
         }
-        double transitionDuration = Math.max(0, IdentitySettings.morphTransitionTicks);
+        double transitionDuration = resolveTransitionDurationTicks();
         double transitionStart = player.level() != null ? player.level().getGameTime() : 0.0D;
         setTransitionData(nbt, previousType, previousVariant, transitionStart, transitionDuration);
         if (transitionDuration <= 0.0D) {
@@ -451,6 +452,10 @@ public final class IdentityProgression {
         Map<String, List<String>> variantUnlocks = new HashMap<>(
             customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
+        if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
+            customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
+            customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
+        }
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
     }
@@ -671,6 +676,7 @@ public final class IdentityProgression {
             return false;
         }
 
+        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
         syncUnlockCaches(player, unlocked, variantUnlocks);
         return true;
     }
@@ -693,6 +699,7 @@ public final class IdentityProgression {
         // If this identity is already wildcard-unlocked (legacy/admin), keep it unrestricted.
         if (previouslyUnlocked && !variantUnlocks.containsKey(key)) {
             if (changed) {
+                tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
                 syncUnlockCaches(player, unlocked, variantUnlocks);
             }
             return changed;
@@ -710,8 +717,55 @@ public final class IdentityProgression {
             return false;
         }
 
+        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
         syncUnlockCaches(player, unlocked, variantUnlocks);
         return true;
+    }
+
+    private static boolean tryUnlockGiantEasterEgg(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
+        if (player == null || unlocked == null || variantUnlocks == null) {
+            return false;
+        }
+        if (!isMorphableIdentity(GIANT_EASTER_EGG_ID)) {
+            return false;
+        }
+        String giantId = GIANT_EASTER_EGG_ID.toString();
+        if (unlocked.contains(giantId)) {
+            return false;
+        }
+        if (!hasAllBaseMinecraftMorphsUnlocked(unlocked)) {
+            return false;
+        }
+
+        unlocked.add(giantId);
+        variantUnlocks.remove(giantId);
+        player.displayClientMessage(Component.literal("Easter Egg unlocked: minecraft:giant"), false);
+        Identity2.LOGGER.info("Unlocked easter egg identity {} for {}", GIANT_EASTER_EGG_ID, player.getName().getString());
+        return true;
+    }
+
+    private static boolean hasAllBaseMinecraftMorphsUnlocked(List<String> unlocked) {
+        if (unlocked == null || unlocked.isEmpty()) {
+            return false;
+        }
+        Set<String> unlockedSet = new LinkedHashSet<>(unlocked);
+        boolean foundRequired = false;
+        for (Identifier identityId : BuiltInRegistries.ENTITY_TYPE.keySet()) {
+            if (identityId == null || !"minecraft".equals(identityId.getNamespace())) {
+                continue;
+            }
+            if (PLAYER_IDENTITY_ID.equals(identityId) || GIANT_EASTER_EGG_ID.equals(identityId)) {
+                continue;
+            }
+            if (!isMorphableIdentity(identityId)) {
+                continue;
+            }
+            foundRequired = true;
+            if (!unlockedSet.contains(identityId.toString())) {
+                return false;
+            }
+        }
+        return foundRequired;
     }
 
     private static void syncUnlockCaches(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
@@ -824,9 +878,6 @@ public final class IdentityProgression {
     }
 
     private static void broadcastAcquisitionAnimation(ServerPlayer player, LivingEntity acquired, boolean morphAcquisition) {
-        if (!IdentitySettings.enableMorphAcquisitionTendrils) {
-            return;
-        }
         if (!(player.level() instanceof ServerLevel serverWorld)) {
             return;
         }
@@ -852,6 +903,14 @@ public final class IdentityProgression {
             source = nbt.getStringOr("model_override", "");
         }
         return source;
+    }
+
+    private static double resolveTransitionDurationTicks() {
+        int configured = IdentitySettings.morphTransitionTicks;
+        if (configured > 0) {
+            return configured;
+        }
+        return 20.0D;
     }
 
     private static String resolveTransitionSourceVariant(CompoundTag nbt, String sourceType) {
@@ -903,8 +962,14 @@ public final class IdentityProgression {
 
         if (!IdentitySettings.scalingHealth || !(identity instanceof LivingEntity livingIdentity)) {
             float newMaxHealth = player.getMaxHealth();
-            float scaled = Mth.clamp(healthRatio * newMaxHealth, 1.0F, newMaxHealth);
-            player.setHealth(scaled);
+            // When scaling is disabled, avoid rewriting health every morph/login tick.
+            // Only clamp if health is outside the valid range.
+            float current = player.getHealth();
+            if (current > newMaxHealth) {
+                player.setHealth(newMaxHealth);
+            } else if (current < 1.0F) {
+                player.setHealth(1.0F);
+            }
             return;
         }
 

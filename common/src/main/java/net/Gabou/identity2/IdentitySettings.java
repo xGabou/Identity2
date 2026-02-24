@@ -34,17 +34,8 @@ public class IdentitySettings {
     //@Comment(value = "Whether a hostile mob will stop targeting you after switching to a hostile mob identity.")
     public static boolean hostilesForgetNewHostileIdentityPlayer = false;
 
-    //@Comment(value = "Whether Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
-    public static boolean wolvesAttackIdentityPrey = true;
-
-    //@Comment(value = "Whether owned Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
-    public static boolean ownedWolvesAttackIdentityPrey = false;
-
     //@Comment(value = "Whether Villagers will run from Players morphed as identities villagers normally run from (Zombies).")
     public static boolean villagersRunFromIdentities = true;
-
-    //@Comment(value = "Whether Foxes will attack Players with an identity that the Fox would normally hunt (Fish, Chicken).")
-    public static boolean foxesAttackIdentityPrey = true;
 
     //@Comment(value = "Whether Identity sounds take priority over Player Sounds (eg. Blaze hurt sound when hit).")
     public static boolean useIdentitySounds = true;
@@ -65,7 +56,7 @@ public class IdentitySettings {
     public static List<String> advancementsRequiredForFlight = new ArrayList<>();
 
     //@Comment(value = "Whether Identities modify your max health value based on their max health value.")
-    public static boolean scalingHealth = true;
+    public static boolean scalingHealth = false;
 
     //@Comment(value = "The maximum value of scaling health. Useful for not giving players 300 HP when they turn into a wither.")
     public static int maxHealth = 40;
@@ -83,7 +74,10 @@ public class IdentitySettings {
     public static List<String> allowedSwappers = new ArrayList<>();
 
     //@Comment(value = "In blocks, how far can the Enderman ability teleport?")
-    public static int endermanAbilityTeleportDistance = 32;
+    public static int endermanAbilityTeleportDistance = 1024;
+
+    //@Comment(value = "If true, Giants gain zombie-like AI and can appear naturally in Hard difficulty.")
+    public static boolean enableGiantZombieAiAndHardSpawns = false;
 
     //@Comment(value = "Should player nametags render above players disguised with an identity? Note that the server is the authority for this config option.")
     public static boolean showPlayerNametag = false;

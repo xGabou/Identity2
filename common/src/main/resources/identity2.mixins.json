@@ -15,8 +15,10 @@
     "EntityEquipmentMixin",
     "PlayerManagerMixin",
     "MinecraftServerMixin",
+    "MobGoalSelectorAccessorMixin",
     "NbtComponentMixin",
     "LimbAnimatorMixin",
+    "GiantEntityMixin",
     "EntityTrackerEntryMixin",
     "EnderDragonEntityMixin",
     "EntityIndexMixin",
@@ -30,7 +32,8 @@
     "DefaultAttributeContainerMixin",
     "RegistriesMixin",
     "RegistryMixin",
-    "ShulkerEntityMixin"
+    "ShulkerEntityMixin",
+    "ZombieEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

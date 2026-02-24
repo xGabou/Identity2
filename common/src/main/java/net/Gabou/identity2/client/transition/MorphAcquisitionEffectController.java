@@ -3,7 +3,6 @@ package net.Gabou.identity2.client.transition;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -23,10 +22,7 @@ public final class MorphAcquisitionEffectController {
     }
 
     public static void enqueue(MorphAcquisitionS2CPacketPayload payload) {
-        if (!IdentitySettings.enableMorphAcquisitionTendrils) {
-            return;
-        }
-        int maxTicks = Math.max(6, IdentitySettings.morphAcquisitionAnimationTicks);
+        int maxTicks = Math.max(6, net.Gabou.identity2.IdentitySettings.morphAcquisitionAnimationTicks);
         EFFECTS.add(
             new AcquisitionEffect(
                 payload.originEntityId(),
@@ -39,10 +35,6 @@ public final class MorphAcquisitionEffectController {
     }
 
     public static void tick(Minecraft client) {
-        if (!IdentitySettings.enableMorphAcquisitionTendrils) {
-            EFFECTS.clear();
-            return;
-        }
         ClientLevel level = client.level;
         if (level == null || EFFECTS.isEmpty()) {
             return;
