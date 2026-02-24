@@ -6,7 +6,7 @@ import draylar.identity.api.platform.IdentityConfig;
 import draylar.identity.registry.IdentityEntityTags;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -44,7 +44,7 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -63,9 +63,9 @@ public final class Identity2Client {
     private static boolean initialized = false;
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
-    public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
+    public static final ArrayList<ResourceLocation> visualPatchKeys = new ArrayList<>(0);
     private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category
-            .register(Identifier.parse("category.identity2.test"));
+            .register(ResourceLocation.parse("category.identity2.test"));
 
     private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
             "key.identity2.primary_ability",
@@ -136,7 +136,7 @@ public final class Identity2Client {
                 dragonIdentity.yRotA += Mth.wrapDegrees(entity.getYRot() - identity.getYRot()) * 0.1F;
             }
             return identity;
-        }, Identifier.parse("minecraft:ender_dragon"));
+        }, ResourceLocation.parse("minecraft:ender_dragon"));
     }
 
     private Identity2Client() {
@@ -239,7 +239,7 @@ public final class Identity2Client {
         NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
     }
 
-    public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {
+    public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, ResourceLocation id) {
         visualPatchKeys.ensureCapacity(visualPatchKeys.size() + 1);
         visualPatchValues.ensureCapacity(visualPatchValues.size() + 1);
         visualPatchKeys.add(id);
@@ -555,15 +555,15 @@ public final class Identity2Client {
         if (identity == null) {
             return false;
         }
-        Identifier identityTypeId = net.minecraft.world.entity.EntityType.getKey(identity.getType());
+        ResourceLocation identityTypeId = net.minecraft.world.entity.EntityType.getKey(identity.getType());
         if (identityTypeId == null) {
             return false;
         }
         return PredefIdentityAbilities.predef.containsKey(identityTypeId)
                 || PredefIdentityAbilities.predef
-                        .containsKey(Identifier.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
                 || PredefIdentityAbilities.predef
-                        .containsKey(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
                 || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
     }
 

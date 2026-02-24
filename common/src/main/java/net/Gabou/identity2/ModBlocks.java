@@ -4,7 +4,7 @@ import java.util.function.Function;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -50,19 +50,19 @@ public final class ModBlocks {
     }
 
     private static Item registerVanillaItem(String name, String namespace) {
-        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(namespace, name));
+        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, name));
         BlockItem blockItem = new BlockItem(
-            BuiltInRegistries.BLOCK.getValue(Identifier.fromNamespaceAndPath(namespace, name)),
+            BuiltInRegistries.BLOCK.getValue(ResourceLocation.fromNamespaceAndPath(namespace, name)),
             new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()
         );
         return Registry.register(BuiltInRegistries.ITEM, itemKey, blockItem);
     }
 
     public static ResourceKey<Block> keyOfBlock(String name) {
-        return ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Identity2.MOD_ID, name));
+        return ResourceKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, name));
     }
 
     private static ResourceKey<Item> keyOfItem(String name) {
-        return ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Identity2.MOD_ID, name));
+        return ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, name));
     }
 }

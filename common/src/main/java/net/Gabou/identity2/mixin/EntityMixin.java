@@ -39,7 +39,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -539,9 +539,9 @@ public class EntityMixin implements EntityAccessor{
             }
             return;
         }
-        Identifier identityId;
+        ResourceLocation identityId;
         try {
-            identityId = Identifier.parse(id);
+            identityId = ResourceLocation.parse(id);
         } catch (Exception e) {
             this.deactivateIdentityAfterFailure(null, "invalid id");
             return;
@@ -678,8 +678,8 @@ public class EntityMixin implements EntityAccessor{
             typeRaw = villagerDataTag.getStringOr("type", "");
         }
 
-        Identifier professionId = identity2$parseIdentifier(professionRaw);
-        Identifier typeId = identity2$parseIdentifier(typeRaw);
+        ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
+        ResourceLocation typeId = identity2$parseResourceLocation(typeRaw);
 
         if (professionId != null) {
             Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
@@ -747,21 +747,21 @@ public class EntityMixin implements EntityAccessor{
     }
 
     @Nullable
-    private static Identifier identity2$parseIdentifier(String raw) {
+    private static ResourceLocation identity2$parseResourceLocation(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             if (raw.contains(":")) {
-                return Identifier.parse(raw);
+                return ResourceLocation.parse(raw);
             }
-            return Identifier.fromNamespaceAndPath("minecraft", raw);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private static Object identity2$resolveRegistryValue(String registryField, @Nullable Identifier id) {
+    private static Object identity2$resolveRegistryValue(String registryField, @Nullable ResourceLocation id) {
         if (id == null) {
             return null;
         }
@@ -779,7 +779,7 @@ public class EntityMixin implements EntityAccessor{
 
     private static void identity2$applyRegistryBackedVariant(Entity identityEntity, CompoundTag variantNbt, String nbtKey, String registryField) {
         String raw = identity2$readVariantString(variantNbt, nbtKey);
-        Identifier variantId = identity2$parseIdentifier(raw);
+        ResourceLocation variantId = identity2$parseResourceLocation(raw);
         if (variantId == null) {
             return;
         }
@@ -984,7 +984,7 @@ public class EntityMixin implements EntityAccessor{
         return false;
     }
 
-    private void deactivateIdentityAfterFailure(@Nullable Identifier identityId, String reason) {
+    private void deactivateIdentityAfterFailure(@Nullable ResourceLocation identityId, String reason) {
         this.currentIdentity = null;
         this.entityCanFly = false;
         this.entityCanFlyEvaluated = false;

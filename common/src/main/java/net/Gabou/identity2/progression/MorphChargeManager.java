@@ -10,7 +10,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.component.CustomData;
 
@@ -21,7 +21,7 @@ public final class MorphChargeManager {
     private MorphChargeManager() {
     }
 
-    public static int getCharges(ServerPlayer player, Identifier identityId) {
+    public static int getCharges(ServerPlayer player, ResourceLocation identityId) {
         if (player == null || identityId == null) {
             return 0;
         }
@@ -36,7 +36,7 @@ public final class MorphChargeManager {
         return Collections.unmodifiableMap(new HashMap<>(getChargeMap(player)));
     }
 
-    public static void addCharges(ServerPlayer player, Identifier identityId, int amount) {
+    public static void addCharges(ServerPlayer player, ResourceLocation identityId, int amount) {
         if (player == null || identityId == null || amount <= 0) {
             return;
         }
@@ -46,7 +46,7 @@ public final class MorphChargeManager {
         setChargeMap(player, charges);
     }
 
-    public static boolean tryRemoveCharges(ServerPlayer player, Identifier identityId, int amount) {
+    public static boolean tryRemoveCharges(ServerPlayer player, ResourceLocation identityId, int amount) {
         if (player == null || identityId == null || amount <= 0) {
             return false;
         }
@@ -66,7 +66,7 @@ public final class MorphChargeManager {
         return true;
     }
 
-    public static boolean tryConsumeMorphCharge(ServerPlayer player, Identifier identityId, CompoundTag variantNbt, boolean notifyPlayer) {
+    public static boolean tryConsumeMorphCharge(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt, boolean notifyPlayer) {
         if (player == null || identityId == null) {
             return false;
         }
@@ -102,7 +102,7 @@ public final class MorphChargeManager {
         return true;
     }
 
-    public static void onIdentityKilled(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static void onIdentityKilled(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null) {
             return;
         }
@@ -133,9 +133,9 @@ public final class MorphChargeManager {
             return;
         }
 
-        Identifier identityId;
+        ResourceLocation identityId;
         try {
-            identityId = Identifier.parse(selectedType);
+            identityId = ResourceLocation.parse(selectedType);
         } catch (Exception ignored) {
             return;
         }

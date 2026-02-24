@@ -1,9 +1,9 @@
 package net.Gabou.identity2.identity;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
-public record IdentityVariant(Identifier entityTypeId, String displayName, CompoundTag variantNbt) {
+public record IdentityVariant(ResourceLocation entityTypeId, String displayName, CompoundTag variantNbt) {
     public IdentityVariant {
         if (entityTypeId == null) {
             throw new IllegalArgumentException("entityTypeId cannot be null");

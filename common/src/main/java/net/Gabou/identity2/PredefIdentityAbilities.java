@@ -27,7 +27,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.nbt.CompoundTag;
@@ -107,13 +107,13 @@ public final class PredefIdentityAbilities {
         }
     }
 
-    public static final Map<Identifier, IdentityAbility> predef = create();
+    public static final Map<ResourceLocation, IdentityAbility> predef = create();
     private static final IdentityAbility genericMobAbility = createGenericMobAbility();
 
     private PredefIdentityAbilities() {
     }
 
-    public static boolean hasFallbackAbility(Identifier identityTypeId) {
+    public static boolean hasFallbackAbility(ResourceLocation identityTypeId) {
         if (identityTypeId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityTypeId)) {
             return false;
         }
@@ -124,17 +124,17 @@ public final class PredefIdentityAbilities {
         return type.getCategory() != MobCategory.MISC;
     }
 
-    public static IdentityAbility resolveFallbackAbility(Identifier identityTypeId) {
+    public static IdentityAbility resolveFallbackAbility(ResourceLocation identityTypeId) {
         if (!hasFallbackAbility(identityTypeId)) {
             return null;
         }
         return genericMobAbility;
     }
 
-    private static Map<Identifier, IdentityAbility> create() {
-        Map<Identifier, IdentityAbility> map = new HashMap<>();
+    private static Map<ResourceLocation, IdentityAbility> create() {
+        Map<ResourceLocation, IdentityAbility> map = new HashMap<>();
 
-        map.put(Identifier.parse("ghast"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("ghast"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -176,7 +176,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("enderman"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("enderman"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -218,7 +218,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("shulker"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("shulker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
@@ -297,7 +297,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("blaze"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("blaze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -316,7 +316,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("cow"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("cow"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (player instanceof LivingEntity living) {
@@ -335,21 +335,21 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("villager"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("villager"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(Identifier.parse("wandering_trader"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("wandering_trader"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(Identifier.parse("creeper"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("creeper"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 float power = 3.0F;
@@ -361,7 +361,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("endermite"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("endermite"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -385,7 +385,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("evoker"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("evoker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Vec3 origin = player.position();
@@ -423,14 +423,14 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("guardian"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
             }
         });
 
-        map.put(Identifier.parse("elder_guardian"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("elder_guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
@@ -455,21 +455,21 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("warden"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("warden"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeWardenSonicBoom(player);
             }
         });
 
-        map.put(Identifier.parse("breeze"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("breeze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeBreezeWindProjectile(player);
             }
         });
         
-        map.put(Identifier.parse("iron_golem"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("iron_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -490,7 +490,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("llama"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("llama"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -517,7 +517,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("snow_golem"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("snow_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -546,7 +546,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("witch"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("witch"), new IdentityAbility() {
             private final List<Holder<Potion>> validPotions = List.of(Potions.HARMING, Potions.POISON, Potions.SLOWNESS, Potions.WEAKNESS);
 
             @Override
@@ -580,7 +580,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("wither"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("wither"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -603,7 +603,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("ender_dragon"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("ender_dragon"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -799,9 +799,9 @@ public final class PredefIdentityAbilities {
         if (player.level().isClientSide()) {
             return;
         }
-        boolean spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
+        boolean spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
         if (!spawned) {
-            spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "wind_charge"));
+            spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "wind_charge"));
         }
         if (!spawned) {
             EntityHitResult hit = findLivingTarget(player, 20.0D);
@@ -814,7 +814,7 @@ public final class PredefIdentityAbilities {
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BREEZE_SHOOT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
-    private static boolean spawnWindProjectile(Entity player, Identifier projectileId) {
+    private static boolean spawnWindProjectile(Entity player, ResourceLocation projectileId) {
         if (player == null || projectileId == null) {
             return false;
         }
@@ -988,7 +988,7 @@ public final class PredefIdentityAbilities {
         BlockPos workstationPos = blockHit.getBlockPos();
         BlockState state = serverPlayer.level().getBlockState(workstationPos);
         Object poiReference = resolvePoiReference(state);
-        Identifier professionId = null;
+        ResourceLocation professionId = null;
         if (poiReference != null) {
             professionId = resolveProfessionForPoi(poiReference);
         }
@@ -1055,44 +1055,44 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static Identifier resolveProfessionForWorkstationBlock(BlockState state) {
+    private static ResourceLocation resolveProfessionForWorkstationBlock(BlockState state) {
         if (state == null) {
             return null;
         }
-        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (blockId == null) {
             return null;
         }
         return switch (blockId.getPath()) {
-            case "blast_furnace" -> Identifier.fromNamespaceAndPath("minecraft", "armorer");
-            case "smoker" -> Identifier.fromNamespaceAndPath("minecraft", "butcher");
-            case "cartography_table" -> Identifier.fromNamespaceAndPath("minecraft", "cartographer");
-            case "brewing_stand" -> Identifier.fromNamespaceAndPath("minecraft", "cleric");
-            case "composter" -> Identifier.fromNamespaceAndPath("minecraft", "farmer");
-            case "barrel" -> Identifier.fromNamespaceAndPath("minecraft", "fisherman");
-            case "fletching_table" -> Identifier.fromNamespaceAndPath("minecraft", "fletcher");
-            case "cauldron" -> Identifier.fromNamespaceAndPath("minecraft", "leatherworker");
-            case "lectern" -> Identifier.fromNamespaceAndPath("minecraft", "librarian");
-            case "stonecutter" -> Identifier.fromNamespaceAndPath("minecraft", "mason");
-            case "loom" -> Identifier.fromNamespaceAndPath("minecraft", "shepherd");
-            case "smithing_table" -> Identifier.fromNamespaceAndPath("minecraft", "toolsmith");
-            case "grindstone" -> Identifier.fromNamespaceAndPath("minecraft", "weaponsmith");
+            case "blast_furnace" -> ResourceLocation.fromNamespaceAndPath("minecraft", "armorer");
+            case "smoker" -> ResourceLocation.fromNamespaceAndPath("minecraft", "butcher");
+            case "cartography_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cartographer");
+            case "brewing_stand" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cleric");
+            case "composter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "farmer");
+            case "barrel" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fisherman");
+            case "fletching_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fletcher");
+            case "cauldron" -> ResourceLocation.fromNamespaceAndPath("minecraft", "leatherworker");
+            case "lectern" -> ResourceLocation.fromNamespaceAndPath("minecraft", "librarian");
+            case "stonecutter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "mason");
+            case "loom" -> ResourceLocation.fromNamespaceAndPath("minecraft", "shepherd");
+            case "smithing_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "toolsmith");
+            case "grindstone" -> ResourceLocation.fromNamespaceAndPath("minecraft", "weaponsmith");
             default -> null;
         };
     }
 
-    private static Identifier resolveProfessionForPoi(Object poiReference) {
+    private static ResourceLocation resolveProfessionForPoi(Object poiReference) {
         Registry<?> professionRegistry = getBuiltInRegistry("VILLAGER_PROFESSION");
         if (professionRegistry == null || poiReference == null) {
             return null;
         }
 
-        Identifier poiId = resolvePoiIdentifier(poiReference);
+        ResourceLocation poiId = resolvePoiResourceLocation(poiReference);
         for (Object profession : professionRegistry) {
             if (profession == null) {
                 continue;
             }
-            Identifier professionId = getRegistryKey(professionRegistry, profession);
+            ResourceLocation professionId = getRegistryKey(professionRegistry, profession);
             if (professionId == null || "none".equals(professionId.getPath())) {
                 continue;
             }
@@ -1196,13 +1196,13 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static Identifier resolvePoiIdentifier(Object poiReference) {
+    private static ResourceLocation resolvePoiResourceLocation(Object poiReference) {
         Registry<?> poiRegistry = getBuiltInRegistry("POINT_OF_INTEREST_TYPE", "POI_TYPE");
         if (poiRegistry == null || poiReference == null) {
             return null;
         }
 
-        Identifier direct = getRegistryKey(poiRegistry, poiReference);
+        ResourceLocation direct = getRegistryKey(poiRegistry, poiReference);
         if (direct != null) {
             return direct;
         }
@@ -1233,7 +1233,7 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static boolean applyVillagerProfession(Villager villagerIdentity, Identifier professionId) {
+    private static boolean applyVillagerProfession(Villager villagerIdentity, ResourceLocation professionId) {
         if (villagerIdentity == null || professionId == null) {
             return false;
         }
@@ -1303,13 +1303,13 @@ public final class PredefIdentityAbilities {
         }
 
         Object profession = invokeNoArg(villagerData, "getProfession");
-        Identifier professionId = resolveRegistryIdentifier("VILLAGER_PROFESSION", profession);
+        ResourceLocation professionId = resolveRegistryResourceLocation("VILLAGER_PROFESSION", profession);
         if (professionId != null) {
             variant.putString("VillagerProfession", professionId.toString());
         }
 
         Object villagerType = invokeNoArg(villagerData, "getType");
-        Identifier typeId = resolveRegistryIdentifier("VILLAGER_TYPE", villagerType);
+        ResourceLocation typeId = resolveRegistryResourceLocation("VILLAGER_TYPE", villagerType);
         if (typeId != null) {
             variant.putString("VillagerType", typeId.toString());
         }
@@ -1322,12 +1322,12 @@ public final class PredefIdentityAbilities {
         IdentityProgression.updateCurrentVariantAndSync(player, variant);
     }
 
-    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
+    private static ResourceLocation resolveRegistryResourceLocation(String registryField, Object value) {
         Registry<?> registry = getBuiltInRegistry(registryField);
         if (registry == null || value == null) {
             return null;
         }
-        Identifier direct = getRegistryKey(registry, value);
+        ResourceLocation direct = getRegistryKey(registry, value);
         if (direct != null) {
             return direct;
         }
@@ -1453,7 +1453,7 @@ public final class PredefIdentityAbilities {
     }
 
     @SuppressWarnings("unchecked")
-    private static Identifier getRegistryKey(Registry<?> registry, Object value) {
+    private static ResourceLocation getRegistryKey(Registry<?> registry, Object value) {
         if (registry == null || value == null) {
             return null;
         }
@@ -1465,7 +1465,7 @@ public final class PredefIdentityAbilities {
     }
 
     @SuppressWarnings("unchecked")
-    private static Object getRegistryValue(Registry<?> registry, Identifier id) {
+    private static Object getRegistryValue(Registry<?> registry, ResourceLocation id) {
         if (registry == null || id == null) {
             return null;
         }

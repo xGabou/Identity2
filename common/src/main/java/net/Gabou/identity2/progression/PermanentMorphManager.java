@@ -2,14 +2,14 @@ package net.Gabou.identity2.progression;
 
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class PermanentMorphManager {
     private PermanentMorphManager() {
     }
 
-    public static boolean isPermanentMorph(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean isPermanentMorph(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null) {
             return false;
         }
@@ -22,7 +22,7 @@ public final class PermanentMorphManager {
         return ProgressionConfig.enableSoulJars() && SoulJarManager.isPermanentInJar(player, identityId, variantNbt);
     }
 
-    public static boolean hasDeathLossProtection(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean hasDeathLossProtection(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null) {
             return false;
         }

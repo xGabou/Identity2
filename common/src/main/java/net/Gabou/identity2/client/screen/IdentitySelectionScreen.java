@@ -23,7 +23,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -34,8 +34,8 @@ public final class IdentitySelectionScreen extends Screen {
     private final List<IdentityEntry> allEntries = new ArrayList<>();
     private final List<IdentityEntry> filteredEntries = new ArrayList<>();
     private final List<Button> rowButtons = new ArrayList<>();
-    private final Map<Identifier, List<IdentityVariant>> variantCache = new HashMap<>();
-    private final Map<Identifier, LivingEntity> previewEntityCache = new HashMap<>();
+    private final Map<ResourceLocation, List<IdentityVariant>> variantCache = new HashMap<>();
+    private final Map<ResourceLocation, LivingEntity> previewEntityCache = new HashMap<>();
     private Set<String> unlockedIdentityIds = Set.of();
     private Map<String, Set<String>> unlockedVariantTokens = Map.of();
     private FilterMode filterMode = FilterMode.ALL;
@@ -45,7 +45,7 @@ public final class IdentitySelectionScreen extends Screen {
     private Button downButton;
     private int scrollOffset = 0;
     private int rowsPerPage = 10;
-    private Identifier cachedWorldId = null;
+    private ResourceLocation cachedWorldId = null;
 
     private int panelLeft;
     private int panelTop;
@@ -193,7 +193,7 @@ public final class IdentitySelectionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        Identifier worldId = currentWorldId();
+        ResourceLocation worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
         }
@@ -378,7 +378,7 @@ public final class IdentitySelectionScreen extends Screen {
         return this.filteredEntries.get(index);
     }
 
-    private LivingEntity resolvePreviewEntity(Identifier id) {
+    private LivingEntity resolvePreviewEntity(ResourceLocation id) {
         Minecraft client = Minecraft.getInstance();
         LivingEntity existing = this.previewEntityCache.get(id);
         if (existing != null && existing.level() == client.level) {
@@ -458,7 +458,7 @@ public final class IdentitySelectionScreen extends Screen {
         );
     }
 
-    private List<IdentityVariant> discoverVariants(Identifier id, Minecraft client) {
+    private List<IdentityVariant> discoverVariants(ResourceLocation id, Minecraft client) {
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(id)) {
             return discoverUnlockedPlayerSkinVariants();
         }
@@ -487,7 +487,7 @@ public final class IdentitySelectionScreen extends Screen {
         this.allEntries.clear();
         this.unlockedIdentityIds = readUnlockedIdentities();
         this.unlockedVariantTokens = readUnlockedVariantTokens();
-        for (Identifier id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
+        for (ResourceLocation id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
             if (!IdentityProgression.isMorphableIdentity(id)) {
                 continue;
             }
@@ -570,7 +570,7 @@ public final class IdentitySelectionScreen extends Screen {
         return !entry.unlocked();
     }
 
-    private boolean isVariantLockedForMorph(Identifier identityId, IdentityVariant variant) {
+    private boolean isVariantLockedForMorph(ResourceLocation identityId, IdentityVariant variant) {
         if (!IdentitySettings.requireUnlockedIdentityForMorph) {
             return false;
         }
@@ -662,7 +662,7 @@ public final class IdentitySelectionScreen extends Screen {
         super.removed();
     }
 
-    private Identifier currentWorldId() {
+    private ResourceLocation currentWorldId() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
             return null;
@@ -675,7 +675,7 @@ public final class IdentitySelectionScreen extends Screen {
         return "      " + prefix + entry.displayName();
     }
 
-    private static String formatDisplayName(Identifier id) {
+    private static String formatDisplayName(ResourceLocation id) {
         String path = id.getPath();
         String[] parts = path.split("_");
         StringBuilder builder = new StringBuilder();
@@ -725,6 +725,6 @@ public final class IdentitySelectionScreen extends Screen {
         }
     }
 
-    private record IdentityEntry(Identifier id, boolean unlocked, String searchableId, String displayName) {
+    private record IdentityEntry(ResourceLocation id, boolean unlocked, String searchableId, String displayName) {
     }
 }

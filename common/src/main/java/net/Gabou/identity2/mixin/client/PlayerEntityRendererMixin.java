@@ -31,7 +31,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.player.PlayerSkin;
 import java.util.Map;
@@ -40,8 +40,8 @@ import net.Gabou.identity2.util.LimbAnimatorAccessor;
 @Mixin(AvatarRenderer.class)
 public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.PlayerEntityRendererAccessor{
     @Shadow
-    private void renderHand(PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture,ModelPart arm, boolean sleeveVisible) {}
-    public void callRenderArm(PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture,ModelPart arm, boolean sleeveVisible) {
+    private void renderHand(PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {}
+    public void callRenderArm(PoseStack matrices, SubmitNodeCollector queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {
     this.renderHand(matrices, queue, light, skinTexture,arm, sleeveVisible);
     }
     @Inject(method = "extractRenderState", at = @At("TAIL"), require = 0)
@@ -101,8 +101,8 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
 		PlayerEntityRenderState entityRenderState=(PlayerEntityRenderState)playerEntityRenderState;
         if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").isPresent()){
             if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get().length()!=0){
-                if(Registries.ENTITY_TYPE.containsId(Identifier.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()))){
-                    EntityType<?> newType=Registries.ENTITY_TYPE.get(Identifier.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()));
+                if(Registries.ENTITY_TYPE.containsId(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()))){
+                    EntityType<?> newType=Registries.ENTITY_TYPE.get(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()));
                     playerEntityRenderState.entityType=newType;
                 }
                 

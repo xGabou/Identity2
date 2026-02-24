@@ -22,7 +22,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
@@ -50,9 +50,9 @@ public class PlayerManagerMixin {
     private static void removeInject(ServerPlayer player, CallbackInfo info) {
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
+        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
             for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
-                .getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave"))) {
+                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
@@ -104,9 +104,9 @@ public class PlayerManagerMixin {
         DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {
+        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {
             for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
-                .getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join"))) {
+                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()

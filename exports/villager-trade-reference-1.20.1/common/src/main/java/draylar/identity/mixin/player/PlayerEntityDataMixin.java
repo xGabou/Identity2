@@ -28,7 +28,7 @@ import net.minecraft.registry.tag.EntityTypeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -66,7 +66,7 @@ public abstract class PlayerEntityDataMixin extends LivingEntity implements Play
         // Each entry will be a string with an entity registry ID value.
         NbtList unlockedIdList = tag.getList("UnlockedMorphs", NbtElement.STRING_TYPE);
         unlockedIdList.forEach(entityRegistryID -> {
-            Identifier id = Identifier.of(entityRegistryID.asString());
+            ResourceLocation id = ResourceLocation.of(entityRegistryID.asString());
             if(Registries.ENTITY_TYPE.containsId(id)) {
                 EntityType<?> type = Registries.ENTITY_TYPE.get(id);
 
@@ -94,7 +94,7 @@ public abstract class PlayerEntityDataMixin extends LivingEntity implements Play
         favorites.clear();
         NbtList favoriteIdList = tag.getList("FavoriteIdentities", NbtElement.STRING_TYPE);
         favoriteIdList.forEach(registryID -> {
-            Identifier id = Identifier.of(registryID.asString());
+            ResourceLocation id = ResourceLocation.of(registryID.asString());
             if(Registries.ENTITY_TYPE.containsId(id)) {
                 EntityType<?> type = Registries.ENTITY_TYPE.get(id);
                 favorites.add(new IdentityType(type));

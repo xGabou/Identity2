@@ -12,7 +12,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.TooltipDisplay;
@@ -87,7 +87,7 @@ public final class SoulJarItem extends Item {
     }
 
     private static String inferTier(ItemStack stack) {
-        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (itemId == null) {
             return "mud";
         }

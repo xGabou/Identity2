@@ -10,7 +10,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.entity.LivingEntity;
@@ -67,7 +67,7 @@ public abstract class VillagerEntityMixin {
 
                     boolean invalid = (dim == null || dim.isEmpty() || posLong == Long.MIN_VALUE);
                     if (!invalid) {
-                        ServerWorld world = owner.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, Identifier.of(dim)));
+                        ServerWorld world = owner.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, ResourceLocation.of(dim)));
                         if (world == null) {
                             invalid = true;
                         } else {

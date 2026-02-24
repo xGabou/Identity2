@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
@@ -25,7 +25,7 @@ final class IdentityMenuRenderHelper {
     }
 
     @Nullable
-    static LivingEntity buildPreviewEntity(Identifier entityId, @Nullable CompoundTag variantNbt) {
+    static LivingEntity buildPreviewEntity(ResourceLocation entityId, @Nullable CompoundTag variantNbt) {
         Minecraft client = Minecraft.getInstance();
         ClientLevel world = client.level;
         if (world == null || entityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)) {

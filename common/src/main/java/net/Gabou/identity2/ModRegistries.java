@@ -7,20 +7,20 @@ import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 
 public final class ModRegistries {
     public static final ResourceKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
-        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("identity2", "identity_ability"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath("identity2", "identity_ability"));
 
     public static final Codec<IdentityAbilityDefinition> IDENTITY_ABILITY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
         Item.CODEC.fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
         Codec.STRING.optionalFieldOf("command", "").forGetter(IdentityAbilityDefinition::command),
         Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
         Codec.INT.optionalFieldOf("use_duration", 0).forGetter(IdentityAbilityDefinition::useduration),
-        Identifier.CODEC.optionalFieldOf("predef", Identifier.parse("null")).forGetter(IdentityAbilityDefinition::bultinability),
+        ResourceLocation.CODEC.optionalFieldOf("predef", ResourceLocation.parse("null")).forGetter(IdentityAbilityDefinition::bultinability),
         Codec.BOOL.optionalFieldOf("override_attack", false).forGetter(IdentityAbilityDefinition::override_attack)
     ).apply(inst, IdentityAbilityDefinition::new));
 
@@ -81,7 +81,7 @@ public final class ModRegistries {
             return null;
         }
 
-        Identifier typeId = EntityType.getKey(type);
+        ResourceLocation typeId = EntityType.getKey(type);
         if (typeId == null) {
             return null;
         }
@@ -94,12 +94,12 @@ public final class ModRegistries {
         // Compatibility fallback: many datapacks define abilities by path only
         // under minecraft/identity2 namespace. Try these aliases for modded types.
         IdentityAbilityDefinition minecraftAlias = registry.getValue(
-            Identifier.fromNamespaceAndPath("minecraft", typeId.getPath())
+            ResourceLocation.fromNamespaceAndPath("minecraft", typeId.getPath())
         );
         if (minecraftAlias != null) {
             return minecraftAlias;
         }
 
-        return registry.getValue(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, typeId.getPath()));
+        return registry.getValue(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, typeId.getPath()));
     }
 }

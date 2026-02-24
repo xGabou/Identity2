@@ -14,7 +14,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -23,7 +23,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private static final int MAX_ROWS = 14;
 
     private final Screen parent;
-    private final Identifier entityTypeId;
+    private final ResourceLocation entityTypeId;
     private final List<IdentityVariant> variants;
     private final Set<String> unlockedVariantTokens;
     private final boolean wildcardUnlocked;
@@ -34,7 +34,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
     private Button downButton;
     private int scrollOffset = 0;
     private int rowsPerPage = 10;
-    private Identifier cachedWorldId = null;
+    private ResourceLocation cachedWorldId = null;
 
     private int panelLeft;
     private int panelTop;
@@ -52,7 +52,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
 
     public IdentityVariantSelectionScreen(
         Screen parent,
-        Identifier entityTypeId,
+        ResourceLocation entityTypeId,
         List<IdentityVariant> variants,
         Set<String> unlockedVariantTokens,
         boolean wildcardUnlocked,
@@ -173,7 +173,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        Identifier worldId = currentWorldId();
+        ResourceLocation worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
         }
@@ -431,7 +431,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         return !this.unlockedVariantTokens.contains(IdentityProgression.toVariantUnlockToken(variant.variantNbt()));
     }
 
-    private Identifier currentWorldId() {
+    private ResourceLocation currentWorldId() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
             return null;

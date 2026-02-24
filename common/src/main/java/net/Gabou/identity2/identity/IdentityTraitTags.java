@@ -5,7 +5,7 @@ import java.util.List;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.entity.EntityType;
@@ -14,27 +14,27 @@ import org.jetbrains.annotations.Nullable;
 public final class IdentityTraitTags {
     public static final TagKey<EntityType<?>> CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("minecraft", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("minecraft", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "can_breathe_underwater")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_breathe_underwater")
     );
 
     public static final TagKey<EntityType<?>> BURNS_IN_DAYLIGHT = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "burns_in_daylight")
+        ResourceLocation.fromNamespaceAndPath("identity2", "burns_in_daylight")
     );
 
     public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "slow_falling")
+        ResourceLocation.fromNamespaceAndPath("identity2", "slow_falling")
     );
 
     private IdentityTraitTags() {
@@ -46,7 +46,7 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId == null) {
             return Boolean.FALSE;
         }
@@ -77,7 +77,7 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId == null) {
             return Boolean.FALSE;
         }
@@ -102,7 +102,7 @@ public final class IdentityTraitTags {
         if (type == null) {
             return false;
         }
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
             Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
             if (assignmentOverride != null) {
@@ -116,7 +116,7 @@ public final class IdentityTraitTags {
         if (type == null) {
             return false;
         }
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
             Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(SLOW_FALLING));
             if (assignmentOverride != null) {
@@ -127,7 +127,7 @@ public final class IdentityTraitTags {
     }
 
     @Nullable
-    private static Boolean resolveAssignmentOverride(Identifier typeId, Identifier... acceptedTagIds) {
+    private static Boolean resolveAssignmentOverride(ResourceLocation typeId, ResourceLocation... acceptedTagIds) {
         if (typeId == null || acceptedTagIds == null || acceptedTagIds.length == 0) {
             return null;
         }
@@ -157,13 +157,13 @@ public final class IdentityTraitTags {
         return null;
     }
 
-    private static boolean matchesTag(Identifier entryTag, Identifier[] acceptedTagIds) {
+    private static boolean matchesTag(ResourceLocation entryTag, ResourceLocation[] acceptedTagIds) {
         if (entryTag == null) {
             return false;
         }
         String entryFull = entryTag.toString();
         String entryPath = entryTag.getPath();
-        for (Identifier accepted : acceptedTagIds) {
+        for (ResourceLocation accepted : acceptedTagIds) {
             if (accepted == null) {
                 continue;
             }
@@ -174,7 +174,7 @@ public final class IdentityTraitTags {
         return false;
     }
 
-    private static boolean matchesType(Identifier entryType, Identifier typeId) {
+    private static boolean matchesType(ResourceLocation entryType, ResourceLocation typeId) {
         if (entryType == null || typeId == null) {
             return false;
         }
@@ -195,8 +195,8 @@ public final class IdentityTraitTags {
             return null;
         }
 
-        Identifier tagId = parseIdentifierLoose(normalized.substring(0, separator).trim());
-        Identifier entityTypeId = parseIdentifierLoose(normalized.substring(separator + 1).trim());
+        ResourceLocation tagId = parseResourceLocationLoose(normalized.substring(0, separator).trim());
+        ResourceLocation entityTypeId = parseResourceLocationLoose(normalized.substring(separator + 1).trim());
         if (tagId == null || entityTypeId == null) {
             return null;
         }
@@ -204,25 +204,25 @@ public final class IdentityTraitTags {
     }
 
     @Nullable
-    private static Identifier parseIdentifierLoose(String value) {
+    private static ResourceLocation parseResourceLocationLoose(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
             if (value.contains(":")) {
-                return Identifier.parse(value);
+                return ResourceLocation.parse(value);
             }
-            return Identifier.fromNamespaceAndPath("minecraft", value);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", value);
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private static Identifier tagId(TagKey<EntityType<?>> tag) {
+    private static ResourceLocation tagId(TagKey<EntityType<?>> tag) {
         return tag.location();
     }
 
-    private static boolean containsTypeId(List<String> entries, Identifier typeId) {
+    private static boolean containsTypeId(List<String> entries, ResourceLocation typeId) {
         String full = typeId.toString();
         String path = typeId.getPath();
         for (String entry : entries) {
@@ -244,6 +244,6 @@ public final class IdentityTraitTags {
         return entries == null ? Collections.emptyList() : entries;
     }
 
-    private record TagAssignment(Identifier tagId, Identifier entityTypeId) {
+    private record TagAssignment(ResourceLocation tagId, ResourceLocation entityTypeId) {
     }
 }
