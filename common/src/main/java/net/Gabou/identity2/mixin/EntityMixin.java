@@ -65,6 +65,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.identity.IdentityProgression;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor{
     @Shadow
@@ -597,9 +598,6 @@ public class EntityMixin implements EntityAccessor{
             this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
             if((Entity)(Object)this instanceof Player player){
                 this.applyIdentityFlightGrant(player, false);
-                if (player instanceof ServerPlayer serverPlayer) {
-                    IdentityProgression.refreshScaledHealth(serverPlayer);
-                }
             }
             return;
         }
@@ -617,9 +615,6 @@ public class EntityMixin implements EntityAccessor{
             this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
             if((Entity)(Object)this instanceof Player player){
                 this.applyIdentityFlightGrant(player, false);
-                if (player instanceof ServerPlayer serverPlayer) {
-                    IdentityProgression.refreshScaledHealth(serverPlayer);
-                }
             }
             return;
         }
@@ -666,27 +661,151 @@ public class EntityMixin implements EntityAccessor{
             if((Entity)(Object)this instanceof Player player){
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
-                if (player instanceof ServerPlayer serverPlayer) {
-                    IdentityProgression.refreshScaledHealth(serverPlayer);
-                }
             }
         }
         
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        return;
-        
+        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
+            return;
+        }
+
+        boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
+        if (hasBabyFlag) {
+            boolean baby = variantNbt.getBooleanOr("IsBaby", variantNbt.getBooleanOr("Baby", false));
+            identity2$invokeOneArg(identityEntity, "setBaby", baby);
+        }
+        if (variantNbt.getInt("Age").isPresent()) {
+            int age = variantNbt.getInt("Age").get();
+            identity2$invokeIntArg(identityEntity, "setAge", age);
+            if (age < 0) {
+                identity2$invokeOneArg(identityEntity, "setBaby", true);
+            }
+        }
+        if (variantNbt.getBoolean("AgeLocked").isPresent()) {
+            identity2$invokeOneArg(identityEntity, "setAgeLocked", variantNbt.getBooleanOr("AgeLocked", false));
+        }
+
+        if (variantNbt.getInt("Variant").isPresent()) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant").get());
+        }
+        if (variantNbt.getInt("variant").isPresent()) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant").get());
+        }
+        if (variantNbt.getInt("Type").isPresent()) {
+            int type = variantNbt.getInt("Type").get();
+            if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
+                identity2$invokeIntArg(identityEntity, "setVariant", type);
+            }
+        }
+        if (variantNbt.getInt("type").isPresent()) {
+            int type = variantNbt.getInt("type").get();
+            if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
+                identity2$invokeIntArg(identityEntity, "setVariant", type);
+            }
+        }
+
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "CatVariant", "CAT_VARIANT");
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "FrogVariant", "FROG_VARIANT");
+
+        if (variantNbt.getInt("CollarColor").isPresent()) {
+            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor").get());
+            if (dyeColor != null) {
+                identity2$invokeOneArg(identityEntity, "setCollarColor", dyeColor);
+            }
+        }
+
+        identity2$applyVillagerVariantState(identityEntity, variantNbt);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        return;
-        
+        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
+            return;
+        }
+
+        Object villagerData = identity2$invokeNoArg(identityEntity, "getVillagerData");
+        if (villagerData == null) {
+            return;
+        }
+
+        CompoundTag villagerDataTag = variantNbt.getCompound("VillagerData").orElse(null);
+        String professionRaw = identity2$readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
+        if ((professionRaw == null || professionRaw.isBlank()) && villagerDataTag != null) {
+            professionRaw = villagerDataTag.getStringOr("profession", "");
+        }
+        String typeRaw = identity2$readVariantString(variantNbt, "VillagerType", "Type", "type");
+        if ((typeRaw == null || typeRaw.isBlank()) && villagerDataTag != null) {
+            typeRaw = villagerDataTag.getStringOr("type", "");
+        }
+
+        Identifier professionId = identity2$parseIdentifier(professionRaw);
+        Identifier typeId = identity2$parseIdentifier(typeRaw);
+
+        if (professionId != null) {
+            Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
+            if (profession != null) {
+                Object professionArg = profession;
+                Object professionRegistry = identity2$getBuiltInRegistryObject("VILLAGER_PROFESSION");
+                Object wrapped = identity2$wrapAsHolder(professionRegistry, profession);
+                if (wrapped != null) {
+                    professionArg = wrapped;
+                }
+                Object updatedVillagerData = identity2$invokeOneArg(villagerData, "setProfession", professionArg);
+                if (updatedVillagerData != null) {
+                    villagerData = updatedVillagerData;
+                }
+            }
+        }
+
+        if (typeId != null) {
+            Object villagerType = identity2$resolveRegistryValue("VILLAGER_TYPE", typeId);
+            if (villagerType != null) {
+                Object typeArg = villagerType;
+                Object typeRegistry = identity2$getBuiltInRegistryObject("VILLAGER_TYPE");
+                Object wrapped = identity2$wrapAsHolder(typeRegistry, villagerType);
+                if (wrapped != null) {
+                    typeArg = wrapped;
+                }
+                Object updatedVillagerData = identity2$invokeOneArg(villagerData, "setType", typeArg);
+                if (updatedVillagerData != null) {
+                    villagerData = updatedVillagerData;
+                }
+            }
+        }
+
+        int level = 0;
+        if (variantNbt.getInt("VillagerLevel").isPresent()) {
+            level = variantNbt.getInt("VillagerLevel").get();
+        } else if (villagerDataTag != null && villagerDataTag.getInt("level").isPresent()) {
+            level = villagerDataTag.getInt("level").get();
+        }
+        if (level > 0) {
+            Object updatedVillagerData = identity2$invokeIntArg(villagerData, "setLevel", Math.max(1, level));
+            if (updatedVillagerData != null) {
+                villagerData = updatedVillagerData;
+            }
+        }
+
+        if (identity2$invokeOneArg(identityEntity, "setVillagerData", villagerData) != null) {
+            identity2$clearVillagerOffers(identityEntity);
+        }
     }
 
     private static void identity2$clearVillagerOffers(Object villager) {
-        return;
-        
+        if (villager == null) {
+            return;
+        }
+        try {
+            Class<?> offersClass = Class.forName("net.minecraft.world.item.trading.MerchantOffers");
+            Object offers = offersClass.getConstructor().newInstance();
+            if (identity2$invokeOneArg(villager, "setOffers", offers) != null) {
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        identity2$invokeNoArg(villager, "resetOffers");
     }
 
     @Nullable
@@ -714,6 +833,81 @@ public class EntityMixin implements EntityAccessor{
                 @SuppressWarnings("unchecked")
                 net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
                 return cast.getValue(id);
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static void identity2$applyRegistryBackedVariant(Entity identityEntity, CompoundTag variantNbt, String nbtKey, String registryField) {
+        String raw = identity2$readVariantString(variantNbt, nbtKey);
+        Identifier variantId = identity2$parseIdentifier(raw);
+        if (variantId == null) {
+            return;
+        }
+        Object variant = identity2$resolveRegistryValue(registryField, variantId);
+        if (variant == null) {
+            return;
+        }
+
+        Object arg = variant;
+        Object registry = identity2$getBuiltInRegistryObject(registryField);
+        Object wrapped = identity2$wrapAsHolder(registry, variant);
+        if (wrapped != null) {
+            arg = wrapped;
+        }
+
+        if (identity2$invokeOneArg(identityEntity, "setVariant", arg) == null) {
+            identity2$invokeOneArg(identityEntity, "setType", arg);
+        }
+    }
+
+    @Nullable
+    private static Object identity2$getBuiltInRegistryObject(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        try {
+            return BuiltInRegistries.class.getField(fieldName).get(null);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String identity2$readVariantString(CompoundTag variantNbt, String... keys) {
+        if (variantNbt == null || keys == null) {
+            return "";
+        }
+        for (String key : keys) {
+            if (key == null || key.isBlank()) {
+                continue;
+            }
+            if (!variantNbt.getString(key).isPresent()) {
+                continue;
+            }
+            String value = variantNbt.getStringOr(key, "").trim();
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    @Nullable
+    private static Object identity2$resolveDyeColorById(int colorId) {
+        try {
+            Class<?> dyeColorClass = Class.forName("net.minecraft.world.item.DyeColor");
+            for (Method method : dyeColorClass.getMethods()) {
+                if (!Modifier.isStatic(method.getModifiers())) {
+                    continue;
+                }
+                if (!method.getName().equals("byId") || method.getParameterCount() != 1) {
+                    continue;
+                }
+                Class<?> type = method.getParameterTypes()[0];
+                if (type == int.class || type == Integer.class) {
+                    return method.invoke(null, Math.max(0, colorId));
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -776,6 +970,30 @@ public class EntityMixin implements EntityAccessor{
                     method.setAccessible(true);
                 }
                 Object result = method.invoke(target, arg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeIntArg(Object target, String methodName, int value) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (!(paramType == int.class || paramType == Integer.class)) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, value);
                 return result == null ? target : result;
             } catch (Throwable ignored) {
             }

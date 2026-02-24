@@ -988,6 +988,7 @@ public final class IdentityProgression {
             copyVariantKey(full, variant, "profession");
             copyVariantKey(full, variant, "Type");
             copyVariantKey(full, variant, "type");
+            extractAnimalVariantData(entity, variant);
             extractVillagerVariantData(entity, variant);
         } catch (Throwable ignored) {
         }
@@ -1051,6 +1052,52 @@ public final class IdentityProgression {
         if (level instanceof Number number) {
             variant.putInt("VillagerLevel", Math.max(1, number.intValue()));
         }
+    }
+
+    private static void extractAnimalVariantData(LivingEntity entity, CompoundTag variant) {
+        if (entity == null || variant == null) {
+            return;
+        }
+
+        Object variantValue = invokeNoArg(entity, "getVariant");
+        Identifier catVariantId = resolveRegistryIdentifier("CAT_VARIANT", variantValue);
+        if (catVariantId != null) {
+            variant.putString("CatVariant", catVariantId.toString());
+        }
+
+        Identifier wolfVariantId = resolveRegistryIdentifier("WOLF_VARIANT", variantValue);
+        if (wolfVariantId != null) {
+            variant.putString("WolfVariant", wolfVariantId.toString());
+        }
+
+        Identifier frogVariantId = resolveRegistryIdentifier("FROG_VARIANT", variantValue);
+        if (frogVariantId != null) {
+            variant.putString("FrogVariant", frogVariantId.toString());
+        }
+
+        Object collarColor = invokeNoArg(entity, "getCollarColor");
+        Integer collarColorId = resolveDyeColorId(collarColor);
+        if (collarColorId != null) {
+            variant.putInt("CollarColor", Math.max(0, collarColorId));
+        }
+    }
+
+    private static Integer resolveDyeColorId(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        Object id = invokeNoArg(value, "getId");
+        if (id instanceof Number number) {
+            return number.intValue();
+        }
+        Object ordinal = invokeNoArg(value, "ordinal");
+        if (ordinal instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
     }
 
     private static Object invokeNoArg(Object target, String methodName) {
