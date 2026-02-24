@@ -28,6 +28,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.monster.Monster;
@@ -62,6 +63,10 @@ public class TargetPredicateMixin{
             return;
         }
 
+        if (identity2$hasRecentAggression(tester, (Player) target)) {
+            return;
+        }
+
         if (testerType == identityType) {
             info.setReturnValue(false);
             return;
@@ -70,6 +75,34 @@ public class TargetPredicateMixin{
         if (testerType.getCategory() == MobCategory.MONSTER && identityType.getCategory() == MobCategory.MONSTER) {
             info.setReturnValue(false);
         }
+    }
+
+    private static boolean identity2$hasRecentAggression(LivingEntity tester, Player target) {
+        int hostilityWindow = Math.max(20, IdentitySettings.hostilityTime);
+
+        if (tester instanceof Mob mob && mob.getTarget() == target) {
+            return true;
+        }
+
+        if (tester.getLastHurtByMob() == target) {
+            int stamp = tester.getLastHurtByMobTimestamp();
+            if (stamp <= 0 || tester.tickCount - stamp <= hostilityWindow) {
+                return true;
+            }
+        }
+
+        if (tester.getLastHurtByPlayer() == target) {
+            return true;
+        }
+
+        if (target.getLastHurtMob() == tester) {
+            int stamp = target.getLastHurtMobTimestamp();
+            if (stamp <= 0 || target.tickCount - stamp <= hostilityWindow) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /*@Inject(method = "test", at=@At("HEAD"),cancellable=true)

@@ -37,6 +37,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -45,6 +46,7 @@ import net.minecraft.world.item.Items;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
+import net.minecraft.tags.DamageTypeTags;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
 
@@ -229,6 +231,22 @@ private void tickMovementIdentity(CallbackInfo info){
     }
 }
 
+@Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
+private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
+    if (this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> identityType = this.currentIdentity.getType();
+    if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
+        return;
+    }
+    if ((Entity)(Object)this instanceof Player player && player.isSpectator()) {
+        info.setReturnValue(false);
+        return;
+    }
+    info.setReturnValue(this.horizontalCollision);
+}
+
 //getNextAir(underwater,onland) should be added
 
 @Inject(method = "canFreeze()Z", at=@At("HEAD"),cancellable=true)
@@ -276,6 +294,9 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,CallbackInfoReturnable info){
+    if ((Entity)(Object)this instanceof Player && source != null && source.is(DamageTypeTags.IS_FALL)) {
+        return;
+    }
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
             info.setReturnValue(livingIdentity.isInvulnerableTo(world,source));

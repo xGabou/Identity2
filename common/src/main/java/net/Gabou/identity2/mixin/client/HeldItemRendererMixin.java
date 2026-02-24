@@ -1,29 +1,30 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.lang.reflect.Field;
 import java.util.Locale;
 import java.util.Map;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
+import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartNames;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.client.player.AbstractClientPlayer;
+import com.mojang.math.Axis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -35,6 +36,9 @@ public class HeldItemRendererMixin {
     private static final float ARM_TUNE_X = 0.0f;
     private static final float ARM_TUNE_Y = 0.0f;
     private static final float ARM_TUNE_Z = -2.0f;
+    private static final float ARM_TUNE_ROT_X = -8.0f;
+    private static final float ARM_TUNE_ROT_Y = 0.0f;
+    private static final float ARM_TUNE_ROT_Z = 16.0f;
     private static final String[] RIGHT_HAND_PART_CANDIDATES = new String[] {
         PartNames.RIGHT_ARM,
         "rightArm",
@@ -102,7 +106,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderPlayerRightArm(
@@ -111,7 +115,8 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible
+        boolean sleeveVisible,
+        AbstractClientPlayer player
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
@@ -121,7 +126,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderMapRightArm(
@@ -130,7 +135,8 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible
+        boolean sleeveVisible,
+        AbstractClientPlayer player
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
@@ -140,7 +146,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderPlayerLeftArm(
@@ -149,7 +155,8 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible
+        boolean sleeveVisible,
+        AbstractClientPlayer player
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }
@@ -159,7 +166,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderMapLeftArm(
@@ -168,7 +175,8 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible
+        boolean sleeveVisible,
+        AbstractClientPlayer player
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }
@@ -226,32 +234,44 @@ public class HeldItemRendererMixin {
             ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer);
             ResourceLocation texture = identityTexture == null ? skinTexture : identityTexture;
 
-            float offsetX = (rightArm ? 2.0F : -2.0F) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
-            float offsetY = ARM_TUNE_Y;
-            float offsetZ = ARM_TUNE_Z;
+            PlayerModel playerModel = (PlayerModel) renderer.getModel();
+            ModelPart playerArm = rightArm ? playerModel.rightArm : playerModel.leftArm;
+
+            float offsetX = (playerArm.x - identityArm.x) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
+            float offsetY = (playerArm.y - identityArm.y) + ARM_TUNE_Y;
+            float offsetZ = (playerArm.z - identityArm.z) + ARM_TUNE_Z;
 
             matrices.pushPose();
             matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
-            identity2$renderModelPart(identityModel, identityArm, matrices, queue, light, texture);
+            matrices.mulPose(Axis.XP.rotationDegrees(ARM_TUNE_ROT_X));
+            matrices.mulPose(Axis.YP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Y : -ARM_TUNE_ROT_Y));
+            matrices.mulPose(Axis.ZP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Z : -ARM_TUNE_ROT_Z));
+            identity2$callRenderHand(renderer, matrices, queue, light, texture, identityArm, sleeveVisible);
             matrices.popPose();
         } catch (Exception ignored) {
             identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
         }
     }
 
-    private static void identity2$renderModelPart(
-        EntityModel<?> model,
-        ModelPart part,
+    private static void identity2$callRenderHand(
+        PlayerRenderer renderer,
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation texture
+        ResourceLocation skinTexture,
+        ModelPart arm,
+        boolean sleeveVisible
     ) {
-        part.resetPose();
-        part.visible = true;
-        RenderType renderType = model.renderType(texture);
-        VertexConsumer consumer = queue.getBuffer(renderType);
-        part.render(matrices, consumer, light, OverlayTexture.NO_OVERLAY);
+        if (renderer instanceof PlayerEntityRendererAccessor accessor) {
+            accessor.callRenderArm(matrices, queue, light, skinTexture, arm, sleeveVisible);
+        } else {
+            PlayerModel model = (PlayerModel) renderer.getModel();
+            if (arm == model.leftArm) {
+                renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
+            } else {
+                renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
+            }
+        }
     }
 
     private static void identity2$renderVanillaHand(

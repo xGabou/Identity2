@@ -56,7 +56,7 @@ public class IdentitySettings {
     public static List<String> advancementsRequiredForFlight = new ArrayList<>();
 
     //@Comment(value = "Whether Identities modify your max health value based on their max health value.")
-    public static boolean scalingHealth = false;
+    public static boolean scalingHealth = true;
 
     //@Comment(value = "The maximum value of scaling health. Useful for not giving players 300 HP when they turn into a wither.")
     public static int maxHealth = 40;

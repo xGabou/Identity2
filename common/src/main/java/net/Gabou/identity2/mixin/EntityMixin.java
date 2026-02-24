@@ -2,7 +2,6 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
 
-import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -125,7 +124,7 @@ public class EntityMixin implements EntityAccessor{
             
         }
         //this.identity2$applyShulkerOpenVisualState();
-        //this.identity2$applyMorphPassiveTraits();
+        this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
             if(this.entityCanFlyTickEvaluated==false){
                 this.entityCanFlyTickEvaluated=true;
@@ -148,8 +147,11 @@ public class EntityMixin implements EntityAccessor{
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-            
+            if (hostIsPlayer) {
+                this.identity2$applyMorphAquaticBreathing((Player)(Object)this);
+            }
              
+              
             this.currentIdentity.setInvulnerable(hostIsPlayer);
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
@@ -264,6 +266,8 @@ public class EntityMixin implements EntityAccessor{
 
     @Shadow
     public boolean noPhysics=false;
+    @Shadow
+    public boolean horizontalCollision;
     
     public boolean entityCanFly=false;
     public boolean entityCanFlyEvaluated=false;
@@ -271,46 +275,26 @@ public class EntityMixin implements EntityAccessor{
     private boolean identity2$grantedMayfly = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
-    private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
     public boolean canFly(){
         if(this.entityCanFlyEvaluated==false){
+            Entity self = (Entity)(Object)this;
+            Boolean explicitFlight = IdentityTraitTags.resolveFlight(self.getType());
+            this.entityCanFly = explicitFlight != null && explicitFlight;
 
-        
-        try{
-        this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),FALL_METHOD_NAME);
-        }catch(
-            Exception e
-        ){int x=0;}
-        if(this.shouldTickBlockCollision()==false){
-            //QualityCommands.LOGGER.info("Reevaluating canFly - blockCollision disabled");
-            this.entityCanFly=true;
-        }
-        if(this.noPhysics){
-            //QualityCommands.LOGGER.info("Reevaluating canFly - no active");
-            this.entityCanFly=true;
-        }
-        this.entityCanFlyEvaluated=true;
-        //QualityCommands.LOGGER.info("Reevaluating canFly - final: "+String.valueOf(this.entityCanFly));
-        if(this.identityOf!=null){
-            if((Entity)(Object)this.identityOf instanceof Player player){
-                this.applyIdentityFlightGrant(player, this.entityCanFly);
+            if(this.noPhysics){
+                this.entityCanFly=true;
             }
-        }
+            this.entityCanFlyEvaluated=true;
+            if(this.identityOf!=null){
+                if((Entity)(Object)this.identityOf instanceof Player player){
+                    this.applyIdentityFlightGrant(player, this.entityCanFly);
+                }
+            }
 
         }
         return this.entityCanFly;
-    }
-
-    private static String identity2$resolveFallMethodName() {
-        try {
-            return EntityMethodChecks.class
-                .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
-                .getName();
-        } catch (NoSuchMethodException ignored) {
-            return "checkFallDamage";
-        }
     }
 
     private void applyIdentityFlightGrant(Player player, boolean identityCanFly) {
@@ -344,7 +328,27 @@ public class EntityMixin implements EntityAccessor{
     }
 
     private void identity2$applyMorphPassiveTraits() {
-        return;
+        Entity self = (Entity)(Object)this;
+        if (self.level().isClientSide()) {
+            return;
+        }
+        if (!(self instanceof Player player)) {
+            return;
+        }
+        if (this.currentIdentity == null) {
+            this.applyIdentityFlightGrant(player, false);
+            return;
+        }
+
+        this.applyIdentityFlightGrant(player, ((EntityAccessor)this.currentIdentity).canFly());
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (IdentityTraitTags.burnsInDaylight(identityType) && this.identity2$shouldBurnInDaylight(player)) {
+            player.igniteForSeconds(8.0F);
+        }
+
+        if (IdentityTraitTags.hasSlowFalling(identityType) && !player.onGround() && player.getDeltaMovement().y < 0.0D) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 10, 0, false, false, true));
+        }
         
     }
 
@@ -364,12 +368,44 @@ public class EntityMixin implements EntityAccessor{
     }
 
     private boolean identity2$shouldBurnInDaylight(Player player) {
-        return false;
+        if (player.isSpectator() || player.getAbilities().instabuild || player.getAbilities().invulnerable) {
+            return false;
+        }
+        if (!player.level().isBrightOutside()) {
+            return false;
+        }
+        if (player.isInWaterOrRain()) {
+            return false;
+        }
+        BlockPos pos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
+        return player.level().canSeeSky(pos);
         
     }
 
     private void identity2$applyMorphAquaticBreathing(Player player) {
-        return;
+        if (this.currentIdentity == null) {
+            return;
+        }
+        if (((Entity)(Object)this).level().isClientSide()) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))) {
+            return;
+        }
+
+        if (player.isInWaterOrRain()) {
+            player.setAirSupply(player.getMaxAirSupply());
+            return;
+        }
+
+        // Aquatic morphs should lose air on land. Players naturally regenerate air,
+        // so apply a stronger decrement to preserve net air loss.
+        int nextAir = player.getAirSupply() - 5;
+        player.setAirSupply(nextAir);
+        if (nextAir <= -20 && player.level() instanceof ServerLevel serverLevel) {
+            player.setAirSupply(0);
+            player.hurtServer(serverLevel, player.damageSources().drown(), 2.0F);
+        }
        
     }
 
