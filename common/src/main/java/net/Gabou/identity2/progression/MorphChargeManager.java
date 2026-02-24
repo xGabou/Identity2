@@ -1,6 +1,7 @@
 package net.Gabou.identity2.progression;
 
 import com.mojang.serialization.Codec;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
@@ -28,6 +29,13 @@ public final class MorphChargeManager {
         return Math.max(0, charges.getOrDefault(identityId.toString(), 0));
     }
 
+    public static Map<String, Integer> getChargeSnapshot(ServerPlayer player) {
+        if (player == null) {
+            return Map.of();
+        }
+        return Collections.unmodifiableMap(new HashMap<>(getChargeMap(player)));
+    }
+
     public static void addCharges(ServerPlayer player, Identifier identityId, int amount) {
         if (player == null || identityId == null || amount <= 0) {
             return;
@@ -36,6 +44,26 @@ public final class MorphChargeManager {
         String key = identityId.toString();
         charges.put(key, Math.max(0, charges.getOrDefault(key, 0)) + amount);
         setChargeMap(player, charges);
+    }
+
+    public static boolean tryRemoveCharges(ServerPlayer player, Identifier identityId, int amount) {
+        if (player == null || identityId == null || amount <= 0) {
+            return false;
+        }
+        Map<String, Integer> charges = getChargeMap(player);
+        String key = identityId.toString();
+        int available = Math.max(0, charges.getOrDefault(key, 0));
+        if (available < amount) {
+            return false;
+        }
+        int remaining = available - amount;
+        if (remaining > 0) {
+            charges.put(key, remaining);
+        } else {
+            charges.remove(key);
+        }
+        setChargeMap(player, charges);
+        return true;
     }
 
     public static boolean tryConsumeMorphCharge(ServerPlayer player, Identifier identityId, CompoundTag variantNbt, boolean notifyPlayer) {
@@ -130,6 +158,7 @@ public final class MorphChargeManager {
     private static void setChargeMap(ServerPlayer player, Map<String, Integer> charges) {
         CompoundTag customData = getCustomData(player);
         customData.store(MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
+        ProgressionUiSync.sendPlayerCharges(player, charges);
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {

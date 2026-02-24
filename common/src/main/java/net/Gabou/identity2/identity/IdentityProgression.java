@@ -554,6 +554,7 @@ public final class IdentityProgression {
         if (killed.level().isClientSide()) {
             return EventResult.pass();
         }
+        SoulJarManager.trySpawnRandomWorldJar(killed);
 
         Entity attacker = source.getEntity();
         ServerPlayer player = null;

@@ -21,6 +21,11 @@ import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
+import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -194,6 +199,18 @@ public final class Identity2Client {
             OpenProgressionScreenS2CPacketPayload.CODEC,
             (payload, context) -> context.queue(Identity2Client::openProgressionScreen)
         );
+        NetworkManager.registerReceiver(
+            NetworkManager.s2c(),
+            ProgressionPlayerChargesS2CPacketPayload.ID,
+            ProgressionPlayerChargesS2CPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload))
+        );
+        NetworkManager.registerReceiver(
+            NetworkManager.s2c(),
+            ProgressionJarStateS2CPacketPayload.ID,
+            ProgressionJarStateS2CPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload))
+        );
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -216,6 +233,21 @@ public final class Identity2Client {
             return;
         }
         NetworkManager.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
+    }
+
+    public static void requestProgressionChargeSync() {
+        NetworkManager.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
+    }
+
+    public static void sendProgressionJarSelect(int slotIndex) {
+        NetworkManager.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
+    }
+
+    public static void sendProgressionJarTransfer(int slotIndex, String identityId, int amount, boolean deposit) {
+        if (identityId == null || identityId.isBlank() || amount <= 0) {
+            return;
+        }
+        NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
     }
 
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {

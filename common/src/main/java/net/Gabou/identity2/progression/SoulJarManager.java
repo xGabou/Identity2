@@ -4,8 +4,10 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -14,7 +16,9 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -25,6 +29,12 @@ public final class SoulJarManager {
     private static final String SOUL_JARS_KEY = "identity2.progression.soul_jars";
     static final String SOUL_JAR_KILL_PROGRESS_KEY = "identity2.progression.soul_jar_kill_progress";
     private static final String ITEM_SOUL_JAR_KEY = "identity2_soul_jar";
+    private static final Map<String, Integer> DEFAULT_WORLD_DROP_TIER_WEIGHTS = Map.of(
+        "mud", 85,
+        "glass", 12,
+        "reinforced", 3,
+        "true_soul", 1
+    );
     private static final Codec<List<SoulJarData>> SOUL_JAR_LIST_CODEC = SoulJarData.CODEC.listOf();
     static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
 
@@ -48,6 +58,32 @@ public final class SoulJarManager {
         return ProgressionConfigHelper.normalizeTier(IdentitySettings.trueSoulJarTier);
     }
 
+    public static void trySpawnRandomWorldJar(LivingEntity killed) {
+        if (killed == null || killed.level().isClientSide()) {
+            return;
+        }
+        if (!ProgressionConfig.enableSoulJars() || !IdentitySettings.enableRandomSoulJarWorldDrops) {
+            return;
+        }
+        if (killed instanceof ServerPlayer) {
+            return;
+        }
+
+        double chance = Math.max(0.0D, Math.min(1.0D, IdentitySettings.soulJarWorldDropChance));
+        if (chance <= 0.0D || killed.getRandom().nextDouble() > chance) {
+            return;
+        }
+
+        String tier = rollRandomWorldDropTier(killed.getRandom().nextInt(Integer.MAX_VALUE));
+        ItemStack stack = createInitializedJarStack(tier, randomJarId());
+        if (stack.isEmpty() || !SoulJarChargeStorage.isPotentialSoulJarItem(stack)) {
+            return;
+        }
+        if (killed.level() instanceof ServerLevel serverLevel) {
+            killed.spawnAtLocation(serverLevel, stack);
+        }
+    }
+
     public static boolean createJar(ServerPlayer player, String jarId, String tier) {
         if (player == null || !ProgressionConfig.enableSoulJars()) {
             return false;
@@ -63,8 +99,7 @@ public final class SoulJarManager {
         }
 
         String normalizedTier = ProgressionConfigHelper.normalizeTier(tier);
-        ItemStack stack = new ItemStack(resolveJarItem(normalizedTier));
-        writeJarToStack(stack, new SoulJarData(normalizedId, normalizedTier, List.of()));
+        ItemStack stack = createInitializedJarStack(normalizedTier, normalizedId);
 
         if (!player.getInventory().add(stack)) {
             player.drop(stack, false);
@@ -497,7 +532,7 @@ public final class SoulJarManager {
         CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag root = currentData == null ? new CompoundTag() : currentData.copyTag();
 
-        CompoundTag jarTag = new CompoundTag();
+        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(new CompoundTag());
         jarTag.putString("jar_id", normalizeJarId(jarData.jarId()));
         jarTag.putString("tier", ProgressionConfigHelper.normalizeTier(jarData.tier()));
         jarTag.store("morphs", StoredMorphData.CODEC.listOf(), jarData.morphs() == null ? List.of() : jarData.morphs());
@@ -515,6 +550,80 @@ public final class SoulJarManager {
             }
         }
         return Items.CLAY_BALL;
+    }
+
+    private static ItemStack createInitializedJarStack(String tier, String jarId) {
+        String normalizedTier = ProgressionConfigHelper.normalizeTier(tier);
+        ItemStack stack = new ItemStack(resolveJarItem(normalizedTier));
+        if (stack.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        writeJarToStack(stack, new SoulJarData(normalizeJarId(jarId), normalizedTier, List.of()));
+        SoulJarChargeStorage.writeCharges(stack, Map.of());
+        return stack;
+    }
+
+    private static String randomJarId() {
+        String raw = UUID.randomUUID().toString().replace("-", "");
+        return "jar_" + raw.substring(0, Math.min(12, raw.length()));
+    }
+
+    private static String rollRandomWorldDropTier(int rollSeed) {
+        Map<String, Integer> weights = resolveWorldDropTierWeights();
+        int totalWeight = 0;
+        for (Integer weight : weights.values()) {
+            if (weight != null && weight > 0) {
+                totalWeight += weight;
+            }
+        }
+        if (totalWeight <= 0) {
+            return "mud";
+        }
+
+        int roll = Math.floorMod(rollSeed, totalWeight);
+        int cursor = 0;
+        for (Map.Entry<String, Integer> entry : weights.entrySet()) {
+            int weight = Math.max(0, entry.getValue() == null ? 0 : entry.getValue());
+            if (weight == 0) {
+                continue;
+            }
+            cursor += weight;
+            if (roll < cursor) {
+                return ProgressionConfigHelper.normalizeTier(entry.getKey());
+            }
+        }
+        return "mud";
+    }
+
+    private static Map<String, Integer> resolveWorldDropTierWeights() {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        List<String> configured = IdentitySettings.soulJarWorldDropTierWeights;
+        if (configured != null) {
+            for (String raw : configured) {
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                int separator = raw.indexOf('=');
+                if (separator <= 0 || separator >= raw.length() - 1) {
+                    continue;
+                }
+                String tier = ProgressionConfigHelper.normalizeTier(raw.substring(0, separator));
+                String weightText = raw.substring(separator + 1).trim();
+                int weight;
+                try {
+                    weight = Integer.parseInt(weightText);
+                } catch (NumberFormatException exception) {
+                    continue;
+                }
+                if (weight > 0) {
+                    out.put(tier, weight);
+                }
+            }
+        }
+        if (out.isEmpty()) {
+            out.putAll(DEFAULT_WORLD_DROP_TIER_WEIGHTS);
+        }
+        return out;
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {

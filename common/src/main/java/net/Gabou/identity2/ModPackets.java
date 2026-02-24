@@ -11,7 +11,15 @@ import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
+import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
+import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
+import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.progression.MorphChargeManager;
+import net.Gabou.identity2.progression.ProgressionUiSync;
+import net.Gabou.identity2.progression.SoulJarChargeStorage;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.commands.Commands;
@@ -26,7 +34,11 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public final class ModPackets {
@@ -43,6 +55,26 @@ public final class ModPackets {
     public static final Identifier OPEN_PROGRESSION_SCREEN_PACKET_ID = Identifier.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "open_progression_screen"
+    );
+    public static final Identifier PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "progression_charge_sync_request"
+    );
+    public static final Identifier PROGRESSION_JAR_SELECT_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "progression_jar_select"
+    );
+    public static final Identifier PROGRESSION_JAR_TRANSFER_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "progression_jar_transfer"
+    );
+    public static final Identifier PROGRESSION_PLAYER_CHARGES_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "progression_player_charges"
+    );
+    public static final Identifier PROGRESSION_JAR_STATE_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "progression_jar_state"
     );
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
@@ -67,6 +99,8 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
         }
 
         NetworkManager.registerReceiver(
@@ -98,6 +132,39 @@ public final class ModPackets {
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleVillagerTradeRequestPacket(player, payload);
+                }
+            })
+        );
+
+        NetworkManager.registerReceiver(
+            NetworkManager.c2s(),
+            ProgressionChargeSyncRequestC2SPacketPayload.ID,
+            ProgressionChargeSyncRequestC2SPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    ProgressionUiSync.sendPlayerCharges(player);
+                }
+            })
+        );
+
+        NetworkManager.registerReceiver(
+            NetworkManager.c2s(),
+            ProgressionJarSelectC2SPacketPayload.ID,
+            ProgressionJarSelectC2SPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    handleProgressionJarSelect(player, payload);
+                }
+            })
+        );
+
+        NetworkManager.registerReceiver(
+            NetworkManager.c2s(),
+            ProgressionJarTransferC2SPacketPayload.ID,
+            ProgressionJarTransferC2SPacketPayload.CODEC,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    handleProgressionJarTransfer(player, payload);
                 }
             })
         );
@@ -299,6 +366,132 @@ public final class ModPackets {
             return;
         }
         requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Target is not morphed as a villager."), false);
+    }
+
+    private static void handleProgressionJarSelect(ServerPlayer player, ProgressionJarSelectC2SPacketPayload payload) {
+        if (player == null) {
+            return;
+        }
+
+        int slotIndex = payload.slotIndex();
+        if (slotIndex < 0) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Jar removed.");
+            return;
+        }
+
+        Inventory inventory = player.getInventory();
+        if (slotIndex >= inventory.getContainerSize()) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid inventory slot.");
+            return;
+        }
+
+        ItemStack stack = inventory.getItem(slotIndex);
+        SoulJarChargeStorage.JarSnapshot snapshot = SoulJarChargeStorage.ensureInitialized(
+            stack,
+            "jar_" + player.getUUID().toString().substring(0, 8) + "_" + slotIndex,
+            ""
+        );
+        if (snapshot == null) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Selected item is not a Soul Jar.");
+            return;
+        }
+        inventory.setChanged();
+
+        ProgressionUiSync.sendJarState(player, slotIndex, snapshot.jarId(), snapshot.tier(), snapshot.charges(), "Jar selected.");
+    }
+
+    private static void handleProgressionJarTransfer(ServerPlayer player, ProgressionJarTransferC2SPacketPayload payload) {
+        if (player == null) {
+            return;
+        }
+        int slotIndex = payload.slotIndex();
+        int amount = payload.amount();
+        if (slotIndex < 0 || amount <= 0) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid transfer request.");
+            return;
+        }
+
+        Identifier identityId;
+        try {
+            identityId = Identifier.parse(payload.identityId());
+        } catch (Exception exception) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid morph id: " + payload.identityId());
+            return;
+        }
+        if (!IdentityProgression.isMorphableIdentity(identityId)) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Unsupported morph: " + identityId);
+            return;
+        }
+
+        Inventory inventory = player.getInventory();
+        if (slotIndex >= inventory.getContainerSize()) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid inventory slot.");
+            return;
+        }
+
+        ItemStack stack = inventory.getItem(slotIndex);
+        SoulJarChargeStorage.JarSnapshot snapshot = SoulJarChargeStorage.ensureInitialized(
+            stack,
+            "jar_" + player.getUUID().toString().substring(0, 8) + "_" + slotIndex,
+            ""
+        );
+        if (snapshot == null) {
+            ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Selected item is not a Soul Jar.");
+            return;
+        }
+
+        Map<String, Integer> jarCharges = new HashMap<>(snapshot.charges());
+        String key = identityId.toString();
+        int jarAvailable = Math.max(0, jarCharges.getOrDefault(key, 0));
+
+        if (payload.deposit()) {
+            if (!MorphChargeManager.tryRemoveCharges(player, identityId, amount)) {
+                ProgressionUiSync.sendJarState(player, slotIndex, snapshot.jarId(), snapshot.tier(), jarCharges, "Not enough player charges.");
+                return;
+            }
+            jarCharges.put(key, jarAvailable + amount);
+            if (!SoulJarChargeStorage.writeCharges(stack, jarCharges)) {
+                MorphChargeManager.addCharges(player, identityId, amount);
+                ProgressionUiSync.sendJarState(player, slotIndex, snapshot.jarId(), snapshot.tier(), snapshot.charges(), "Could not write jar charges.");
+                return;
+            }
+            inventory.setChanged();
+            ProgressionUiSync.sendJarState(
+                player,
+                slotIndex,
+                snapshot.jarId(),
+                snapshot.tier(),
+                jarCharges,
+                "Deposited " + amount + " charge(s) into jar."
+            );
+            return;
+        }
+
+        if (jarAvailable < amount) {
+            ProgressionUiSync.sendJarState(player, slotIndex, snapshot.jarId(), snapshot.tier(), jarCharges, "Jar does not have enough charges.");
+            return;
+        }
+
+        int next = jarAvailable - amount;
+        if (next > 0) {
+            jarCharges.put(key, next);
+        } else {
+            jarCharges.remove(key);
+        }
+        if (!SoulJarChargeStorage.writeCharges(stack, jarCharges)) {
+            ProgressionUiSync.sendJarState(player, slotIndex, snapshot.jarId(), snapshot.tier(), snapshot.charges(), "Could not write jar charges.");
+            return;
+        }
+        inventory.setChanged();
+        MorphChargeManager.addCharges(player, identityId, amount);
+        ProgressionUiSync.sendJarState(
+            player,
+            slotIndex,
+            snapshot.jarId(),
+            snapshot.tier(),
+            jarCharges,
+            "Withdrew " + amount + " charge(s) from jar."
+        );
     }
 
     private static boolean canSwap(ServerPlayer player) {

@@ -127,9 +127,9 @@ public class IdentitySettings {
     public static boolean requireUnlockedIdentityForMorph = true;
 
     //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
-    public static boolean enableMorphChargeSystem = false;
+    public static boolean enableMorphChargeSystem = true;
     //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
-    public static boolean EnableMorphCharges = false;
+    public static boolean EnableMorphCharges = true;
 
     //@Comment(value = "Default number of charges gained per qualifying kill.")
     public static int defaultChargeGainPerKill = 1;
@@ -183,6 +183,17 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, morphs stored in true soul jars ignore charge death penalties.")
     public static boolean trueSoulJarPreventsDeathPenalty = true;
+
+    //@Comment(value = "If true, soul jars can randomly drop into the world on mob death.")
+    public static boolean enableRandomSoulJarWorldDrops = true;
+
+    //@Comment(value = "Chance per non-player mob death to drop a random soul jar. Range: 0.0 to 1.0.")
+    public static double soulJarWorldDropChance = 0.005D;
+
+    //@Comment(value = "Weighted random jar tiers for world drops in the format 'tier=weight'.")
+    public static List<String> soulJarWorldDropTierWeights = new ArrayList<>(
+        List.of("mud=85", "glass=12", "reinforced=3", "true_soul=1")
+    );
 
     //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
     public static boolean enablePermanentMorphs = false;

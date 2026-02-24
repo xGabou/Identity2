@@ -1,152 +1,180 @@
 package net.Gabou.identity2.client.screen;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
+import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
+import net.Gabou.identity2.progression.ProgressionChargeCodec;
+import net.Gabou.identity2.progression.SoulJarChargeStorage;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 
 public final class IdentityProgressionScreen extends Screen {
-    private static final String SOUL_JAR_ITEM_KEY = "identity2_soul_jar";
     private static final int SLOT_SIZE = 18;
+    private static final int LIST_ROW_HEIGHT = 18;
 
-    private EditBox jarIdField;
-    private EditBox tierField;
-    private EditBox identityField;
+    private final Map<String, Integer> playerCharges = new HashMap<>();
+    private final Map<String, Integer> jarCharges = new HashMap<>();
+    private final List<String> chargeEntries = new ArrayList<>();
+    private final List<InventorySlotView> inventorySlots = new ArrayList<>();
+
     private EditBox amountField;
-    private EditBox targetField;
+    private Button upButton;
+    private Button downButton;
+    private Button depositButton;
+    private Button withdrawButton;
+    private Button clearJarButton;
+
     private int panelLeft;
     private int panelTop;
     private int panelWidth;
     private int panelHeight;
+    private int listLeft;
+    private int listTop;
+    private int listWidth;
+    private int listHeight;
+    private int rowsPerPage;
     private int dropZoneLeft;
     private int dropZoneTop;
     private int dropZoneRight;
     private int dropZoneBottom;
-    private final List<InventorySlotView> inventorySlots = new ArrayList<>();
+
+    private int selectedIndex = 0;
+    private int scrollOffset = 0;
+    private int selectedJarSlot = -1;
+    private int draggedJarSlot = -1;
+    private ItemStack draggedJarStack = ItemStack.EMPTY;
     private String selectedJarId = "";
     private String selectedJarTier = "";
-    private String selectedJarName = "";
-    private ItemStack draggedJarStack = ItemStack.EMPTY;
-    private String lastAction = "";
-    private String lastStatus = "";
+    private boolean pendingRequest = false;
+    private String statusText = "Loading charges...";
 
     public IdentityProgressionScreen() {
-        super(Component.literal("Identity Progression Manager"));
+        super(Component.literal("Morph Charges & Soul Jar"));
     }
 
     @Override
     protected void init() {
-        this.panelWidth = Math.max(340, Math.min(620, this.width - 20));
-        this.panelHeight = Math.max(280, Math.min(352, this.height - 14));
+        this.panelWidth = Math.max(360, Math.min(620, this.width - 20));
+        this.panelHeight = Math.max(300, Math.min(360, this.height - 14));
         this.panelLeft = (this.width - this.panelWidth) / 2;
         this.panelTop = (this.height - this.panelHeight) / 2;
 
         int padding = 12;
         int contentLeft = this.panelLeft + padding;
-        int contentTop = this.panelTop + 26;
+        int contentTop = this.panelTop + 24;
         int contentWidth = this.panelWidth - padding * 2;
-        int columnGap = 8;
-        int columnWidth = Math.max(120, (contentWidth - columnGap) / 2);
 
-        this.dropZoneLeft = contentLeft;
-        this.dropZoneTop = contentTop;
+        this.listLeft = contentLeft;
+        this.listTop = contentTop + 36;
+        this.listWidth = Math.max(160, contentWidth / 2);
+        this.listHeight = 154;
+        this.rowsPerPage = Math.max(4, this.listHeight / LIST_ROW_HEIGHT);
+
+        this.dropZoneLeft = this.listLeft + this.listWidth + 10;
+        this.dropZoneTop = contentTop + 2;
         this.dropZoneRight = contentLeft + contentWidth;
-        this.dropZoneBottom = contentTop + 24;
+        this.dropZoneBottom = this.dropZoneTop + 28;
 
-        int jarRow = this.dropZoneBottom + 8;
-        this.jarIdField = createField(contentLeft, jarRow, columnWidth, "manual jar id (optional fallback)");
-        this.tierField = createField(contentLeft + columnWidth + columnGap, jarRow, columnWidth, "tier (mud/glass/reinforced/true_soul)");
-        this.identityField = createField(contentLeft, jarRow + 32, columnWidth, "identity id (example: minecraft:bee)");
-        this.amountField = createField(contentLeft + columnWidth + columnGap, jarRow + 32, columnWidth, "amount");
+        this.amountField = this.addRenderableWidget(new EditBox(this.font, this.dropZoneLeft, this.dropZoneBottom + 10, 92, 20, Component.empty()));
+        this.amountField.setHint(Component.literal("amount"));
         this.amountField.setValue("1");
-        this.targetField = createField(contentLeft, jarRow + 64, contentWidth, "target player (optional)");
+        this.amountField.setResponder(value -> refreshButtons());
 
-        int buttonTop = jarRow + 92;
-        int buttonWidth = Math.max(120, (contentWidth - columnGap) / 2);
-        int buttonHeight = 20;
-        int rowGap = 4;
+        int controlY = this.listTop + this.listHeight + 4;
+        this.upButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Up"), button -> {
+                if (this.scrollOffset > 0) {
+                    this.scrollOffset--;
+                    refreshButtons();
+                }
+            }).bounds(this.listLeft, controlY, 54, 20).build()
+        );
+        this.downButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Down"), button -> {
+                if (this.scrollOffset < maxScrollOffset()) {
+                    this.scrollOffset++;
+                    refreshButtons();
+                }
+            }).bounds(this.listLeft + 58, controlY, 54, 20).build()
+        );
 
-        addRenderableWidget(
-            Button.builder(Component.literal("List Jars"), button -> runCommand("identity progression jar list", true))
-                .bounds(contentLeft, buttonTop, buttonWidth, buttonHeight)
+        this.depositButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Deposit -> Jar"), button -> requestTransfer(true))
+                .bounds(this.dropZoneLeft, this.amountField.getY() + 28, 132, 20)
                 .build()
         );
-        addRenderableWidget(
-            Button.builder(Component.literal("Create Jar"), button -> createJar())
-                .bounds(contentLeft + buttonWidth + columnGap, buttonTop, buttonWidth, buttonHeight)
+        this.withdrawButton = this.addRenderableWidget(
+            Button.builder(Component.literal("<- Withdraw"), button -> requestTransfer(false))
+                .bounds(this.dropZoneLeft, this.amountField.getY() + 52, 132, 20)
                 .build()
         );
-        addRenderableWidget(
-            Button.builder(Component.literal("Upgrade Jar"), button -> upgradeJar())
-                .bounds(contentLeft, buttonTop + (buttonHeight + rowGap), buttonWidth, buttonHeight)
-                .build()
-        );
-        addRenderableWidget(
-            Button.builder(Component.literal("Store Morph"), button -> storeMorph())
-                .bounds(contentLeft + buttonWidth + columnGap, buttonTop + (buttonHeight + rowGap), buttonWidth, buttonHeight)
-                .build()
-        );
-        addRenderableWidget(
-            Button.builder(Component.literal("Remove Morph"), button -> removeMorph())
-                .bounds(contentLeft, buttonTop + (buttonHeight + rowGap) * 2, buttonWidth, buttonHeight)
-                .build()
-        );
-        addRenderableWidget(
-            Button.builder(Component.literal("Absorb Morph"), button -> absorbMorph())
-                .bounds(contentLeft + buttonWidth + columnGap, buttonTop + (buttonHeight + rowGap) * 2, buttonWidth, buttonHeight)
-                .build()
-        );
-        addRenderableWidget(
-            Button.builder(Component.literal("Charges Get"), button -> getCharges())
-                .bounds(contentLeft, buttonTop + (buttonHeight + rowGap) * 3, buttonWidth, buttonHeight)
-                .build()
-        );
-        addRenderableWidget(
-            Button.builder(Component.literal("Charges Add"), button -> addCharges())
-                .bounds(contentLeft + buttonWidth + columnGap, buttonTop + (buttonHeight + rowGap) * 3, buttonWidth, buttonHeight)
+        this.clearJarButton = this.addRenderableWidget(
+            Button.builder(Component.literal("Remove Jar"), button -> clearSelectedJar())
+                .bounds(this.dropZoneLeft, this.amountField.getY() + 76, 132, 20)
                 .build()
         );
 
         int footerY = this.panelTop + this.panelHeight - 26;
-        int closeWidth = 110;
-        addRenderableWidget(
+        this.addRenderableWidget(
             Button.builder(Component.literal("Close"), button -> this.onClose())
-                .bounds(this.panelLeft + this.panelWidth - closeWidth - 12, footerY, closeWidth, 20)
+                .bounds(this.panelLeft + this.panelWidth - 96, footerY, 84, 20)
                 .build()
         );
 
         buildInventorySlots();
+        rebuildChargeEntries();
+        refreshButtons();
+        Identity2Client.requestProgressionChargeSync();
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         if (event.button() == 0) {
-            double mouseX = event.x();
-            double mouseY = event.y();
-            InventorySlotView slotView = findInventorySlot(mouseX, mouseY);
-            if (slotView != null) {
-                ItemStack stack = getInventoryStack(slotView.index());
-                JarDescriptor descriptor = readJarDescriptor(stack);
-                if (descriptor != null) {
+            InventorySlotView slot = findInventorySlot(mouseX, mouseY);
+            if (slot != null) {
+                ItemStack stack = getInventoryStack(slot.index());
+                if (SoulJarChargeStorage.isPotentialSoulJarItem(stack)) {
+                    this.draggedJarSlot = slot.index();
                     this.draggedJarStack = stack.copyWithCount(1);
-                    this.lastStatus = "Dragging jar: " + descriptor.jarId();
+                    this.statusText = "Dragging jar from slot " + this.draggedJarSlot + ".";
+                    // Quick-select on click as a fallback when drag fails in some input stacks.
+                    this.pendingRequest = true;
+                    Identity2Client.sendProgressionJarSelect(this.draggedJarSlot);
+                    refreshButtons();
                     return true;
                 }
-                this.lastStatus = "Selected item is not a Soul Jar.";
+                this.statusText = "Selected item is not a Soul Jar.";
                 return true;
+            }
+
+            int clickedRow = rowAt(mouseX, mouseY);
+            if (clickedRow >= 0) {
+                int entryIndex = this.scrollOffset + clickedRow;
+                if (entryIndex >= 0 && entryIndex < this.chargeEntries.size()) {
+                    this.selectedIndex = entryIndex;
+                    refreshButtons();
+                    return true;
+                }
             }
         }
         return super.mouseClicked(event, doubleClick);
@@ -155,48 +183,63 @@ public final class IdentityProgressionScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (event.button() == 0 && !this.draggedJarStack.isEmpty()) {
-            double mouseX = event.x();
-            double mouseY = event.y();
-            tryDropJarSelection(mouseX, mouseY);
+            boolean alreadyRequested = this.pendingRequest;
+            if (isWithinDropZone(event.x(), event.y())) {
+                this.pendingRequest = true;
+                this.statusText = "Selecting jar...";
+                Identity2Client.sendProgressionJarSelect(this.draggedJarSlot);
+            } else if (!alreadyRequested) {
+                this.statusText = "Drop jar inside selector box.";
+            }
+            this.draggedJarSlot = -1;
             this.draggedJarStack = ItemStack.EMPTY;
+            refreshButtons();
             return true;
         }
         return super.mouseReleased(event);
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (!isWithinList(mouseX, mouseY)) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+        if (verticalAmount > 0.0D && this.scrollOffset > 0) {
+            this.scrollOffset--;
+            refreshButtons();
+            return true;
+        }
+        if (verticalAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
+            this.scrollOffset++;
+            refreshButtons();
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        renderProgressionBackground(context);
-        renderPanelSections(context);
+        renderBackgroundPanel(context);
         renderDropZone(context, mouseX, mouseY);
+        renderChargeList(context, mouseX, mouseY);
         renderInventoryStrip(context, mouseX, mouseY);
 
         super.render(context, mouseX, mouseY, delta);
 
         int textX = this.panelLeft + 12;
-        int labelTop = this.panelTop + 30;
-        int columnSplit = textX + ((this.panelWidth - 24 - 8) / 2) + 8;
-
-        context.drawCenteredString(this.font, this.title, this.width / 2, this.panelTop + 8, 0xEAF7FF);
-        context.drawString(this.font, Component.literal("Jar ID"), textX, labelTop + 30, 0xBED8E8);
-        context.drawString(this.font, Component.literal("Tier"), columnSplit, labelTop + 30, 0xBED8E8);
-        context.drawString(this.font, Component.literal("Identity ID"), textX, labelTop + 62, 0xBED8E8);
-        context.drawString(this.font, Component.literal("Amount"), columnSplit, labelTop + 62, 0xBED8E8);
-        context.drawString(this.font, Component.literal("Target (Optional)"), textX, labelTop + 94, 0xBED8E8);
-        context.drawString(this.font, Component.literal("Drag a Soul Jar from inventory into selector box."), textX, this.panelTop + this.panelHeight - 52, 0x8FB0C2);
-        if (!this.lastAction.isBlank()) {
-            context.drawString(this.font, Component.literal("Last: " + this.lastAction), textX, this.panelTop + this.panelHeight - 40, 0xD7EAF5);
-        }
-        if (!this.lastStatus.isBlank()) {
-            context.drawString(this.font, Component.literal(this.lastStatus), textX, this.panelTop + this.panelHeight - 28, 0x9BD3AE);
-        }
+        context.drawCenteredString(this.font, this.title, this.width / 2, this.panelTop + 8, 0xFFEAF7FF);
+        context.drawString(this.font, Component.literal("Morph Charges"), this.listLeft, this.listTop - 12, 0xFFCDE7F4);
+        context.drawString(this.font, Component.literal("Amount"), this.dropZoneLeft, this.amountField.getY() - 10, 0xFFCDE7F4);
+        renderStatusBlock(context);
 
         if (!this.draggedJarStack.isEmpty()) {
             context.renderItem(this.draggedJarStack, mouseX - 8, mouseY - 8);
         }
+
+        renderJarHoverPreview(context, mouseX, mouseY);
     }
 
-    private void renderProgressionBackground(GuiGraphics context) {
+    private void renderBackgroundPanel(GuiGraphics context) {
         context.fillGradient(0, 0, this.width, this.height, 0xCC09131A, 0xE20A1821);
         context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xDE172732);
         context.fillGradient(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 12, 0x805EC8A6, 0x105EC8A6);
@@ -206,29 +249,49 @@ public final class IdentityProgressionScreen extends Screen {
         context.fill(this.panelLeft + this.panelWidth - 1, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xFF293D4A);
     }
 
-    private void renderPanelSections(GuiGraphics context) {
-        int contentLeft = this.panelLeft + 10;
-        int contentTop = this.panelTop + 24;
-        int contentRight = this.panelLeft + this.panelWidth - 10;
-        int contentBottom = this.panelTop + this.panelHeight - 34;
-        context.fill(contentLeft - 2, contentTop - 2, contentRight + 2, contentBottom + 2, 0x66304B54);
-        context.fill(contentLeft, contentTop, contentRight, contentBottom, 0x6E0F1B24);
-    }
-
     private void renderDropZone(GuiGraphics context, int mouseX, int mouseY) {
-        boolean hovered = isWithinDropZone(mouseX, mouseY);
-        int border = hovered ? 0xFF76D5BD : 0xFF3E6570;
-        int fill = hovered ? 0x7A1D3740 : 0x5A102029;
+        boolean hover = isWithinDropZone(mouseX, mouseY);
+        int border = hover ? 0xFF76D5BD : 0xFF3E6570;
+        int fill = hover ? 0x7A1D3740 : 0x5A102029;
         context.fill(this.dropZoneLeft, this.dropZoneTop, this.dropZoneRight, this.dropZoneBottom, fill);
         context.fill(this.dropZoneLeft, this.dropZoneTop, this.dropZoneRight, this.dropZoneTop + 1, border);
         context.fill(this.dropZoneLeft, this.dropZoneBottom - 1, this.dropZoneRight, this.dropZoneBottom, border);
         context.fill(this.dropZoneLeft, this.dropZoneTop, this.dropZoneLeft + 1, this.dropZoneBottom, border);
         context.fill(this.dropZoneRight - 1, this.dropZoneTop, this.dropZoneRight, this.dropZoneBottom, border);
+        String label = this.selectedJarSlot >= 0
+            ? ("Jar: " + this.selectedJarId + " [" + this.selectedJarTier + "]")
+            : "Drag Soul Jar Here";
+        context.drawCenteredString(this.font, Component.literal(label), (this.dropZoneLeft + this.dropZoneRight) / 2, this.dropZoneTop + 9, 0xFFDDF2FA);
+    }
 
-        String text = this.selectedJarId.isBlank()
-            ? "Drop Soul Jar Here (from inventory)"
-            : ("Selected: " + this.selectedJarId + " [" + this.selectedJarTier + "]");
-        context.drawCenteredString(this.font, Component.literal(text), (this.dropZoneLeft + this.dropZoneRight) / 2, this.dropZoneTop + 8, 0xDDF2FA);
+    private void renderChargeList(GuiGraphics context, int mouseX, int mouseY) {
+        int borderLeft = this.listLeft - 2;
+        int borderTop = this.listTop - 2;
+        int borderRight = this.listLeft + this.listWidth + 2;
+        int borderBottom = this.listTop + this.listHeight + 2;
+        context.fill(borderLeft, borderTop, borderRight, borderBottom, 0x66304B54);
+        context.fill(this.listLeft, this.listTop, this.listLeft + this.listWidth, this.listTop + this.listHeight, 0x6E0F1B24);
+
+        int maxRows = Math.min(this.rowsPerPage, this.chargeEntries.size() - this.scrollOffset);
+        for (int row = 0; row < maxRows; row++) {
+            int index = this.scrollOffset + row;
+            if (index < 0 || index >= this.chargeEntries.size()) {
+                continue;
+            }
+            String identityId = this.chargeEntries.get(index);
+            int y = this.listTop + row * LIST_ROW_HEIGHT;
+            int rowBottom = y + LIST_ROW_HEIGHT - 1;
+            boolean selected = index == this.selectedIndex;
+            boolean hovered = isWithinRow(mouseX, mouseY, row);
+            int rowColor = selected ? 0x99446374 : (hovered ? 0x66354E5B : 0x33000000);
+            context.fill(this.listLeft + 1, y + 1, this.listLeft + this.listWidth - 1, rowBottom, rowColor);
+
+            int playerCount = Math.max(0, this.playerCharges.getOrDefault(identityId, 0));
+            int jarCount = Math.max(0, this.jarCharges.getOrDefault(identityId, 0));
+            String display = shortenIdentity(identityId) + "  P:" + playerCount + "  J:" + jarCount;
+            int color = playerCount <= 0 ? 0xFFB89999 : 0xFFDDEDF4;
+            context.drawString(this.font, Component.literal(display), this.listLeft + 6, y + 5, color);
+        }
     }
 
     private void renderInventoryStrip(GuiGraphics context, int mouseX, int mouseY) {
@@ -246,11 +309,267 @@ public final class IdentityProgressionScreen extends Screen {
             context.fill(right - 1, top, right, bottom, border);
 
             ItemStack stack = getInventoryStack(slot.index());
-            if (stack == null || stack.isEmpty()) {
-                continue;
+            if (!stack.isEmpty()) {
+                context.renderItem(stack, left + 1, top + 1);
             }
-            context.renderItem(stack, left + 1, top + 1);
         }
+    }
+
+    private void renderStatusBlock(GuiGraphics context) {
+        int inventoryTop = getInventoryTop();
+        int statusX = this.dropZoneLeft;
+        int statusY = this.clearJarButton.getY() + 24;
+        int statusMaxY = inventoryTop - 8;
+        int lineHeight = 12;
+        int maxLines = Math.max(0, (statusMaxY - statusY) / lineHeight);
+        if (maxLines <= 0) {
+            return;
+        }
+
+        String selectedMorph = selectedIdentityId();
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal("Selected Jar: " + (this.selectedJarSlot >= 0 ? (truncateForRightPanel(this.selectedJarId) + " (slot " + this.selectedJarSlot + ")") : "none")));
+        lines.add(Component.literal("Selected Morph: " + (selectedMorph == null ? "none" : truncateForRightPanel(selectedMorph))));
+        lines.add(Component.literal("Status: " + truncateForRightPanel(this.statusText)));
+        lines.add(Component.literal("P = player charges, J = jar charges"));
+
+        int rendered = Math.min(maxLines, lines.size());
+        for (int i = 0; i < rendered; i++) {
+            int color = switch (i) {
+                case 0, 1 -> 0xFF95B8CC;
+                case 2 -> 0xFF9BD3AE;
+                default -> 0xFF8FB0C2;
+            };
+            context.drawString(this.font, lines.get(i), statusX, statusY + i * lineHeight, color);
+        }
+    }
+
+    private void renderJarHoverPreview(GuiGraphics context, int mouseX, int mouseY) {
+        InventorySlotView hovered = findInventorySlot(mouseX, mouseY);
+        if (hovered == null) {
+            return;
+        }
+        ItemStack stack = getInventoryStack(hovered.index());
+        if (!SoulJarChargeStorage.isPotentialSoulJarItem(stack)) {
+            return;
+        }
+
+        SoulJarChargeStorage.JarSnapshot snapshot = SoulJarChargeStorage.read(stack);
+        List<String> lines = new ArrayList<>();
+        if (snapshot == null) {
+            lines.add("Soul Jar");
+            lines.add("Not initialized yet");
+        } else {
+            lines.add("Jar: " + snapshot.jarId() + " [" + snapshot.tier() + "]");
+            if (snapshot.charges().isEmpty()) {
+                lines.add("No stored charges");
+            } else {
+                snapshot.charges().entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                    .limit(6)
+                    .forEach(entry -> lines.add(shortenIdentity(entry.getKey()) + ": " + entry.getValue()));
+            }
+        }
+
+        int width = 0;
+        for (String line : lines) {
+            width = Math.max(width, this.font.width(line));
+        }
+        int boxWidth = width + 8;
+        int boxHeight = lines.size() * 12 + 6;
+        int x = mouseX + 12;
+        int y = mouseY - 10;
+        if (x + boxWidth > this.width - 4) {
+            x = mouseX - boxWidth - 12;
+        }
+        if (y + boxHeight > this.height - 4) {
+            y = this.height - boxHeight - 4;
+        }
+        if (y < 4) {
+            y = 4;
+        }
+
+        context.fill(x, y, x + boxWidth, y + boxHeight, 0xE0101B24);
+        context.fill(x, y, x + boxWidth, y + 1, 0xFF6AAFA0);
+        context.fill(x, y + boxHeight - 1, x + boxWidth, y + boxHeight, 0xFF36515A);
+        context.fill(x, y, x + 1, y + boxHeight, 0xFF36515A);
+        context.fill(x + boxWidth - 1, y, x + boxWidth, y + boxHeight, 0xFF36515A);
+        for (int i = 0; i < lines.size(); i++) {
+            int color = i == 0 ? 0xFFEAF7FF : 0xFFD6E8EE;
+            context.drawString(this.font, Component.literal(lines.get(i)), x + 4, y + 3 + i * 12, color);
+        }
+    }
+
+    private void requestTransfer(boolean deposit) {
+        if (this.pendingRequest || this.selectedJarSlot < 0) {
+            return;
+        }
+        String selectedMorph = selectedIdentityId();
+        if (selectedMorph == null) {
+            this.statusText = "Select a morph entry first.";
+            return;
+        }
+        int amount = parseTransferAmount();
+        if (amount <= 0) {
+            this.statusText = "Amount must be a positive number.";
+            return;
+        }
+        this.pendingRequest = true;
+        this.statusText = deposit ? "Depositing..." : "Withdrawing...";
+        Identity2Client.sendProgressionJarTransfer(this.selectedJarSlot, selectedMorph, amount, deposit);
+        refreshButtons();
+    }
+
+    private void clearSelectedJar() {
+        this.pendingRequest = true;
+        this.statusText = "Removing selected jar...";
+        Identity2Client.sendProgressionJarSelect(-1);
+        refreshButtons();
+    }
+
+    private int parseTransferAmount() {
+        if (this.amountField == null) {
+            return 0;
+        }
+        String raw = this.amountField.getValue().trim();
+        if (raw.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(raw));
+        } catch (NumberFormatException exception) {
+            return 0;
+        }
+    }
+
+    private void refreshButtons() {
+        String selectedMorph = selectedIdentityId();
+        int playerCount = selectedMorph == null ? 0 : Math.max(0, this.playerCharges.getOrDefault(selectedMorph, 0));
+        int jarCount = selectedMorph == null ? 0 : Math.max(0, this.jarCharges.getOrDefault(selectedMorph, 0));
+        int amount = parseTransferAmount();
+        boolean hasJar = this.selectedJarSlot >= 0;
+        boolean canTransfer = !this.pendingRequest && hasJar && selectedMorph != null && amount > 0;
+        this.depositButton.active = canTransfer && playerCount >= amount;
+        this.withdrawButton.active = canTransfer && jarCount >= amount;
+        this.clearJarButton.active = !this.pendingRequest && hasJar;
+        this.upButton.active = this.scrollOffset > 0;
+        this.downButton.active = this.scrollOffset < maxScrollOffset();
+
+        if (this.pendingRequest) {
+            return;
+        }
+        if (!hasJar) {
+            this.statusText = "Select a Soul Jar first.";
+            return;
+        }
+        if (selectedMorph == null) {
+            this.statusText = "Select a morph entry from the list.";
+            return;
+        }
+        if (amount <= 0) {
+            this.statusText = "Enter an amount greater than 0.";
+            return;
+        }
+        boolean canDeposit = playerCount >= amount;
+        boolean canWithdraw = jarCount >= amount;
+        if (canDeposit && canWithdraw) {
+            this.statusText = "Ready: Deposit or Withdraw.";
+            return;
+        }
+        if (canDeposit) {
+            this.statusText = "Ready: Deposit. Jar does not have enough for withdraw.";
+            return;
+        }
+        if (canWithdraw) {
+            this.statusText = "Ready: Withdraw. Player does not have enough for deposit.";
+            return;
+        }
+        this.statusText = "Not enough charges in player or jar for this amount.";
+    }
+
+    private String selectedIdentityId() {
+        if (this.chargeEntries.isEmpty()) {
+            return null;
+        }
+        int safeIndex = Mth.clamp(this.selectedIndex, 0, this.chargeEntries.size() - 1);
+        this.selectedIndex = safeIndex;
+        return this.chargeEntries.get(safeIndex);
+    }
+
+    private void rebuildChargeEntries() {
+        Set<String> merged = new HashSet<>();
+        merged.addAll(readUnlockedIdentityIds());
+        merged.addAll(this.playerCharges.keySet());
+        merged.addAll(this.jarCharges.keySet());
+        this.chargeEntries.clear();
+        this.chargeEntries.addAll(merged.stream().filter(id -> id != null && !id.isBlank()).sorted(Comparator.naturalOrder()).toList());
+        if (this.chargeEntries.isEmpty()) {
+            this.selectedIndex = 0;
+            this.scrollOffset = 0;
+            return;
+        }
+        this.selectedIndex = Mth.clamp(this.selectedIndex, 0, this.chargeEntries.size() - 1);
+        this.scrollOffset = Mth.clamp(this.scrollOffset, 0, maxScrollOffset());
+    }
+
+    private Set<String> readUnlockedIdentityIds() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return Set.of();
+        }
+        String csv = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData())
+            .getNbt()
+            .getStringOr(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
+        if (csv == null || csv.isBlank()) {
+            return Set.of();
+        }
+        Set<String> out = new HashSet<>();
+        for (String value : csv.split(",")) {
+            String trimmed = value == null ? "" : value.trim();
+            if (!trimmed.isBlank()) {
+                out.add(trimmed);
+            }
+        }
+        return out;
+    }
+
+    private int rowAt(double mouseX, double mouseY) {
+        if (!isWithinList(mouseX, mouseY)) {
+            return -1;
+        }
+        int row = (int) ((mouseY - this.listTop) / LIST_ROW_HEIGHT);
+        if (row < 0 || row >= this.rowsPerPage) {
+            return -1;
+        }
+        return row;
+    }
+
+    private boolean isWithinList(double mouseX, double mouseY) {
+        return mouseX >= this.listLeft && mouseX < this.listLeft + this.listWidth && mouseY >= this.listTop && mouseY < this.listTop + this.listHeight;
+    }
+
+    private boolean isWithinDropZone(double mouseX, double mouseY) {
+        return mouseX >= this.dropZoneLeft && mouseX < this.dropZoneRight && mouseY >= this.dropZoneTop && mouseY < this.dropZoneBottom;
+    }
+
+    private boolean isWithinRow(int mouseX, int mouseY, int row) {
+        int y = this.listTop + row * LIST_ROW_HEIGHT;
+        return mouseX >= this.listLeft && mouseX < this.listLeft + this.listWidth && mouseY >= y && mouseY < y + LIST_ROW_HEIGHT;
+    }
+
+    private int maxScrollOffset() {
+        return Math.max(0, this.chargeEntries.size() - this.rowsPerPage);
+    }
+
+    private int getInventoryTop() {
+        int min = Integer.MAX_VALUE;
+        for (InventorySlotView slot : this.inventorySlots) {
+            min = Math.min(min, slot.y());
+        }
+        if (min == Integer.MAX_VALUE) {
+            return this.panelTop + this.panelHeight - 104;
+        }
+        return min;
     }
 
     private void buildInventorySlots() {
@@ -258,7 +577,6 @@ public final class IdentityProgressionScreen extends Screen {
         int inventoryWidth = SLOT_SIZE * 9;
         int left = this.panelLeft + (this.panelWidth - inventoryWidth) / 2;
         int top = this.panelTop + this.panelHeight - 104;
-
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 int index = 9 + row * 9 + col;
@@ -273,248 +591,81 @@ public final class IdentityProgressionScreen extends Screen {
 
     private InventorySlotView findInventorySlot(double mouseX, double mouseY) {
         for (InventorySlotView slot : this.inventorySlots) {
-            if (
-                mouseX >= slot.x() && mouseX < slot.x() + SLOT_SIZE &&
-                mouseY >= slot.y() && mouseY < slot.y() + SLOT_SIZE
-            ) {
+            if (mouseX >= slot.x() && mouseX < slot.x() + SLOT_SIZE && mouseY >= slot.y() && mouseY < slot.y() + SLOT_SIZE) {
                 return slot;
             }
         }
         return null;
     }
 
-    private ItemStack getInventoryStack(int index) {
+    private ItemStack getInventoryStack(int slotIndex) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return ItemStack.EMPTY;
         }
         Inventory inventory = client.player.getInventory();
-        if (index < 0 || index >= inventory.getContainerSize()) {
+        if (slotIndex < 0 || slotIndex >= inventory.getContainerSize()) {
             return ItemStack.EMPTY;
         }
-        return inventory.getItem(index);
+        return inventory.getItem(slotIndex);
     }
 
-    private void tryDropJarSelection(double mouseX, double mouseY) {
-        if (!isWithinDropZone(mouseX, mouseY)) {
-            this.lastStatus = "Drop the jar inside the selector box.";
-            return;
+    private String shortenIdentity(String id) {
+        if (id == null || id.isBlank()) {
+            return "?";
         }
-        JarDescriptor descriptor = readJarDescriptor(this.draggedJarStack);
-        if (descriptor == null) {
-            this.lastStatus = "That item is not a valid Soul Jar.";
-            return;
+        if (id.length() <= 24) {
+            return id;
         }
-        this.selectedJarId = descriptor.jarId();
-        this.selectedJarTier = descriptor.tier();
-        this.selectedJarName = descriptor.displayName();
-        if (this.jarIdField != null) {
-            this.jarIdField.setValue(this.selectedJarId);
-        }
-        if (this.tierField != null && this.tierField.getValue().isBlank()) {
-            this.tierField.setValue(this.selectedJarTier);
-        }
-        this.lastStatus = "Selected jar: " + this.selectedJarId + " (" + this.selectedJarName + ")";
+        return id.substring(0, 24) + "...";
     }
 
-    private boolean isWithinDropZone(double mouseX, double mouseY) {
-        return mouseX >= this.dropZoneLeft && mouseX < this.dropZoneRight && mouseY >= this.dropZoneTop && mouseY < this.dropZoneBottom;
+    private String truncateForRightPanel(String value) {
+        if (value == null) {
+            return "";
+        }
+        int maxChars = 36;
+        if (value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars) + "...";
     }
 
-    private JarDescriptor readJarDescriptor(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        if (customData == null || customData.isEmpty()) {
-            return null;
-        }
-        CompoundTag root = customData.copyTag();
-        CompoundTag jarTag = root.getCompound(SOUL_JAR_ITEM_KEY).orElse(null);
-        if (jarTag == null || jarTag.isEmpty()) {
-            return null;
-        }
-        String jarId = jarTag.getStringOr("jar_id", "").trim().toLowerCase(Locale.ROOT);
-        if (jarId.isBlank()) {
-            return null;
-        }
-        String tier = jarTag.getStringOr("tier", "mud").trim().toLowerCase(Locale.ROOT);
-        String displayName = stack.getHoverName().getString();
-        return new JarDescriptor(jarId, tier.isBlank() ? "mud" : tier, displayName);
-    }
-
-    private EditBox createField(int x, int y, int width, String hint) {
-        EditBox field = this.addRenderableWidget(new EditBox(this.font, x, y, width, 20, Component.empty()));
-        field.setHint(Component.literal(hint));
-        return field;
-    }
-
-    private void createJar() {
-        String tier = required(this.tierField, "Tier is required.");
-        if (tier == null) {
-            return;
-        }
-
-        String jarId = this.jarIdField == null ? "" : this.jarIdField.getValue().trim();
-        if (jarId.isBlank()) {
-            jarId = "jar_" + (System.currentTimeMillis() % 100000L);
-            if (this.jarIdField != null) {
-                this.jarIdField.setValue(jarId);
-            }
-            this.lastStatus = "Auto-generated jar id: " + jarId;
-        }
-
-        runCommand("identity progression jar create " + jarId + " " + tier, true);
-    }
-
-    private void upgradeJar() {
-        String jarId = selectedOrRequiredJarId();
-        String tier = required(this.tierField, "Tier is required.");
-        if (jarId == null || tier == null) {
-            return;
-        }
-        runCommand("identity progression jar upgrade " + jarId + " " + tier, true);
-    }
-
-    private void storeMorph() {
-        String jarId = selectedOrRequiredJarId();
-        String identityId = required(this.identityField, "Identity ID is required.");
-        if (jarId == null || identityId == null) {
-            return;
-        }
-        runCommand("identity progression jar store " + jarId + " " + identityId, true);
-    }
-
-    private void removeMorph() {
-        String jarId = selectedOrRequiredJarId();
-        String identityId = required(this.identityField, "Identity ID is required.");
-        if (jarId == null || identityId == null) {
-            return;
-        }
-        runCommand("identity progression jar remove " + jarId + " " + identityId, true);
-    }
-
-    private void absorbMorph() {
-        String jarId = selectedOrRequiredJarId();
-        String identityId = required(this.identityField, "Identity ID is required.");
-        if (jarId == null || identityId == null) {
-            return;
-        }
-        runCommand("identity progression jar absorb " + jarId + " " + identityId, true);
-    }
-
-    private void getCharges() {
-        String identityId = required(this.identityField, "Identity ID is required.");
-        if (identityId == null) {
-            return;
-        }
-        runCommand("identity progression charges get " + identityId, true);
-    }
-
-    private void addCharges() {
-        String identityId = required(this.identityField, "Identity ID is required.");
-        String amount = required(this.amountField, "Amount is required.");
-        if (identityId == null || amount == null) {
-            return;
-        }
-        runCommand("identity progression charges add " + identityId + " " + amount, true);
-    }
-
-    private String selectedOrRequiredJarId() {
-        if (!this.selectedJarId.isBlank()) {
-            return this.selectedJarId;
-        }
-        return required(this.jarIdField, "Drop/select a jar first, or enter jar ID.");
-    }
-
-    private String required(EditBox field, String missingMessage) {
-        if (field == null) {
-            this.lastStatus = missingMessage;
-            return null;
-        }
-        String value = field.getValue().trim();
-        if (value.isBlank()) {
-            this.lastStatus = missingMessage;
-            return null;
-        }
-        return value;
-    }
-
-    private void runCommand(String baseCommand, boolean appendTarget) {
-        String command = baseCommand == null ? "" : baseCommand.trim();
-        if (command.isBlank()) {
-            this.lastStatus = "Command is empty.";
-            return;
-        }
-
-        if (appendTarget && this.targetField != null) {
-            String target = this.targetField.getValue().trim();
-            if (!target.isBlank()) {
-                command = command + " " + target;
-            }
-        }
-
-        this.lastAction = "/" + command;
-        if (sendCommand(command)) {
-            this.lastStatus = "Sent command to server.";
-            return;
-        }
-
+    public static void onPlayerChargeSync(ProgressionPlayerChargesS2CPacketPayload payload) {
         Minecraft client = Minecraft.getInstance();
-        if (client != null) {
-            client.setScreen(new ChatScreen("/" + command, false));
-            this.lastStatus = "Fallback: command prefilled in chat.";
-        } else {
-            this.lastStatus = "Failed to send command.";
+        if (client != null && client.screen instanceof IdentityProgressionScreen screen) {
+            screen.applyPlayerChargeSync(payload.serializedCharges());
         }
     }
 
-    private boolean sendCommand(String command) {
-        if (command == null || command.isBlank()) {
-            return false;
-        }
+    public static void onJarStateSync(ProgressionJarStateS2CPacketPayload payload) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return false;
+        if (client != null && client.screen instanceof IdentityProgressionScreen screen) {
+            screen.applyJarStateSync(payload);
         }
-
-        Object connection = client.getConnection();
-        if (connection == null) {
-            return false;
-        }
-
-        if (invokeStringMethod(connection, "sendCommand", command)) {
-            return true;
-        }
-        if (invokeStringMethod(connection, "sendUnsignedCommand", command)) {
-            return true;
-        }
-        return invokeStringMethod(connection, "sendChat", "/" + command);
     }
 
-    private boolean invokeStringMethod(Object target, String methodName, String value) {
-        if (target == null || methodName == null || value == null) {
-            return false;
-        }
-        try {
-            for (Method method : target.getClass().getMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                    continue;
-                }
-                if (method.getParameterTypes()[0] != String.class) {
-                    continue;
-                }
-                method.invoke(target, value);
-                return true;
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
+    private void applyPlayerChargeSync(String serializedCharges) {
+        this.playerCharges.clear();
+        this.playerCharges.putAll(ProgressionChargeCodec.deserialize(serializedCharges));
+        rebuildChargeEntries();
+        refreshButtons();
+    }
+
+    private void applyJarStateSync(ProgressionJarStateS2CPacketPayload payload) {
+        this.pendingRequest = false;
+        this.selectedJarSlot = payload.slotIndex();
+        this.selectedJarId = payload.jarId() == null ? "" : payload.jarId();
+        this.selectedJarTier = payload.jarTier() == null ? "" : payload.jarTier();
+        this.playerCharges.clear();
+        this.playerCharges.putAll(ProgressionChargeCodec.deserialize(payload.serializedPlayerCharges()));
+        this.jarCharges.clear();
+        this.jarCharges.putAll(ProgressionChargeCodec.deserialize(payload.serializedJarCharges()));
+        this.statusText = payload.message() == null || payload.message().isBlank() ? "Updated." : payload.message();
+        rebuildChargeEntries();
+        refreshButtons();
     }
 
     private record InventorySlotView(int index, int x, int y) {
-    }
-
-    private record JarDescriptor(String jarId, String tier, String displayName) {
     }
 }
