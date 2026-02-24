@@ -104,12 +104,12 @@ public final class IdentityTraitTags {
         }
         ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
-            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT));
             if (assignmentOverride != null) {
                 return assignmentOverride;
             }
         }
-        return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
+        return type.is(BURNS_IN_DAYLIGHT);
     }
 
     public static boolean hasSlowFalling(EntityType<?> type) {

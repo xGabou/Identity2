@@ -667,7 +667,7 @@ public final class IdentitySelectionScreen extends Screen {
         if (client.level == null) {
             return null;
         }
-        return client.level.dimension().identifier();
+        return client.level.dimension().location();
     }
 
     private static String formatEntryLabel(IdentityEntry entry) {
@@ -728,3 +728,4 @@ public final class IdentitySelectionScreen extends Screen {
     private record IdentityEntry(ResourceLocation id, boolean unlocked, String searchableId, String displayName) {
     }
 }
+

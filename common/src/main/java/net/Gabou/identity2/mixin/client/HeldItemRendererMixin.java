@@ -28,7 +28,7 @@ import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
@@ -257,4 +257,5 @@ public class HeldItemRendererMixin{
     }
     }
 }
+
 

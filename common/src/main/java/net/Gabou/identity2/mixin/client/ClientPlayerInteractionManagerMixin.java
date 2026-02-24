@@ -24,22 +24,34 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true)
-    private void forceFlyIdentity(CallbackInfoReturnable<Boolean> info) {
+    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true, require = 0)
+    private void forceFlyIdentitySpectator(CallbackInfoReturnable<Boolean> info) {
+        if (identity2$hasFlyIdentity()) {
+            // 1.21.11 path: do not treat fly-capable identities as spectator-only behavior.
+            info.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true, require = 0)
+    private void forceFlyIdentityAlwaysFlying(CallbackInfoReturnable<Boolean> info) {
+        if (identity2$hasFlyIdentity()) {
+            // 1.21.9 path: keep always-flying active for fly-capable identities.
+            info.setReturnValue(true);
+        }
+    }
+
+    private static boolean identity2$hasFlyIdentity() {
         Player player = Minecraft.getInstance().player;
         if (player == null) {
-            return;
+            return false;
         }
 
         if (player.isSpectator()) {
-            return;
+            return false;
         }
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity != null && ((EntityAccessor) identity).canFly()) {
-            // Keep flight unlocked for fly-capable identities.
-            info.setReturnValue(false);
-        }
+        return identity != null && ((EntityAccessor) identity).canFly();
     }
 
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
@@ -93,4 +105,3 @@ public class ClientPlayerInteractionManagerMixin {
         return "minecraft:villager".equals(selectedType) || "minecraft:wandering_trader".equals(selectedType);
     }
 }
-

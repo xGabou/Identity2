@@ -609,7 +609,7 @@ public final class IdentityCommand {
     }
 
     private static boolean isOperator(CommandSourceStack source) {
-        return Commands.LEVEL_ADMINS.check(source.permissions());
+        return source.hasPermission(Commands.LEVEL_ADMINS);
     }
 
     private static boolean isMorphableIdentityString(String value) {

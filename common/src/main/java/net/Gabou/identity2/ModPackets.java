@@ -30,8 +30,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Inventory;
@@ -505,6 +505,7 @@ public final class ModPackets {
     }
 
     private static boolean isOperator(ServerPlayer player) {
-        return Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
+        return player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 }
+

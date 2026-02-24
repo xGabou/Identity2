@@ -49,7 +49,7 @@ public final class ProgressionConfig {
             return true;
         }
         return IdentitySettings.bypassMorphChargesForOperators
-            && Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
+            && player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 
 

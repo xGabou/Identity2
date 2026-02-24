@@ -69,7 +69,7 @@ public class AccelerateToPosCommand {
 	private static int execute(SharedSuggestionProvider source, Entity target, Vec3 xyz,float mult,float antimult) throws CommandSyntaxException {
 		Vec3 pos=target.position();
 		target.setDeltaMovement(target.getDeltaMovement().scale(antimult).add(xyz.subtract(pos).scale(mult)));
-        target.needsSync=true;
+        target.hurtMarked = true;
 		//if (target.damage(source.getWorld(), damageSource, amount)) {
 			//source.sendFeedback(() -> Text.translatable("commands.damage.success", amount, target.getDisplayName()), true);
 			//return 1;
@@ -79,3 +79,4 @@ public class AccelerateToPosCommand {
 		return 1;
 	}
 }
+

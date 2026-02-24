@@ -436,7 +436,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         if (client.level == null) {
             return null;
         }
-        return client.level.dimension().identifier();
+        return client.level.dimension().location();
     }
 
     private int maxScrollOffset() {
@@ -455,3 +455,4 @@ public final class IdentityVariantSelectionScreen extends Screen {
         super.removed();
     }
 }
+

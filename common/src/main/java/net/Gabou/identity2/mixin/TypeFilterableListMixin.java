@@ -27,7 +27,7 @@ import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.util.EntityAccessor;
 import java.util.Map;
 import net.minecraft.util.ClassInstanceMultiMap;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
 import net.minecraft.world.entity.Entity;
 import java.util.Collections;
 @Mixin(ClassInstanceMultiMap.class)
@@ -78,3 +78,4 @@ public class TypeFilterableListMixin<T>{
     }
     }*/
 }
+
