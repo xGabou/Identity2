@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
+import net.minecraft.commands.Commands;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 
 public final class ProgressionConfig {
@@ -34,6 +36,23 @@ public final class ProgressionConfig {
     public static boolean enableSoulAbsorption() {
         return IdentitySettings.enableSoulAbsorption || IdentitySettings.EnableSoulAbsorption;
     }
+
+    public static boolean requireChargeForMorphing() {
+        return enableMorphCharges() && !IdentitySettings.dontRequireChargeForMorphing;
+    }
+
+    public static boolean shouldBypassMorphCharges(@Nullable ServerPlayer player) {
+        if (player == null) {
+            return false;
+        }
+        if (IdentitySettings.bypassMorphChargesForCreativePlayers && player.getAbilities().instabuild) {
+            return true;
+        }
+        return IdentitySettings.bypassMorphChargesForOperators
+            && Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
+    }
+
+
 
     public static boolean shouldLoseMorphsOnDeath(@Nullable MinecraftServer server) {
         // Charge-based progression is a legitimate gameplay replacement for death loss.

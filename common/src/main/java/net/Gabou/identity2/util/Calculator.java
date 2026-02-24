@@ -353,20 +353,20 @@ public class Calculator{
     }
     static{
         
-        addUnaryFunction("floor",new Calculator.UnaryCalculatorFunction() {
+        addUnaryFunction("floor",new UnaryCalculatorFunction() {
             @Override
             public Float getValue(Float arg){
                 return (Float)(float)Math.floor((double)arg); 
             }
         });
 
-        addBinaryFunction("min",new Calculator.BinaryCalculatorFunction() {
+        addBinaryFunction("min",new BinaryCalculatorFunction() {
             @Override
             public Float getValue(Float arga,Float argb){
                 return (Float)Math.min((float)arga,(float)argb); 
             }
         });
-        addBinaryFunction("max",new Calculator.BinaryCalculatorFunction() {
+        addBinaryFunction("max",new BinaryCalculatorFunction() {
             @Override
             public Float getValue(Float arga,Float argb){
                 return (Float)Math.max((float)arga,(float)argb); 

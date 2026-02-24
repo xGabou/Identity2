@@ -7,7 +7,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record IdentityAbilityPacketPayload(int entityid) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<IdentityAbilityPacketPayload> ID = new CustomPacketPayload.Type<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);
+    public static final Type<IdentityAbilityPacketPayload> ID = new Type<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);
     public static final StreamCodec<RegistryFriendlyByteBuf, IdentityAbilityPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.VAR_INT,
         IdentityAbilityPacketPayload::entityid,
@@ -15,7 +15,7 @@ public record IdentityAbilityPacketPayload(int entityid) implements CustomPacket
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

@@ -39,20 +39,20 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		return new FluidPredicateArgumentType(commandRegistryAccess);
 	}
 
-	public FluidPredicateArgumentType.FluidPredicate parse(StringReader stringReader) throws CommandSyntaxException {
+	public FluidPredicate parse(StringReader stringReader) throws CommandSyntaxException {
 		return parse(this.registryWrapper, stringReader);
 	}
 
-	public static FluidPredicateArgumentType.FluidPredicate parse(HolderLookup<Block> registryWrapper, StringReader reader) throws CommandSyntaxException {//finish
+	public static FluidPredicate parse(HolderLookup<Block> registryWrapper, StringReader reader) throws CommandSyntaxException {//finish
 		return BlockStateParser.parseForTesting(registryWrapper, reader, true)
 			.map(
-				result -> new FluidPredicateArgumentType.StatePredicate(result.blockState().getFluidState(), result.properties().keySet(), result.nbt()),
-				result -> new FluidPredicateArgumentType.TagPredicate(result.tag(), result.vagueProperties(), result.nbt())
+				result -> new StatePredicate(result.blockState().getFluidState(), result.properties().keySet(), result.nbt()),
+				result -> new TagPredicate(result.tag(), result.vagueProperties(), result.nbt())
 			);
 	}
 
 	public static Predicate<BlockInWorld> getFluidPredicate(CommandContext<CommandSourceStack> context, String name) throws CommandSyntaxException {
-		return context.getArgument(name, FluidPredicateArgumentType.FluidPredicate.class);
+		return context.getArgument(name, FluidPredicate.class);
 	}
 
 	@Override
@@ -69,7 +69,7 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 		boolean hasNbt();
 	}
 
-	static class StatePredicate implements FluidPredicateArgumentType.FluidPredicate {
+	static class StatePredicate implements FluidPredicate {
 		private final FluidState state;
 		private final Set<Property<?>> properties;
 		@Nullable
@@ -152,7 +152,7 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 			return this.nbt != null;
 		}
 	}*/
-	static class TagPredicate implements FluidPredicateArgumentType.FluidPredicate {
+	static class TagPredicate implements FluidPredicate {
 		private final HolderSet<Block> tag;
 		@Nullable
 		private final CompoundTag nbt;

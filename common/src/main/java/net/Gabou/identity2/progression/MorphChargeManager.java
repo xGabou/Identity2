@@ -70,7 +70,13 @@ public final class MorphChargeManager {
         if (player == null || identityId == null) {
             return false;
         }
+        if (ProgressionConfig.shouldBypassMorphCharges(player)) {
+            return true;
+        }
         if (!ProgressionConfig.enableMorphCharges()) {
+            return true;
+        }
+        if (!ProgressionConfig.requireChargeForMorphing()) {
             return true;
         }
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
@@ -112,6 +118,9 @@ public final class MorphChargeManager {
 
     public static void applyDeathPenalty(ServerPlayer player) {
         if (player == null || !ProgressionConfig.enableMorphCharges() || !IdentitySettings.removeMorphChargeOnDeath) {
+            return;
+        }
+        if (ProgressionConfig.shouldBypassMorphCharges(player)) {
             return;
         }
 

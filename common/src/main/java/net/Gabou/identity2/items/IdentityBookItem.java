@@ -10,7 +10,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.WrittenBookContent;
 import net.minecraft.world.level.Level;
 
@@ -21,13 +20,14 @@ public final class IdentityBookItem extends Item {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        player.openItemGui(createGuideBook(), hand);
+        ItemStack held = player.getItemInHand(hand);
+        held.set(DataComponents.WRITTEN_BOOK_CONTENT, createGuideBookContent());
+        player.openItemGui(held, hand);
         player.awardStat(Stats.ITEM_USED.get(this));
         return InteractionResult.SUCCESS;
     }
 
-    private static ItemStack createGuideBook() {
-        ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
+    private static WrittenBookContent createGuideBookContent() {
         List<Filterable<Component>> pages = List.of(
             page(
                 "Identity 2 Guide\n\n"
@@ -77,11 +77,7 @@ public final class IdentityBookItem extends Item {
             )
         );
 
-        book.set(
-            DataComponents.WRITTEN_BOOK_CONTENT,
-            new WrittenBookContent(Filterable.passThrough("Identity 2 Guide"), "Identity2", 0, pages, true)
-        );
-        return book;
+        return new WrittenBookContent(Filterable.passThrough("Identity 2 Guide"), "Identity2", 0, pages, true);
     }
 
     private static Filterable<Component> page(String text) {

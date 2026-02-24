@@ -8,7 +8,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryString> entries) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<CustomEntityStringDataS2CPacketPayload> ID = new CustomPacketPayload.Type<>(ModPackets.CUSTOM_STRING_DATA_ID);
+    public static final Type<CustomEntityStringDataS2CPacketPayload> ID = new Type<>(ModPackets.CUSTOM_STRING_DATA_ID);
     public static final StreamCodec<RegistryFriendlyByteBuf, CustomEntityStringDataS2CPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.VAR_INT,
         CustomEntityStringDataS2CPacketPayload::entityid,
@@ -18,7 +18,7 @@ public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEn
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

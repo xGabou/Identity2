@@ -580,7 +580,7 @@ public final class IdentityCommand {
         }
 
         return SharedSuggestionProvider.suggestResource(
-            net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
+            BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
             builder
         );
     }

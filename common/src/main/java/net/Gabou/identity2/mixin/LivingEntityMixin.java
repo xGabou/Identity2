@@ -114,6 +114,17 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 private void getAttributesIdentity(CallbackInfoReturnable info){
     // Keep vanilla attributes for the host entity (especially players) so
     // combat damage and other modded attribute changes are not replaced by identity stats.
+    try{
+    if(this.saving==false){
+        if(this.currentIdentity!=null){
+            if(this.currentIdentity instanceof LivingEntity livingIdentity){
+                info.setReturnValue(livingIdentity.getAttributes());
+            }
+        }
+    }
+    }catch(Exception e){
+        int x=0;
+    }
 }
 
 @Inject(method = "decreaseAirSupply(I)I", at=@At("HEAD"),cancellable=true)
@@ -190,10 +201,10 @@ private void getDeathSoundIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
 private void tickMovementIdentity(CallbackInfo info){
-    if ((Entity)(Object)this instanceof Player) {
+    //if ((Entity)(Object)this instanceof Player) {
         // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
-        return;
-    }
+    //    return;
+    //}
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
             

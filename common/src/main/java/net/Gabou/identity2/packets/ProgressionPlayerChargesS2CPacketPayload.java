@@ -7,8 +7,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record ProgressionPlayerChargesS2CPacketPayload(String serializedCharges) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<ProgressionPlayerChargesS2CPacketPayload> ID =
-        new CustomPacketPayload.Type<>(ModPackets.PROGRESSION_PLAYER_CHARGES_PACKET_ID);
+    public static final Type<ProgressionPlayerChargesS2CPacketPayload> ID =
+        new Type<>(ModPackets.PROGRESSION_PLAYER_CHARGES_PACKET_ID);
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ProgressionPlayerChargesS2CPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.STRING_UTF8,
@@ -17,7 +17,7 @@ public record ProgressionPlayerChargesS2CPacketPayload(String serializedCharges)
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

@@ -137,6 +137,15 @@ public class IdentitySettings {
     //@Comment(value = "Charge cost paid when selecting a morph.")
     public static int defaultMorphUseChargeCost = 1;
 
+    //@Comment(value = "If true, morphing does not require charges. Charges can still be used for death penalties and jar storage.")
+    public static boolean dontRequireChargeForMorphing = true;
+
+    //@Comment(value = "If true, creative players bypass morph charge checks and penalties.")
+    public static boolean bypassMorphChargesForCreativePlayers = true;
+
+    //@Comment(value = "If true, operators bypass morph charge checks and penalties.")
+    public static boolean bypassMorphChargesForOperators = true;
+
     //@Comment(value = "If true, dying while morphed removes charges from the active morph.")
     public static boolean removeMorphChargeOnDeath = true;
 

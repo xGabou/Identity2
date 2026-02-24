@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+
+import javax.swing.Box;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
@@ -76,7 +79,8 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
-
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.monster.Shulker;
 public final class PredefIdentityAbilities {
     private static final float GENERIC_MIN_DAMAGE = 2.0F;
     private static final float GENERIC_MAX_DAMAGE = 10.0F;
@@ -152,7 +156,7 @@ public final class PredefIdentityAbilities {
                 fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
-                    ghastIdentity.setCharging(false);
+                    //ghastIdentity.setCharging(false);
                 }
             }
 
@@ -249,6 +253,47 @@ public final class PredefIdentityAbilities {
                     return false;
                 }
                 return tryShootShulkerBullet(player, shulker);
+            }
+            @Override
+            public void passivetick(Entity player,boolean usedLastTick){
+                Identity2.LOGGER.info("Passive Tick");
+                Shulker shulker=(Shulker)((EntityAccessor)player).getCurrentIdentity();
+                if(usedLastTick==false){
+                    if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=0){
+                        ((ShulkerEntityAccessor)shulker).setPeekAmount(0);
+                    }
+                }
+                if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(),shulker)) {
+                    BlockPos pos=shulker.blockPosition();
+                    ((ShulkerEntityAccessor)shulker).runTryAttachOrTeleport();
+                    if((pos==shulker.blockPosition())==false){
+                        player.teleportTo(shulker.position().x(),shulker.position().y(),shulker.position().z());
+                        
+                    }
+                }
+            }
+            boolean canStay(BlockPos pos, Direction direction,Shulker entity) {
+                if (isInvalidPosition(pos,entity)) {
+                    return false;
+                } else {
+                    Direction direction2 = direction.getOpposite();
+                    if (!entity.level().loadedAndEntityCanStandOnFace(pos.offset(direction.getUnitVec3i()), entity, direction2)) {
+                        return false;
+                    } else {
+                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F, pos.getBottomCenter()).deflate(1.0E-6);
+                        return entity.level().noCollision(entity, box);
+                    }
+                }
+            }
+
+            private boolean isInvalidPosition(BlockPos pos,Shulker entity) {
+                BlockState blockState = entity.level().getBlockState(pos);
+                if (blockState.isAir()) {
+                    return false;
+                } else {
+                    boolean bl = blockState.is(Blocks.MOVING_PISTON) && pos.equals(entity.blockPosition());
+                    return !bl;
+                }
             }
         });
 
@@ -489,7 +534,7 @@ public final class PredefIdentityAbilities {
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(0.8));
                 for (int i = 0; i < 10; i++) {
-                    Snowball snowball = new Snowball(net.minecraft.world.entity.EntityType.SNOWBALL, world);
+                    Snowball snowball = new Snowball(EntityType.SNOWBALL, world);
                     snowball.setOwner(player);
                     snowball.setItem(new ItemStack(Items.SNOWBALL));
                     float pitchOffset = (float) (player.getXRot() + world.random.nextGaussian() * 5.0);
@@ -510,7 +555,7 @@ public final class PredefIdentityAbilities {
                     return;
                 }
                 Level world = player.level();
-                ThrownSplashPotion potionEntity = new ThrownSplashPotion(net.minecraft.world.entity.EntityType.SPLASH_POTION, world);
+                ThrownSplashPotion potionEntity = new ThrownSplashPotion(EntityType.SPLASH_POTION, world);
                 potionEntity.setOwner(livingPlayer);
                 Holder<Potion> potion = validPotions.get(world.random.nextInt(validPotions.size()));
                 ItemStack potionStack = new ItemStack(Items.SPLASH_POTION);
@@ -735,17 +780,18 @@ public final class PredefIdentityAbilities {
         if (!(player instanceof LivingEntity livingPlayer)) {
             return;
         }
+        Vec3 from = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F).normalize();
+        Vec3 to = from.add(look.scale(15.0D));
         EntityHitResult hit = findLivingTarget(player, 15.0D);
-        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
-            return;
+        if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+            to = target.getEyePosition(1.0F);
+            target.hurt(resolveSonicBoomDamageSource(player, livingPlayer), 10.0F);
+            Vec3 pushDirection = to.subtract(from).normalize();
+            target.push(pushDirection.x * 2.5D, 0.5D, pushDirection.z * 2.5D);
         }
 
-        Vec3 from = player.getEyePosition(1.0F);
-        Vec3 to = target.getEyePosition(1.0F);
         renderSonicBoom(player.level(), from, to);
-        target.hurt(resolveSonicBoomDamageSource(player, livingPlayer), 10.0F);
-        Vec3 pushDirection = to.subtract(from).normalize();
-        target.push(pushDirection.x * 2.5D, 0.5D, pushDirection.z * 2.5D);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 1.0F);
     }
 

@@ -14,8 +14,8 @@ public record ProgressionJarStateS2CPacketPayload(
     String serializedPlayerCharges,
     String message
 ) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<ProgressionJarStateS2CPacketPayload> ID =
-        new CustomPacketPayload.Type<>(ModPackets.PROGRESSION_JAR_STATE_PACKET_ID);
+    public static final Type<ProgressionJarStateS2CPacketPayload> ID =
+        new Type<>(ModPackets.PROGRESSION_JAR_STATE_PACKET_ID);
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ProgressionJarStateS2CPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.VAR_INT,
@@ -34,7 +34,7 @@ public record ProgressionJarStateS2CPacketPayload(
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

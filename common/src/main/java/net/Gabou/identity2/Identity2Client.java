@@ -1,5 +1,7 @@
 package net.Gabou.identity2;
 
+import net.Gabou.identity2.client.screen.IdentityProgressionScreen;
+import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import dev.architectury.event.events.client.ClientGuiEvent;
@@ -9,7 +11,6 @@ import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
-import net.Gabou.identity2.client.screen.IdentityProgressionScreen;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -20,14 +21,13 @@ import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
-import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
+import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
+import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
-import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
-import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
@@ -49,6 +49,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.CustomData;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -62,62 +64,54 @@ public final class Identity2Client {
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
     public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
-    private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category.register(Identifier.parse("category.identity2.test"));
+    private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category
+            .register(Identifier.parse("category.identity2.test"));
 
     private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
-        "key.identity2.primary_ability",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_V,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.primary_ability",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_V,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping secondaryAbilityKeyBinding = new KeyMapping(
-        "key.identity2.secondary_ability",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_B,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.secondary_ability",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_B,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping identityMenuKeyBinding = new KeyMapping(
-        "key.identity2.identity_menu",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_G,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.identity_menu",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_G,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot1KeyBinding = new KeyMapping(
-        "key.identity2.favorite_morph_1",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F6,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_morph_1",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F6,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot2KeyBinding = new KeyMapping(
-        "key.identity2.favorite_morph_2",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F7,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_morph_2",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F7,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot3KeyBinding = new KeyMapping(
-        "key.identity2.favorite_morph_3",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F8,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_morph_3",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F8,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot1KeyBinding = new KeyMapping(
-        "key.identity2.favorite_save_1",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F9,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_save_1",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F9,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot2KeyBinding = new KeyMapping(
-        "key.identity2.favorite_save_2",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F10,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_save_2",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F10,
+            IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot3KeyBinding = new KeyMapping(
-        "key.identity2.favorite_save_3",
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_F11,
-        IDENTITY_KEY_CATEGORY
-    );
+            "key.identity2.favorite_save_3",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F11,
+            IDENTITY_KEY_CATEGORY);
 
     private static final int fadingTickRequirement = 0;
     private static final int MAX_PENDING_PACKET_PROCESS_PER_TICK = 256;
@@ -130,10 +124,11 @@ public final class Identity2Client {
     private static int fadingProgress = 0;
     private static int pendingPacketProcessTicks = 0;
     private static final ArrayList<CustomEntityDataS2CPacketPayload> pendingDoubleDataPackets = new ArrayList<>(0);
-    private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(0);
+    private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
+            0);
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
-    private static final String[] favoriteIdentityIds = new String[]{"", "", ""};
-    private static final String[] favoriteVariantNbt = new String[]{"", "", ""};
+    private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
+    private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
 
     static {
         addVisualPatch((identity, entity) -> {
@@ -170,47 +165,40 @@ public final class Identity2Client {
         }
 
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            CustomEntityDataS2CPacketPayload.ID,
-            CustomEntityDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
-        );
+                NetworkManager.s2c(),
+                CustomEntityDataS2CPacketPayload.ID,
+                CustomEntityDataS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            CustomEntityStringDataS2CPacketPayload.ID,
-            CustomEntityStringDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
-        );
+                NetworkManager.s2c(),
+                CustomEntityStringDataS2CPacketPayload.ID,
+                CustomEntityStringDataS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            CustomEntityBoolDataS2CPacketPayload.ID,
-            CustomEntityBoolDataS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload))
-        );
+                NetworkManager.s2c(),
+                CustomEntityBoolDataS2CPacketPayload.ID,
+                CustomEntityBoolDataS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            MorphAcquisitionS2CPacketPayload.ID,
-            MorphAcquisitionS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> onMorphAcquisition(payload))
-        );
+                NetworkManager.s2c(),
+                MorphAcquisitionS2CPacketPayload.ID,
+                MorphAcquisitionS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> onMorphAcquisition(payload)));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            OpenProgressionScreenS2CPacketPayload.ID,
-            OpenProgressionScreenS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(Identity2Client::openProgressionScreen)
-        );
+                NetworkManager.s2c(),
+                OpenProgressionScreenS2CPacketPayload.ID,
+                OpenProgressionScreenS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(Identity2Client::openProgressionScreen));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            ProgressionPlayerChargesS2CPacketPayload.ID,
-            ProgressionPlayerChargesS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload))
-        );
+                NetworkManager.s2c(),
+                ProgressionPlayerChargesS2CPacketPayload.ID,
+                ProgressionPlayerChargesS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload)));
         NetworkManager.registerReceiver(
-            NetworkManager.s2c(),
-            ProgressionJarStateS2CPacketPayload.ID,
-            ProgressionJarStateS2CPacketPayload.CODEC,
-            (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload))
-        );
+                NetworkManager.s2c(),
+                ProgressionJarStateS2CPacketPayload.ID,
+                ProgressionJarStateS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -225,7 +213,8 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
-        NetworkManager.sendToServer(new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
+        NetworkManager.sendToServer(
+                new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
 
     public static void sendVillagerTradeRequest(UUID targetUuid) {
@@ -318,18 +307,12 @@ public final class Identity2Client {
             sendIdentityAbilityPacket(primaryCooldown + useDuration - primaryCd + 1);
         }
 
-        if (identity.getType() == net.minecraft.world.entity.EntityType.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
-            disableMovementInputs(client, player);
-            while (client.options.keyAttack.consumeClick()) {
-                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
-            }
-            while (client.options.keyUse.consumeClick()) {
-                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
-            }
-            if (((EntityAccessor) player).getCurrentIdentity() != null) {
-                player.setDeltaMovement(player.getDeltaMovement().multiply(0.0D, 1.0D, 0.0D));
-            }
+        if (usedPrimaryAbility == 1) {
+            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE_USED);
+        } else {
+            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
         }
+
     }
 
     private void onUpdateCustomData(CustomEntityDataS2CPacketPayload packet) {
@@ -372,13 +355,11 @@ public final class Identity2Client {
             boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
                 ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
-                if (
-                    "model_override".equals(entry.key()) ||
-                    IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
-                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
-                    IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY.equals(entry.key()) ||
-                    IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(entry.key())
-                ) {
+                if ("model_override".equals(entry.key()) ||
+                        IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                        IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
+                        IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                        IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(entry.key())) {
                     identityDataChanged = true;
                 }
             }
@@ -409,7 +390,8 @@ public final class Identity2Client {
             return;
         }
 
-        if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty() && pendingBoolDataPackets.isEmpty()) {
+        if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty()
+                && pendingBoolDataPackets.isEmpty()) {
             pendingPacketProcessTicks = 0;
             return;
         }
@@ -430,7 +412,7 @@ public final class Identity2Client {
 
     private static void processPendingDoublePackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingDoubleDataPackets.size());
-        for (int i = 0; i < max; ) {
+        for (int i = 0; i < max;) {
             if (INSTANCE.tryApplyCustomData(client, pendingDoubleDataPackets.get(i))) {
                 pendingDoubleDataPackets.remove(i);
                 max--;
@@ -442,7 +424,7 @@ public final class Identity2Client {
 
     private static void processPendingStringPackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingStringDataPackets.size());
-        for (int i = 0; i < max; ) {
+        for (int i = 0; i < max;) {
             if (INSTANCE.tryApplyCustomData(client, pendingStringDataPackets.get(i))) {
                 pendingStringDataPackets.remove(i);
                 max--;
@@ -454,7 +436,7 @@ public final class Identity2Client {
 
     private static void processPendingBoolPackets(Minecraft client) {
         int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingBoolDataPackets.size());
-        for (int i = 0; i < max; ) {
+        for (int i = 0; i < max;) {
             if (INSTANCE.tryApplyCustomData(client, pendingBoolDataPackets.get(i))) {
                 pendingBoolDataPackets.remove(i);
                 max--;
@@ -498,13 +480,11 @@ public final class Identity2Client {
         boolean identityDataChanged = false;
         for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
             ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
-            if (
-                "model_override".equals(entry.key()) ||
-                IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
-                IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
-                IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY.equals(entry.key()) ||
-                IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(entry.key())
-            ) {
+            if ("model_override".equals(entry.key()) ||
+                    IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
+                    IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY.equals(entry.key()) ||
+                    IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(entry.key())) {
                 identityDataChanged = true;
             }
         }
@@ -580,9 +560,29 @@ public final class Identity2Client {
             return false;
         }
         return PredefIdentityAbilities.predef.containsKey(identityTypeId)
-            || PredefIdentityAbilities.predef.containsKey(Identifier.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
-            || PredefIdentityAbilities.predef.containsKey(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
-            || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
+                || PredefIdentityAbilities.predef
+                        .containsKey(Identifier.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
+                || PredefIdentityAbilities.predef
+                        .containsKey(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
+                || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
+    }
+
+    private static ItemStack resolveAbilityIconStack(Entity identity, IdentityAbilityDefinition identityAbility) {
+        if (identityAbility != null && identityAbility.icon() != null) {
+            ItemStack fromDefinition = new ItemStack(identityAbility.icon());
+            if (!fromDefinition.isEmpty() && !fromDefinition.is(Items.AIR)) {
+                return fromDefinition;
+            }
+        }
+        if (identity != null) {
+            if (SpawnEggItem.byId(identity.getType()) != null) {
+                ItemStack spawnEggFallback = new ItemStack(SpawnEggItem.byId(identity.getType()));
+                if (!spawnEggFallback.isEmpty() && !spawnEggFallback.is(Items.AIR)) {
+                    return spawnEggFallback;
+                }
+            }
+        }
+        return new ItemStack(Items.NETHER_STAR);
     }
 
     private static void processFavoriteKeybinds(LocalPlayer player) {
@@ -624,7 +624,8 @@ public final class Identity2Client {
             double radius = 0.35D + (0.25D * Math.sin(progress * Math.PI));
             for (int i = 0; i < MORPH_TRANSITION_PARTICLES_PER_TICK; i++) {
                 double angle = entity.getRandom().nextDouble() * (Math.PI * 2.0D);
-                double y = entity.getY() + 0.2D + entity.getRandom().nextDouble() * Math.max(0.2D, entity.getBbHeight() - 0.2D);
+                double y = entity.getY() + 0.2D
+                        + entity.getRandom().nextDouble() * Math.max(0.2D, entity.getBbHeight() - 0.2D);
                 double x = entity.getX() + Math.cos(angle) * radius;
                 double z = entity.getZ() + Math.sin(angle) * radius;
                 double vx = (entity.getRandom().nextDouble() - 0.5D) * 0.04D;
@@ -645,7 +646,8 @@ public final class Identity2Client {
         }
         String type = readCurrentIdentityType(player);
         if (type == null || type.isBlank()) {
-            player.displayClientMessage(Component.literal("No active identity to save in favorite " + (slot + 1)), true);
+            player.displayClientMessage(Component.literal("No active identity to save in favorite " + (slot + 1)),
+                    true);
             return;
         }
         String variant = readCurrentIdentityVariant(player);
@@ -669,12 +671,12 @@ public final class Identity2Client {
 
     private static String readCurrentIdentityType(LocalPlayer player) {
         return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+                .getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
     }
 
     private static String readCurrentIdentityVariant(LocalPlayer player) {
         return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+                .getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
     }
 
     public static String getFavoriteLabel(int slot) {
@@ -690,7 +692,8 @@ public final class Identity2Client {
 
     private void applyIdentityFromCustomData(Entity entity) {
         CustomData n = ((EntityAccessor) entity).getCustomData();
-        String type = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        String type = ((NbtComponentAccessor) (Object) n).getNbt()
+                .getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
             type = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr("model_override", "");
         }
@@ -699,7 +702,8 @@ public final class Identity2Client {
             entity.refreshDimensions();
             return;
         }
-        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt()
+                .getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
         ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
     }
 
@@ -724,13 +728,9 @@ public final class Identity2Client {
             return;
         }
 
-        Registry<IdentityAbilityDefinition> identityAbilityRegistry = ModRegistries.getIdentityAbilityRegistry();
-        if (identityAbilityRegistry == null) {
-            return;
-        }
-
         IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
-        if (identityAbility == null) {
+        boolean hasFallbackPredefAbility = hasPredefFallback(identity);
+        if (identityAbility == null && !hasFallbackPredefAbility) {
             return;
         }
 
@@ -738,53 +738,39 @@ public final class Identity2Client {
             return;
         }
 
-        double d = client.getWindow().getGuiScale();
         int cd = ((EntityAccessor) player).getAbilityCooldown();
-        int max = identityAbility.cooldown() + identityAbility.useduration();
-        float cooldownScale = 1 - cd / (float) max;
-
-        if (cd == lastCooldown) {
-            ticksSinceUpdate++;
-            if (ticksSinceUpdate > fadingTickRequirement && !isFading) {
-                isFading = true;
-                fadingProgress = 0;
-            }
-        } else if (ticksSinceUpdate > fadingProgress) {
-            ticksSinceUpdate = 0;
-            isFading = false;
-        }
-
-        if (isFading) {
-            fadingProgress = Math.min(50, fadingProgress + 1);
-        } else {
-            fadingProgress = Math.max(0, fadingProgress - 1);
-        }
+        int max = Math.max(1, resolvePrimaryCooldown(identity, identityAbility)
+                + (identityAbility != null ? identityAbility.useduration() : 0));
+        float cooldownScale = Mth.clamp(1 - cd / (float) max, 0.0F, 1.0F);
+        double guiScale = client.getWindow().getGuiScale();
+        int iconwidth = 17;
+        ticksSinceUpdate = 0;
+        isFading = false;
+        fadingProgress = 0;
 
         int width = client.getWindow().getGuiScaledWidth();
         int height = client.getWindow().getGuiScaledHeight();
-        int iconwidth = 17;
 
         matrices.pose().pushMatrix();
-        if (cooldownScale != 1) {
+        boolean scissorEnabled = false;
+        if (cooldownScale < 1.0F) {
             matrices.enableScissor(
-                (int) (0d * d),
-                (int) ((double) height * .92 + iconwidth * (1 - cooldownScale)),
-                (int) ((double) width * d),
-                (int) ((double) height * d)
-            );
+                    0,
+                    (int) ((double) height * .92 + iconwidth * (1 - cooldownScale)),
+                    (int) ((double) width * guiScale),
+                    (int) ((double) height * guiScale));
+            scissorEnabled = true;
         }
-
-        if (isFading && cooldownScale == 1) {
-            float fadeScalar = fadingProgress / 50f;
-            float scale = 1f + (float) Math.sin(fadeScalar * 1.5 * Math.PI) - .25f;
-            scale = Math.max(scale, 0.01F);
-            matrices.pose().scaleAround(scale, (int) (width * .95f + iconwidth * .5f), (int) (height * .92f + iconwidth * .5f));
+        ItemStack stack = resolveAbilityIconStack(identity, identityAbility);
+        if (stack.isEmpty()) {
+            if (scissorEnabled) {
+                matrices.disableScissor();
+            }
+            matrices.pose().popMatrix();
+            return;
         }
-
-        ItemStack stack = new ItemStack(identityAbility.icon());
         matrices.renderItem(stack, (int) (width * .95f), (int) (height * .92f));
-
-        if (cooldownScale != 1) {
+        if (scissorEnabled) {
             matrices.disableScissor();
         }
 
@@ -808,7 +794,8 @@ public final class Identity2Client {
     }
 
     public static EntityModel getModel(Entity e) {
-        EntityRenderer idrenderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(e);
+        EntityRenderer idrenderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager()
+                .getRenderer(e);
 
         EntityModel eModel = null;
         if (idrenderer instanceof LivingEntityRenderer) {
@@ -828,4 +815,3 @@ public final class Identity2Client {
         return eModel;
     }
 }
-

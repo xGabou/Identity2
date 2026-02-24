@@ -5,7 +5,6 @@ architectury {
 sourceSets {
     main {
         java {
-            exclude 'net/Gabou/identity2/checkonly/**'
             exclude 'net/Gabou/identity2/mixin/PlayerMorphInteractionMixin.java'
         }
     }

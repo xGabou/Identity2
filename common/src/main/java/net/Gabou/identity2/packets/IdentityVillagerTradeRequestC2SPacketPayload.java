@@ -7,7 +7,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record IdentityVillagerTradeRequestC2SPacketPayload(String targetUuid) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<IdentityVillagerTradeRequestC2SPacketPayload> ID = new CustomPacketPayload.Type<>(
+    public static final Type<IdentityVillagerTradeRequestC2SPacketPayload> ID = new Type<>(
         ModPackets.IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID
     );
     public static final StreamCodec<RegistryFriendlyByteBuf, IdentityVillagerTradeRequestC2SPacketPayload> CODEC = StreamCodec.composite(
@@ -17,7 +17,7 @@ public record IdentityVillagerTradeRequestC2SPacketPayload(String targetUuid) im
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

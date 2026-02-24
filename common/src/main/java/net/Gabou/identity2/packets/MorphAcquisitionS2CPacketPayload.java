@@ -14,8 +14,8 @@ public record MorphAcquisitionS2CPacketPayload(
     double acquiredZ,
     boolean morphAcquisition
 ) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<MorphAcquisitionS2CPacketPayload> ID =
-        new CustomPacketPayload.Type<>(ModPackets.MORPH_ACQUISITION_PACKET_ID);
+    public static final Type<MorphAcquisitionS2CPacketPayload> ID =
+        new Type<>(ModPackets.MORPH_ACQUISITION_PACKET_ID);
 
     public static final StreamCodec<RegistryFriendlyByteBuf, MorphAcquisitionS2CPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.VAR_INT,
@@ -34,7 +34,7 @@ public record MorphAcquisitionS2CPacketPayload(
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

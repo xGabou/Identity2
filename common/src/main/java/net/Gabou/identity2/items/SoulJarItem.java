@@ -30,7 +30,7 @@ public final class SoulJarItem extends Item {
     @Override
     public void appendHoverText(
         ItemStack stack,
-        Item.TooltipContext context,
+        TooltipContext context,
         TooltipDisplay tooltipDisplay,
         Consumer<Component> tooltipAdder,
         TooltipFlag tooltipFlag

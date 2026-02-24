@@ -12,8 +12,8 @@ public record ProgressionJarTransferC2SPacketPayload(
     int amount,
     boolean deposit
 ) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<ProgressionJarTransferC2SPacketPayload> ID =
-        new CustomPacketPayload.Type<>(ModPackets.PROGRESSION_JAR_TRANSFER_PACKET_ID);
+    public static final Type<ProgressionJarTransferC2SPacketPayload> ID =
+        new Type<>(ModPackets.PROGRESSION_JAR_TRANSFER_PACKET_ID);
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ProgressionJarTransferC2SPacketPayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.VAR_INT,
@@ -28,7 +28,7 @@ public record ProgressionJarTransferC2SPacketPayload(
     );
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

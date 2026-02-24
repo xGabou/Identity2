@@ -1,6 +1,8 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
+
+import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -64,7 +66,7 @@ import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.identity.IdentityProgression;
 import java.lang.reflect.Method;
 @Mixin(Entity.class)
-public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
+public class EntityMixin implements EntityAccessor{
     @Shadow
     private CustomData customData;
     @Shadow
@@ -113,14 +115,21 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
-        if(this.currentIdentity!=null && ((Entity)(Object)this).level().isClientSide()){
+        if(this.currentIdentity!=null){
             this.currentIdentity.tick();
             
         }
-        this.identity2$applyShulkerOpenVisualState();
-        this.identity2$applyMorphPassiveTraits();
+        //this.identity2$applyShulkerOpenVisualState();
+        //this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
-            this.canFly();
+            if(this.entityCanFlyTickEvaluated==false){
+                this.entityCanFlyTickEvaluated=true;
+                this.entityCanFlyEvaluated=false;
+            }
+            if(this.entityCanFlyEvaluated==false){
+                //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
+                    this.canFly();
+                }
             this.identityOf.noPhysics=this.noPhysics;
         }
     }
@@ -134,9 +143,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-            if (hostIsPlayer) {
-                this.identity2$applyMorphAquaticBreathing((Player) (Object) this);
-            }
+            
              
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
@@ -147,7 +154,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
             ){
             livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(this.currentIdentity.level().isClientSide()==false && !hostIsPlayer){
+            if(this.currentIdentity.level().isClientSide()==false){
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
@@ -157,17 +164,20 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
                 //}
             }
              
-            if(!hostIsPlayer){
-                this.setPos(this.currentIdentity.position());
-                this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
-                this.setAirSupply(this.currentIdentity.getAirSupply());
-                if(
-                    (this.currentIdentity instanceof LivingEntity livingIdentity)&&
-                    ((Entity)(Object)this instanceof LivingEntity livingEntity)
-                ){
+            
+            this.setPos(this.currentIdentity.position());
+            this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
+            this.setAirSupply(this.currentIdentity.getAirSupply());
+            if(
+                (this.currentIdentity instanceof LivingEntity livingIdentity)&&
+                ((Entity)(Object)this instanceof LivingEntity livingEntity)
+            ){
+                // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
+                if (!hostIsPlayer) {
                     livingEntity.setHealth(livingIdentity.getHealth());
                 }
             }
+        
              
         }
 	}
@@ -311,47 +321,39 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
-    private boolean identity2$grantedVexNoPhysics = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
     public boolean canFly(){
-        long gameTime = 0L;
-        Entity self = (Entity)(Object)this;
-        if (self.level() != null) {
-            gameTime = self.level().getGameTime();
-        }
-        boolean shouldReevaluate = !this.entityCanFlyEvaluated
-            || this.entityCanFlyLastEvalTick == Long.MIN_VALUE
-            || (gameTime - this.entityCanFlyLastEvalTick) >= ENTITY_FLY_REEVAL_TICKS;
-        if(shouldReevaluate){
+        if(this.entityCanFlyEvaluated==false){
 
-        Boolean taggedFlight = IdentityTraitTags.resolveFlight(self.getType());
-        if (Boolean.TRUE.equals(taggedFlight)) {
-            this.entityCanFly = true;
-        } else if (Boolean.FALSE.equals(taggedFlight)) {
-            this.entityCanFly = false;
-        } else {
-            try{
-            this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),FALL_METHOD_NAME);
-            }catch(
-                Exception e
-            ){int x=0;}
-            if(this.isAffectedByBlocks()==false){
-                this.entityCanFly=true;
-            }
-            if(this.noPhysics){
-                this.entityCanFly=true;
-            }
+        
+        try{
+        this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),FALL_METHOD_NAME);
+        }catch(
+            Exception e
+        ){int x=0;}
+        if(this.shouldTickBlockCollision()==false){
+            //QualityCommands.LOGGER.info("Reevaluating canFly - blockCollision disabled");
+            this.entityCanFly=true;
+        }
+        if(this.noPhysics){
+            //QualityCommands.LOGGER.info("Reevaluating canFly - no active");
+            this.entityCanFly=true;
         }
         this.entityCanFlyEvaluated=true;
-        this.entityCanFlyLastEvalTick = gameTime;
+        //QualityCommands.LOGGER.info("Reevaluating canFly - final: "+String.valueOf(this.entityCanFly));
         if(this.identityOf!=null){
         if((Entity)(Object)this.identityOf instanceof Player player){
-                Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
-                this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
+                if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){
+                    player.getAbilities().mayfly=true;
+                    player.getAbilities().flying=true;
+                }else{
+                        player.getAbilities().mayfly=false;
+                        player.getAbilities().flying=false;
+                }
             }
         }
 
@@ -361,20 +363,12 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
 
     private static String identity2$resolveFallMethodName() {
         try {
-            for (Method method : Entity.class.getDeclaredMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-                if (method.getReturnType() == Void.TYPE
-                    && params.length == 4
-                    && params[0] == Double.TYPE
-                    && params[1] == Boolean.TYPE
-                    && params[2] == BlockState.class
-                    && params[3] == BlockPos.class) {
-                    return method.getName();
-                }
-            }
-        } catch (Throwable ignored) {
+            return EntityMethodChecks.class
+                .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
+                .getName();
+        } catch (NoSuchMethodException ignored) {
+            return "checkFallDamage";
         }
-        return "fall";
     }
 
     private void applyIdentityFlightGrant(Player player, boolean identityCanFly) {
@@ -407,127 +401,34 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         }
     }
 
-    private void identity2$applyVexNoClip(Player player) {
-        boolean shouldNoClip = this.currentIdentity != null
-            && this.currentIdentity.getType() == EntityType.VEX
-            && player.getAbilities().flying;
-
-        if (shouldNoClip) {
-            if (!player.noPhysics) {
-                player.noPhysics = true;
-            }
-            this.identity2$grantedVexNoPhysics = true;
-            return;
-        }
-
-        if (this.identity2$grantedVexNoPhysics) {
-            if (!player.isSpectator()) {
-                player.noPhysics = false;
-            }
-            this.identity2$grantedVexNoPhysics = false;
-        }
-    }
-
     private void identity2$applyMorphPassiveTraits() {
-        Entity self = (Entity)(Object)this;
-        if (!(self instanceof Player player)) {
-            return;
-        }
-        this.identity2$applyVexNoClip(player);
-        if (self.level().isClientSide()) {
-            return;
-        }
-        if (this.currentIdentity == null) {
-            return;
-        }
-        this.applyIdentityFlightGrant(player, ((EntityAccessor) this.currentIdentity).canFly());
-
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (IdentityTraitTags.burnsInDaylight(identityType) && this.identity2$shouldBurnInDaylight(player)) {
-            player.igniteForSeconds(8.0F);
-        }
-
-        if (IdentityTraitTags.hasSlowFalling(identityType) && !player.onGround() && player.getDeltaMovement().y < 0.0D) {
-            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 10, 0, false, false, true));
-        }
-        this.identity2$applyShulkerMovementLock(player, identityType);
-        this.identity2$applyGuardianWaterMobility(player, identityType);
+        return;
+        
     }
 
     private void identity2$applyShulkerOpenVisualState() {
-        Entity self = (Entity)(Object)this;
-        if (!(self instanceof Player player)) {
-            return;
-        }
-        if (!(this.currentIdentity instanceof net.minecraft.world.entity.monster.Shulker shulker)) {
-            return;
-        }
-        boolean open = PredefIdentityAbilities.isShulkerOpen(player);
-        int targetPeek = open ? 100 : 0;
-        if (((net.Gabou.identity2.util.ShulkerEntityAccessor) shulker).runGetPeekAmount() != targetPeek) {
-            ((net.Gabou.identity2.util.ShulkerEntityAccessor) shulker).setPeekAmount(targetPeek);
-        }
+        return;
+        
     }
 
     private void identity2$applyShulkerMovementLock(Player player, EntityType<?> identityType) {
-        if (identityType != EntityType.SHULKER) {
-            return;
-        }
-        if (!PredefIdentityAbilities.isShulkerOpen(player)) {
-            return;
-        }
-        Vec3 motion = player.getDeltaMovement();
-        player.setDeltaMovement(0.0D, motion.y, 0.0D);
+        return;
+        
     }
 
     private void identity2$applyGuardianWaterMobility(Player player, EntityType<?> identityType) {
-        if (identityType != EntityType.GUARDIAN && identityType != EntityType.ELDER_GUARDIAN) {
-            return;
-        }
-        if (!player.isInWater()) {
-            return;
-        }
-        player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 12, 0, false, false, true));
+        return;
+        
     }
 
     private boolean identity2$shouldBurnInDaylight(Player player) {
-        if (player.isSpectator() || player.getAbilities().instabuild || player.getAbilities().invulnerable) {
-            return false;
-        }
-        if (!player.level().isBrightOutside()) {
-            return false;
-        }
-        if (player.isInWaterOrRain()) {
-            return false;
-        }
-        BlockPos pos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
-        return player.level().canSeeSky(pos);
+        return false;
+        
     }
 
     private void identity2$applyMorphAquaticBreathing(Player player) {
-        if (this.currentIdentity == null) {
-            return;
-        }
-        if (((Entity)(Object)this).level().isClientSide()) {
-            return;
-        }
-        if (!(this.currentIdentity instanceof WaterAnimal)) {
-            return;
-        }
-
-        if (player.isInWater()) {
-            player.setAirSupply(player.getMaxAirSupply());
-            return;
-        }
-
-        // WaterAnimal morphs must lose air on land. Players naturally regain +4 air on land,
-        // so subtract 5 here to match a net -1/tick depletion like vanilla fish logic.
-        int nextAir = player.getAirSupply() - 5;
-        player.setAirSupply(nextAir);
-        if (nextAir <= -20 && player.level() instanceof ServerLevel serverLevel) {
-            player.setAirSupply(0);
-            player.hurtServer(serverLevel, player.damageSources().drown(), 2.0F);
-        }
+        return;
+       
     }
 
 
@@ -627,7 +528,7 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
         //info.setReturnValue(box);
     }
     @Override
-    public net.minecraft.world.item.component.CustomData getCustomData(){
+    public CustomData getCustomData(){
         if(this.customData==CustomData.EMPTY){
         this.customData= CustomData.of(((NbtComponentAccessor)(Object)this.customData).getNbt().copy());
         //Identity2.LOGGER.info("Default Custom Data detected.");
@@ -774,108 +675,18 @@ public class EntityMixin implements net.Gabou.identity2.util.EntityAccessor{
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
-            return;
-        }
-
-        if (variantNbt.getBoolean("IsBaby").isPresent()) {
-            boolean baby = variantNbt.getBooleanOr("IsBaby", false);
-            identity2$invokeOneArg(identityEntity, "setBaby", baby);
-            if (!variantNbt.getInt("Age").isPresent() && !variantNbt.getByte("Age").isPresent()) {
-                identity2$invokeOneArg(identityEntity, "setAge", baby ? -24000 : 0);
-            }
-        } else if (variantNbt.getBoolean("Baby").isPresent()) {
-            boolean baby = variantNbt.getBooleanOr("Baby", false);
-            identity2$invokeOneArg(identityEntity, "setBaby", baby);
-            if (!variantNbt.getInt("Age").isPresent() && !variantNbt.getByte("Age").isPresent()) {
-                identity2$invokeOneArg(identityEntity, "setAge", baby ? -24000 : 0);
-            }
-        }
-
-        if (variantNbt.getInt("Age").isPresent()) {
-            identity2$invokeOneArg(identityEntity, "setAge", variantNbt.getIntOr("Age", 0));
-        } else if (variantNbt.getByte("Age").isPresent()) {
-            identity2$invokeOneArg(identityEntity, "setAge", (int) variantNbt.getByteOr("Age", (byte) 0));
-        }
-
-        if (identityEntity instanceof net.minecraft.world.entity.npc.villager.Villager) {
-            identity2$applyVillagerVariantState(identityEntity, variantNbt);
-        }
+        return;
+        
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        Object villagerData = identity2$invokeNoArg(identityEntity, "getVillagerData");
-        if (villagerData == null) {
-            return;
-        }
-
-        Object updatedVillagerData = villagerData;
-        String professionRaw = variantNbt.getStringOr("VillagerProfession", "");
-        if (!professionRaw.isBlank()) {
-            Identifier professionId = identity2$parseIdentifier(professionRaw);
-            Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
-            if (profession != null) {
-                Object professionHolder = identity2$wrapAsHolder(BuiltInRegistries.VILLAGER_PROFESSION, profession);
-                Object next = professionHolder != null ? identity2$invokeOneArg(updatedVillagerData, "setProfession", professionHolder) : null;
-                if (next == null) {
-                    next = identity2$invokeOneArg(updatedVillagerData, "setProfession", profession);
-                }
-                if (next != null) {
-                    updatedVillagerData = next;
-                }
-            }
-        }
-
-        String typeRaw = variantNbt.getStringOr("VillagerType", "");
-        if (!typeRaw.isBlank()) {
-            Identifier typeId = identity2$parseIdentifier(typeRaw);
-            Object villagerType = identity2$resolveRegistryValue("VILLAGER_TYPE", typeId);
-            if (villagerType != null) {
-                Object typeHolder = identity2$wrapAsHolder(BuiltInRegistries.VILLAGER_TYPE, villagerType);
-                Object next = typeHolder != null ? identity2$invokeOneArg(updatedVillagerData, "setType", typeHolder) : null;
-                if (next == null) {
-                    next = identity2$invokeOneArg(updatedVillagerData, "setType", villagerType);
-                }
-                if (next == null) {
-                    next = typeHolder != null ? identity2$invokeOneArg(updatedVillagerData, "withType", typeHolder) : null;
-                }
-                if (next == null) {
-                    next = identity2$invokeOneArg(updatedVillagerData, "withType", villagerType);
-                }
-                if (next != null) {
-                    updatedVillagerData = next;
-                }
-            }
-        }
-
-        if (variantNbt.getInt("VillagerLevel").isPresent()) {
-            Object next = identity2$invokeOneArg(updatedVillagerData, "setLevel", Math.max(1, variantNbt.getIntOr("VillagerLevel", 1)));
-            if (next == null) {
-                next = identity2$invokeOneArg(updatedVillagerData, "withLevel", Math.max(1, variantNbt.getIntOr("VillagerLevel", 1)));
-            }
-            if (next != null) {
-                updatedVillagerData = next;
-            }
-        }
-
-        if (identity2$invokeOneArg(identityEntity, "setVillagerData", updatedVillagerData) == null) {
-            return;
-        }
-
-        identity2$clearVillagerOffers(identityEntity);
-        identity2$invokeNoArg(identityEntity, "updateTrades");
-        identity2$invokeNoArg(identityEntity, "restock");
+        return;
+        
     }
 
     private static void identity2$clearVillagerOffers(Object villager) {
-        Object offers = identity2$invokeNoArg(villager, "getOffers");
-        if (offers instanceof List<?> list) {
-            list.clear();
-            return;
-        }
-        if (offers != null) {
-            identity2$invokeNoArg(offers, "clear");
-        }
+        return;
+        
     }
 
     @Nullable
