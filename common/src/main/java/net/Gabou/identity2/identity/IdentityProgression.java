@@ -31,6 +31,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -1211,6 +1212,21 @@ public final class IdentityProgression {
             Object value = BuiltInRegistries.class.getField(fieldName).get(null);
             if (value instanceof Registry<?> registry) {
                 return registry;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object registryKeyObj = Registries.class.getField(fieldName).get(null);
+            if (!(registryKeyObj instanceof net.minecraft.resources.ResourceKey<?> registryKey)) {
+                return null;
+            }
+            ResourceLocation location = registryKey.location();
+            if (location == null || BuiltInRegistries.REGISTRY == null) {
+                return null;
+            }
+            Object registry = BuiltInRegistries.REGISTRY.getValue(location);
+            if (registry instanceof Registry<?> typedRegistry) {
+                return typedRegistry;
             }
         } catch (Throwable ignored) {
         }

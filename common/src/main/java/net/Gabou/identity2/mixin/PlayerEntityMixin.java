@@ -15,6 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -42,5 +48,37 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             info.setReturnValue(true);
         }
 	}
-}
 
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
+        if (((Entity)(Object)this).level().isClientSide()) {
+            return;
+        }
+        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
+            return;
+        }
+        if (livingTarget.isDeadOrDying()) {
+            return;
+        }
+        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
+            return;
+        }
+
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (identityType == EntityType.CAVE_SPIDER) {
+            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
+                case HARD -> 300;
+                case NORMAL -> 140;
+                default -> 0;
+            };
+            if (poisonDuration > 0) {
+                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
+            }
+            return;
+        }
+
+        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
+            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
+        }
+    }
+}

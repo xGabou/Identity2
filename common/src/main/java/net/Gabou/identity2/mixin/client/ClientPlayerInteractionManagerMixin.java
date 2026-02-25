@@ -34,10 +34,8 @@ public class ClientPlayerInteractionManagerMixin {
 
     @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true, require = 0)
     private void forceFlyIdentityAlwaysFlying(CallbackInfoReturnable<Boolean> info) {
-        if (identity2$hasFlyIdentity()) {
-            // 1.21.9 path: keep always-flying active for fly-capable identities.
-            info.setReturnValue(true);
-        }
+        // Do not force always-flying for morph flight. Keep vanilla toggle behavior
+        // so players can exit flight after changing gamemode or morph state.
     }
 
     private static boolean identity2$hasFlyIdentity() {

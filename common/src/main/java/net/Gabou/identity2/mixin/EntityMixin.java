@@ -36,6 +36,7 @@ import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -389,11 +390,17 @@ public class EntityMixin implements EntityAccessor{
         if (((Entity)(Object)this).level().isClientSide()) {
             return;
         }
-        if (!Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))) {
+        boolean aquaticMorph = Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()));
+        if (!aquaticMorph) {
+            // Clear stale aquatic air state when switching back to a terrestrial morph.
+            // This keeps air bubbles hidden on land for non-aquatic entities.
+            if (!player.isInWater() && player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(player.getMaxAirSupply());
+            }
             return;
         }
 
-        if (player.isInWaterOrRain()) {
+        if (player.isInWater()) {
             player.setAirSupply(player.getMaxAirSupply());
             return;
         }
@@ -804,20 +811,17 @@ public class EntityMixin implements EntityAccessor{
         if (id == null) {
             return null;
         }
-        try {
-            Object registry = BuiltInRegistries.class.getField(registryField).get(null);
-            if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
-                @SuppressWarnings("unchecked")
-                net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
-                return cast.getValue(id);
-            }
-        } catch (Throwable ignored) {
+        Object registry = identity2$getBuiltInRegistryObject(registryField);
+        if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
+            @SuppressWarnings("unchecked")
+            net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
+            return cast.getValue(id);
         }
         return null;
     }
 
     private static void identity2$applyRegistryBackedVariant(Entity identityEntity, CompoundTag variantNbt, String nbtKey, String registryField) {
-        String raw = identity2$readVariantString(variantNbt, nbtKey);
+        String raw = identity2$readVariantString(variantNbt, nbtKey, "variant", "Variant");
         ResourceLocation variantId = identity2$parseResourceLocation(raw);
         if (variantId == null) {
             return;
@@ -847,8 +851,23 @@ public class EntityMixin implements EntityAccessor{
         try {
             return BuiltInRegistries.class.getField(fieldName).get(null);
         } catch (Throwable ignored) {
-            return null;
         }
+
+        // 1.21.8: some registries (cat/wolf/frog variants) are exposed as keys in Registries
+        // rather than direct BuiltInRegistries fields.
+        try {
+            Object registryKeyObj = Registries.class.getField(fieldName).get(null);
+            if (!(registryKeyObj instanceof net.minecraft.resources.ResourceKey<?> registryKey)) {
+                return null;
+            }
+            ResourceLocation location = registryKey.location();
+            if (location == null || BuiltInRegistries.REGISTRY == null) {
+                return null;
+            }
+            return BuiltInRegistries.REGISTRY.getValue(location);
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private static String identity2$readVariantString(CompoundTag variantNbt, String... keys) {

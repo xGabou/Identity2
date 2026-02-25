@@ -23,7 +23,6 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.client.player.AbstractClientPlayer;
 import com.mojang.math.Axis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -106,7 +105,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
         )
     )
     private void identity2$redirectRenderPlayerRightArm(
@@ -115,8 +114,7 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible,
-        AbstractClientPlayer player
+        boolean sleeveVisible
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
@@ -126,7 +124,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
         )
     )
     private void identity2$redirectRenderMapRightArm(
@@ -135,8 +133,7 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible,
-        AbstractClientPlayer player
+        boolean sleeveVisible
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
     }
@@ -146,7 +143,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
         )
     )
     private void identity2$redirectRenderPlayerLeftArm(
@@ -155,8 +152,7 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible,
-        AbstractClientPlayer player
+        boolean sleeveVisible
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }
@@ -166,7 +162,7 @@ public class HeldItemRendererMixin {
         require = 1,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;ZLnet/minecraft/client/player/AbstractClientPlayer;)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
         )
     )
     private void identity2$redirectRenderMapLeftArm(
@@ -175,8 +171,7 @@ public class HeldItemRendererMixin {
         MultiBufferSource queue,
         int light,
         ResourceLocation skinTexture,
-        boolean sleeveVisible,
-        AbstractClientPlayer player
+        boolean sleeveVisible
     ) {
         identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
     }

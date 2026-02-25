@@ -436,6 +436,21 @@ public final class IdentityVariantDiscovery {
             }
         } catch (Throwable ignored) {
         }
+        try {
+            Object registryKeyObj = net.minecraft.core.registries.Registries.class.getField(fieldName).get(null);
+            if (!(registryKeyObj instanceof net.minecraft.resources.ResourceKey<?> registryKey)) {
+                return null;
+            }
+            ResourceLocation location = registryKey.location();
+            if (location == null || net.minecraft.core.registries.BuiltInRegistries.REGISTRY == null) {
+                return null;
+            }
+            Object registry = net.minecraft.core.registries.BuiltInRegistries.REGISTRY.getValue(location);
+            if (registry instanceof Registry<?> typedRegistry) {
+                return typedRegistry;
+            }
+        } catch (Throwable ignored) {
+        }
         return null;
     }
 
