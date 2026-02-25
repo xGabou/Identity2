@@ -30,9 +30,9 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 @Mixin(EntityLookup.class)
 public class EntityIndexMixin{
     @Redirect(
-        method = "forEach(Lnet/minecraft/world/level/entity/EntityTypeTest;Lnet/minecraft/world/phys/AABB;Lnet/minecraft/util/AbortableIterationConsumer;)V",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/entity/EntityTypeTest;tryCast(Ljava/lang/Object;)Ljava/lang/Object;"),
-        require = 0
+            method = "getEntities(Lnet/minecraft/world/level/entity/EntityTypeTest;Lnet/minecraft/util/AbortableIterationConsumer;)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/entity/EntityTypeTest;tryCast(Ljava/lang/Object;)Ljava/lang/Object;"),
+            require = 0
     )
     private <T,U extends T> U replaceDowncast(EntityTypeTest<T,U> filter, T toDowncast) {
         if(net.Gabou.identity2.Identity2.indexOverrideActive!=0){
