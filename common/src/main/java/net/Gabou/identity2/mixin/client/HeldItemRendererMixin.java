@@ -116,12 +116,12 @@ public class HeldItemRendererMixin{
             if (targetPart == null) {
                 targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_FRONT_LEG);
             }
-            if (targetPart == null) {
+            /*if (targetPart == null) {
                 targetPart = eModel.root().createPartLookup().apply("body");
             }
             if (targetPart == null) {
                 targetPart = eModel.root();
-            }
+            }*/
 
             Identifier texture = null;
             if (idrenderer instanceof LivingEntityRenderer lidr && identity instanceof LivingEntity livingIdentity) {
@@ -185,12 +185,12 @@ public class HeldItemRendererMixin{
             if (targetPart == null) {
                 targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_FRONT_LEG);
             }
-            if (targetPart == null) {
+            /*if (targetPart == null) {
                 targetPart = eModel.root().createPartLookup().apply("body");
             }
             if (targetPart == null) {
                 targetPart = eModel.root();
-            }
+            }*/
 
             Identifier texture = null;
             if (idrenderer instanceof LivingEntityRenderer lidr && identity instanceof LivingEntity livingIdentity) {
