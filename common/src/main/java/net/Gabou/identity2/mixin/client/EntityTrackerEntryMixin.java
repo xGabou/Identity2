@@ -31,13 +31,7 @@ public abstract class EntityTrackerEntryMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void identity2$init(
-            ServerLevel world,
-            Entity entity,
-            int tickInterval,
-            boolean alwaysUpdateVelocity,
-            Consumer<Packet<?>> watchingSender,
-            BiConsumer<Packet<?>, List<UUID>> filteredWatchingSender,
-            CallbackInfo ci
+            ServerLevel serverLevel, Entity entity, int i, boolean bl, Consumer consumer, CallbackInfo ci
     ) {
         if (((EntityAccessor) entity).getCurrentIdentity() != null) {
             this.changedIdentityEntries = ((EntityAccessor) entity).getCurrentIdentity()

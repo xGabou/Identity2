@@ -1,46 +1,38 @@
 package net.Gabou.identity2.mixin;
-import com.google.common.collect.Lists;
-import java.util.List;
+
+import net.Gabou.identity2.Identity2;
+import net.minecraft.world.level.border.WorldBorder;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-import net.minecraft.world.level.border.WorldBorder;
-import java.util.Set;
-import org.jetbrains.annotations.Nullable;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.context.CommandContext;
-import net.Gabou.identity2.ModComponents;
-import net.Gabou.identity2.Identity2;
-import org.spongepowered.asm.mixin.Overwrite;
+
 @Mixin(WorldBorder.class)
-public class WorldBorderMixin{
-    @Shadow
-    public static final double MAX_CENTER_COORDINATE = Identity2.maxWorldSize;
-    @Shadow
-    int absoluteMaxSize = Identity2.maxWorldSize-16;
+public abstract class WorldBorderMixin {
+    @ModifyConstant(method = "<init>", constant = @Constant(intValue = 29999984), require = 0)
+    private int identity2$expandAbsoluteMaxSize(int original) {
+        return Identity2.maxWorldSize - 16;
+    }
+
+    @ModifyConstant(method = "<init>", constant = @Constant(doubleValue = 5.9999968E7D), require = 0)
+    private double identity2$expandDefaultBorderSize(double original) {
+        return (Identity2.maxWorldSize - 16) * 2.0D;
+    }
+
+    @ModifyConstant(method = "<clinit>", constant = @Constant(doubleValue = 5.9999968E7D), require = 0)
+    private static double identity2$expandDefaultSettingsSize(double original) {
+        return (Identity2.maxWorldSize - 16) * 2.0D;
+    }
+
     @Mixin(WorldBorder.Settings.class)
-    public static class Properties{
-        @ModifyConstant(constant=@Constant(doubleValue=-2.9999984E7),method="fromDynamic")
-        private static double TDIOA(double x){
-            return -Identity2.maxWorldSize+16;
+    public abstract static class SettingsMixin {
+        @ModifyConstant(method = "read", constant = @Constant(doubleValue = -2.9999984E7D), require = 0)
+        private static double identity2$expandMinCenterCoordinate(double original) {
+            return -Identity2.maxWorldSize + 16;
         }
-        @ModifyConstant(constant=@Constant(doubleValue=2.9999984E7),method="fromDynamic")
-        private static double TDIOB(double x){
-            return Identity2.maxWorldSize-16;
+
+        @ModifyConstant(method = "read", constant = @Constant(doubleValue = 2.9999984E7D), require = 0)
+        private static double identity2$expandMaxCenterCoordinate(double original) {
+            return Identity2.maxWorldSize - 16;
         }
     }
 }
-

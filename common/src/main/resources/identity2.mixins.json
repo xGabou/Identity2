@@ -11,6 +11,7 @@
     "EntityMixin",
     "ServerPlayNetworkHandlerMixin",
     "WorldBorderMixin",
+    "WorldBorderMixin$SettingsMixin",
     "PlayerInventoryMixin",
     "EntityEquipmentMixin",
     "PlayerManagerMixin",

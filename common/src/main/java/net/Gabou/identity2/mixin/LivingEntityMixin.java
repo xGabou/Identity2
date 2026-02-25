@@ -43,6 +43,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
@@ -331,14 +332,24 @@ private void pushAwayFromIdentity(Entity entity,CallbackInfo info){
 }
 
 
-@Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
-private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            if(livingIdentity.canUseSlot(slot)==false){
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-            }
-        }
+@Inject(method = "getMainHandItem()Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
+private void identity2$getMainHandItemIdentity(CallbackInfoReturnable<ItemStack> info){
+    if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(EquipmentSlot.MAINHAND)) {
+        info.setReturnValue(Items.AIR.getDefaultInstance());
+    }
+}
+
+@Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
+private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info){
+    if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(EquipmentSlot.OFFHAND)) {
+        info.setReturnValue(Items.AIR.getDefaultInstance());
+    }
+}
+
+@Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
+private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info){
+    if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(slot)) {
+        info.setReturnValue(false);
     }
 }
 @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
