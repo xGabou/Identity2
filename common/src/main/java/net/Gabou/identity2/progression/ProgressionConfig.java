@@ -22,19 +22,19 @@ public final class ProgressionConfig {
     }
 
     public static boolean enableMorphCharges() {
-        return resolveAliasedBoolean(IdentitySettings.enableMorphChargeSystem, IdentitySettings.EnableMorphCharges, true);
+        return IdentitySettings.enableMorphChargeSystem || IdentitySettings.EnableMorphCharges;
     }
 
     public static boolean enableSoulJars() {
-        return resolveAliasedBoolean(IdentitySettings.enableSoulJarSystem, IdentitySettings.EnableSoulJars, false);
+        return IdentitySettings.enableSoulJarSystem || IdentitySettings.EnableSoulJars;
     }
 
     public static boolean enablePermanentJarMorphs() {
-        return resolveAliasedBoolean(IdentitySettings.enablePermanentMorphs, IdentitySettings.EnablePermanentJarMorphs, false);
+        return IdentitySettings.enablePermanentMorphs || IdentitySettings.EnablePermanentJarMorphs;
     }
 
     public static boolean enableSoulAbsorption() {
-        return resolveAliasedBoolean(IdentitySettings.enableSoulAbsorption, IdentitySettings.EnableSoulAbsorption, false);
+        return IdentitySettings.enableSoulAbsorption || IdentitySettings.EnableSoulAbsorption;
     }
 
     public static boolean requireChargeForMorphing() {
@@ -49,7 +49,7 @@ public final class ProgressionConfig {
             return true;
         }
         return IdentitySettings.bypassMorphChargesForOperators
-            && player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
+                && player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 
 
@@ -117,15 +117,5 @@ public final class ProgressionConfig {
             out.put(tier, value);
         }
         return out;
-    }
-
-    private static boolean resolveAliasedBoolean(boolean primary, boolean alias, boolean defaultValue) {
-        if (primary != defaultValue) {
-            return primary;
-        }
-        if (alias != defaultValue) {
-            return alias;
-        }
-        return primary;
     }
 }

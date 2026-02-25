@@ -32,6 +32,10 @@ public class LimbAnimatorMixin implements LimbAnimatorAccessor{
     private float speedOld;
     @Shadow
     private float speed;
+    @Shadow
+    private float position;
+    @Shadow
+    private float positionScale;
     public void setPrevSpeed(float lastSpeed){
         this.speedOld=lastSpeed;
     };
@@ -49,6 +53,26 @@ public class LimbAnimatorMixin implements LimbAnimatorAccessor{
     @Override
     public float getSpeed() {
         return this.speed();
+    }
+
+    @Override
+    public void setPosition(float position) {
+        this.position = position;
+    }
+
+    @Override
+    public void setPositionScale(float positionScale) {
+        this.positionScale = positionScale;
+    }
+
+    @Override
+    public float getPosition() {
+        return this.position;
+    }
+
+    @Override
+    public float getPositionScale() {
+        return this.positionScale;
     }
 }
 

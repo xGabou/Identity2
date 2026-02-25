@@ -31,6 +31,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -43,6 +44,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -57,7 +59,6 @@ public final class IdentityProgression {
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
     private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
     public static final ResourceLocation PLAYER_IDENTITY_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "player");
-    private static final ResourceLocation GIANT_EASTER_EGG_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
 
@@ -70,6 +71,7 @@ public final class IdentityProgression {
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
     public static final String PREVIOUS_IDENTITY_TYPE_KEY = "identity2.previous_identity_type";
     public static final String PREVIOUS_IDENTITY_VARIANT_KEY = "identity2.previous_identity_variant";
+    public static final String MORPH_DAMAGE_GRACE_END_TICK_KEY = "identity2.morph_damage_grace_end_tick";
     public static final String TRANSITION_START_TICK_KEY = "identity2.transition_start_tick";
     public static final String TRANSITION_DURATION_TICKS_KEY = "identity2.transition_duration_ticks";
     public static final String BASE_PLAYER_TRANSITION_SENTINEL = "identity2:base_player";
@@ -130,6 +132,16 @@ public final class IdentityProgression {
         Identity2.LOGGER.error("Temporarily disabled identity {}: {}", identityId, safeReason);
     }
 
+    public static boolean isMorphDamageGraceActive(Player player) {
+        if (player == null || player.level() == null || player.level().isClientSide()) {
+            return false;
+        }
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        double endTick = nbt.getDoubleOr(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+        return endTick > 0.0D && player.level().getGameTime() <= endTick;
+    }
+
     public static boolean isMorphableType(EntityType<?> entityType) {
         if (entityType == null) {
             return false;
@@ -167,13 +179,21 @@ public final class IdentityProgression {
         }
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        double previousWidth = nbt.getDoubleOr("width_override", 0.0D);
+        double previousHeight = nbt.getDoubleOr("height_override", 0.0D);
+        if (previousWidth <= 0.0D) {
+            previousWidth = player.getBbWidth();
+        }
+        if (previousHeight <= 0.0D) {
+            previousHeight = player.getBbHeight();
+        }
         String previousType = resolveTransitionSourceType(nbt);
         String previousVariant = resolveTransitionSourceVariant(nbt, previousType);
         if (previousType.isBlank()) {
             previousType = BASE_PLAYER_TRANSITION_SENTINEL;
             previousVariant = "";
         }
-        double transitionDuration = resolveTransitionDurationTicks();
+        double transitionDuration = Math.max(0, IdentitySettings.morphTransitionTicks);
         double transitionStart = player.level() != null ? player.level().getGameTime() : 0.0D;
         setTransitionData(nbt, previousType, previousVariant, transitionStart, transitionDuration);
         if (transitionDuration <= 0.0D) {
@@ -189,6 +209,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             applyHealthScaling(player, null);
@@ -206,6 +227,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             syncMorphData(player, "", "", 0.0, 0.0, "", "", 0.0, 0.0);
             return false;
@@ -218,6 +240,7 @@ public final class IdentityProgression {
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
+        applyMorphDamageGrace(player, nbt, previousWidth, previousHeight, widthOverride, heightOverride);
 
         float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
         float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
@@ -240,7 +263,7 @@ public final class IdentityProgression {
             previousType = BASE_PLAYER_TRANSITION_SENTINEL;
             previousVariant = "";
         }
-        double transitionDuration = resolveTransitionDurationTicks();
+        double transitionDuration = Math.max(0, IdentitySettings.morphTransitionTicks);
         double transitionStart = player.level() != null ? player.level().getGameTime() : 0.0D;
         setTransitionData(nbt, previousType, previousVariant, transitionStart, transitionDuration);
         if (transitionDuration <= 0.0D) {
@@ -253,6 +276,7 @@ public final class IdentityProgression {
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
+        clearMorphDamageGrace(nbt);
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -273,6 +297,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
@@ -286,6 +311,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_TYPE_KEY, PLAYER_IDENTITY_ID.toString());
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
@@ -300,6 +326,7 @@ public final class IdentityProgression {
         if (identity == null) {
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -452,10 +479,6 @@ public final class IdentityProgression {
         Map<String, List<String>> variantUnlocks = new HashMap<>(
             customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
-        if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
-            customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-            customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
-        }
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
     }
@@ -676,7 +699,6 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
         syncUnlockCaches(player, unlocked, variantUnlocks);
         return true;
     }
@@ -699,7 +721,6 @@ public final class IdentityProgression {
         // If this identity is already wildcard-unlocked (legacy/admin), keep it unrestricted.
         if (previouslyUnlocked && !variantUnlocks.containsKey(key)) {
             if (changed) {
-                tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
                 syncUnlockCaches(player, unlocked, variantUnlocks);
             }
             return changed;
@@ -717,55 +738,8 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
         syncUnlockCaches(player, unlocked, variantUnlocks);
         return true;
-    }
-
-    private static boolean tryUnlockGiantEasterEgg(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
-        if (player == null || unlocked == null || variantUnlocks == null) {
-            return false;
-        }
-        if (!isMorphableIdentity(GIANT_EASTER_EGG_ID)) {
-            return false;
-        }
-        String giantId = GIANT_EASTER_EGG_ID.toString();
-        if (unlocked.contains(giantId)) {
-            return false;
-        }
-        if (!hasAllBaseMinecraftMorphsUnlocked(unlocked)) {
-            return false;
-        }
-
-        unlocked.add(giantId);
-        variantUnlocks.remove(giantId);
-        player.displayClientMessage(Component.literal("Easter Egg unlocked: minecraft:giant"), false);
-        Identity2.LOGGER.info("Unlocked easter egg identity {} for {}", GIANT_EASTER_EGG_ID, player.getName().getString());
-        return true;
-    }
-
-    private static boolean hasAllBaseMinecraftMorphsUnlocked(List<String> unlocked) {
-        if (unlocked == null || unlocked.isEmpty()) {
-            return false;
-        }
-        Set<String> unlockedSet = new LinkedHashSet<>(unlocked);
-        boolean foundRequired = false;
-        for (ResourceLocation identityId : BuiltInRegistries.ENTITY_TYPE.keySet()) {
-            if (identityId == null || !"minecraft".equals(identityId.getNamespace())) {
-                continue;
-            }
-            if (PLAYER_IDENTITY_ID.equals(identityId) || GIANT_EASTER_EGG_ID.equals(identityId)) {
-                continue;
-            }
-            if (!isMorphableIdentity(identityId)) {
-                continue;
-            }
-            foundRequired = true;
-            if (!unlockedSet.contains(identityId.toString())) {
-                return false;
-            }
-        }
-        return foundRequired;
     }
 
     private static void syncUnlockCaches(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
@@ -878,6 +852,9 @@ public final class IdentityProgression {
     }
 
     private static void broadcastAcquisitionAnimation(ServerPlayer player, LivingEntity acquired, boolean morphAcquisition) {
+        if (!IdentitySettings.enableMorphAcquisitionTendrils) {
+            return;
+        }
         if (!(player.level() instanceof ServerLevel serverWorld)) {
             return;
         }
@@ -903,14 +880,6 @@ public final class IdentityProgression {
             source = nbt.getStringOr("model_override", "");
         }
         return source;
-    }
-
-    private static double resolveTransitionDurationTicks() {
-        int configured = IdentitySettings.morphTransitionTicks;
-        if (configured > 0) {
-            return configured;
-        }
-        return 20.0D;
     }
 
     private static String resolveTransitionSourceVariant(CompoundTag nbt, String sourceType) {
@@ -944,6 +913,33 @@ public final class IdentityProgression {
         nbt.putDouble(TRANSITION_DURATION_TICKS_KEY, 0.0D);
     }
 
+    private static void applyMorphDamageGrace(
+        ServerPlayer player,
+        CompoundTag nbt,
+        double previousWidth,
+        double previousHeight,
+        double nextWidth,
+        double nextHeight
+    ) {
+        if (player == null || nbt == null) {
+            return;
+        }
+        boolean grew = (nextWidth - previousWidth) > 1.0E-4D || (nextHeight - previousHeight) > 1.0E-4D;
+        if (!grew) {
+            clearMorphDamageGrace(nbt);
+            return;
+        }
+        double endTick = (player.level() == null ? 0.0D : player.level().getGameTime()) + 40.0D;
+        nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, endTick);
+    }
+
+    private static void clearMorphDamageGrace(CompoundTag nbt) {
+        if (nbt == null) {
+            return;
+        }
+        nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+    }
+
     private static CompoundTag getCustomData(ServerPlayer player) {
         CustomData customData = ((EntityAccessor) player).getCustomData();
         return ((NbtComponentAccessor) (Object) customData).getNbt();
@@ -962,14 +958,8 @@ public final class IdentityProgression {
 
         if (!IdentitySettings.scalingHealth || !(identity instanceof LivingEntity livingIdentity)) {
             float newMaxHealth = player.getMaxHealth();
-            // When scaling is disabled, avoid rewriting health every morph/login tick.
-            // Only clamp if health is outside the valid range.
-            float current = player.getHealth();
-            if (current > newMaxHealth) {
-                player.setHealth(newMaxHealth);
-            } else if (current < 1.0F) {
-                player.setHealth(1.0F);
-            }
+            float scaled = Mth.clamp(healthRatio * newMaxHealth, 1.0F, newMaxHealth);
+            player.setHealth(scaled);
             return;
         }
 
@@ -1211,6 +1201,33 @@ public final class IdentityProgression {
             Object value = BuiltInRegistries.class.getField(fieldName).get(null);
             if (value instanceof Registry<?> registry) {
                 return registry;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                ResourceLocation location = null;
+                Object byLocation = invokeNoArg(resourceKey, "location");
+                if (byLocation instanceof ResourceLocation id) {
+                    location = id;
+                } else {
+                    Object byResourceLocation = invokeNoArg(resourceKey, "identifier");
+                    if (byResourceLocation instanceof ResourceLocation id) {
+                        location = id;
+                    } else {
+                        Object byRegistry = invokeNoArg(resourceKey, "registry");
+                        if (byRegistry instanceof ResourceLocation id2) {
+                            location = id2;
+                        }
+                    }
+                }
+                if (location != null) {
+                    Object value = BuiltInRegistries.REGISTRY.getValue(location);
+                    if (value instanceof Registry<?> registry) {
+                        return registry;
+                    }
+                }
             }
         } catch (Throwable ignored) {
         }

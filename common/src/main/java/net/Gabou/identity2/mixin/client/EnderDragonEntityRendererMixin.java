@@ -3,8 +3,6 @@ package net.Gabou.identity2.mixin.client;
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.List;
-
-import net.minecraft.client.model.dragon.EnderDragonModel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,6 +19,7 @@ import java.util.Set;
 import net.Gabou.identity2.ModBlocks;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.client.model.dragon.EnderDragonModel;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 @Mixin(EnderDragonRenderer.class)

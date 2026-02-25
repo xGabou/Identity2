@@ -9,6 +9,8 @@
 		"MinecraftClientMixin",
 		"PlayerEntityRendererMixin",
 		"HeldItemRendererMixin",
+		"InventoryScreenMixin",
+		"CreativeModeInventoryScreenMixin",
 		"EnderDragonEntityRendererMixin",
 		"ClientPlayerInteractionManagerMixin",
 		"ClientPlayNetworkHandlerMixin",

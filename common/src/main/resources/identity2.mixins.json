@@ -12,6 +12,7 @@
     "ServerPlayNetworkHandlerMixin",
     "WorldBorderMixin",
     "PlayerInventoryMixin",
+    "PlayerEntityMixin",
     "EntityEquipmentMixin",
     "PlayerManagerMixin",
     "MinecraftServerMixin",

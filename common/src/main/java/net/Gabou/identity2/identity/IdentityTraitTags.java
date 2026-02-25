@@ -98,19 +98,19 @@ public final class IdentityTraitTags {
         return type.is(CAN_BREATHE_UNDERWATER) || type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
     }
 
-    public static boolean burnsInDaylight(EntityType<?> type) {
-        if (type == null) {
-            return false;
-        }
-        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-        if (typeId != null) {
-            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT));
-            if (assignmentOverride != null) {
-                return assignmentOverride;
-            }
-        }
-        return type.is(BURNS_IN_DAYLIGHT);
-    }
+//    public static boolean burnsInDaylight(EntityType<?> type) {
+//        if (type == null) {
+//            return false;
+//        }
+//        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+//        if (typeId != null) {
+//            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
+//            if (assignmentOverride != null) {
+//                return assignmentOverride;
+//            }
+//        }
+//        return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
+//    }
 
     public static boolean hasSlowFalling(EntityType<?> type) {
         if (type == null) {

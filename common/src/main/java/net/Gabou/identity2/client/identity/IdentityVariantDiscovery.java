@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.lang.reflect.Method;
 import net.Gabou.identity2.identity.IdentityVariant;
-import net.minecraft.core.Registry;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ProblemReporter;
@@ -22,35 +23,6 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 
 public final class IdentityVariantDiscovery {
-    private static final List<String> CAT_VARIANT_FALLBACK_IDS = List.of(
-        "minecraft:tabby",
-        "minecraft:black",
-        "minecraft:red",
-        "minecraft:siamese",
-        "minecraft:british_shorthair",
-        "minecraft:calico",
-        "minecraft:persian",
-        "minecraft:ragdoll",
-        "minecraft:white",
-        "minecraft:jellie",
-        "minecraft:all_black"
-    );
-    private static final List<String> WOLF_VARIANT_FALLBACK_IDS = List.of(
-        "minecraft:pale",
-        "minecraft:spotted",
-        "minecraft:snowy",
-        "minecraft:black",
-        "minecraft:ashen",
-        "minecraft:rusty",
-        "minecraft:woods",
-        "minecraft:chestnut",
-        "minecraft:striped"
-    );
-    private static final List<String> FROG_VARIANT_FALLBACK_IDS = List.of(
-        "minecraft:temperate",
-        "minecraft:warm",
-        "minecraft:cold"
-    );
     private static final List<String> CANDIDATE_KEYS = List.of(
         "Color",
         "Variant",
@@ -67,7 +39,7 @@ public final class IdentityVariantDiscovery {
         "VillagerLevel"
     );
     private static final int MAX_NUMERIC_VARIANT_VALUE = 31;
-    private static final int MAX_VARIANT_SAMPLE_COUNT = 32;
+    private static final int MAX_CAT_SAMPLES = 32;
 
     private IdentityVariantDiscovery() {
     }
@@ -83,14 +55,17 @@ public final class IdentityVariantDiscovery {
                 return List.of(defaultVariant(type));
             }
 
-            List<IdentityVariant> variants = discoverKnownVariants(type, typeId, world);
-            if (variants.isEmpty()) {
-                variants = discoverGenericVariants(type, typeId, world);
+            List<IdentityVariant> known = discoverKnownVariants(type, typeId, world);
+            if (!known.isEmpty()) {
+                return known;
             }
-            if (variants.isEmpty()) {
-                variants = List.of(defaultVariant(typeId));
+
+            List<IdentityVariant> generic = discoverGenericVariants(type, typeId, world);
+            if (!generic.isEmpty()) {
+                return generic;
             }
-            return withBabyVariants(type, typeId, world, variants);
+
+            return List.of(defaultVariant(typeId));
         } catch (Throwable ignored) {
             return List.of(defaultVariant(type));
         }
@@ -120,42 +95,96 @@ public final class IdentityVariantDiscovery {
         }
 
         if (type == EntityType.CAT) {
-            List<IdentityVariant> catVariants = discoverRegistryVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat");
-            if (!catVariants.isEmpty()) {
-                return catVariants;
+            List<IdentityVariant> variants = discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat");
+            if (!variants.isEmpty()) {
+                return variants;
             }
-            catVariants = discoverStringVariantsFromSamples(type, typeId, world, Set.of("CatVariant", "variant", "Variant"), "Cat", "CatVariant");
-            if (!catVariants.isEmpty()) {
-                return catVariants;
-            }
-            return buildFallbackStringVariants(typeId, "Cat", "CatVariant", CAT_VARIANT_FALLBACK_IDS);
+            return discoverCatStringVariants(type, typeId, world);
         }
-
         if (type == EntityType.WOLF) {
-            List<IdentityVariant> wolfVariants = discoverRegistryVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf");
-            if (!wolfVariants.isEmpty()) {
-                return wolfVariants;
-            }
-            wolfVariants = discoverStringVariantsFromSamples(type, typeId, world, Set.of("WolfVariant", "variant", "Variant"), "Wolf", "WolfVariant");
-            if (!wolfVariants.isEmpty()) {
-                return wolfVariants;
-            }
-            return buildFallbackStringVariants(typeId, "Wolf", "WolfVariant", WOLF_VARIANT_FALLBACK_IDS);
+            return discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf");
         }
-
         if (type == EntityType.FROG) {
-            List<IdentityVariant> frogVariants = discoverRegistryVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog");
-            if (!frogVariants.isEmpty()) {
-                return frogVariants;
-            }
-            frogVariants = discoverStringVariantsFromSamples(type, typeId, world, Set.of("FrogVariant", "variant", "Variant"), "Frog", "FrogVariant");
-            if (!frogVariants.isEmpty()) {
-                return frogVariants;
-            }
-            return buildFallbackStringVariants(typeId, "Frog", "FrogVariant", FROG_VARIANT_FALLBACK_IDS);
+            return discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog");
         }
 
         return List.of();
+    }
+
+    private static List<IdentityVariant> discoverRegistryBackedVariants(
+        ResourceLocation typeId,
+        String registryField,
+        String variantKey,
+        String labelPrefix
+    ) {
+        Registry<?> registry = resolveRegistry(registryField);
+        if (registry == null || registry.keySet().isEmpty()) {
+            return List.of();
+        }
+        List<ResourceLocation> keys = new ArrayList<>(registry.keySet());
+        keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
+        List<IdentityVariant> variants = new ArrayList<>(keys.size());
+        for (ResourceLocation variantId : keys) {
+            if (variantId == null) {
+                continue;
+            }
+            CompoundTag nbt = new CompoundTag();
+            nbt.putString(variantKey, variantId.toString());
+            variants.add(new IdentityVariant(typeId, labelPrefix + " " + capitalize(variantId.getPath().replace('_', ' ')), nbt));
+        }
+        return variants;
+    }
+
+    private static Registry<?> resolveRegistry(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        try {
+            Object direct = BuiltInRegistries.class.getField(fieldName).get(null);
+            if (direct instanceof Registry<?> registry) {
+                return registry;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                Object value = BuiltInRegistries.REGISTRY.getValue(resourceKey.location());
+                if (value instanceof Registry<?> registry) {
+                    return registry;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+        Set<String> keys = Set.of("variant", "Variant");
+        Map<String, IdentityVariant> out = new LinkedHashMap<>();
+        for (int i = 0; i < MAX_CAT_SAMPLES; i++) {
+            Entity entity = createEntity(type, world);
+            if (entity == null) {
+                continue;
+            }
+
+            CompoundTag nbt = writeEntityData(entity, world);
+            if (nbt == null) {
+                continue;
+            }
+
+            for (String key : keys) {
+                String value = nbt.getStringOr(key, "");
+                if (value.isBlank()) {
+                    continue;
+                }
+                CompoundTag variant = new CompoundTag();
+                variant.putString(key, value);
+                out.putIfAbsent(value, new IdentityVariant(typeId, "Cat " + capitalize(value), variant));
+            }
+        }
+
+        return new ArrayList<>(out.values());
     }
 
     private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
@@ -228,225 +257,6 @@ public final class IdentityVariantDiscovery {
     private static Entity createEntity(EntityType<?> type, ClientLevel world) {
         try {
             return type.create(world, EntitySpawnReason.COMMAND);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static List<IdentityVariant> discoverRegistryVariants(
-        ResourceLocation typeId,
-        String registryField,
-        String nbtKey,
-        String prefix
-    ) {
-        Registry<?> registry = getBuiltInRegistry(registryField);
-        if (registry == null) {
-            return List.of();
-        }
-
-        Map<String, IdentityVariant> variants = new LinkedHashMap<>();
-        for (Object value : registry) {
-            ResourceLocation variantId = resolveRegistryKey(registry, value);
-            if (variantId == null) {
-                continue;
-            }
-            CompoundTag nbt = createVariantStringNbt(nbtKey, variantId.toString());
-            String display = prefix + " " + capitalize(variantId.getPath().replace('_', ' '));
-            variants.putIfAbsent(variantId.toString(), new IdentityVariant(typeId, display, nbt));
-        }
-        return new ArrayList<>(variants.values());
-    }
-
-    private static List<IdentityVariant> discoverStringVariantsFromSamples(
-        EntityType<?> type,
-        ResourceLocation typeId,
-        ClientLevel world,
-        Set<String> keys,
-        String prefix,
-        String preferredKey
-    ) {
-        if (keys == null || keys.isEmpty()) {
-            return List.of();
-        }
-        Map<String, IdentityVariant> out = new LinkedHashMap<>();
-        for (int i = 0; i < MAX_VARIANT_SAMPLE_COUNT; i++) {
-            Entity entity = createEntity(type, world);
-            if (entity == null) {
-                continue;
-            }
-
-            CompoundTag nbt = writeEntityData(entity, world);
-            if (nbt == null) {
-                continue;
-            }
-
-            for (String key : keys) {
-                String value = nbt.getStringOr(key, "");
-                if (value.isBlank()) {
-                    continue;
-                }
-                CompoundTag variant = createVariantStringNbt(preferredKey, value);
-                if (!key.equals(preferredKey)) {
-                    variant.putString(key, value);
-                }
-                String display = prefix + " " + capitalize(value.replace('_', ' '));
-                out.putIfAbsent(key + "=" + value, new IdentityVariant(typeId, display, variant));
-            }
-        }
-        return new ArrayList<>(out.values());
-    }
-
-    private static List<IdentityVariant> buildFallbackStringVariants(
-        ResourceLocation typeId,
-        String prefix,
-        String preferredKey,
-        List<String> fallbackIds
-    ) {
-        if (typeId == null || prefix == null || preferredKey == null || fallbackIds == null || fallbackIds.isEmpty()) {
-            return List.of();
-        }
-        Map<String, IdentityVariant> out = new LinkedHashMap<>();
-        for (String raw : fallbackIds) {
-            ResourceLocation variantId = parseResourceLocation(raw);
-            if (variantId == null) {
-                continue;
-            }
-            String value = variantId.toString();
-            CompoundTag variant = createVariantStringNbt(preferredKey, value);
-            String display = prefix + " " + capitalize(variantId.getPath().replace('_', ' '));
-            out.putIfAbsent(value, new IdentityVariant(typeId, display, variant));
-        }
-        return new ArrayList<>(out.values());
-    }
-
-    private static CompoundTag createVariantStringNbt(String preferredKey, String value) {
-        CompoundTag variant = new CompoundTag();
-        if (value == null || value.isBlank()) {
-            return variant;
-        }
-        if (preferredKey != null && !preferredKey.isBlank()) {
-            variant.putString(preferredKey, value);
-        }
-        variant.putString("variant", value);
-        variant.putString("Variant", value);
-        return variant;
-    }
-
-    private static ResourceLocation parseResourceLocation(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        try {
-            if (raw.contains(":")) {
-                return ResourceLocation.parse(raw);
-            }
-            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static List<IdentityVariant> withBabyVariants(
-        EntityType<?> type,
-        ResourceLocation typeId,
-        ClientLevel world,
-        List<IdentityVariant> baseVariants
-    ) {
-        if (!supportsBabyVariants(type, world)) {
-            return baseVariants;
-        }
-
-        List<IdentityVariant> out = new ArrayList<>(Math.max(2, baseVariants.size() * 2));
-        Set<String> keys = new java.util.LinkedHashSet<>();
-        for (IdentityVariant variant : baseVariants) {
-            if (variant == null) {
-                continue;
-            }
-            String baseKey = variant.variantNbt().toString();
-            if (keys.add(baseKey)) {
-                out.add(variant);
-            }
-
-            CompoundTag babyNbt = variant.variantNbt().copy();
-            babyNbt.putBoolean("IsBaby", true);
-            babyNbt.putBoolean("Baby", true);
-            int age = babyNbt.getInt("Age").isPresent() ? babyNbt.getInt("Age").get() : -24000;
-            if (age >= 0) {
-                age = -24000;
-            }
-            babyNbt.putInt("Age", age);
-
-            String babyKey = babyNbt.toString();
-            if (!keys.add(babyKey)) {
-                continue;
-            }
-            out.add(new IdentityVariant(typeId, variant.displayName() + " (Baby)", babyNbt));
-        }
-        return out.isEmpty() ? baseVariants : out;
-    }
-
-    private static boolean supportsBabyVariants(EntityType<?> type, ClientLevel world) {
-        Entity entity = createEntity(type, world);
-        if (entity == null) {
-            return false;
-        }
-
-        CompoundTag nbt = writeEntityData(entity, world);
-        if (nbt != null && (nbt.contains("Age") || nbt.contains("IsBaby") || nbt.contains("Baby"))) {
-            return true;
-        }
-        return hasBooleanSetter(entity.getClass(), "setBaby") || hasIntSetter(entity.getClass(), "setAge");
-    }
-
-    private static boolean hasBooleanSetter(Class<?> type, String methodName) {
-        for (Method method : type.getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            Class<?> param = method.getParameterTypes()[0];
-            if (param == boolean.class || param == Boolean.class) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean hasIntSetter(Class<?> type, String methodName) {
-        for (Method method : type.getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            Class<?> param = method.getParameterTypes()[0];
-            if (param == int.class || param == Integer.class) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Registry<?> getBuiltInRegistry(String fieldName) {
-        if (fieldName == null || fieldName.isBlank()) {
-            return null;
-        }
-        try {
-            Object value = net.minecraft.core.registries.BuiltInRegistries.class.getField(fieldName).get(null);
-            if (value instanceof Registry<?> registry) {
-                return registry;
-            }
-        } catch (Throwable ignored) {
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ResourceLocation resolveRegistryKey(Registry<?> registry, Object value) {
-        if (registry == null || value == null) {
-            return null;
-        }
-        try {
-            Registry<Object> cast = (Registry<Object>) registry;
-            return cast.getKey(value);
         } catch (Throwable ignored) {
             return null;
         }
