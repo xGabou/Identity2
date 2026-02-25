@@ -377,6 +377,15 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
         }
     }
 }
+
+@Inject(method = "doHurtTarget(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
+private void doHurtTargetIdentity(ServerLevel world, Entity entity,CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.doHurtTarget(world, entity));
+        }
+    }
+}
 //Tons of Redirects - End
 }
 

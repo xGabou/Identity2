@@ -28,6 +28,7 @@ import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -649,6 +650,7 @@ public class EntityMixin implements EntityAccessor{
         if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
             return;
         }
+        IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
 
         boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
         if (hasBabyFlag) {

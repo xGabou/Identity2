@@ -26,6 +26,7 @@ import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
@@ -1020,6 +1021,10 @@ public final class IdentityProgression {
         CompoundTag variant = new CompoundTag();
         if (entity == null || entity.level() == null) {
             return variant;
+        }
+        CompoundTag dynamicVariant = IdentityVariantNbtHelper.computeVariantDiff(entity);
+        if (dynamicVariant != null && !dynamicVariant.isEmpty()) {
+            variant.merge(dynamicVariant);
         }
         try {
             TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.level().registryAccess());
