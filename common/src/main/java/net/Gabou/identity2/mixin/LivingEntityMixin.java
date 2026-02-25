@@ -299,8 +299,8 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable info) {
+    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
         if ((Entity) (Object) this instanceof Player player && source != null) {
             if (
                     this.currentIdentity != null

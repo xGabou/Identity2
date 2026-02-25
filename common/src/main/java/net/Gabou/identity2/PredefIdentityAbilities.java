@@ -34,7 +34,6 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
@@ -274,10 +273,10 @@ public final class PredefIdentityAbilities {
                     return false;
                 } else {
                     Direction direction2 = direction.getOpposite();
-                    if (!entity.level().loadedAndEntityCanStandOnFace(pos.offset(direction.getUnitVec3i()), entity, direction2)) {
+                    if (!entity.level().loadedAndEntityCanStandOnFace(pos.offset(direction.getNormal()), entity, direction2)) {
                         return false;
                     } else {
-                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F, pos.getBottomCenter()).deflate(1.0E-6);
+                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F).deflate(1.0E-6);
                         return entity.level().noCollision(entity, box);
                     }
                 }
@@ -369,7 +368,7 @@ public final class PredefIdentityAbilities {
                 for (int i = 0; i < 16; ++i) {
                     double targetX = startX + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
                     int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(targetX), Mth.floor(startZ));
-                    double targetY = Mth.clamp(startY + (player.getRandom().nextInt(16) - 8), world.getMinY(), topY - 1);
+                    double targetY = Mth.clamp(startY + (player.getRandom().nextInt(16) - 8), world.getMinBuildHeight(), topY - 1);
                     double targetZ = startZ + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
                     if (player.isPassenger()) {
                         player.stopRiding();
@@ -753,7 +752,7 @@ public final class PredefIdentityAbilities {
         Vec3 look = player.getViewVector(1.0F);
         Vec3 end = start.add(look.scale(range));
         AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D);
-        HitResult target = ProjectileUtil.getEntityHitResult(player, start, end, box, EntitySelector.CAN_BE_PICKED, rangeSq);
+        HitResult target = ProjectileUtil.getEntityHitResult(player, start, end, box, candidate -> candidate.isPickable() && !candidate.isSpectator(), rangeSq);
         Entity targetEntity = null;
         if (target instanceof EntityHitResult entityTarget) {
             targetEntity = entityTarget.getEntity();
@@ -839,7 +838,7 @@ public final class PredefIdentityAbilities {
         String ownerTag = illusionerOwnerTag(serverPlayer.getUUID());
 
         for (int i = 0; i < ILLUSIONER_CLONE_COUNT; i++) {
-            Illusioner clone = EntityType.ILLUSIONER.create(serverLevel, EntitySpawnReason.COMMAND);
+            Illusioner clone = EntityType.ILLUSIONER.create(serverLevel);
             if (clone == null) {
                 continue;
             }
@@ -885,7 +884,7 @@ public final class PredefIdentityAbilities {
         UUID ownerId = player.getUUID();
         illusionerCloneRefs.remove(ownerId);
         for (ServerLevel level : player.level().getServer().getAllLevels()) {
-            AABB bounds = new AABB(-3.0E7D, level.getMinY(), -3.0E7D, 3.0E7D, level.getMaxY(), 3.0E7D);
+            AABB bounds = new AABB(-3.0E7D, level.getMinBuildHeight(), -3.0E7D, 3.0E7D, level.getMaxBuildHeight(), 3.0E7D);
             List<Illusioner> owned = level.getEntitiesOfClass(Illusioner.class, bounds, candidate -> isOwnedIllusionerClone(candidate, ownerId));
             for (Illusioner clone : owned) {
                 clone.discard();
@@ -1154,13 +1153,13 @@ public final class PredefIdentityAbilities {
         if (player == null || projectileId == null) {
             return false;
         }
-        EntityType<?> projectileType = BuiltInRegistries.ENTITY_TYPE.getValue(projectileId);
+        EntityType<?> projectileType = BuiltInRegistries.ENTITY_TYPE.get(projectileId);
         if (projectileType == null) {
             return false;
         }
         Entity projectile = null;
         try {
-            projectile = projectileType.create(player.level(), EntitySpawnReason.COMMAND);
+            projectile = projectileType.create(player.level());
         } catch (Throwable ignored) {
         }
         if (!(projectile instanceof net.minecraft.world.entity.projectile.Projectile projectileEntity)) {
@@ -1574,7 +1573,7 @@ public final class PredefIdentityAbilities {
             return false;
         }
 
-        VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.getValue(professionId);
+        VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.get(professionId);
         if (profession == null) {
             return false;
         }
@@ -1808,7 +1807,7 @@ public final class PredefIdentityAbilities {
             return null;
         }
         try {
-            Object value = ((Registry<Object>) registry).getValue(id);
+            Object value = ((Registry<Object>) registry).get(id);
             if (value == null) {
                 value = invokeOneArg(registry, "getValue", id);
             }

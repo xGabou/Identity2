@@ -5,18 +5,18 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.Item;
 
 public final class ModRegistries {
     public static final ResourceKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
         ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath("identity2", "identity_ability"));
 
     public static final Codec<IdentityAbilityDefinition> IDENTITY_ABILITY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-        Item.CODEC.fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
+        BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
         Codec.STRING.optionalFieldOf("command", "").forGetter(IdentityAbilityDefinition::command),
         Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
         Codec.INT.optionalFieldOf("use_duration", 0).forGetter(IdentityAbilityDefinition::useduration),

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
-    @Inject(method = "getFov(Lnet/minecraft/client/Camera;FZ)F", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void identity2$clampMorphFov(Camera camera, float tickProgress, boolean changingFov, CallbackInfoReturnable<Float> cir) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.options == null) {

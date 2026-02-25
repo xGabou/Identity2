@@ -30,7 +30,6 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -50,7 +49,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -117,7 +115,7 @@ public class EntityMixin implements EntityAccessor{
 //        return -Identity2.maxWorldSize;
 //    }
     @Redirect(method = "move",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
@@ -125,7 +123,7 @@ public class EntityMixin implements EntityAccessor{
             entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
             return;
         }
-        block.updateEntityMovementAfterFallOn(view,entity);
+        block.updateEntityAfterFallOn(view,entity);
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
@@ -364,10 +362,10 @@ public class EntityMixin implements EntityAccessor{
 
 
 
-    @Inject(method="isControlledByClient",at=@At("HEAD"),cancellable=true)
+    @Inject(method="isControlledByLocalInstance",at=@At("HEAD"),cancellable=true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info){
         if(this.identityOf!=null){
-            info.setReturnValue(((Entity)this.identityOf).isControlledByClient());
+            info.setReturnValue(((Entity)this.identityOf).isControlledByLocalInstance());
         }
     }
     
@@ -574,7 +572,7 @@ public class EntityMixin implements EntityAccessor{
         Vec3 pos=new Vec3(0,0,0);
         try {
             Level serverWorld = (Level)((Entity)(Object)this).level();
-            Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
+            Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, entityx -> {
                 entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
             });
@@ -775,7 +773,7 @@ public class EntityMixin implements EntityAccessor{
         if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
             @SuppressWarnings("unchecked")
             net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
-            return cast.getValue(id);
+            return cast.get(id);
         }
         return null;
     }
@@ -824,7 +822,7 @@ public class EntityMixin implements EntityAccessor{
             if (location == null || BuiltInRegistries.REGISTRY == null) {
                 return null;
             }
-            return BuiltInRegistries.REGISTRY.getValue(location);
+            return BuiltInRegistries.REGISTRY.get(location);
         } catch (Throwable ignored) {
         }
         return null;
@@ -1056,15 +1054,15 @@ public class EntityMixin implements EntityAccessor{
 	public double yOld;
     @Shadow
 	public double zOld;
-    @Overwrite
-    public void setOldPos(Vec3 pos){
+    @Unique
+    private void identity2$setOldPos(Vec3 pos){
 		this.xo = this.xOld = pos.x;
 		this.yo = this.yOld = pos.y;
 		this.zo = this.zOld = pos.z;
-    };
+    }
     @Override
     public void setLastPosition(Vec3 pos) {
-        this.setOldPos(pos);
+        this.identity2$setOldPos(pos);
     }
     @Shadow
     public void processFlappingMovement(){};
@@ -1179,20 +1177,15 @@ private void isFlappingWingsIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Shadow
-public boolean isAffectedByBlocks(){return false;}
 @Override
 public boolean shouldTickBlockCollision() {
-    return this.isAffectedByBlocks();
-}
-@Inject(method = "isAffectedByBlocks()Z", at=@At("HEAD"),cancellable=true)
-private void shouldTickBlockCollisionIdentity(CallbackInfoReturnable info){
     if(((Entity)(Object)this) instanceof Player){
-        return;
+        return true;
     }
     if(this.currentIdentity!=null){
-        info.setReturnValue(((EntityAccessor)this.currentIdentity).shouldTickBlockCollision());
+        return ((EntityAccessor)this.currentIdentity).shouldTickBlockCollision();
     }
+    return true;
 }
 
 
@@ -1229,13 +1222,6 @@ private void identity2$forwardLerpTo(
 ){
     if (this.currentIdentity != null) {
         this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
-    }
-}
-
-@Inject(method = "cancelLerp()V", at=@At("HEAD"))
-private void identity2$forwardCancelLerp(CallbackInfo info){
-    if (this.currentIdentity != null) {
-        this.currentIdentity.cancelLerp();
     }
 }
 

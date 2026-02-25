@@ -36,8 +36,8 @@ import net.Gabou.identity2.ModComponents;
 import java.util.EnumMap;
 @Mixin(LivingEntity.class)
 public class EntityEquipmentMixin{
-    @Inject(method = "dropEquipment(Lnet/minecraft/server/level/ServerLevel;)V", at = @At("HEAD"), cancellable = true)
-    private void identity2$dropEquipmentNoSoulbound(ServerLevel level, CallbackInfo ci) {
+    @Inject(method = "dropEquipment", at = @At("HEAD"), cancellable = true)
+    private void identity2$dropEquipmentNoSoulbound(CallbackInfo ci) {
         LivingEntity self = (LivingEntity)(Object)this;
 
         for (EquipmentSlot slot : EquipmentSlot.values()) {

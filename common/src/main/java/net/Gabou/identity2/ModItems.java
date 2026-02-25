@@ -6,8 +6,6 @@ import java.util.function.Function;
 import net.Gabou.identity2.items.IdentityBookItem;
 import net.Gabou.identity2.items.SoulJarItem;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 
 public final class ModItems {
@@ -32,7 +30,6 @@ public final class ModItems {
     }
 
     private static RegistrySupplier<Item> register(String name, Function<Item.Properties, Item> itemFactory) {
-        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, name));
-        return ITEMS.register(name, () -> itemFactory.apply(new Item.Properties().setId(key)));
+        return ITEMS.register(name, () -> itemFactory.apply(new Item.Properties()));
     }
 }

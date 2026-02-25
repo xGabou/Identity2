@@ -3,7 +3,6 @@ package net.Gabou.identity2.mixin;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Difficulty;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Giant;
 import net.minecraft.world.entity.monster.Zombie;
@@ -44,7 +43,7 @@ public abstract class ZombieEntityMixin {
             return;
         }
 
-        Giant giant = EntityType.GIANT.create(serverLevel, EntitySpawnReason.NATURAL);
+        Giant giant = EntityType.GIANT.create(serverLevel);
         if (giant == null) {
             return;
         }

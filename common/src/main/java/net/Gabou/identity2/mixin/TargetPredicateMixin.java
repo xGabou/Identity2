@@ -37,11 +37,11 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(TargetingConditions.class)
 public class TargetPredicateMixin{
     @Inject(
-        method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+        method = "test",
         at = @At("HEAD"),
         cancellable = true
     )
-    private void identity2$skipHostileVsHostileMorph(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+    private void identity2$skipHostileVsHostileMorph(@Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         if (!IdentitySettings.hostilesIgnoreHostileIdentityPlayer) {
             return;
         }
@@ -116,7 +116,7 @@ public class TargetPredicateMixin{
         }
 
     }*/
-    @ModifyVariable(method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z", at = @At("HEAD"), index=2)
+    @ModifyVariable(method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z", at = @At("HEAD"), index=2)
     private LivingEntity injected(LivingEntity target) {
         if(((EntityAccessor)target).getCurrentIdentity()!=null){
             //net.Gabou.identity2.Identity2.LOGGER.info("TargetPredicateMixin active!");

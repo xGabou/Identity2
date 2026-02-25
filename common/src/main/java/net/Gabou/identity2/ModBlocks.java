@@ -38,11 +38,11 @@ public final class ModBlocks {
 
     private static Block register(String name, Function<BlockBehaviour.Properties, Block> blockFactory, BlockBehaviour.Properties settings, boolean shouldRegisterItem) {
         ResourceKey<Block> blockKey = keyOfBlock(name);
-        Block block = blockFactory.apply(settings.setId(blockKey));
+        Block block = blockFactory.apply(settings);
 
         if (shouldRegisterItem) {
             ResourceKey<Item> itemKey = keyOfItem(name);
-            BlockItem blockItem = new BlockItem(block, new Item.Properties().setId(itemKey).useBlockDescriptionPrefix());
+            BlockItem blockItem = new BlockItem(block, new Item.Properties());
             Registry.register(BuiltInRegistries.ITEM, itemKey, blockItem);
         }
 
@@ -53,7 +53,7 @@ public final class ModBlocks {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, name));
         BlockItem blockItem = new BlockItem(
             BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, name)),
-            new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()
+            new Item.Properties()
         );
         return Registry.register(BuiltInRegistries.ITEM, itemKey, blockItem);
     }
