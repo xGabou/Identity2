@@ -1086,6 +1086,10 @@ public final class IdentityProgression {
         if (entity == null || entity.level() == null) {
             return variant;
         }
+        CompoundTag dynamicVariant = IdentityVariantNbtHelper.computeVariantDiff(entity);
+        if (dynamicVariant != null && !dynamicVariant.isEmpty()) {
+            variant.merge(dynamicVariant);
+        }
         try {
             CompoundTag full = EntityNbtIoCompat.saveWithoutId(entity);
             copyVariantKey(full, variant, "Color");

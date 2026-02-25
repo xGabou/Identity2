@@ -1,18 +1,13 @@
 package net.Gabou.identity2;
 
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 
 import javax.swing.Box;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.LinkedHashSet;
-import java.util.Set;
+
 import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -28,6 +23,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.nbt.CompoundTag;
@@ -45,9 +41,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.horse.Llama;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Ghast;
-import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.npc.Villager;
@@ -79,6 +73,13 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
     public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
+    private static final int ILLUSIONER_CLONE_COUNT = 3;
+    private static final int ILLUSIONER_CLONE_LIFETIME_TICKS = 20 * 25;
+    private static final double ILLUSIONER_CLONE_RADIUS = 3.5D;
+    private static final double ILLUSIONER_SWAP_RANGE = 28.0D;
+    private static final String ILLUSIONER_CLONE_TAG = "identity2.illusioner_clone";
+    private static final String ILLUSIONER_OWNER_TAG_PREFIX = "identity2.illusioner_owner:";
+
 
     abstract static class IdentityAbility {
         public void execute(Entity player) {
@@ -100,6 +101,10 @@ public final class PredefIdentityAbilities {
 
     public static final Map<ResourceLocation, IdentityAbility> predef = create();
     private static final IdentityAbility genericMobAbility = createGenericMobAbility();
+    private static final Map<UUID, List<IllusionerCloneRef>> illusionerCloneRefs = new HashMap<>();
+
+    private record IllusionerCloneRef(UUID cloneUuid, long expiresAt, Vec3 offset) {
+    }
 
     private PredefIdentityAbilities() {
     }
@@ -411,6 +416,33 @@ public final class PredefIdentityAbilities {
                     }
                     break;
                 }
+            }
+        });
+
+        map.put(ResourceLocation.parse("illusioner"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                summonIllusionerClones(player);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!swapWithIllusionerClone(player)) {
+                    summonIllusionerClones(player);
+                    swapWithIllusionerClone(player);
+                }
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                if (!(player instanceof ServerPlayer serverPlayer) || serverPlayer.level().isClientSide()) {
+                    return;
+                }
+                syncIllusionerClones(serverPlayer);
+                if ((serverPlayer.tickCount & 7) != 0) {
+                    return;
+                }
+                collectIllusionerClones(serverPlayer, true);
             }
         });
 
@@ -790,6 +822,294 @@ public final class PredefIdentityAbilities {
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHULKER_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
         return true;
     }
+    private static void summonIllusionerClones(Entity player) {
+        if (!(player instanceof ServerPlayer serverPlayer) || !(serverPlayer.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        discardAllOwnedIllusionerClones(serverPlayer);
+        List<Illusioner> existing = collectIllusionerClones(serverPlayer, true);
+        for (Illusioner clone : existing) {
+            clone.discard();
+        }
+
+        long expiresAt = serverLevel.getGameTime() + ILLUSIONER_CLONE_LIFETIME_TICKS;
+        List<IllusionerCloneRef> refs = new ArrayList<>(ILLUSIONER_CLONE_COUNT);
+        String ownerTag = illusionerOwnerTag(serverPlayer.getUUID());
+
+        for (int i = 0; i < ILLUSIONER_CLONE_COUNT; i++) {
+            Illusioner clone = EntityType.ILLUSIONER.create(serverLevel, EntitySpawnReason.COMMAND);
+            if (clone == null) {
+                continue;
+            }
+            Vec3 spawn = computeIllusionerCloneSpawn(serverPlayer, i);
+            clone.moveTo(spawn.x, spawn.y, spawn.z, serverPlayer.getYRot(), serverPlayer.getXRot());
+            clone.setYHeadRot(serverPlayer.getYHeadRot());
+            clone.setNoAi(true);
+            clone.setNoGravity(true);
+            clone.noPhysics = true;
+            clone.setInvulnerable(true);
+            clone.setSilent(true);
+            clone.addTag(ILLUSIONER_CLONE_TAG);
+            clone.addTag(ownerTag);
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, serverPlayer.getMainHandItem().copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, serverPlayer.getOffhandItem().copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, serverPlayer.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, serverPlayer.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, serverPlayer.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, serverPlayer.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET).copy());
+            if (!serverLevel.noCollision(clone)) {
+                clone.discard();
+                continue;
+            }
+            if (serverLevel.addFreshEntity(clone)) {
+                refs.add(new IllusionerCloneRef(clone.getUUID(), expiresAt, spawn.subtract(serverPlayer.position())));
+            }
+        }
+
+        if (refs.isEmpty()) {
+            illusionerCloneRefs.remove(serverPlayer.getUUID());
+            return;
+        }
+
+        illusionerCloneRefs.put(serverPlayer.getUUID(), refs);
+        serverLevel.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0D, player.getZ(), 18, 0.45D, 0.4D, 0.45D, 0.0D);
+        serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ILLUSIONER_PREPARE_MIRROR, SoundSource.PLAYERS, 1.0F, 1.0F);
+    }
+
+    private static void discardAllOwnedIllusionerClones(ServerPlayer player) {
+        if (player == null || player.level().getServer() == null) {
+            return;
+        }
+        UUID ownerId = player.getUUID();
+        illusionerCloneRefs.remove(ownerId);
+        for (ServerLevel level : player.level().getServer().getAllLevels()) {
+            AABB bounds = new AABB(-3.0E7D, level.getMinY(), -3.0E7D, 3.0E7D, level.getMaxY(), 3.0E7D);
+            List<Illusioner> owned = level.getEntitiesOfClass(Illusioner.class, bounds, candidate -> isOwnedIllusionerClone(candidate, ownerId));
+            for (Illusioner clone : owned) {
+                clone.discard();
+            }
+        }
+    }
+
+    private static void syncIllusionerClones(ServerPlayer player) {
+        if (player == null || player.level().isClientSide()) {
+            return;
+        }
+        UUID ownerId = player.getUUID();
+        List<IllusionerCloneRef> refs = illusionerCloneRefs.get(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        List<IllusionerCloneRef> keptRefs = new ArrayList<>(refs.size());
+        Vec3 playerPos = player.position();
+        Vec3 playerMotion = player.getDeltaMovement();
+
+        for (IllusionerCloneRef ref : refs) {
+            Entity entity = findEntityByUuid(player.level().getServer(), ref.cloneUuid());
+            if (!(entity instanceof Illusioner clone)) {
+                continue;
+            }
+            if (!clone.isAlive() || clone.level() != player.level() || now > ref.expiresAt() || !isOwnedIllusionerClone(clone, ownerId)) {
+                continue;
+            }
+
+            Vec3 offset = ref.offset() == null ? Vec3.ZERO : ref.offset();
+            Vec3 targetPos = playerPos.add(offset);
+            clone.absMoveTo(targetPos.x, targetPos.y, targetPos.z, player.getYRot(), player.getXRot());
+            clone.setYHeadRot(player.getYHeadRot());
+            clone.setDeltaMovement(playerMotion);
+            clone.setShiftKeyDown(player.isShiftKeyDown());
+            clone.setSprinting(player.isSprinting());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, player.getMainHandItem().copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, player.getOffhandItem().copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS).copy());
+            clone.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET).copy());
+            keptRefs.add(ref);
+        }
+
+        if (keptRefs.isEmpty()) {
+            illusionerCloneRefs.remove(ownerId);
+        } else {
+            illusionerCloneRefs.put(ownerId, keptRefs);
+        }
+    }
+
+    private static boolean swapWithIllusionerClone(Entity player) {
+        if (!(player instanceof ServerPlayer serverPlayer) || !(serverPlayer.level() instanceof ServerLevel)) {
+            return false;
+        }
+        List<Illusioner> clones = collectIllusionerClones(serverPlayer, true);
+        if (clones.isEmpty()) {
+            return false;
+        }
+
+        Illusioner target = findAimedIllusionerClone(serverPlayer, clones);
+        if (target == null) {
+            target = clones.get(serverPlayer.getRandom().nextInt(clones.size()));
+        }
+        performIllusionerSwap(serverPlayer, target);
+        return true;
+    }
+
+    private static Illusioner findAimedIllusionerClone(ServerPlayer player, List<Illusioner> clones) {
+        if (player == null || clones == null || clones.isEmpty()) {
+            return null;
+        }
+        Vec3 start = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F).normalize();
+        Vec3 end = start.add(look.scale(ILLUSIONER_SWAP_RANGE));
+        AABB box = player.getBoundingBox().expandTowards(look.scale(ILLUSIONER_SWAP_RANGE)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                player,
+                start,
+                end,
+                box,
+                candidate -> candidate instanceof Illusioner && isOwnedIllusionerClone(candidate, player.getUUID()),
+                ILLUSIONER_SWAP_RANGE * ILLUSIONER_SWAP_RANGE
+        );
+        if (hit == null || !(hit.getEntity() instanceof Illusioner illusioner)) {
+            return null;
+        }
+        return clones.contains(illusioner) ? illusioner : null;
+    }
+
+    private static List<Illusioner> collectIllusionerClones(ServerPlayer player, boolean discardInvalid) {
+        if (player == null) {
+            return List.of();
+        }
+        UUID ownerId = player.getUUID();
+        List<IllusionerCloneRef> refs = illusionerCloneRefs.get(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            illusionerCloneRefs.remove(ownerId);
+            return List.of();
+        }
+
+        long now = player.level().getGameTime();
+        List<Illusioner> clones = new ArrayList<>(refs.size());
+        List<IllusionerCloneRef> keptRefs = new ArrayList<>(refs.size());
+        for (IllusionerCloneRef ref : refs) {
+            Entity entity = findEntityByUuid(player.level().getServer(), ref.cloneUuid());
+            if (!(entity instanceof Illusioner clone)) {
+                continue;
+            }
+            boolean valid = clone.isAlive()
+                    && clone.level() == player.level()
+                    && isOwnedIllusionerClone(clone, ownerId)
+                    && now <= ref.expiresAt();
+            if (!valid) {
+                if (discardInvalid) {
+                    clone.discard();
+                }
+                continue;
+            }
+            clones.add(clone);
+            keptRefs.add(ref);
+        }
+
+        if (keptRefs.isEmpty()) {
+            illusionerCloneRefs.remove(ownerId);
+        } else {
+            illusionerCloneRefs.put(ownerId, keptRefs);
+        }
+        return clones;
+    }
+
+    private static Entity findEntityByUuid(MinecraftServer server, UUID uuid) {
+        if (server == null || uuid == null) {
+            return null;
+        }
+        for (ServerLevel level : server.getAllLevels()) {
+            Entity entity = level.getEntity(uuid);
+            if (entity != null) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isOwnedIllusionerClone(Entity entity, UUID ownerId) {
+        if (entity == null || ownerId == null) {
+            return false;
+        }
+        return entity.getTags().contains(ILLUSIONER_CLONE_TAG) && entity.getTags().contains(illusionerOwnerTag(ownerId));
+    }
+
+    private static String illusionerOwnerTag(UUID ownerId) {
+        return ILLUSIONER_OWNER_TAG_PREFIX + ownerId;
+    }
+
+    private static Vec3 computeIllusionerCloneSpawn(ServerPlayer player, int index) {
+        double angle = (Math.PI * 2.0D * index) / Math.max(1, ILLUSIONER_CLONE_COUNT);
+        angle += (player.getRandom().nextDouble() - 0.5D) * 0.35D;
+        double radius = ILLUSIONER_CLONE_RADIUS + player.getRandom().nextDouble() * 0.8D;
+        double x = player.getX() + Math.cos(angle) * radius;
+        double z = player.getZ() + Math.sin(angle) * radius;
+        return new Vec3(x, player.getY(), z);
+    }
+
+    private static void performIllusionerSwap(ServerPlayer player, Illusioner clone) {
+        if (player == null || clone == null || !(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Vec3 playerPos = player.position();
+        Vec3 clonePos = clone.position();
+        Vec3 playerMotion = player.getDeltaMovement();
+        Vec3 cloneMotion = clone.getDeltaMovement();
+        float playerYaw = player.getYRot();
+        float playerPitch = player.getXRot();
+        float playerHeadYaw = player.getYHeadRot();
+        float cloneYaw = clone.getYRot();
+        float clonePitch = clone.getXRot();
+        float cloneHeadYaw = clone.getYHeadRot();
+
+        player.teleportTo(clonePos.x, clonePos.y, clonePos.z);
+        player.setYRot(cloneYaw);
+        player.setXRot(clonePitch);
+        player.setYHeadRot(cloneHeadYaw);
+        player.setDeltaMovement(cloneMotion);
+
+        clone.teleportTo(playerPos.x, playerPos.y, playerPos.z);
+        clone.setYRot(playerYaw);
+        clone.setXRot(playerPitch);
+        clone.setYHeadRot(playerHeadYaw);
+        clone.setDeltaMovement(playerMotion);
+        recalculateIllusionerCloneOffsets(player);
+
+        serverLevel.sendParticles(ParticleTypes.CLOUD, playerPos.x, playerPos.y + 1.0D, playerPos.z, 14, 0.35D, 0.35D, 0.35D, 0.01D);
+        serverLevel.sendParticles(ParticleTypes.CLOUD, clonePos.x, clonePos.y + 1.0D, clonePos.z, 14, 0.35D, 0.35D, 0.35D, 0.01D);
+        serverLevel.playSound(null, playerPos.x, playerPos.y, playerPos.z, SoundEvents.ILLUSIONER_MIRROR_MOVE, SoundSource.PLAYERS, 1.0F, 1.0F);
+        serverLevel.playSound(null, clonePos.x, clonePos.y, clonePos.z, SoundEvents.ILLUSIONER_MIRROR_MOVE, SoundSource.PLAYERS, 1.0F, 1.0F);
+    }
+
+    private static void recalculateIllusionerCloneOffsets(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        UUID ownerId = player.getUUID();
+        List<IllusionerCloneRef> refs = illusionerCloneRefs.get(ownerId);
+        if (refs == null || refs.isEmpty()) {
+            return;
+        }
+        List<IllusionerCloneRef> updatedRefs = new ArrayList<>(refs.size());
+        Vec3 playerPos = player.position();
+        for (IllusionerCloneRef ref : refs) {
+            Entity entity = findEntityByUuid(player.level().getServer(), ref.cloneUuid());
+            if (!(entity instanceof Illusioner clone) || !clone.isAlive() || clone.level() != player.level()) {
+                continue;
+            }
+            updatedRefs.add(new IllusionerCloneRef(ref.cloneUuid(), ref.expiresAt(), clone.position().subtract(playerPos)));
+        }
+        if (updatedRefs.isEmpty()) {
+            illusionerCloneRefs.remove(ownerId);
+        } else {
+            illusionerCloneRefs.put(ownerId, updatedRefs);
+        }
+    }
+
 
     private static void executeWardenSonicBoom(Entity player) {
         if (!(player instanceof LivingEntity livingPlayer)) {

@@ -25,6 +25,12 @@ public final class NbtCompat {
         }
         return tag.contains(key, Tag.TAG_ANY_NUMERIC) ? tag.getDouble(key) : fallback;
     }
+    public static int getIntOr(CompoundTag tag, String key, int fallback) {
+        if (tag == null || key == null) {
+            return fallback;
+        }
+        return tag.contains(key, Tag.TAG_ANY_NUMERIC) ? tag.getInt(key) : fallback;
+    }
 
     public static boolean getBooleanOr(CompoundTag tag, String key, boolean fallback) {
         if (tag == null || key == null) {

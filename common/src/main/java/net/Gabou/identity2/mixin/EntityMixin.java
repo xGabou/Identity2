@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
 
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -612,6 +613,7 @@ public class EntityMixin implements EntityAccessor{
         if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
             return;
         }
+        IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
 
         boolean hasBabyFlag = variantNbt.contains("IsBaby", net.minecraft.nbt.Tag.TAG_BYTE) || variantNbt.contains("Baby", net.minecraft.nbt.Tag.TAG_BYTE);
         if (hasBabyFlag) {
