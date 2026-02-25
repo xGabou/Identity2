@@ -9,6 +9,7 @@ Date: 2026-02-25
 - Morph variant data is now saved and applied in a generic way, so special mob forms are more likely to stay correct.
 - Variant choices are deduplicated, so you should not see repeated entries for the same form.
 - Illusioner's abilities were added to the morph system, so you can now morph into him and use his powers.
+- Forgot to remove a double mixins
 ## What this means for players
 
 - More mobs should show their different forms in the morph UI.

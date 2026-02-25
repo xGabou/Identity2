@@ -49,36 +49,36 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         }
 	}
 
-    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
-        if (((Entity)(Object)this).level().isClientSide()) {
-            return;
-        }
-        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
-            return;
-        }
-        if (livingTarget.isDeadOrDying()) {
-            return;
-        }
-        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
-            return;
-        }
-
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (identityType == EntityType.CAVE_SPIDER) {
-            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
-                case HARD -> 300;
-                case NORMAL -> 140;
-                default -> 0;
-            };
-            if (poisonDuration > 0) {
-                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
-            }
-            return;
-        }
-
-        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
-            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
-        }
-    }
+//    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+//    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
+//        if (((Entity)(Object)this).level().isClientSide()) {
+//            return;
+//        }
+//        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
+//            return;
+//        }
+//        if (livingTarget.isDeadOrDying()) {
+//            return;
+//        }
+//        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
+//            return;
+//        }
+//
+//        EntityType<?> identityType = this.currentIdentity.getType();
+//        if (identityType == EntityType.CAVE_SPIDER) {
+//            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
+//                case HARD -> 300;
+//                case NORMAL -> 140;
+//                default -> 0;
+//            };
+//            if (poisonDuration > 0) {
+//                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
+//            }
+//            return;
+//        }
+//
+//        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
+//            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
+//        }
+//    }
 }
