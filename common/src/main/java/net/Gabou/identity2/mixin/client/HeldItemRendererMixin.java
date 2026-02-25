@@ -37,7 +37,9 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import java.lang.reflect.Field;
 @Mixin(ItemInHandRenderer.class)
 public class HeldItemRendererMixin{
@@ -86,175 +88,142 @@ public class HeldItemRendererMixin{
     }
     
     private void renderRightArmOverride(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible) {
-        
-        try{
-        EntityAccessor playerEntity=(EntityAccessor)Minecraft.getInstance().player;
-		Entity identity=playerEntity.getCurrentIdentity();
-        if(identity==null){
-            renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
-            return;
-        }
-        //renderer.renderArm(matrices, queue, light, skinTexture, renderer.getModel().rightArm, sleeveVisible);
-        if(((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").isPresent()){
-            String d=((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").get();
-            if((d.length()!=0)){
-                if(identity==null){
-                    playerEntity.setCurrentIdentity(d);
-                    identity=playerEntity.getCurrentIdentity();
-                }
-                
-        
-        
-        EntityRenderer idrenderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
-        ModelPart targetPart=null;
-        
-        EntityModel eModel=null;
-        if(idrenderer instanceof LivingEntityRenderer){
-            try{
-            eModel=((LivingEntityRenderer)idrenderer).getModel();
-            }catch(Exception e){
-                eModel=(EntityModel)getFieldFromClassHeirarchy(eModel.getClass(),"model").get((Object)eModel);
+        try {
+            EntityAccessor playerEntity = (EntityAccessor) Minecraft.getInstance().player;
+            Entity identity = playerEntity.getCurrentIdentity();
+            if (identity == null) {
+                renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
+                return;
             }
-        }
-        if(idrenderer instanceof EnderDragonRenderer){
-            eModel=((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor)(EnderDragonRenderer)idrenderer).getModel();
-        }
-        if(eModel!=null){
-        targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_ARM);
-        if(targetPart==null){
-            targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_FRONT_LEG);
-        }
-        
-        Identifier texture=null;
-        if(idrenderer instanceof LivingEntityRenderer lidr){
-            texture=lidr.getTextureLocation((LivingEntityRenderState)lidr.createRenderState());
-        }else{
-            try{
-            texture=(Identifier)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
-            }catch(Exception e){
-                int x=0;
-            }
-        }
-        if((targetPart!=null)&&(texture!=null)){
-            Identifier ftexture=texture;
-            try {
+            EntityRenderer idrenderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
+            ModelPart targetPart = null;
 
-                float paox=((PlayerModel)renderer.getModel()).rightArm.x;
-                float paoy=((PlayerModel)renderer.getModel()).rightArm.y;
-                float paoz=((PlayerModel)renderer.getModel()).rightArm.z;
-                float ox=targetPart.x;
-                float oy=targetPart.y;
-                float oz=targetPart.z;
-                // Render a single rooted arm part with a matrix offset.
-                // Avoid per-child origin mutation, which can visually detach/jump the arm.
-                float offsetX = (paox - ox) + ARM_TUNE_X;
-                float offsetY = (paoy - oy) + ARM_TUNE_Y;
-                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
+            EntityModel eModel = null;
+            if (idrenderer instanceof LivingEntityRenderer) {
+                try {
+                    eModel = ((LivingEntityRenderer) idrenderer).getModel();
+                } catch (Exception e) {
+                    eModel = (EntityModel) getFieldFromClassHeirarchy(eModel.getClass(), "model").get((Object) eModel);
+                }
+            }
+            if (idrenderer instanceof EnderDragonRenderer) {
+                eModel = ((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor) (EnderDragonRenderer) idrenderer).getModel();
+            }
+            if (eModel == null) {
+                return;
+            }
+            targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_ARM);
+            if (targetPart == null) {
+                targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.RIGHT_FRONT_LEG);
+            }
+            if (targetPart == null) {
+                targetPart = eModel.root().createPartLookup().apply("body");
+            }
+            if (targetPart == null) {
+                targetPart = eModel.root();
+            }
+
+            Identifier texture = null;
+            if (idrenderer instanceof LivingEntityRenderer lidr && identity instanceof LivingEntity livingIdentity) {
+                LivingEntityRenderState renderState = (LivingEntityRenderState) lidr.createRenderState();
+                lidr.extractRenderState(livingIdentity, renderState, 0.0F);
+                texture = lidr.getTextureLocation(renderState);
+            } else {
+                try {
+                    texture = (Identifier) getFieldFromClassHeirarchy(idrenderer.getClass(), "TEXTURE").get((Object) idrenderer);
+                } catch (Exception ignored) {
+                }
+            }
+            if (targetPart == null || texture == null) {
+                return;
+            }
+            try {
+                float paox = ((PlayerModel) renderer.getModel()).rightArm.x;
+                float paoy = ((PlayerModel) renderer.getModel()).rightArm.y;
+                float paoz = ((PlayerModel) renderer.getModel()).rightArm.z;
+                float ox = targetPart.x;
+                float oy = targetPart.y;
+                float oz = targetPart.z;
+                float offsetX = Mth.clamp((paox - ox) + ARM_TUNE_X, -8.0F, 8.0F);
+                float offsetY = Mth.clamp((paoy - oy) + ARM_TUNE_Y, -8.0F, 8.0F);
+                float offsetZ = Mth.clamp((paoz - oz) + ARM_TUNE_Z, -8.0F, 8.0F);
                 matrices.pushPose();
                 matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
+                ((PlayerEntityRendererAccessor) renderer).callRenderArm(matrices, queue, light, texture, targetPart, sleeveVisible);
                 matrices.popPose();
-        } catch (Exception e) {
-            int x=0;
-            //Identity2.LOGGER.info(" TEXTURE missing");
-        }
-                                        
-                }
-            }else{
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).rightArm, sleeveVisible);
+            } catch (Exception ignored) {
             }
-        }else{
-            ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).rightArm, sleeveVisible);
+        } catch (Exception ignored) {
         }
-        }
-    } catch (Exception e) {
-        int x=0;
-    }
     }
     private void renderLeftArmOverride(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible) {
-        
-        try{
-        EntityAccessor playerEntity=(EntityAccessor)Minecraft.getInstance().player;
-		Entity identity=playerEntity.getCurrentIdentity();
-        if(identity==null){
-            renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
-            return;
-        }
-        //renderer.renderArm(matrices, queue, light, skinTexture, renderer.getModel().rightArm, sleeveVisible);
-        if(((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").isPresent()){
-            String d=((NbtComponentAccessor)(Object)playerEntity.getCustomData()).getNbt().getString("model_override").get();
-            if((d.length()!=0)){
-                if(identity==null){
-                    playerEntity.setCurrentIdentity(d);
-                    identity=playerEntity.getCurrentIdentity();
-                }
-                
-        
-        
-        EntityRenderer idrenderer=((MinecraftClientAccessor)Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
-        ModelPart targetPart=null;
-        
-        EntityModel eModel=null;
-        if(idrenderer instanceof LivingEntityRenderer){
-            try{
-            eModel=((LivingEntityRenderer)idrenderer).getModel();
-            }catch(Exception e){
-                eModel=(EntityModel)getFieldFromClassHeirarchy(eModel.getClass(),"model").get((Object)eModel);
+        try {
+            EntityAccessor playerEntity = (EntityAccessor) Minecraft.getInstance().player;
+            Entity identity = playerEntity.getCurrentIdentity();
+            if (identity == null) {
+                renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
+                return;
             }
-        }
-        if(idrenderer instanceof EnderDragonRenderer){
-            eModel=((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor)(EnderDragonRenderer)idrenderer).getModel();
-        }
-        if(eModel!=null){
-        targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_ARM);
-        if(targetPart==null){
-            targetPart=eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_FRONT_LEG);
-        }
-        
-        Identifier texture=null;
-        if(idrenderer instanceof LivingEntityRenderer lidr){
-            texture=lidr.getTextureLocation((LivingEntityRenderState)lidr.createRenderState());
-        }else{
-            try{
-            texture=(Identifier)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
-            }catch(Exception e){
-                int x=0;
-            }
-        }
-        if((targetPart!=null)&&(texture!=null)){
-            Identifier ftexture=texture;
-            try {
+            EntityRenderer idrenderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(identity);
+            ModelPart targetPart = null;
 
-                float paox=((PlayerModel)renderer.getModel()).leftArm.x;
-                float paoy=((PlayerModel)renderer.getModel()).leftArm.y;
-                float paoz=((PlayerModel)renderer.getModel()).leftArm.z;
-                float ox=targetPart.x;
-                float oy=targetPart.y;
-                float oz=targetPart.z;
-                // Mirror X tune for left arm, keep Y/Z the same.
-                float offsetX = (paox - ox) - ARM_TUNE_X;
-                float offsetY = (paoy - oy) + ARM_TUNE_Y;
-                float offsetZ = (paoz - oz) + ARM_TUNE_Z;
+            EntityModel eModel = null;
+            if (idrenderer instanceof LivingEntityRenderer) {
+                try {
+                    eModel = ((LivingEntityRenderer) idrenderer).getModel();
+                } catch (Exception e) {
+                    eModel = (EntityModel) getFieldFromClassHeirarchy(eModel.getClass(), "model").get((Object) eModel);
+                }
+            }
+            if (idrenderer instanceof EnderDragonRenderer) {
+                eModel = ((net.Gabou.identity2.util.EnderDragonEntityRendererAccessor) (EnderDragonRenderer) idrenderer).getModel();
+            }
+            if (eModel == null) {
+                return;
+            }
+            targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_ARM);
+            if (targetPart == null) {
+                targetPart = eModel.root().createPartLookup().apply(net.minecraft.client.model.geom.PartNames.LEFT_FRONT_LEG);
+            }
+            if (targetPart == null) {
+                targetPart = eModel.root().createPartLookup().apply("body");
+            }
+            if (targetPart == null) {
+                targetPart = eModel.root();
+            }
+
+            Identifier texture = null;
+            if (idrenderer instanceof LivingEntityRenderer lidr && identity instanceof LivingEntity livingIdentity) {
+                LivingEntityRenderState renderState = (LivingEntityRenderState) lidr.createRenderState();
+                lidr.extractRenderState(livingIdentity, renderState, 0.0F);
+                texture = lidr.getTextureLocation(renderState);
+            } else {
+                try {
+                    texture = (Identifier) getFieldFromClassHeirarchy(idrenderer.getClass(), "TEXTURE").get((Object) idrenderer);
+                } catch (Exception ignored) {
+                }
+            }
+            if (targetPart == null || texture == null) {
+                return;
+            }
+            try {
+                float paox = ((PlayerModel) renderer.getModel()).leftArm.x;
+                float paoy = ((PlayerModel) renderer.getModel()).leftArm.y;
+                float paoz = ((PlayerModel) renderer.getModel()).leftArm.z;
+                float ox = targetPart.x;
+                float oy = targetPart.y;
+                float oz = targetPart.z;
+                float offsetX = Mth.clamp((paox - ox) - ARM_TUNE_X, -8.0F, 8.0F);
+                float offsetY = Mth.clamp((paoy - oy) + ARM_TUNE_Y, -8.0F, 8.0F);
+                float offsetZ = Mth.clamp((paoz - oz) + ARM_TUNE_Z, -8.0F, 8.0F);
                 matrices.pushPose();
                 matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, ftexture, targetPart, sleeveVisible);
+                ((PlayerEntityRendererAccessor) renderer).callRenderArm(matrices, queue, light, texture, targetPart, sleeveVisible);
                 matrices.popPose();
-        } catch (Exception e) {
-            int x=0;
-            //Identity2.LOGGER.info(" TEXTURE missing");
-        }
-                                        
-                }
-            }else{
-                ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).leftArm, sleeveVisible);
+            } catch (Exception ignored) {
             }
-        }else{
-            ((PlayerEntityRendererAccessor)renderer).callRenderArm(matrices, queue, light, skinTexture, ((PlayerModel)renderer.getModel()).leftArm, sleeveVisible);
+        } catch (Exception ignored) {
         }
-        }
-    } catch (Exception e) {
-        int x=0;
-    }
     }
 }
 

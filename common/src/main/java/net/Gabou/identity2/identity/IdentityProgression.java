@@ -31,6 +31,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -43,6 +44,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -69,6 +71,7 @@ public final class IdentityProgression {
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
     public static final String PREVIOUS_IDENTITY_TYPE_KEY = "identity2.previous_identity_type";
     public static final String PREVIOUS_IDENTITY_VARIANT_KEY = "identity2.previous_identity_variant";
+    public static final String MORPH_DAMAGE_GRACE_END_TICK_KEY = "identity2.morph_damage_grace_end_tick";
     public static final String TRANSITION_START_TICK_KEY = "identity2.transition_start_tick";
     public static final String TRANSITION_DURATION_TICKS_KEY = "identity2.transition_duration_ticks";
     public static final String BASE_PLAYER_TRANSITION_SENTINEL = "identity2:base_player";
@@ -129,6 +132,16 @@ public final class IdentityProgression {
         Identity2.LOGGER.error("Temporarily disabled identity {}: {}", identityId, safeReason);
     }
 
+    public static boolean isMorphDamageGraceActive(Player player) {
+        if (player == null || player.level() == null || player.level().isClientSide()) {
+            return false;
+        }
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        double endTick = nbt.getDoubleOr(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+        return endTick > 0.0D && player.level().getGameTime() <= endTick;
+    }
+
     public static boolean isMorphableType(EntityType<?> entityType) {
         if (entityType == null) {
             return false;
@@ -166,6 +179,14 @@ public final class IdentityProgression {
         }
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        double previousWidth = nbt.getDoubleOr("width_override", 0.0D);
+        double previousHeight = nbt.getDoubleOr("height_override", 0.0D);
+        if (previousWidth <= 0.0D) {
+            previousWidth = player.getBbWidth();
+        }
+        if (previousHeight <= 0.0D) {
+            previousHeight = player.getBbHeight();
+        }
         String previousType = resolveTransitionSourceType(nbt);
         String previousVariant = resolveTransitionSourceVariant(nbt, previousType);
         if (previousType.isBlank()) {
@@ -188,6 +209,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             applyHealthScaling(player, null);
@@ -205,6 +227,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             syncMorphData(player, "", "", 0.0, 0.0, "", "", 0.0, 0.0);
             return false;
@@ -217,6 +240,7 @@ public final class IdentityProgression {
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
+        applyMorphDamageGrace(player, nbt, previousWidth, previousHeight, widthOverride, heightOverride);
 
         float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
         float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
@@ -252,6 +276,7 @@ public final class IdentityProgression {
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
+        clearMorphDamageGrace(nbt);
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -272,6 +297,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, "");
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
@@ -285,6 +311,7 @@ public final class IdentityProgression {
             nbt.putString(SELECTED_IDENTITY_TYPE_KEY, PLAYER_IDENTITY_ID.toString());
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
@@ -299,6 +326,7 @@ public final class IdentityProgression {
         if (identity == null) {
             nbt.putDouble("width_override", 0.0);
             nbt.putDouble("height_override", 0.0);
+            clearMorphDamageGrace(nbt);
             clearTransitionData(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -885,6 +913,33 @@ public final class IdentityProgression {
         nbt.putDouble(TRANSITION_DURATION_TICKS_KEY, 0.0D);
     }
 
+    private static void applyMorphDamageGrace(
+        ServerPlayer player,
+        CompoundTag nbt,
+        double previousWidth,
+        double previousHeight,
+        double nextWidth,
+        double nextHeight
+    ) {
+        if (player == null || nbt == null) {
+            return;
+        }
+        boolean grew = (nextWidth - previousWidth) > 1.0E-4D || (nextHeight - previousHeight) > 1.0E-4D;
+        if (!grew) {
+            clearMorphDamageGrace(nbt);
+            return;
+        }
+        double endTick = (player.level() == null ? 0.0D : player.level().getGameTime()) + 40.0D;
+        nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, endTick);
+    }
+
+    private static void clearMorphDamageGrace(CompoundTag nbt) {
+        if (nbt == null) {
+            return;
+        }
+        nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+    }
+
     private static CompoundTag getCustomData(ServerPlayer player) {
         CustomData customData = ((EntityAccessor) player).getCustomData();
         return ((NbtComponentAccessor) (Object) customData).getNbt();
@@ -1146,6 +1201,33 @@ public final class IdentityProgression {
             Object value = BuiltInRegistries.class.getField(fieldName).get(null);
             if (value instanceof Registry<?> registry) {
                 return registry;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                Identifier location = null;
+                Object byLocation = invokeNoArg(resourceKey, "location");
+                if (byLocation instanceof Identifier id) {
+                    location = id;
+                } else {
+                    Object byIdentifier = invokeNoArg(resourceKey, "identifier");
+                    if (byIdentifier instanceof Identifier id) {
+                        location = id;
+                    } else {
+                        Object byRegistry = invokeNoArg(resourceKey, "registry");
+                        if (byRegistry instanceof Identifier id2) {
+                            location = id2;
+                        }
+                    }
+                }
+                if (location != null) {
+                    Object value = BuiltInRegistries.REGISTRY.getValue(location);
+                    if (value instanceof Registry<?> registry) {
+                        return registry;
+                    }
+                }
             }
         } catch (Throwable ignored) {
         }

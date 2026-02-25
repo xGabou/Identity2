@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ProblemReporter;
@@ -92,13 +95,68 @@ public final class IdentityVariantDiscovery {
         }
 
         if (type == EntityType.CAT) {
-            List<IdentityVariant> catVariants = discoverCatStringVariants(type, typeId, world);
-            if (!catVariants.isEmpty()) {
-                return catVariants;
+            List<IdentityVariant> variants = discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat");
+            if (!variants.isEmpty()) {
+                return variants;
             }
+            return discoverCatStringVariants(type, typeId, world);
+        }
+        if (type == EntityType.WOLF) {
+            return discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf");
+        }
+        if (type == EntityType.FROG) {
+            return discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog");
         }
 
         return List.of();
+    }
+
+    private static List<IdentityVariant> discoverRegistryBackedVariants(
+        Identifier typeId,
+        String registryField,
+        String variantKey,
+        String labelPrefix
+    ) {
+        Registry<?> registry = resolveRegistry(registryField);
+        if (registry == null || registry.keySet().isEmpty()) {
+            return List.of();
+        }
+        List<Identifier> keys = new ArrayList<>(registry.keySet());
+        keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
+        List<IdentityVariant> variants = new ArrayList<>(keys.size());
+        for (Identifier variantId : keys) {
+            if (variantId == null) {
+                continue;
+            }
+            CompoundTag nbt = new CompoundTag();
+            nbt.putString(variantKey, variantId.toString());
+            variants.add(new IdentityVariant(typeId, labelPrefix + " " + capitalize(variantId.getPath().replace('_', ' ')), nbt));
+        }
+        return variants;
+    }
+
+    private static Registry<?> resolveRegistry(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        try {
+            Object direct = BuiltInRegistries.class.getField(fieldName).get(null);
+            if (direct instanceof Registry<?> registry) {
+                return registry;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                Object value = BuiltInRegistries.REGISTRY.getValue(resourceKey.identifier());
+                if (value instanceof Registry<?> registry) {
+                    return registry;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {

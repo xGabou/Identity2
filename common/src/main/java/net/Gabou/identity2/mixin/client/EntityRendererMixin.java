@@ -16,9 +16,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -63,6 +66,8 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             LimbAnimatorAccessor origin = (LimbAnimatorAccessor) livingSource.walkAnimation;
             target.setPrevSpeed(origin.getPrevSpeed());
             target.setSpeed(origin.getSpeed());
+            target.setPosition(origin.getPosition());
+            target.setPositionScale(origin.getPositionScale());
 
             livingIdentity.swinging = livingSource.swinging;
             livingIdentity.swingTime = livingSource.swingTime;
@@ -75,7 +80,14 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             livingIdentity.yHeadRot = livingSource.yHeadRot;
             livingIdentity.yHeadRotO = livingSource.yHeadRotO;
             livingIdentity.swingingArm = livingSource.swingingArm;
-            livingIdentity.startUsingItem(livingSource.getUsedItemHand());
+            if (livingSource.isUsingItem()) {
+                livingIdentity.startUsingItem(livingSource.getUsedItemHand());
+            } else {
+                livingIdentity.stopUsingItem();
+            }
+            if (livingIdentity instanceof Bat batIdentity) {
+                identity2$forceBatFlightAnimation(batIdentity, source.tickCount);
+            }
         }
 
         identity.tickCount = source.tickCount;
@@ -111,6 +123,77 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         identity.setSharedFlagOnFire(source.isOnFire());
+    }
+
+    private static void identity2$forceBatFlightAnimation(Bat bat, int tickCount) {
+        bat.setResting(false);
+        Object flyAnimationState = identity2$getFieldValue(bat, "flyAnimationState");
+        Object restAnimationState = identity2$getFieldValue(bat, "restAnimationState");
+        identity2$invokeOneArg(flyAnimationState, "startIfStopped", tickCount);
+        identity2$invokeNoArg(restAnimationState, "stop");
+    }
+
+    private static Object identity2$getFieldValue(Object target, String fieldName) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                return field.get(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                    continue;
+                }
+                Class<?> param = method.getParameterTypes()[0];
+                if (arg != null && !(param.isAssignableFrom(arg.getClass()) || (param == int.class && arg instanceof Integer))) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target, arg);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return null;
     }
 
     private static void identity2$applyModelPartOverrides(Entity entity) {

@@ -1,6 +1,8 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
+import java.util.Locale;
+import java.lang.reflect.Method;
 
 import net.minecraft.world.entity.*;
 import org.spongepowered.asm.mixin.Mixin;
@@ -43,6 +45,7 @@ import net.minecraft.world.item.Items;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityProgression;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
 
@@ -265,11 +268,75 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,CallbackInfoReturnable info){
+    if ((Entity)(Object)this instanceof Player player) {
+        Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+        if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
+            info.setReturnValue(true);
+            return;
+        }
+    }
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
             info.setReturnValue(livingIdentity.isInvulnerableTo(world,source));
         }
     }
+}
+
+private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
+    }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("inwall")
+        || normalized.equals("in_wall")
+        || normalized.equals("flyintowall")
+        || normalized.equals("fly_into_wall")
+        || normalized.equals("cramming");
+}
+
+private static String identity2$getDamageMessageId(DamageSource source) {
+    if (source == null) {
+        return "";
+    }
+    Object direct = identity2$invokeNoArg(source, "getMsgId");
+    if (direct instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object type = identity2$invokeNoArg(source, "type");
+    Object fromType = identity2$invokeNoArg(type, "msgId");
+    if (fromType instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object holder = identity2$invokeNoArg(source, "typeHolder");
+    Object value = identity2$invokeNoArg(holder, "value");
+    Object fromHolder = identity2$invokeNoArg(value, "msgId");
+    if (fromHolder instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    return "";
+}
+
+private static Object identity2$invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isBlank()) {
+        return null;
+    }
+    for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+        for (Method method : current.getDeclaredMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                return method.invoke(target);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+    return null;
 }
 @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at=@At("HEAD"),cancellable=true)
 private void pushAwayFromIdentity(Entity entity,CallbackInfo info){
