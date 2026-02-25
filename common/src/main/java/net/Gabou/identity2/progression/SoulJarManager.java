@@ -290,12 +290,12 @@ public final class SoulJarManager {
 
     static Map<String, Integer> getKillProgressMap(ServerPlayer player) {
         CompoundTag customData = getCustomData(player);
-        return new HashMap<>(customData.read(SOUL_JAR_KILL_PROGRESS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+        return new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(customData, SOUL_JAR_KILL_PROGRESS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
     }
 
     static void setKillProgressMap(ServerPlayer player, Map<String, Integer> progress) {
         CompoundTag customData = getCustomData(player);
-        customData.store(SOUL_JAR_KILL_PROGRESS_KEY, STRING_INT_MAP_CODEC, progress == null ? Map.of() : progress);
+        net.Gabou.identity2.util.NbtCompat.store(customData, SOUL_JAR_KILL_PROGRESS_KEY, STRING_INT_MAP_CODEC, progress == null ? Map.of() : progress);
     }
 
     static boolean applyKillProgressToStoredMorphs(ServerPlayer player, ResourceLocation identityId, String variantToken, int required, Map<String, Integer> progress) {
@@ -428,12 +428,12 @@ public final class SoulJarManager {
             return List.of();
         }
         CompoundTag customData = getCustomData(player);
-        return new ArrayList<>(customData.read(SOUL_JARS_KEY, SOUL_JAR_LIST_CODEC).orElse(List.of()));
+        return new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, SOUL_JARS_KEY, SOUL_JAR_LIST_CODEC).orElse(List.of()));
     }
 
     private static void setLegacySoulJars(ServerPlayer player, List<SoulJarData> jars) {
         CompoundTag customData = getCustomData(player);
-        customData.store(SOUL_JARS_KEY, SOUL_JAR_LIST_CODEC, jars == null ? List.of() : jars);
+        net.Gabou.identity2.util.NbtCompat.store(customData, SOUL_JARS_KEY, SOUL_JAR_LIST_CODEC, jars == null ? List.of() : jars);
     }
 
     private static InventoryJarRef findInventoryJar(ServerPlayer player, String normalizedId) {
@@ -491,18 +491,18 @@ public final class SoulJarManager {
         }
 
         CompoundTag root = customData.copyTag();
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(null);
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return null;
         }
 
-        String jarId = normalizeJarId(jarTag.getStringOr("jar_id", ""));
+        String jarId = normalizeJarId(net.Gabou.identity2.util.NbtCompat.getStringOr(jarTag, "jar_id", ""));
         if (jarId.isBlank()) {
             return null;
         }
 
-        String tier = ProgressionConfigHelper.normalizeTier(jarTag.getStringOr("tier", "mud"));
-        List<StoredMorphData> morphs = new ArrayList<>(jarTag.read("morphs", StoredMorphData.CODEC.listOf()).orElse(List.of()));
+        String tier = ProgressionConfigHelper.normalizeTier(net.Gabou.identity2.util.NbtCompat.getStringOr(jarTag, "tier", "mud"));
+        List<StoredMorphData> morphs = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(jarTag, "morphs", StoredMorphData.CODEC.listOf()).orElse(List.of()));
         return new SoulJarData(jarId, tier, morphs);
     }
 
@@ -532,10 +532,10 @@ public final class SoulJarManager {
         CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag root = currentData == null ? new CompoundTag() : currentData.copyTag();
 
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(new CompoundTag());
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOr(root, ITEM_SOUL_JAR_KEY, new CompoundTag());
         jarTag.putString("jar_id", normalizeJarId(jarData.jarId()));
         jarTag.putString("tier", ProgressionConfigHelper.normalizeTier(jarData.tier()));
-        jarTag.store("morphs", StoredMorphData.CODEC.listOf(), jarData.morphs() == null ? List.of() : jarData.morphs());
+        net.Gabou.identity2.util.NbtCompat.store(jarTag, "morphs", StoredMorphData.CODEC.listOf(), jarData.morphs() == null ? List.of() : jarData.morphs());
 
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
@@ -654,3 +654,5 @@ public final class SoulJarManager {
         );
     }
 }
+
+

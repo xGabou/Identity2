@@ -57,7 +57,7 @@ public final class IdentityCommand {
                 .then(Commands.literal("list").executes(context -> list(context.getSource())))
                 .then(
                     Commands.literal("unlock")
-                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                            .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
                         .then(
                             Commands.argument("identity_id", ResourceLocationArgument.id())
                                 .suggests(IdentityCommand::suggestMorphableIdentities)
@@ -97,7 +97,7 @@ public final class IdentityCommand {
                 )
                 .then(
                     Commands.literal("config")
-                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                            .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
                         .then(Commands.literal("list").executes(context -> listConfig(context.getSource())))
                         .then(
                             Commands.literal("get")

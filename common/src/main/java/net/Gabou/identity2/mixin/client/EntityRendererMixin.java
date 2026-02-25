@@ -26,7 +26,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
     private static void identity2$applyModelPartOverrides(Entity entity) {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
         boolean hasHiddenPartOverrides = false;
-        for (String key : nbt.keySet()) {
+        for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {
             if (key.startsWith("hidden_parts.")) {
                 hasHiddenPartOverrides = true;
                 break;
@@ -49,18 +49,18 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         if (hasHiddenPartOverrides) {
-            for (String key : nbt.keySet()) {
+            for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {
                 if (key.startsWith("hidden_parts.")) {
-                    ModelPart part = model.root().createPartLookup().apply(key.substring(13));
+                    ModelPart part = model.root().getChild(key.substring(13));
                     if (part != null) {
-                        part.skipDraw = nbt.getBooleanOr(key, false);
+                        part.skipDraw = net.Gabou.identity2.util.NbtCompat.getBooleanOr(nbt, key, false);
                     }
                 }
             }
         }
 
         if (shouldHideHead) {
-            ModelPart head = model.root().createPartLookup().apply("head");
+            ModelPart head = model.root().getChild("head");
             if (head != null) {
                 head.skipDraw = true;
                 head.xScale = 0.0F;
@@ -68,3 +68,4 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
     }
 }
+

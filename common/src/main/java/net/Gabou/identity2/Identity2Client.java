@@ -43,6 +43,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -666,13 +667,13 @@ public final class Identity2Client {
     }
 
     private static String readCurrentIdentityType(LocalPlayer player) {
-        return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt()
-                .getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        return net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
     }
 
     private static String readCurrentIdentityVariant(LocalPlayer player) {
-        return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt()
-                .getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        return net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
     }
 
     public static String getFavoriteLabel(int slot) {
@@ -688,18 +689,17 @@ public final class Identity2Client {
 
     private void applyIdentityFromCustomData(Entity entity) {
         CustomData n = ((EntityAccessor) entity).getCustomData();
-        String type = ((NbtComponentAccessor) (Object) n).getNbt()
-                .getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) n).getNbt();
+        String type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
-            type = ((NbtComponentAccessor) (Object) n).getNbt().getStringOr("model_override", "");
+            type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
         if (type.isBlank()) {
             ((EntityAccessor) entity).setCurrentIdentity("");
             entity.refreshDimensions();
             return;
         }
-        String variantRaw = ((NbtComponentAccessor) (Object) n).getNbt()
-                .getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
         ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
     }
 
@@ -747,7 +747,7 @@ public final class Identity2Client {
         int width = client.getWindow().getGuiScaledWidth();
         int height = client.getWindow().getGuiScaledHeight();
 
-        matrices.pose().pushMatrix();
+        matrices.pose().pushPose();
         boolean scissorEnabled = false;
         if (cooldownScale < 1.0F) {
             matrices.enableScissor(
@@ -762,7 +762,7 @@ public final class Identity2Client {
             if (scissorEnabled) {
                 matrices.disableScissor();
             }
-            matrices.pose().popMatrix();
+            matrices.pose().popPose();
             return;
         }
         matrices.renderItem(stack, (int) (width * .95f), (int) (height * .92f));
@@ -770,7 +770,7 @@ public final class Identity2Client {
             matrices.disableScissor();
         }
 
-        matrices.pose().popMatrix();
+        matrices.pose().popPose();
 
         lastCooldown = Math.round(Mth.lerpInt(delta, cd - 1, cd));
     }
@@ -811,3 +811,4 @@ public final class Identity2Client {
         return eModel;
     }
 }
+

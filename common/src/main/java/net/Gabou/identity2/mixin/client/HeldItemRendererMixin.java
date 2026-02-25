@@ -259,20 +259,28 @@ public class HeldItemRendererMixin {
         if (anySide != null) {
             return anySide;
         }
-        for (ModelPart part : root.getAllParts()) {
-            if (!part.isEmpty()) {
-                return part;
-            }
-        }
-        return exact;
+        return root.getAllParts()
+                .filter(part -> !part.isEmpty())
+                .findFirst()
+                .orElse(exact);
     }
 
     private static ModelPart identity2$findPartByNames(ModelPart root, String[] candidates) {
-        java.util.function.Function<String, ModelPart> lookup = root.createPartLookup();
         for (String candidate : candidates) {
-            ModelPart part = lookup.apply(candidate);
-            if (part != null) {
-                return part;
+            ModelPart current = root;
+            boolean valid = true;
+
+            for (String segment : candidate.split("\\.")) {
+                try {
+                    current = current.getChild(segment);
+                } catch (IllegalArgumentException e) {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid) {
+                return current;
             }
         }
         return null;

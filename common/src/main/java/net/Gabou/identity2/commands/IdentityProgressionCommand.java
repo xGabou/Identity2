@@ -34,7 +34,7 @@ public final class IdentityProgressionCommand {
 
     private static LiteralArgumentBuilder<CommandSourceStack> buildProgressionLiteral(String rootLiteral) {
         return Commands.literal(rootLiteral)
-            .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
             .then(
                 Commands.literal("ui")
                     .executes(context -> openUi(context.getSource(), null))

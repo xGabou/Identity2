@@ -125,9 +125,9 @@ public final class MorphChargeManager {
         }
 
         CompoundTag customData = getCustomData(player);
-        String selectedType = customData.getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
-            selectedType = customData.getStringOr("model_override", "");
+            selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(customData, "model_override", "");
         }
         if (selectedType.isBlank()) {
             return;
@@ -143,7 +143,7 @@ public final class MorphChargeManager {
             return;
         }
 
-        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(customData.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
+        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(net.Gabou.identity2.util.NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
         if (PermanentMorphManager.hasDeathLossProtection(player, identityId, variantNbt)) {
             return;
         }
@@ -161,12 +161,12 @@ public final class MorphChargeManager {
 
     private static Map<String, Integer> getChargeMap(ServerPlayer player) {
         CompoundTag customData = getCustomData(player);
-        return new HashMap<>(customData.read(MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+        return new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
     }
 
     private static void setChargeMap(ServerPlayer player, Map<String, Integer> charges) {
         CompoundTag customData = getCustomData(player);
-        customData.store(MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
+        net.Gabou.identity2.util.NbtCompat.store(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
         ProgressionUiSync.sendPlayerCharges(player, charges);
     }
 
@@ -175,3 +175,5 @@ public final class MorphChargeManager {
         return ((NbtComponentAccessor) (Object) customData).getNbt();
     }
 }
+
+

@@ -2,13 +2,13 @@ package net.Gabou.identity2.mixin;
 
 import dev.architectury.networking.NetworkManager;
 import java.util.ArrayList;
-import java.util.Optional;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -29,14 +29,16 @@ public class EntityTrackerEntryMixin {
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringValues = new ArrayList<>(0);
         CompoundTag data = ((NbtComponentAccessor) (Object) ((EntityAccessor) this.entity).getCustomData()).getNbt();
 
-        for (String key : data.keySet()) {
-            Optional<String> strKey = data.getString(key);
-            if (strKey.isPresent()) {
-                stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, strKey.get()));
+        for (String key : net.Gabou.identity2.util.NbtCompat.keySet(data)) {
+            Tag value = data.get(key);
+            if (value == null) {
+                continue;
             }
-            Optional<Double> doubleKey = data.getDouble(key);
-            if (doubleKey.isPresent()) {
-                doubleValues.add(new CustomEntityDataS2CPacket.Entry(key, doubleKey.get()));
+            if (value.getId() == Tag.TAG_STRING) {
+                stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, data.getString(key)));
+            }
+            if (value.getId() >= Tag.TAG_BYTE && value.getId() <= Tag.TAG_DOUBLE) {
+                doubleValues.add(new CustomEntityDataS2CPacket.Entry(key, data.getDouble(key)));
             }
         }
 

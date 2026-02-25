@@ -21,6 +21,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -73,17 +74,20 @@ public class PlayerManagerMixin {
         CustomData customData = ((EntityAccessor) player).getCustomData();
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
 
-        for (String key : nbt.keySet()) {
-            if (nbt.getDouble(key).isPresent()) {
-                doubleData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getDoubleOr(key, 0.0)));
-            } else if (nbt.getFloat(key).isPresent()) {
-                doubleData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getFloatOr(key, 0.0F)));
+        for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {
+            Tag raw = nbt.get(key);
+            if (raw == null) {
+                continue;
             }
-            if (nbt.getString(key).isPresent()) {
-                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, nbt.getStringOr(key, "")));
+            byte id = raw.getId();
+            if (id >= Tag.TAG_BYTE && id <= Tag.TAG_DOUBLE) {
+                doubleData.add(new CustomEntityDataS2CPacket.Entry(key, net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, key, 0.0)));
             }
-            if (nbt.getBoolean(key).isPresent()) {
-                boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, nbt.getBooleanOr(key, false)));
+            if (id == Tag.TAG_STRING) {
+                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, key, "")));
+            }
+            if (id == Tag.TAG_BYTE) {
+                boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, net.Gabou.identity2.util.NbtCompat.getBooleanOr(nbt, key, false)));
             }
         }
 
@@ -176,3 +180,4 @@ public class PlayerManagerMixin {
         }
     }
 }
+

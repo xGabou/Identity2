@@ -91,7 +91,7 @@ public class TargetPredicateMixin{
             }
         }
 
-        if (tester.getLastHurtByPlayer() == target) {
+        if (tester.getLastHurtByMob() == target) {
             return true;
         }
 

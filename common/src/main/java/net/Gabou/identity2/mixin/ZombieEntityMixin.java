@@ -49,7 +49,7 @@ public abstract class ZombieEntityMixin {
             return;
         }
 
-        giant.snapTo(zombie.getX(), zombie.getY(), zombie.getZ(), zombie.getYRot(), zombie.getXRot());
+        giant.moveTo(zombie.getX(), zombie.getY(), zombie.getZ(), zombie.getYRot(), zombie.getXRot());
         giant.setDeltaMovement(zombie.getDeltaMovement());
         giant.setNoAi(false);
 

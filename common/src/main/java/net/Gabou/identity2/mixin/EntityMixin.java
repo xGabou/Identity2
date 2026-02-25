@@ -3,6 +3,7 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.Shadow;
@@ -62,16 +63,24 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.identity.IdentityProgression;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor{
-    @Shadow
-    private CustomData customData;
+    @Nullable
+    @Unique
+    private CustomData identity2$customDataView;
+
+    @Nullable
+    @Unique
+    private static Constructor<CustomData> identity2$customDataCtor;
+
+    @Nullable
+    private CompoundTag persistentData;
     @Shadow
     private int id;
     @Shadow
@@ -82,6 +91,9 @@ public class EntityMixin implements EntityAccessor{
     public int getId(){
         return id;
     }
+
+
+
 
     @Shadow
     public Vec3 getDeltaMovement(){return null;}
@@ -95,26 +107,24 @@ public class EntityMixin implements EntityAccessor{
     public final void setPos(Vec3 v){return;}
     @Shadow
     public void setDeltaMovement(Vec3 v){return;}
-    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOA(double x){
-        return Identity2.maxWorldSize;
-    }
-    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOB(double x){
-        return -Identity2.maxWorldSize;
-    }
+//    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
+//    private static double TDIOA(double x){
+//        return Identity2.maxWorldSize;
+//    }
+//    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
+//    private static double TDIOB(double x){
+//        return -Identity2.maxWorldSize;
+//    }
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get()!=0.0){
-                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
-            }else{
-                block.updateEntityMovementAfterFallOn(view,entity);
-            }
-        }else{
-                block.updateEntityMovementAfterFallOn(view,entity);
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
+        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+            entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
+            return;
+        }
+        block.updateEntityMovementAfterFallOn(view,entity);
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
@@ -202,16 +212,13 @@ public class EntityMixin implements EntityAccessor{
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()){
-            double d=((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
-            if(d!=0.0){
-                entity.setDeltaMovement(bl ? vec3d4.x*d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z*d : vec3d4.z);
-            }else{
-                entity.setDeltaMovement(x,y,z);
-            }
-        }else{
-                entity.setDeltaMovement(x,y,z);
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
+        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+            entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
+            return;
+        }
+        entity.setDeltaMovement(x,y,z);
     }
 
 
@@ -356,21 +363,19 @@ public class EntityMixin implements EntityAccessor{
 
 
 
-    @Inject(method="isClientAuthoritative",at=@At("HEAD"),cancellable=true)
+    @Inject(method="isControlledByClient",at=@At("HEAD"),cancellable=true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info){
         if(this.identityOf!=null){
-            info.setReturnValue(((Entity)this.identityOf).isClientAuthoritative());
+            info.setReturnValue(((Entity)this.identityOf).isControlledByClient());
         }
     }
     
     @Inject(method="getBbWidth",at=@At("HEAD"),cancellable=true)
     private void getWidthOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
-                info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()
-                );
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
+        if (override > 0.0D) {
+            info.setReturnValue((float) override);
         }
     }
     @Inject(method="getDimensions",at=@At("RETURN"),cancellable=true)
@@ -381,17 +386,14 @@ public class EntityMixin implements EntityAccessor{
         float widthOverride = oldWidth;
         float heightOverride = oldHeight;
 
-        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
-            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get();
-            if (value > 0.0) {
-                widthOverride = (float) value;
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double widthValue = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
+        if (widthValue > 0.0D) {
+            widthOverride = (float) widthValue;
         }
-        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
-            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get();
-            if (value > 0.0) {
-                heightOverride = (float) value;
-            }
+        double heightValue = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
+        if (heightValue > 0.0D) {
+            heightOverride = (float) heightValue;
         }
 
         float widthScale = oldWidth > 0.0F ? widthOverride / oldWidth : 1.0F;
@@ -400,12 +402,10 @@ public class EntityMixin implements EntityAccessor{
     }
     @Inject(method="getBbHeight",at=@At("HEAD"),cancellable=true)
     private void getHeightOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
-                info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()
-                );
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
+        if (override > 0.0D) {
+            info.setReturnValue((float) override);
         }
     }
     @Shadow
@@ -422,19 +422,16 @@ public class EntityMixin implements EntityAccessor{
         double new_height=old_height;
         boolean hasOverride=false;
 
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
-                new_width=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get();
-                hasOverride=true;
-            }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        double widthOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
+        if (widthOverride > 0.0D) {
+            new_width = widthOverride;
+            hasOverride = true;
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
-                new_height=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get();
-                hasOverride=true;
-            }
+        double heightOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
+        if (heightOverride > 0.0D) {
+            new_height = heightOverride;
+            hasOverride = true;
         }
         if(!hasOverride){
             return;
@@ -449,12 +446,37 @@ public class EntityMixin implements EntityAccessor{
     }
     @Override
     public CustomData getCustomData(){
-        if(this.customData==CustomData.EMPTY){
-        this.customData= CustomData.of(((NbtComponentAccessor)(Object)this.customData).getNbt().copy());
-        //Identity2.LOGGER.info("Default Custom Data detected.");
+        if (this.persistentData == null) {
+            this.persistentData = new CompoundTag();
         }
-        return this.customData;
+        CompoundTag persistentTag = this.persistentData;
+        if (
+            this.identity2$customDataView == null
+                || ((NbtComponentAccessor) (Object) this.identity2$customDataView).getNbt() != persistentTag
+        ) {
+            this.identity2$customDataView = identity2$wrapTagReference(persistentTag);
+        }
+        return this.identity2$customDataView;
     };
+
+    @Unique
+    private static CustomData identity2$wrapTagReference(CompoundTag tag) {
+        Constructor<CustomData> ctor = identity2$customDataCtor;
+        if (ctor == null) {
+            try {
+                ctor = CustomData.class.getDeclaredConstructor(CompoundTag.class);
+                ctor.setAccessible(true);
+                identity2$customDataCtor = ctor;
+            } catch (Throwable ignored) {
+                return CustomData.of(tag);
+            }
+        }
+        try {
+            return ctor.newInstance(tag);
+        } catch (Throwable ignored) {
+            return CustomData.of(tag);
+        }
+    }
     
     @Nullable
     public Entity currentIdentity=null;
@@ -500,7 +522,8 @@ public class EntityMixin implements EntityAccessor{
             nbtCompound=new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty()) {
-            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            CompoundTag dataNbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+            String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(dataNbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
@@ -551,7 +574,7 @@ public class EntityMixin implements EntityAccessor{
         try {
             Level serverWorld = (Level)((Entity)(Object)this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
-                entityx.snapTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
+                entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
             });
             if (entity == null) {
@@ -590,36 +613,36 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
+        boolean hasBabyFlag = variantNbt.contains("IsBaby", net.minecraft.nbt.Tag.TAG_BYTE) || variantNbt.contains("Baby", net.minecraft.nbt.Tag.TAG_BYTE);
         if (hasBabyFlag) {
-            boolean baby = variantNbt.getBooleanOr("IsBaby", variantNbt.getBooleanOr("Baby", false));
+            boolean baby = net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "IsBaby", net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "Baby", false));
             identity2$invokeOneArg(identityEntity, "setBaby", baby);
         }
-        if (variantNbt.getInt("Age").isPresent()) {
-            int age = variantNbt.getInt("Age").get();
+        if (variantNbt.contains("Age", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            int age = variantNbt.getInt("Age");
             identity2$invokeIntArg(identityEntity, "setAge", age);
             if (age < 0) {
                 identity2$invokeOneArg(identityEntity, "setBaby", true);
             }
         }
-        if (variantNbt.getBoolean("AgeLocked").isPresent()) {
-            identity2$invokeOneArg(identityEntity, "setAgeLocked", variantNbt.getBooleanOr("AgeLocked", false));
+        if (variantNbt.contains("AgeLocked", net.minecraft.nbt.Tag.TAG_BYTE)) {
+            identity2$invokeOneArg(identityEntity, "setAgeLocked", net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "AgeLocked", false));
         }
 
-        if (variantNbt.getInt("Variant").isPresent()) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant").get());
+        if (variantNbt.contains("Variant", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant"));
         }
-        if (variantNbt.getInt("variant").isPresent()) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant").get());
+        if (variantNbt.contains("variant", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant"));
         }
-        if (variantNbt.getInt("Type").isPresent()) {
-            int type = variantNbt.getInt("Type").get();
+        if (variantNbt.contains("Type", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            int type = variantNbt.getInt("Type");
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
-        if (variantNbt.getInt("type").isPresent()) {
-            int type = variantNbt.getInt("type").get();
+        if (variantNbt.contains("type", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            int type = variantNbt.getInt("type");
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
@@ -629,8 +652,8 @@ public class EntityMixin implements EntityAccessor{
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "FrogVariant", "FROG_VARIANT");
 
-        if (variantNbt.getInt("CollarColor").isPresent()) {
-            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor").get());
+        if (variantNbt.contains("CollarColor", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor"));
             if (dyeColor != null) {
                 identity2$invokeOneArg(identityEntity, "setCollarColor", dyeColor);
             }
@@ -649,14 +672,14 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        CompoundTag villagerDataTag = variantNbt.getCompound("VillagerData").orElse(null);
+        CompoundTag villagerDataTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(variantNbt, "VillagerData");
         String professionRaw = identity2$readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
         if ((professionRaw == null || professionRaw.isBlank()) && villagerDataTag != null) {
-            professionRaw = villagerDataTag.getStringOr("profession", "");
+            professionRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "profession", "");
         }
         String typeRaw = identity2$readVariantString(variantNbt, "VillagerType", "Type", "type");
         if ((typeRaw == null || typeRaw.isBlank()) && villagerDataTag != null) {
-            typeRaw = villagerDataTag.getStringOr("type", "");
+            typeRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "type", "");
         }
 
         ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
@@ -695,10 +718,10 @@ public class EntityMixin implements EntityAccessor{
         }
 
         int level = 0;
-        if (variantNbt.getInt("VillagerLevel").isPresent()) {
-            level = variantNbt.getInt("VillagerLevel").get();
-        } else if (villagerDataTag != null && villagerDataTag.getInt("level").isPresent()) {
-            level = villagerDataTag.getInt("level").get();
+        if (variantNbt.contains("VillagerLevel", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            level = variantNbt.getInt("VillagerLevel");
+        } else if (villagerDataTag != null && villagerDataTag.contains("level", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            level = villagerDataTag.getInt("level");
         }
         if (level > 0) {
             Object updatedVillagerData = identity2$invokeIntArg(villagerData, "setLevel", Math.max(1, level));
@@ -813,10 +836,10 @@ public class EntityMixin implements EntityAccessor{
             if (key == null || key.isBlank()) {
                 continue;
             }
-            if (!variantNbt.getString(key).isPresent()) {
+            if (!variantNbt.contains(key, net.minecraft.nbt.Tag.TAG_STRING)) {
                 continue;
             }
-            String value = variantNbt.getStringOr(key, "").trim();
+            String value = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, key, "").trim();
             if (!value.isBlank()) {
                 return value;
             }
@@ -983,7 +1006,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
@@ -1192,27 +1215,44 @@ private void getSoundCategoryIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at=@At("HEAD"),cancellable=true)
-private void getInterpolatorIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getInterpolation());
+@Inject(method = "lerpTo(DDDFFI)V", at=@At("HEAD"))
+private void identity2$forwardLerpTo(
+    double x,
+    double y,
+    double z,
+    float yRot,
+    float xRot,
+    int interpolationSteps,
+    CallbackInfo info
+){
+    if (this.currentIdentity != null) {
+        this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
     }
 }
 
-@Inject(method = "canBeCollidedWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
-private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnable info){
-    try{
-        if(entity!=null){
-            if(((EntityAccessor)entity).getIdentityOwner()!=null){
-                info.setReturnValue(false);
-                return;
-            }
-        }
-    }catch(Exception e){int x=0;}
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canBeCollidedWith(entity));
+@Inject(method = "cancelLerp()V", at=@At("HEAD"))
+private void identity2$forwardCancelLerp(CallbackInfo info){
+    if (this.currentIdentity != null) {
+        this.currentIdentity.cancelLerp();
     }
 }
+
+    @Inject(method = "canBeCollidedWith", at = @At("HEAD"), cancellable = true)
+    private void identity2$canBeCollidedWith(CallbackInfoReturnable<Boolean> cir) {
+
+        if (this.currentIdentity != null) {
+            cir.setReturnValue(this.currentIdentity.canBeCollidedWith());
+            return;
+        }
+
+        if ((Object)this instanceof Entity self) {
+            try {
+                if (((EntityAccessor) self).getIdentityOwner() != null) {
+                    cir.setReturnValue(false);
+                }
+            } catch (Exception ignored) {}
+        }
+    }
 
 @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
 private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
@@ -1338,12 +1378,12 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
 
 public boolean saving=false;
 
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("HEAD"),cancellable=true)
-public void writeDataLabelSaving(ValueOutput view,CallbackInfo info) {
+@Inject(method = "saveWithoutId", at=@At("HEAD"),cancellable=true, require = 0)
+public void writeDataLabelSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
     this.saving=true;
 }
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("TAIL"),cancellable=true)
-public void writeDataLabelDoneSaving(ValueOutput view,CallbackInfo info) {
+@Inject(method = "saveWithoutId", at=@At("TAIL"),cancellable=true, require = 0)
+public void writeDataLabelDoneSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
     this.saving=false;
 }
 
@@ -1392,4 +1432,6 @@ private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
 }
 //Tons of Redirects - End
 }
+
+
 

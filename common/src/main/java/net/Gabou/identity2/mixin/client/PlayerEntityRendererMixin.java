@@ -51,17 +51,19 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
     private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, PlayerRenderState renderState, float tickProgress, CallbackInfo info) {
         net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
-        String selectedType = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
-            selectedType = nbt.getStringOr("model_override", "");
+            selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
         if (!IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(selectedType)) {
             return;
         }
 
-        CompoundTag variant = IdentityProgression.parseVariantNbt(nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
-        String uuidRaw = variant.getStringOr(IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
-        String nameRaw = variant.getStringOr(IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
+        CompoundTag variant = IdentityProgression.parseVariantNbt(
+            net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")
+        );
+        String uuidRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(variant, IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
+        String nameRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(variant, IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
 
         UUID uuid = entity.getUUID();
         if (!uuidRaw.isEmpty()) {
@@ -108,3 +110,4 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
         }
 	}*/
 }
+

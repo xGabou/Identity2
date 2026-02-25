@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
+import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -96,8 +97,8 @@ public abstract class EntityRenderDispatcherMixin {
         ((EntityAccessor) identity).setLastPosition(source.oldPosition());
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
-            if (livingIdentity.isJumping() != livingSource.isJumping()) {
-                livingIdentity.setJumping(livingSource.isJumping());
+            if (((LivingEntityAccessor) livingIdentity).identity2$isJumping() != ((LivingEntityAccessor)livingSource).identity2$isJumping()) {
+                livingIdentity.setJumping(((LivingEntityAccessor)livingSource).identity2$isJumping());
             }
 
             LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.walkAnimation;

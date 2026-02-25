@@ -23,7 +23,7 @@ public class RunMultipleCommand {
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(
 			Commands.literal("runmulti")
-				.requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+				.requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
 					.then(
 									Commands.argument("name", StringArgumentType.string())
 						

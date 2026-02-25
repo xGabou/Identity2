@@ -5,21 +5,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.lang.reflect.Method;
 import net.Gabou.identity2.identity.IdentityVariant;
+import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.minecraft.core.Registry;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.storage.TagValueInput;
-import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.level.storage.ValueInput;
 
 public final class IdentityVariantDiscovery {
     private static final List<String> CAT_VARIANT_FALLBACK_IDS = List.of(
@@ -281,7 +280,7 @@ public final class IdentityVariantDiscovery {
             }
 
             for (String key : keys) {
-                String value = nbt.getStringOr(key, "");
+                String value = readStringCompat(nbt, key);
                 if (value.isBlank()) {
                     continue;
                 }
@@ -370,7 +369,8 @@ public final class IdentityVariantDiscovery {
             CompoundTag babyNbt = variant.variantNbt().copy();
             babyNbt.putBoolean("IsBaby", true);
             babyNbt.putBoolean("Baby", true);
-            int age = babyNbt.getInt("Age").isPresent() ? babyNbt.getInt("Age").get() : -24000;
+            Integer storedAge = readIntCompat(babyNbt, "Age");
+            int age = storedAge == null ? -24000 : storedAge;
             if (age >= 0) {
                 age = -24000;
             }
@@ -469,9 +469,7 @@ public final class IdentityVariantDiscovery {
 
     private static CompoundTag writeEntityData(Entity entity, ClientLevel world) {
         try {
-            TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess());
-            entity.saveWithoutId(writeView);
-            return writeView.buildResult();
+            return EntityNbtIoCompat.saveWithoutId(entity);
         } catch (Throwable ignored) {
             return null;
         }
@@ -479,9 +477,7 @@ public final class IdentityVariantDiscovery {
 
     private static boolean readEntityData(Entity entity, ClientLevel world, CompoundTag nbt) {
         try {
-            ValueInput readView = TagValueInput.create(ProblemReporter.DISCARDING, world.registryAccess(), nbt);
-            entity.load(readView);
-            return true;
+            return EntityNbtIoCompat.load(entity, nbt, world.registryAccess());
         } catch (Throwable ignored) {
             return false;
         }
@@ -520,16 +516,20 @@ public final class IdentityVariantDiscovery {
     }
 
     private static NumericKind detectNumericKind(CompoundTag nbt, String key) {
-        if (nbt.getByte(key).isPresent()) {
+        Tag value = nbt.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value.getId() == Tag.TAG_BYTE) {
             return NumericKind.BYTE;
         }
-        if (nbt.getShort(key).isPresent()) {
+        if (value.getId() == Tag.TAG_SHORT) {
             return NumericKind.SHORT;
         }
-        if (nbt.getInt(key).isPresent()) {
+        if (value.getId() == Tag.TAG_INT) {
             return NumericKind.INT;
         }
-        if (nbt.getLong(key).isPresent()) {
+        if (value.getId() == Tag.TAG_LONG) {
             return NumericKind.LONG;
         }
         return null;
@@ -545,12 +545,110 @@ public final class IdentityVariantDiscovery {
     }
 
     private static boolean matchesNumeric(CompoundTag nbt, String key, NumericKind kind, int expected) {
+        Long numeric = readNumericLong(nbt.get(key));
+        if (numeric == null) {
+            return false;
+        }
         return switch (kind) {
-            case BYTE -> nbt.getByte(key).isPresent() && nbt.getByte(key).get() == (byte) expected;
-            case SHORT -> nbt.getShort(key).isPresent() && nbt.getShort(key).get() == (short) expected;
-            case INT -> nbt.getInt(key).isPresent() && nbt.getInt(key).get() == expected;
-            case LONG -> nbt.getLong(key).isPresent() && nbt.getLong(key).get() == expected;
+            case BYTE -> numeric.byteValue() == (byte) expected;
+            case SHORT -> numeric.shortValue() == (short) expected;
+            case INT -> numeric.intValue() == expected;
+            case LONG -> numeric == expected;
         };
+    }
+
+    private static String readStringCompat(CompoundTag nbt, String key) {
+        if (nbt == null || key == null || key.isBlank()) {
+            return "";
+        }
+        try {
+            Method method = CompoundTag.class.getMethod("getStringOr", String.class, String.class);
+            Object result = method.invoke(nbt, key, "");
+            if (result instanceof String value) {
+                return value;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Method method = CompoundTag.class.getMethod("getString", String.class);
+            Object result = method.invoke(nbt, key);
+            if (result instanceof String value) {
+                return value;
+            }
+            if (result instanceof Optional<?> optional && optional.isPresent() && optional.get() instanceof String value) {
+                return value;
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
+    private static Integer readIntCompat(CompoundTag nbt, String key) {
+        if (nbt == null || key == null || key.isBlank()) {
+            return null;
+        }
+        try {
+            Method method = CompoundTag.class.getMethod("getInt", String.class);
+            Object result = method.invoke(nbt, key);
+            if (result instanceof Integer value) {
+                return value;
+            }
+            if (result instanceof Optional<?> optional && optional.isPresent() && optional.get() instanceof Number value) {
+                return value.intValue();
+            }
+        } catch (Throwable ignored) {
+        }
+        Long numeric = readNumericLong(nbt.get(key));
+        return numeric == null ? null : numeric.intValue();
+    }
+
+    private static Long readNumericLong(Tag value) {
+        if (value == null) {
+            return null;
+        }
+        Long direct = invokeNumericNoArg(value, "longValue", "getAsLong");
+        if (direct != null) {
+            return direct;
+        }
+        Long asInt = invokeNumericNoArg(value, "intValue", "getAsInt");
+        if (asInt != null) {
+            return asInt;
+        }
+        Long asShort = invokeNumericNoArg(value, "shortValue", "getAsShort");
+        if (asShort != null) {
+            return asShort;
+        }
+        return invokeNumericNoArg(value, "byteValue", "getAsByte");
+    }
+
+    private static Long invokeNumericNoArg(Object target, String first, String fallback) {
+        Object result = invokeNoArg(target, first);
+        if (!(result instanceof Number) && fallback != null && !fallback.isBlank()) {
+            result = invokeNoArg(target, fallback);
+        }
+        if (result instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
+    }
+
+    private static Object invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                return method.invoke(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     private enum NumericKind {

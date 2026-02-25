@@ -24,19 +24,19 @@ public final class MorphTransitionHelper {
 
     public static float getTransitionProgress(Entity host, float partialTick) {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) host).getCustomData()).getNbt();
-        double duration = nbt.getDoubleOr(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D);
+        double duration = nbt.contains(IdentityProgression.TRANSITION_DURATION_TICKS_KEY) ? nbt.getDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY): 0.0D;
         if (duration <= 0.0D || host.level() == null) {
             return 1.0F;
         }
 
-        double start = nbt.getDoubleOr(IdentityProgression.TRANSITION_START_TICK_KEY, 0.0D);
+        double start = nbt.contains(IdentityProgression.TRANSITION_START_TICK_KEY) ? nbt.getDouble(IdentityProgression.TRANSITION_START_TICK_KEY) : 0.0D;
         double now = host.level().getGameTime() + partialTick;
         return Mth.clamp((float) ((now - start) / duration), 0.0F, 1.0F);
     }
 
     public static boolean isTransitionActive(Entity host, float partialTick) {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) host).getCustomData()).getNbt();
-        if (nbt.getDoubleOr(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D) <= 0.0D) {
+        if ((nbt.contains(IdentityProgression.TRANSITION_DURATION_TICKS_KEY) ? nbt.getDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY):0.0D) <= 0.0D) {
             return false;
         }
         return getTransitionProgress(host, partialTick) < 1.0F;
@@ -50,8 +50,8 @@ public final class MorphTransitionHelper {
         }
 
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) host).getCustomData()).getNbt();
-        String previousType = nbt.getStringOr(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY, "");
-        String previousVariant = nbt.getStringOr(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY, "");
+        String previousType = nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY): "";
+        String previousVariant =nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY): "";
         float progress = getTransitionProgress(host, partialTick);
 
         if (progress >= NEXT_STAGE_START) {
@@ -120,7 +120,7 @@ public final class MorphTransitionHelper {
 
         try {
             Entity entity = EntityType.loadEntityRecursive(nbt, host.level(), EntitySpawnReason.COMMAND, loaded -> {
-                loaded.snapTo(host.getX(), host.getY(), host.getZ(), loaded.getYRot(), loaded.getXRot());
+                loaded.moveTo(host.getX(), host.getY(), host.getZ(), loaded.getYRot(), loaded.getXRot());
                 return loaded;
             });
             if (entity == null) {

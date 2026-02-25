@@ -53,6 +53,14 @@ import net.minecraft.tags.DamageTypeTags;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
 
+    @Shadow
+    protected boolean jumping;
+
+    @Override
+    public boolean identity2$isJumping() {
+        return this.jumping;
+    }
+
     @Mutable
     @Shadow
     private AttributeMap attributes;
@@ -267,14 +275,12 @@ private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "getLastHurtByPlayerMemoryTime()I", at=@At("HEAD"),cancellable=true)
-private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
-    if(this.identityOf!=null){
-        if(this.identityOf instanceof LivingEntity livingIdentity){
-            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
+    @Inject(method = "getLastHurtByMobTimestamp", at = @At("HEAD"), cancellable = true)
+    private void identity2$getLastHurtTimestamp(CallbackInfoReturnable<Integer> cir) {
+        if (this.identityOf instanceof LivingEntity livingIdentity) {
+            cir.setReturnValue(livingIdentity.getLastHurtByMobTimestamp());
         }
     }
-}
 
 
 

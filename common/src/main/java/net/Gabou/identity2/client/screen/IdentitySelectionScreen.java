@@ -474,8 +474,8 @@ public final class IdentitySelectionScreen extends Screen {
         List<IdentityVariant> variants = new ArrayList<>();
         for (String token : tokens) {
             CompoundTag variantNbt = IdentityProgression.fromVariantUnlockToken(token);
-            String name = variantNbt.getStringOr(IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
-            String uuid = variantNbt.getStringOr(IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
+            String name = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
+            String uuid = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
             String display = !name.isEmpty() ? "Skin: " + name : (!uuid.isEmpty() ? "Skin: " + uuid : "Player Skin");
             variants.add(new IdentityVariant(IdentityProgression.PLAYER_IDENTITY_ID, display, variantNbt));
         }
@@ -590,8 +590,8 @@ public final class IdentitySelectionScreen extends Screen {
             return Set.of();
         }
 
-        String csv = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
+        String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (csv == null || csv.isBlank()) {
             return Set.of();
         }
@@ -612,8 +612,8 @@ public final class IdentitySelectionScreen extends Screen {
             return Map.of();
         }
 
-        String serialized = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
+        String serialized = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
         if (serialized == null || serialized.isBlank()) {
             return Map.of();
         }
@@ -728,4 +728,5 @@ public final class IdentitySelectionScreen extends Screen {
     private record IdentityEntry(ResourceLocation id, boolean unlocked, String searchableId, String displayName) {
     }
 }
+
 

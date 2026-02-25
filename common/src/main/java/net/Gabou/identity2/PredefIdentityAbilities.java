@@ -49,16 +49,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.EvokerFangs;
-import net.minecraft.world.entity.projectile.LlamaSpit;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.entity.projectile.ShulkerBullet;
-import net.minecraft.world.entity.projectile.DragonFireball;
-import net.minecraft.world.entity.projectile.LargeFireball;
-import net.minecraft.world.entity.projectile.SmallFireball;
-import net.minecraft.world.entity.projectile.WitherSkull;
-import net.minecraft.world.entity.projectile.Snowball;
-import net.minecraft.world.entity.projectile.ThrownSplashPotion;
+import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.VillagerType;
@@ -153,7 +144,7 @@ public final class PredefIdentityAbilities {
                     world.levelEvent(null, LevelEvent.SOUND_GHAST_FIREBALL, player.blockPosition(), 0);
                 }
                 LargeFireball fireball = new LargeFireball(world, livingPlayer, direction.normalize(), 1);
-                fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+                fireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
                     //ghastIdentity.setCharging(false);
@@ -449,7 +440,7 @@ public final class PredefIdentityAbilities {
                     if (target.isSpectator()) {
                         continue;
                     }
-                    target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, duration, amplifier, false, true, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, duration, amplifier, false, true, true));
                 }
                 serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.HOSTILE, 1.0F, 1.0F);
             }
@@ -501,7 +492,7 @@ public final class PredefIdentityAbilities {
                 LlamaSpit spit = new LlamaSpit(EntityType.LLAMA_SPIT, world);
                 spit.setOwner(livingPlayer);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(1.0));
-                spit.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+                spit.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 spit.shoot(look.x, look.y, look.z, 1.5F, 10.0F);
                 world.playSound(
                     null,
@@ -540,7 +531,7 @@ public final class PredefIdentityAbilities {
                     float pitchOffset = (float) (player.getXRot() + world.random.nextGaussian() * 5.0);
                     float yawOffset = (float) (player.getYRot() + world.random.nextGaussian() * 5.0);
                     snowball.shootFromRotation((LivingEntity) player, pitchOffset, yawOffset, 0.0F, 1.5F, 1.0F);
-                    snowball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, yawOffset, pitchOffset);
+                    snowball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, yawOffset, pitchOffset);
                     world.addFreshEntity(snowball);
                 }
             }
@@ -554,28 +545,51 @@ public final class PredefIdentityAbilities {
                 if (!(player instanceof LivingEntity livingPlayer)) {
                     return;
                 }
+
                 Level world = player.level();
-                ThrownSplashPotion potionEntity = new ThrownSplashPotion(EntityType.SPLASH_POTION, world);
+
+                ThrownPotion potionEntity = new ThrownPotion(EntityType.POTION, world);
                 potionEntity.setOwner(livingPlayer);
+
                 Holder<Potion> potion = validPotions.get(world.random.nextInt(validPotions.size()));
+
                 ItemStack potionStack = new ItemStack(Items.SPLASH_POTION);
                 potionStack.set(DataComponents.POTION_CONTENTS, new PotionContents(potion));
+
                 potionEntity.setItem(potionStack);
+
                 potionEntity.setXRot(-20.0F);
+
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(0.8D));
-                potionEntity.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
-                potionEntity.shoot(look.x(), look.y(), look.z(), 0.75F, 8.0F);
-                world.playSound(
-                    null,
-                    player.getX(),
-                    player.getY(),
-                    player.getZ(),
-                    SoundEvents.WITCH_THROW,
-                    SoundSource.PLAYERS,
-                    1.0F,
-                    0.8F + world.getRandom().nextFloat() * 0.4F
+
+                potionEntity.moveTo(
+                        spawnPos.x,
+                        spawnPos.y,
+                        spawnPos.z,
+                        player.getYRot(),
+                        player.getXRot()
                 );
+
+                potionEntity.shoot(
+                        look.x(),
+                        look.y(),
+                        look.z(),
+                        0.75F,
+                        8.0F
+                );
+
+                world.playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.WITCH_THROW,
+                        SoundSource.PLAYERS,
+                        1.0F,
+                        0.8F + world.getRandom().nextFloat() * 0.4F
+                );
+
                 world.addFreshEntity(potionEntity);
             }
         });
@@ -597,7 +611,7 @@ public final class PredefIdentityAbilities {
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(2.0));
                 WitherSkull skull = new WitherSkull(world, (LivingEntity) player, look);
-                skull.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+                skull.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 skull.shoot(look.x, look.y, look.z, 1.5F, 0.0F);
                 world.addFreshEntity(skull);
             }
@@ -620,7 +634,7 @@ public final class PredefIdentityAbilities {
                 }
 
                 DragonFireball fireball = new DragonFireball(world, livingPlayer, direction.normalize());
-                fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+                fireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
             }
@@ -662,7 +676,8 @@ public final class PredefIdentityAbilities {
             return false;
         }
         CustomData customData = ((EntityAccessor) player).getCustomData();
-        return ((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr(SHULKER_OPEN_STATE_KEY, false);
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        return net.Gabou.identity2.util.NbtCompat.getBooleanOr(nbt, SHULKER_OPEN_STATE_KEY, false);
     }
 
     private static void setShulkerOpenState(ServerPlayer player, boolean open) {
@@ -833,7 +848,7 @@ public final class PredefIdentityAbilities {
 
         Vec3 look = player.getViewVector(1.0F).normalize();
         Vec3 spawnPos = player.getEyePosition().add(look.scale(1.2D));
-        projectileEntity.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
+        projectileEntity.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
         projectileEntity.setOwner(player);
         projectileEntity.shoot(look.x, look.y, look.z, 1.6F, 0.0F);
         return player.level().addFreshEntity(projectileEntity);
@@ -1296,7 +1311,9 @@ public final class PredefIdentityAbilities {
         }
         CustomData customData = ((EntityAccessor) player).getCustomData();
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
-        CompoundTag variant = IdentityProgression.parseVariantNbt(nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
+        CompoundTag variant = IdentityProgression.parseVariantNbt(
+            net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")
+        );
         Object villagerData = invokeNoArg(villagerIdentity, "getVillagerData");
         if (villagerData == null) {
             return;
@@ -1517,4 +1534,5 @@ public final class PredefIdentityAbilities {
         return unwrapped != null ? unwrapped : normalized;
     }
 }
+
 

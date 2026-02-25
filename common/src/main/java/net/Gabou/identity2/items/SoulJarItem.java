@@ -15,7 +15,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 
@@ -29,11 +28,10 @@ public final class SoulJarItem extends Item {
 
     @Override
     public void appendHoverText(
-        ItemStack stack,
-        TooltipContext context,
-        TooltipDisplay tooltipDisplay,
-        Consumer<Component> tooltipAdder,
-        TooltipFlag tooltipFlag
+            ItemStack stack,
+            TooltipContext context,
+            List<Component> tooltipAdder,
+            TooltipFlag tooltipFlag
     ) {
         SoulJarChargeStorage.JarSnapshot snapshot = SoulJarChargeStorage.read(stack);
         String tier = snapshot == null ? inferTier(stack) : snapshot.tier();
@@ -41,30 +39,33 @@ public final class SoulJarItem extends Item {
         int morphCount = readStoredMorphCount(stack);
         int capacity = SoulJarManager.getJarCapacity(tier);
 
-        tooltipAdder.accept(Component.literal("Tier: " + formatTier(tier)).withStyle(ChatFormatting.AQUA));
+        tooltipAdder.add(Component.literal("Tier: " + formatTier(tier)).withStyle(ChatFormatting.AQUA));
         if (!jarId.isBlank()) {
-            tooltipAdder.accept(Component.literal("Jar ID: " + jarId).withStyle(ChatFormatting.DARK_GRAY));
+            tooltipAdder.add(Component.literal("Jar ID: " + jarId).withStyle(ChatFormatting.DARK_GRAY));
         }
-        tooltipAdder.accept(Component.literal("Stored Morphs: " + morphCount + "/" + capacity).withStyle(ChatFormatting.GRAY));
+        tooltipAdder.add(Component.literal("Stored Morphs: " + morphCount + "/" + capacity).withStyle(ChatFormatting.GRAY));
 
         if (snapshot == null || snapshot.charges().isEmpty()) {
-            tooltipAdder.accept(Component.literal("Stored Charges: 0").withStyle(ChatFormatting.GOLD));
+            tooltipAdder.add(Component.literal("Stored Charges: 0").withStyle(ChatFormatting.GOLD));
             return;
         }
 
         int totalCharges = snapshot.charges().values().stream().mapToInt(Integer::intValue).sum();
-        tooltipAdder.accept(Component.literal("Stored Charges: " + totalCharges).withStyle(ChatFormatting.GOLD));
+        tooltipAdder.add(Component.literal("Stored Charges: " + totalCharges).withStyle(ChatFormatting.GOLD));
 
         List<Map.Entry<String, Integer>> chargeLines = new ArrayList<>(snapshot.charges().entrySet());
-        chargeLines.sort(Comparator.comparing(Map.Entry<String, Integer>::getValue).reversed().thenComparing(Map.Entry::getKey));
+        chargeLines.sort(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue)
+                .reversed()
+                .thenComparing(Map.Entry::getKey));
 
         int shown = 0;
         for (Map.Entry<String, Integer> entry : chargeLines) {
             if (shown >= MAX_CHARGE_LINES) {
                 break;
             }
-            tooltipAdder.accept(
-                Component.literal("- " + entry.getKey() + " x" + Math.max(0, entry.getValue())).withStyle(ChatFormatting.DARK_AQUA)
+            tooltipAdder.add(
+                    Component.literal("- " + entry.getKey() + " x" + Math.max(0, entry.getValue()))
+                            .withStyle(ChatFormatting.DARK_AQUA)
             );
             shown++;
         }
@@ -79,11 +80,11 @@ public final class SoulJarItem extends Item {
             return 0;
         }
         CompoundTag root = customData.copyTag();
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(null);
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return 0;
         }
-        return jarTag.read("morphs", SoulJarManager.StoredMorphData.CODEC.listOf()).orElse(List.of()).size();
+        return net.Gabou.identity2.util.NbtCompat.read(jarTag, "morphs", SoulJarManager.StoredMorphData.CODEC.listOf()).orElse(List.of()).size();
     }
 
     private static String inferTier(ItemStack stack) {
@@ -120,3 +121,4 @@ public final class SoulJarItem extends Item {
         };
     }
 }
+

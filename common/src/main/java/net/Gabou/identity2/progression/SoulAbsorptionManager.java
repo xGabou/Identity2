@@ -74,12 +74,12 @@ public final class SoulAbsorptionManager {
 
     private static Set<String> getAbsorbedSet(ServerPlayer player) {
         CompoundTag customData = getCustomData(player);
-        return new HashSet<>(customData.read(ABSORBED_MORPHS_KEY, STRING_LIST_CODEC).orElse(List.of()));
+        return new HashSet<>(net.Gabou.identity2.util.NbtCompat.read(customData, ABSORBED_MORPHS_KEY, STRING_LIST_CODEC).orElse(List.of()));
     }
 
     private static void setAbsorbedSet(ServerPlayer player, Set<String> absorbed) {
         CompoundTag customData = getCustomData(player);
-        customData.store(ABSORBED_MORPHS_KEY, STRING_LIST_CODEC, new ArrayList<>(absorbed));
+        net.Gabou.identity2.util.NbtCompat.store(customData, ABSORBED_MORPHS_KEY, STRING_LIST_CODEC, new ArrayList<>(absorbed));
     }
 
     private static String absorptionKey(ResourceLocation identityId, String variantToken) {
@@ -101,3 +101,4 @@ public final class SoulAbsorptionManager {
         }
     }
 }
+

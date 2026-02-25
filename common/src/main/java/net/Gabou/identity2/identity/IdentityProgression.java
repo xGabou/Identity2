@@ -27,6 +27,7 @@ import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
@@ -49,8 +50,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.nbt.Tag;
 import org.jetbrains.annotations.Nullable;
 
 public final class IdentityProgression {
@@ -97,7 +97,7 @@ public final class IdentityProgression {
 
     public static List<String> getUnlockedIdentities(ServerPlayer player) {
         ensureClientUnlockCache(player);
-        return new ArrayList<>(getCustomData(player).read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
+        return new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(getCustomData(player), UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
     }
 
     public static boolean isUnlocked(ServerPlayer player, ResourceLocation identityId) {
@@ -172,8 +172,8 @@ public final class IdentityProgression {
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
         net.minecraft.world.entity.EntityDimensions previousDimensions = player.getDimensions(player.getPose());
-        double previousWidth = nbt.getDoubleOr("width_override", previousDimensions.width());
-        double previousHeight = nbt.getDoubleOr("height_override", previousDimensions.height());
+        double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width());
+        double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height());
         Entity previousIdentity = ((EntityAccessor) player).getCurrentIdentity();
         if (previousIdentity != null) {
             net.minecraft.world.entity.EntityDimensions previousIdentityDimensions = previousIdentity.getDimensions(previousIdentity.getPose());
@@ -284,9 +284,9 @@ public final class IdentityProgression {
 
     public static void restoreMorphFromSavedData(ServerPlayer player) {
         CompoundTag nbt = getCustomData(player);
-        String type = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        String type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
-            type = nbt.getStringOr("model_override", "");
+            type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
 
         if (type.isBlank()) {
@@ -318,7 +318,7 @@ public final class IdentityProgression {
             return;
         }
 
-        CompoundTag variant = parseVariantNbt(nbt.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, ""));
+        CompoundTag variant = parseVariantNbt(net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_VARIANT_KEY, ""));
         ((EntityAccessor) player).setCurrentIdentity(type, variant);
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity == null) {
@@ -358,17 +358,17 @@ public final class IdentityProgression {
     public static void restoreMorphFromSavedDataAndSync(ServerPlayer player) {
         restoreMorphFromSavedData(player);
         CompoundTag nbt = getCustomData(player);
-        String modelOverride = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        String modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (modelOverride.isBlank()) {
-            modelOverride = nbt.getStringOr("model_override", "");
+            modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
-        String variant = nbt.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, "");
-        double widthOverride = nbt.getDoubleOr("width_override", 0.0);
-        double heightOverride = nbt.getDoubleOr("height_override", 0.0);
-        String previousType = nbt.getStringOr(PREVIOUS_IDENTITY_TYPE_KEY, "");
-        String previousVariant = nbt.getStringOr(PREVIOUS_IDENTITY_VARIANT_KEY, "");
-        double transitionStart = nbt.getDoubleOr(TRANSITION_START_TICK_KEY, 0.0);
-        double transitionDuration = nbt.getDoubleOr(TRANSITION_DURATION_TICKS_KEY, 0.0);
+        String variant = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_VARIANT_KEY, "");
+        double widthOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0);
+        double heightOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0);
+        String previousType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, PREVIOUS_IDENTITY_TYPE_KEY, "");
+        String previousVariant = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, PREVIOUS_IDENTITY_VARIANT_KEY, "");
+        double transitionStart = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, TRANSITION_START_TICK_KEY, 0.0);
+        double transitionDuration = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, TRANSITION_DURATION_TICKS_KEY, 0.0);
         syncMorphData(player, modelOverride, variant, widthOverride, heightOverride, previousType, previousVariant, transitionStart, transitionDuration);
     }
 
@@ -380,9 +380,9 @@ public final class IdentityProgression {
         String serializedVariant = serializeVariantNbt(variantNbt);
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant);
 
-        String modelOverride = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        String modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (modelOverride.isBlank()) {
-            modelOverride = nbt.getStringOr("model_override", "");
+            modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
 
         CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
@@ -418,7 +418,7 @@ public final class IdentityProgression {
 
         long day = player.level().getGameTime() / 24000L;
         CompoundTag nbt = getCustomData(player);
-        long lastProcessedDay = (long) nbt.getDoubleOr(DAILY_RANDOM_MORPH_LAST_DAY_KEY, -1.0D);
+        long lastProcessedDay = (long) net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, DAILY_RANDOM_MORPH_LAST_DAY_KEY, -1.0D);
 
         if (!IdentitySettings.randomMorphEveryDay) {
             if (lastProcessedDay != day) {
@@ -454,9 +454,9 @@ public final class IdentityProgression {
             return;
         }
 
-        String currentType = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        String currentType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (currentType.isBlank()) {
-            currentType = nbt.getStringOr("model_override", "");
+            currentType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
         if (!currentType.isBlank() && unlocked.size() > 1) {
             String finalCurrentType = currentType;
@@ -474,13 +474,13 @@ public final class IdentityProgression {
 
     public static void ensureClientUnlockCache(ServerPlayer player) {
         CompoundTag customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
+        List<String> unlocked = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
-            customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-            customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
+            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
+            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
         }
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
@@ -499,7 +499,7 @@ public final class IdentityProgression {
         }
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -531,7 +531,7 @@ public final class IdentityProgression {
         }
 
         CompoundTag customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
+        List<String> unlocked = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
         List<String> retained = new ArrayList<>();
         Map<String, List<String>> retainedVariants = new HashMap<>();
 
@@ -562,9 +562,9 @@ public final class IdentityProgression {
         }
 
         int removed = Math.max(0, unlocked.size() - retained.size());
-        customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, retained);
-        customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, retainedVariants);
-        customData.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, retained);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, retainedVariants);
+        net.Gabou.identity2.util.NbtCompat.store(customData, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
 
@@ -634,7 +634,7 @@ public final class IdentityProgression {
         if (killed instanceof ServerPlayer killedPlayer) {
             Entity activeIdentity = ((EntityAccessor) killedPlayer).getCurrentIdentity();
             CompoundTag killedCustomData = getCustomData(killedPlayer);
-            CompoundTag selectedVariant = parseVariantNbt(killedCustomData.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, ""));
+            CompoundTag selectedVariant = parseVariantNbt(net.Gabou.identity2.util.NbtCompat.getStringOr(killedCustomData, SELECTED_IDENTITY_VARIANT_KEY, ""));
             if (activeIdentity != null) {
                 ResourceLocation morphedIdentityId = BuiltInRegistries.ENTITY_TYPE.getKey(activeIdentity.getType());
                 if (morphedIdentityId != null && isMorphableIdentity(morphedIdentityId)) {
@@ -643,9 +643,9 @@ public final class IdentityProgression {
             }
 
             // Fallback to persisted identity selection if runtime entity is unavailable.
-            String selectedType = killedCustomData.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+            String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(killedCustomData, SELECTED_IDENTITY_TYPE_KEY, "");
             if (selectedType.isBlank()) {
-                selectedType = killedCustomData.getStringOr("model_override", "");
+                selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(killedCustomData, "model_override", "");
             }
             if (!selectedType.isBlank()) {
                 try {
@@ -672,11 +672,11 @@ public final class IdentityProgression {
 
     private static int incrementKillCount(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         CompoundTag nbt = getCustomData(player);
-        Map<String, Integer> killMap = new HashMap<>(nbt.read(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+        Map<String, Integer> killMap = new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(nbt, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
         String key = identityId + "|" + toVariantUnlockToken(variantNbt);
         int kills = killMap.getOrDefault(key, 0) + 1;
         killMap.put(key, kills);
-        nbt.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, killMap);
+        net.Gabou.identity2.util.NbtCompat.store(nbt, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, killMap);
         return kills;
     }
 
@@ -691,7 +691,7 @@ public final class IdentityProgression {
 
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         // Command/admin unlock means full identity unlock (all variants), so remove per-variant restriction.
         if (variantUnlocks.remove(key) != null) {
@@ -712,7 +712,7 @@ public final class IdentityProgression {
         String key = identityId.toString();
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
 
         boolean changed = false;
@@ -796,8 +796,8 @@ public final class IdentityProgression {
 
     private static void syncUnlockCaches(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
         CompoundTag customData = getCustomData(player);
-        customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-        customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
         String unlockedCache = serializeUnlocked(unlocked);
         String variantCache = serializeUnlockedVariantMap(variantUnlocks);
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
@@ -850,7 +850,7 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -924,9 +924,9 @@ public final class IdentityProgression {
     }
 
     private static String resolveTransitionSourceType(CompoundTag nbt) {
-        String source = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
+        String source = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (source.isBlank()) {
-            source = nbt.getStringOr("model_override", "");
+            source = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
         }
         return source;
     }
@@ -943,7 +943,7 @@ public final class IdentityProgression {
         if (sourceType == null || sourceType.isBlank() || BASE_PLAYER_TRANSITION_SENTINEL.equals(sourceType)) {
             return "";
         }
-        return nbt.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, "");
+        return net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_VARIANT_KEY, "");
     }
 
     private static void setTransitionData(
@@ -975,7 +975,7 @@ public final class IdentityProgression {
             return false;
         }
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
-        double graceEndTick = nbt.getDoubleOr(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+        double graceEndTick = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
         return graceEndTick > entity.level().getGameTime();
     }
 
@@ -1087,9 +1087,7 @@ public final class IdentityProgression {
             return variant;
         }
         try {
-            TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.level().registryAccess());
-            entity.saveWithoutId(writeView);
-            CompoundTag full = writeView.buildResult();
+            CompoundTag full = EntityNbtIoCompat.saveWithoutId(entity);
             copyVariantKey(full, variant, "Color");
             copyVariantKey(full, variant, "Variant");
             copyVariantKey(full, variant, "variant");
@@ -1119,32 +1117,101 @@ public final class IdentityProgression {
         if (source == null || target == null || key == null || key.isBlank()) {
             return;
         }
-        if (source.getByte(key).isPresent()) {
-            target.putByte(key, source.getByte(key).get());
+        Tag value = source.get(key);
+        if (value == null) {
             return;
         }
-        if (source.getShort(key).isPresent()) {
-            target.putShort(key, source.getShort(key).get());
-            return;
-        }
-        if (source.getInt(key).isPresent()) {
-            target.putInt(key, source.getInt(key).get());
-            return;
-        }
-        if (source.getLong(key).isPresent()) {
-            target.putLong(key, source.getLong(key).get());
-            return;
-        }
-        if (source.getBoolean(key).isPresent()) {
-            target.putBoolean(key, source.getBooleanOr(key, false));
-            return;
-        }
-        if (source.getString(key).isPresent()) {
-            String value = source.getStringOr(key, "");
-            if (!value.isBlank()) {
-                target.putString(key, value);
+        switch (value.getId()) {
+            case Tag.TAG_BYTE -> {
+                Long numeric = readNumericLong(value);
+                if (numeric != null) {
+                    target.putByte(key, numeric.byteValue());
+                }
             }
+            case Tag.TAG_SHORT -> {
+                Long numeric = readNumericLong(value);
+                if (numeric != null) {
+                    target.putShort(key, numeric.shortValue());
+                }
+            }
+            case Tag.TAG_INT -> {
+                Long numeric = readNumericLong(value);
+                if (numeric != null) {
+                    target.putInt(key, numeric.intValue());
+                }
+            }
+            case Tag.TAG_LONG -> {
+                Long numeric = readNumericLong(value);
+                if (numeric != null) {
+                    target.putLong(key, numeric);
+                }
+            }
+            case Tag.TAG_STRING -> {
+                String stringValue = readStringCompat(source, key);
+                if (!stringValue.isBlank()) {
+                    target.putString(key, stringValue);
+                }
+            }
+            default -> target.put(key, value.copy());
         }
+    }
+
+    private static String readStringCompat(CompoundTag tag, String key) {
+        if (tag == null || key == null || key.isBlank()) {
+            return "";
+        }
+        try {
+            Method method = CompoundTag.class.getMethod("getStringOr", String.class, String.class);
+            Object result = method.invoke(tag, key, "");
+            if (result instanceof String stringValue) {
+                return stringValue;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Method method = CompoundTag.class.getMethod("getString", String.class);
+            Object result = method.invoke(tag, key);
+            if (result instanceof String stringValue) {
+                return stringValue;
+            }
+            if (result instanceof java.util.Optional<?> optional && optional.isPresent() && optional.get() instanceof String stringValue) {
+                return stringValue;
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
+    @Nullable
+    private static Long readNumericLong(Tag tag) {
+        if (tag == null) {
+            return null;
+        }
+        Long fromLong = invokeNumericMethod(tag, "longValue", "getAsLong");
+        if (fromLong != null) {
+            return fromLong;
+        }
+        Long fromInt = invokeNumericMethod(tag, "intValue", "getAsInt");
+        if (fromInt != null) {
+            return fromInt;
+        }
+        Long fromShort = invokeNumericMethod(tag, "shortValue", "getAsShort");
+        if (fromShort != null) {
+            return fromShort;
+        }
+        return invokeNumericMethod(tag, "byteValue", "getAsByte");
+    }
+
+    @Nullable
+    private static Long invokeNumericMethod(Object target, String primary, String fallback) {
+        Object value = invokeNoArg(target, primary);
+        if (!(value instanceof Number) && fallback != null && !fallback.isBlank()) {
+            value = invokeNoArg(target, fallback);
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
     }
 
     private static void extractVillagerVariantData(LivingEntity entity, CompoundTag variant) {
@@ -1352,3 +1419,5 @@ public final class IdentityProgression {
     private record UnlockTarget(ResourceLocation identityId, CompoundTag variantNbt) {
     }
 }
+
+

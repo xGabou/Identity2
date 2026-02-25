@@ -23,14 +23,14 @@ side = "BOTH"
 [[dependencies.identity2]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.8,)"
+versionRange = "[1.21.4,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "architectury"
 type = "required"
-versionRange = "[17.0.8,)"
+versionRange = "[15.0.3,)"
 ordering = "AFTER"
 side = "BOTH"
 

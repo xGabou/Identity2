@@ -8,14 +8,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.storage.TagValueInput;
-import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.level.storage.ValueInput;
+import net.Gabou.identity2.util.EntityNbtIoCompat;
 import org.jetbrains.annotations.Nullable;
 
 final class IdentityMenuRenderHelper {
@@ -123,12 +120,9 @@ final class IdentityMenuRenderHelper {
 
     private static void applyVariantData(Entity entity, ClientLevel world, CompoundTag variantNbt) {
         try {
-            TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess());
-            entity.saveWithoutId(writeView);
-            CompoundTag fullData = writeView.buildResult();
+            CompoundTag fullData = EntityNbtIoCompat.saveWithoutId(entity);
             fullData.merge(variantNbt.copy());
-            ValueInput readView = TagValueInput.create(ProblemReporter.DISCARDING, world.registryAccess(), fullData);
-            entity.load(readView);
+            EntityNbtIoCompat.load(entity, fullData, world.registryAccess());
         } catch (Throwable ignored) {
         }
     }

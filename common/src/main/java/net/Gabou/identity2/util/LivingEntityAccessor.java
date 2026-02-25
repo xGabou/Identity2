@@ -11,4 +11,6 @@ public interface LivingEntityAccessor {
 
     @Nullable
     SoundEvent getDeathSound();
+
+    boolean identity2$isJumping();
 }

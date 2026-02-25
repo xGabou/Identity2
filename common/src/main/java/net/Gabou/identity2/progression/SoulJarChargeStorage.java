@@ -32,17 +32,17 @@ public final class SoulJarChargeStorage {
             return null;
         }
         CompoundTag root = customData.copyTag();
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(null);
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return null;
         }
 
-        String jarId = jarTag.getStringOr("jar_id", "").trim();
+        String jarId = net.Gabou.identity2.util.NbtCompat.getStringOr(jarTag, "jar_id", "").trim();
         if (jarId.isBlank()) {
             return null;
         }
-        String tier = jarTag.getStringOr("tier", "mud").trim();
-        Map<String, Integer> charges = sanitize(jarTag.read(CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+        String tier = net.Gabou.identity2.util.NbtCompat.getStringOr(jarTag, "tier", "mud").trim();
+        Map<String, Integer> charges = sanitize(net.Gabou.identity2.util.NbtCompat.read(jarTag, CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
         return new JarSnapshot(jarId, tier.isBlank() ? "mud" : tier, charges);
     }
 
@@ -88,10 +88,10 @@ public final class SoulJarChargeStorage {
 
         CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag root = currentData == null ? new CompoundTag() : currentData.copyTag();
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(new CompoundTag());
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOr(root, ITEM_SOUL_JAR_KEY, new CompoundTag());
         jarTag.putString("jar_id", jarId);
         jarTag.putString("tier", tier);
-        jarTag.store(CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, Map.of());
+        net.Gabou.identity2.util.NbtCompat.store(jarTag, CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, Map.of());
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
         return read(stack);
@@ -106,12 +106,12 @@ public final class SoulJarChargeStorage {
             return false;
         }
         CompoundTag root = currentData.copyTag();
-        CompoundTag jarTag = root.getCompound(ITEM_SOUL_JAR_KEY).orElse(null);
+        CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return false;
         }
 
-        jarTag.store(CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, sanitize(charges));
+        net.Gabou.identity2.util.NbtCompat.store(jarTag, CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, sanitize(charges));
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
         return true;
@@ -198,3 +198,5 @@ public final class SoulJarChargeStorage {
     public record JarSnapshot(String jarId, String tier, Map<String, Integer> charges) {
     }
 }
+
+
