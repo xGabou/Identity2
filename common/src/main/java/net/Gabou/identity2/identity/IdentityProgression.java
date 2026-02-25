@@ -1021,6 +1021,10 @@ public final class IdentityProgression {
         if (entity == null || entity.level() == null) {
             return variant;
         }
+        CompoundTag dynamicVariant = IdentityVariantNbtHelper.computeVariantDiff(entity);
+        if (dynamicVariant != null && !dynamicVariant.isEmpty()) {
+            variant.merge(dynamicVariant);
+        }
         try {
             TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.level().registryAccess());
             entity.saveWithoutId(writeView);

@@ -49,37 +49,37 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             info.setReturnValue(true);
         }
 	}
-    @Inject(method = "attack", at = @At("TAIL"))
-    private void identity2$applyMorphMeleeEffects(Entity target, CallbackInfo info) {
-        Player player = (Player)(Object)this;
-        if (player.level().isClientSide()) {
-            return;
-        }
-        if (!(target instanceof LivingEntity livingTarget)) {
-            return;
-        }
-        if (livingTarget.getLastHurtByMob() != player) {
-            return;
-        }
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity == null) {
-            return;
-        }
-        if (identity.getType() == EntityType.CAVE_SPIDER) {
-            int duration = 0;
-            if (player.level().getDifficulty() == Difficulty.NORMAL) {
-                duration = 140;
-            } else if (player.level().getDifficulty() == Difficulty.HARD) {
-                duration = 300;
-            }
-            if (duration > 0) {
-                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, duration, 0), player);
-            }
-            return;
-        }
-        if (identity.getType() == EntityType.WITHER_SKELETON && player.level().getDifficulty() != Difficulty.PEACEFUL) {
-            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200, 0), player);
-        }
-    }
+//    @Inject(method = "attack", at = @At("TAIL"))
+//    private void identity2$applyMorphMeleeEffects(Entity target, CallbackInfo info) {
+//        Player player = (Player)(Object)this;
+//        if (player.level().isClientSide()) {
+//            return;
+//        }
+//        if (!(target instanceof LivingEntity livingTarget)) {
+//            return;
+//        }
+//        if (livingTarget.getLastHurtByMob() != player) {
+//            return;
+//        }
+//        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+//        if (identity == null) {
+//            return;
+//        }
+//        if (identity.getType() == EntityType.CAVE_SPIDER) {
+//            int duration = 0;
+//            if (player.level().getDifficulty() == Difficulty.NORMAL) {
+//                duration = 140;
+//            } else if (player.level().getDifficulty() == Difficulty.HARD) {
+//                duration = 300;
+//            }
+//            if (duration > 0) {
+//                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, duration, 0), player);
+//            }
+//            return;
+//        }
+//        if (identity.getType() == EntityType.WITHER_SKELETON && player.level().getDifficulty() != Difficulty.PEACEFUL) {
+//            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200, 0), player);
+//        }
+//    }
 }
 
