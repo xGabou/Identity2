@@ -69,7 +69,7 @@ if (modrinthToken) {
         versionNumber = "NeoForge-${project.version}"
         versionName = "Identity ${mod_version}"
         changelog = rootProject.file("IdentityChangeLog.md").text
-        gameVersions = ["1.21.9"]
+        gameVersions = ["1.21.10"]
         loaders = ["neoforge"]
         versionType = "beta"
         dependencies {
@@ -95,7 +95,7 @@ if (curseforgeToken) {
             id = "1238155"
             changelog = rootProject.file("IdentityChangeLog.md")
             releaseType = "beta" // options: alpha, beta, release
-            addGameVersion "1.21.9"
+            addGameVersion "1.21.10"
             addGameVersion "NeoForge"
             mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
                 displayName = "NeoForge-${version}"
