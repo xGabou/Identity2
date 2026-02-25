@@ -86,20 +86,20 @@ public final class ModRegistries {
             return null;
         }
 
-        IdentityAbilityDefinition exact = registry.getValue(typeId);
+        IdentityAbilityDefinition exact = registry.get(typeId);
         if (exact != null) {
             return exact;
         }
 
         // Compatibility fallback: many datapacks define abilities by path only
         // under minecraft/identity2 namespace. Try these aliases for modded types.
-        IdentityAbilityDefinition minecraftAlias = registry.getValue(
+        IdentityAbilityDefinition minecraftAlias = registry.get(
             ResourceLocation.fromNamespaceAndPath("minecraft", typeId.getPath())
         );
         if (minecraftAlias != null) {
             return minecraftAlias;
         }
 
-        return registry.getValue(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, typeId.getPath()));
+        return registry.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, typeId.getPath()));
     }
 }

@@ -42,7 +42,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
@@ -111,7 +110,7 @@ public final class IdentityProgression {
         if (isIdentityTemporarilyDisabled(identityId)) {
             return false;
         }
-        return isMorphableType(BuiltInRegistries.ENTITY_TYPE.getValue(identityId));
+        return isMorphableType(BuiltInRegistries.ENTITY_TYPE.get(identityId));
     }
 
     public static boolean isIdentityTemporarilyDisabled(ResourceLocation identityId) {
@@ -1048,7 +1047,7 @@ public final class IdentityProgression {
             return livingIdentity.getMaxHealth();
         }
         try {
-            Entity probe = livingIdentity.getType().create(player.level(), EntitySpawnReason.COMMAND);
+            Entity probe = livingIdentity.getType().create(player.level());
             if (probe instanceof LivingEntity probeLiving) {
                 return probeLiving.getMaxHealth();
             }
@@ -1349,7 +1348,7 @@ public final class IdentityProgression {
             if (location == null || BuiltInRegistries.REGISTRY == null) {
                 return null;
             }
-            Object registry = BuiltInRegistries.REGISTRY.getValue(location);
+            Object registry = BuiltInRegistries.REGISTRY.get(location);
             if (registry instanceof Registry<?> typedRegistry) {
                 return typedRegistry;
             }

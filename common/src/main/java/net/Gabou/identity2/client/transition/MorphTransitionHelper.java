@@ -10,7 +10,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import org.jetbrains.annotations.Nullable;
 
@@ -119,7 +118,7 @@ public final class MorphTransitionHelper {
         nbt.putString("id", identifier.toString());
 
         try {
-            Entity entity = EntityType.loadEntityRecursive(nbt, host.level(), EntitySpawnReason.COMMAND, loaded -> {
+            Entity entity = EntityType.loadEntityRecursive(nbt, host.level(), loaded -> {
                 loaded.moveTo(host.getX(), host.getY(), host.getZ(), loaded.getYRot(), loaded.getXRot());
                 return loaded;
             });

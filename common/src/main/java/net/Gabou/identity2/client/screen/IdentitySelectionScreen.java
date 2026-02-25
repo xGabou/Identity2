@@ -462,7 +462,7 @@ public final class IdentitySelectionScreen extends Screen {
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(id)) {
             return discoverUnlockedPlayerSkinVariants();
         }
-        return IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.getValue(id), client.level);
+        return IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.get(id), client.level);
     }
 
     private List<IdentityVariant> discoverUnlockedPlayerSkinVariants() {

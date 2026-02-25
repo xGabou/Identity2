@@ -8,7 +8,6 @@ import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -17,6 +16,7 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -25,66 +25,50 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
     @Shadow
-    public abstract <T extends Entity> EntityRenderer<? super T, ?> getRenderer(T entity);
+    public abstract  <T extends Entity> EntityRenderer<? super T> getRenderer(T entity);
 
     @Shadow
-    private <E extends Entity, S extends EntityRenderState> void render(
-        E entity,
-        double x,
-        double y,
-        double z,
-        float tickProgress,
-        PoseStack matrices,
-        MultiBufferSource vertexConsumers,
-        int light,
-        EntityRenderer<? super E, S> renderer
-    ) {
+    public  <E extends Entity> void render(E entity, double d, double e, double f, float g, float h, PoseStack poseStack, MultiBufferSource multiBufferSource, int i) {
     }
 
     @Redirect(
-        method = "render(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;render(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V"
-        ),
-        require = 0
+            method = "render(Lnet/minecraft/world/entity/Entity;DDDFFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/entity/EntityRenderer;render(Lnet/minecraft/world/entity/Entity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+            ),
+            require = 0
     )
-    private <E extends Entity, S extends EntityRenderState> void identity2$renderWithMorphEntity(
-        EntityRenderDispatcher dispatcher,
-        E entity,
-        double x,
-        double y,
-        double z,
-        float tickProgress,
-        PoseStack matrices,
-        MultiBufferSource vertexConsumers,
-        int light,
-        EntityRenderer<? super E, S> renderer
+    private <E extends Entity> void identity2$renderWithMorphEntity(
+            EntityRenderer<? super E> originalRenderer,
+            E entity,
+            float yaw,
+            float tickDelta,
+            PoseStack matrices,
+            MultiBufferSource vertexConsumers,
+            int light
     ) {
-        Entity renderIdentity = MorphTransitionHelper.resolveRenderIdentity(entity, ((EntityAccessor) entity).getCurrentIdentity(), tickProgress);
+        Entity renderIdentity = MorphTransitionHelper.resolveRenderIdentity(
+                entity,
+                ((EntityAccessor) entity).getCurrentIdentity(),
+                tickDelta
+        );
+
         if (renderIdentity == null || renderIdentity == entity) {
-            this.render(entity, x, y, z, tickProgress, matrices, vertexConsumers, light, renderer);
+            originalRenderer.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
             return;
         }
 
-        EntityRenderer<?, ?> identityRenderer = this.getRenderer(renderIdentity);
+        EntityRenderer identityRenderer = this.getRenderer(renderIdentity);
         if (identityRenderer == null) {
-            this.render(entity, x, y, z, tickProgress, matrices, vertexConsumers, light, renderer);
+            originalRenderer.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
             return;
         }
 
         identity2$syncIdentityForRender(entity, renderIdentity);
-        this.render(
-            (E) renderIdentity,
-            x,
-            y,
-            z,
-            tickProgress,
-            matrices,
-            vertexConsumers,
-            light,
-            (EntityRenderer<? super E, S>) identityRenderer
-        );
+
+        //noinspection unchecked
+        ((EntityRenderer) identityRenderer).render(renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
     }
 
     private static void identity2$syncIdentityForRender(Entity source, Entity identity) {
@@ -94,7 +78,7 @@ public abstract class EntityRenderDispatcherMixin {
         } else {
             identity.setYRot(source.getYRot());
         }
-        ((EntityAccessor) identity).setLastPosition(source.oldPosition());
+        ((EntityAccessor) identity).setLastPosition(new Vec3(source.xOld, source.yOld, source.zOld));
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping() != ((LivingEntityAccessor)livingSource).identity2$isJumping()) {

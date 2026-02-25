@@ -52,7 +52,7 @@ public final class ModBlocks {
     private static Item registerVanillaItem(String name, String namespace) {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, name));
         BlockItem blockItem = new BlockItem(
-            BuiltInRegistries.BLOCK.getValue(ResourceLocation.fromNamespaceAndPath(namespace, name)),
+            BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, name)),
             new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()
         );
         return Registry.register(BuiltInRegistries.ITEM, itemKey, blockItem);

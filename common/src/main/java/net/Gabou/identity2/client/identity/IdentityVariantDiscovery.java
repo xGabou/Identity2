@@ -21,7 +21,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.DyeColor;
 
@@ -289,7 +288,7 @@ public final class IdentityVariantDiscovery {
             }
             ResourceKey<?> valueKey = ref.key();
             ResourceKey<? extends Registry<?>> registryKey = valueKey.registryKey();
-            net.minecraft.core.Registry<?> registry = world.registryAccess().lookupOrThrow(registryKey);
+            net.minecraft.core.Registry<?> registry = world.registryAccess().registryOrThrow(registryKey);
             List<net.minecraft.resources.ResourceKey<?>> keys = new ArrayList<>(registry.registryKeySet());
             keys.sort(Comparator.comparing(k -> k.location().toString(), String.CASE_INSENSITIVE_ORDER));
             Object baselineValue = unwrapHolderValue(rawBaseline);
@@ -371,7 +370,7 @@ public final class IdentityVariantDiscovery {
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
                 ResourceLocation location = resolveResourceKeyLocation(resourceKey);
                 if (location != null) {
-                    Object value = BuiltInRegistries.REGISTRY.getValue(location);
+                    Object value = BuiltInRegistries.REGISTRY.get(location);
                     if (value instanceof Registry<?> registry) {
                         return registry;
                     }
@@ -1180,7 +1179,7 @@ public final class IdentityVariantDiscovery {
         if (registryLocation == null) {
             return null;
         }
-        Object registryValue = BuiltInRegistries.REGISTRY.getValue(registryLocation);
+        Object registryValue = BuiltInRegistries.REGISTRY.get(registryLocation);
         if (registryValue instanceof Registry<?> registry) {
             return registry;
         }
@@ -1296,7 +1295,7 @@ public final class IdentityVariantDiscovery {
         }
         try {
             for (ResourceLocation registryId : BuiltInRegistries.REGISTRY.keySet()) {
-                Object value = BuiltInRegistries.REGISTRY.getValue(registryId);
+                Object value = BuiltInRegistries.REGISTRY.get(registryId);
                 if (!(value instanceof Registry<?> registry) || registry.keySet().isEmpty()) {
                     continue;
                 }
@@ -1392,7 +1391,7 @@ public final class IdentityVariantDiscovery {
             return null;
         }
         try {
-            return ((Registry<Object>) registry).getValue(id);
+            return ((Registry<Object>) registry).get(id);
         } catch (Throwable ignored) {
             return null;
         }
@@ -1559,7 +1558,7 @@ public final class IdentityVariantDiscovery {
 
     private static Entity createEntity(EntityType<?> type, ClientLevel world) {
         try {
-            return type.create(world, EntitySpawnReason.COMMAND);
+            return type.create(world);
         } catch (Throwable ignored) {
             return null;
         }

@@ -325,7 +325,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvulnerableTo(world, source));
+                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
             }
         }
     }
@@ -377,11 +377,11 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "doHurtTarget(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
-    private void doHurtTargetIdentity(ServerLevel world, Entity entity, CallbackInfoReturnable info) {
+    @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
+    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> cir) {
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.doHurtTarget(world, entity));
+                cir.setReturnValue(livingIdentity.doHurtTarget(entity));
             }
         }
     }

@@ -1,30 +1,31 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import java.lang.reflect.Field;
 import java.util.Locale;
 import java.util.Map;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
-import net.Gabou.identity2.util.PlayerEntityRendererAccessor;
+import net.Gabou.identity2.util.ModelPartCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartNames;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import com.mojang.math.Axis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -74,7 +75,7 @@ public class HeldItemRendererMixin {
         require = 0,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderPlayerRightArm(
@@ -82,10 +83,9 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible
+        AbstractClientPlayer player
     ) {
-        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
+        identity2$renderArmOverride(renderer, matrices, queue, light, player, true);
     }
 
     @Redirect(
@@ -93,7 +93,7 @@ public class HeldItemRendererMixin {
         require = 0,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderMapRightArm(
@@ -101,10 +101,9 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible
+        AbstractClientPlayer player
     ) {
-        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, true);
+        identity2$renderArmOverride(renderer, matrices, queue, light, player, true);
     }
 
     @Redirect(
@@ -112,7 +111,7 @@ public class HeldItemRendererMixin {
         require = 0,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderPlayerLeftArm(
@@ -120,10 +119,9 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible
+        AbstractClientPlayer player
     ) {
-        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
+        identity2$renderArmOverride(renderer, matrices, queue, light, player, false);
     }
 
     @Redirect(
@@ -131,7 +129,7 @@ public class HeldItemRendererMixin {
         require = 0,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
+            target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/player/AbstractClientPlayer;)V"
         )
     )
     private void identity2$redirectRenderMapLeftArm(
@@ -139,10 +137,9 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible
+        AbstractClientPlayer player
     ) {
-        identity2$renderArmOverride(renderer, matrices, queue, light, skinTexture, sleeveVisible, false);
+        identity2$renderArmOverride(renderer, matrices, queue, light, player, false);
     }
 
     private void identity2$renderArmOverride(
@@ -150,8 +147,7 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible,
+        AbstractClientPlayer player,
         boolean rightArm
     ) {
         Minecraft client = Minecraft.getInstance();
@@ -159,22 +155,22 @@ public class HeldItemRendererMixin {
         boolean morphed = identity != null;
         try {
             if (client.player == null) {
-                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
             if (identity == null) {
-                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
-            EntityRenderer<?, ?> identityRenderer = ((MinecraftClientAccessor) client).getEntityRenderManager().getRenderer(identity);
+            EntityRenderer<?> identityRenderer = ((MinecraftClientAccessor) client).getEntityRenderManager().getRenderer(identity);
             if (identityRenderer == null) {
                 return;
             }
 
             EntityModel<?> identityModel = null;
-            if (identityRenderer instanceof LivingEntityRenderer livingRenderer) {
+            if (identityRenderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> livingRenderer) {
                 identityModel = livingRenderer.getModel();
             } else if (identityRenderer instanceof EnderDragonRenderer dragonRenderer) {
                 identityModel = ((EnderDragonEntityRendererAccessor) dragonRenderer).getModel();
@@ -189,7 +185,7 @@ public class HeldItemRendererMixin {
                 return;
             }
 
-            ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer);
+            ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer, identity);
             if (identityTexture == null) {
                 return;
             }
@@ -206,27 +202,24 @@ public class HeldItemRendererMixin {
             matrices.mulPose(Axis.XP.rotationDegrees(ARM_TUNE_ROT_X));
             matrices.mulPose(Axis.YP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Y : -ARM_TUNE_ROT_Y));
             matrices.mulPose(Axis.ZP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Z : -ARM_TUNE_ROT_Z));
-            identity2$callRenderHand(renderer, matrices, queue, light, identityTexture, identityArm, sleeveVisible);
+            identity2$renderIdentityHand(matrices, queue, light, identityTexture, identityArm);
             matrices.popPose();
         } catch (Exception ignored) {
             if (!morphed) {
-                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
             }
         }
     }
 
-    private static void identity2$callRenderHand(
-        PlayerRenderer renderer,
+    private static void identity2$renderIdentityHand(
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        ModelPart arm,
-        boolean sleeveVisible
+        ResourceLocation texture,
+        ModelPart arm
     ) {
-        if (renderer instanceof PlayerEntityRendererAccessor accessor) {
-            accessor.callRenderArm(matrices, queue, light, skinTexture, arm, sleeveVisible);
-        }
+        VertexConsumer vertexConsumer = queue.getBuffer(RenderType.entityCutoutNoCull(texture));
+        arm.render(matrices, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
     }
 
     private static void identity2$renderVanillaHand(
@@ -234,19 +227,21 @@ public class HeldItemRendererMixin {
         PoseStack matrices,
         MultiBufferSource queue,
         int light,
-        ResourceLocation skinTexture,
-        boolean sleeveVisible,
+        AbstractClientPlayer player,
         boolean rightArm
     ) {
         if (rightArm) {
-            renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
+            renderer.renderRightHand(matrices, queue, light, player);
         } else {
-            renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
+            renderer.renderLeftHand(matrices, queue, light, player);
         }
     }
 
     private static ModelPart identity2$resolveIdentityHandPart(EntityModel<?> model, boolean rightArm) {
-        ModelPart root = model.root();
+        ModelPart root = ModelPartCompat.tryGetRoot(model);
+        if (root == null) {
+            return null;
+        }
         ModelPart exact = identity2$findPartByNames(root, rightArm ? RIGHT_HAND_PART_CANDIDATES : LEFT_HAND_PART_CANDIDATES);
         if (exact != null && !exact.isEmpty()) {
             return exact;
@@ -339,24 +334,11 @@ public class HeldItemRendererMixin {
         }
     }
 
-    private static ResourceLocation identity2$resolveIdentityTexture(EntityRenderer<?, ?> identityRenderer) {
-        if (identityRenderer instanceof LivingEntityRenderer livingRenderer) {
-            try {
-                LivingEntity identity = null;
-                Minecraft client = Minecraft.getInstance();
-                if (client.player != null) {
-                    Entity currentIdentity = ((EntityAccessor) client.player).getCurrentIdentity();
-                    if (currentIdentity instanceof LivingEntity livingIdentity) {
-                        identity = livingIdentity;
-                    }
-                }
-                if (identity != null) {
-                    LivingEntityRenderState state = (LivingEntityRenderState) livingRenderer.createRenderState(identity, 1.0F);
-                    livingRenderer.extractRenderState(identity, state, 1.0F);
-                    return (ResourceLocation) livingRenderer.getTextureLocation(state);
-                }
-            } catch (Throwable ignored) {
-            }
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static ResourceLocation identity2$resolveIdentityTexture(EntityRenderer<?> identityRenderer, Entity identity) {
+        try {
+            return (ResourceLocation) ((EntityRenderer) identityRenderer).getTextureLocation(identity);
+        } catch (Throwable ignored) {
         }
         if (identityRenderer instanceof EnderDragonRenderer) {
             try {

@@ -4,7 +4,6 @@ import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 
 import java.util.Set;
 
@@ -61,7 +60,7 @@ public final class IdentityVariantNbtHelper {
         }
         Entity baselineEntity;
         try {
-            baselineEntity = entity.getType().create(entity.level(), EntitySpawnReason.COMMAND);
+            baselineEntity = entity.getType().create(entity.level());
         } catch (Throwable ignored) {
             baselineEntity = null;
         }

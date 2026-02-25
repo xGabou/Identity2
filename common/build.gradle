@@ -17,5 +17,5 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7671006"
+    modImplementation "curse.maven:gabous-libs-1367332:7195723"
 }

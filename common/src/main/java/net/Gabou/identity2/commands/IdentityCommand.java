@@ -737,7 +737,7 @@ public final class IdentityCommand {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return AbilityInfo.none();
         }
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(identityId);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(identityId);
         if (type == null) {
             return AbilityInfo.none();
         }

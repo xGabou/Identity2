@@ -7,6 +7,7 @@ import net.minecraft.server.network.Filterable;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,12 +20,12 @@ public final class IdentityBookItem extends Item {
     }
 
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         held.set(DataComponents.WRITTEN_BOOK_CONTENT, createGuideBookContent());
         player.openItemGui(held, hand);
         player.awardStat(Stats.ITEM_USED.get(this));
-        return InteractionResult.SUCCESS;
+        return InteractionResultHolder.consume(held);
     }
 
     private static WrittenBookContent createGuideBookContent() {

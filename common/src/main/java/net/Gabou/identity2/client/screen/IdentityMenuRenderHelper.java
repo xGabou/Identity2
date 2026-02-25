@@ -9,7 +9,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.Gabou.identity2.util.EntityNbtIoCompat;
@@ -29,14 +28,14 @@ final class IdentityMenuRenderHelper {
             return null;
         }
 
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(entityId);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
         if (type == null) {
             return null;
         }
 
         Entity entity;
         try {
-            entity = type.create(world, EntitySpawnReason.COMMAND);
+            entity = type.create(world);
         } catch (Throwable ignored) {
             return null;
         }

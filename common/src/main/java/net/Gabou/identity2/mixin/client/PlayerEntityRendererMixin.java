@@ -1,54 +1,32 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.authlib.GameProfile;
-import com.google.common.collect.Lists;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import java.util.List;
 import java.util.UUID;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-import java.util.Set;
-import net.Gabou.identity2.ModBlocks;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.Gabou.identity2.util.MinecraftClientAccessor;
-import net.Gabou.identity2.util.LimbAnimatorAccessor;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
 @Mixin(PlayerRenderer.class)
-public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.PlayerEntityRendererAccessor{
-    @Shadow
-    private void renderHand(PoseStack matrices, MultiBufferSource queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {}
-    public void callRenderArm(PoseStack matrices, MultiBufferSource queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {
-    this.renderHand(matrices, queue, light, skinTexture,arm, sleeveVisible);
-    }
+public class PlayerEntityRendererMixin {
     @Inject(
-        method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V",
-        at = @At("TAIL"),
+        method = "getTextureLocation(Lnet/minecraft/client/player/AbstractClientPlayer;)Lnet/minecraft/resources/ResourceLocation;",
+        at = @At("HEAD"),
+        cancellable = true,
         require = 0
     )
-    private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, PlayerRenderState renderState, float tickProgress, CallbackInfo info) {
+    private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, CallbackInfoReturnable<ResourceLocation> cir) {
         net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
         CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
         String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
@@ -75,7 +53,7 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
         String name = nameRaw.isEmpty() ? "Player" : nameRaw;
         PlayerSkin skin = identity2$resolvePlayerSkin(uuid, name);
         if (skin != null) {
-            renderState.skin = skin;
+            cir.setReturnValue(skin.texture());
         }
     }
 
@@ -96,18 +74,5 @@ public class PlayerEntityRendererMixin implements net.Gabou.identity2.util.Playe
         }
         return minecraft.getSkinManager().getInsecureSkin(new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name));
     }
-    /*@Inject(method = "updateRenderState", at = @At("TAIL"))
-	private void getAndUpdateRenderStateModifier(AbstractClientPlayerEntity entity,PlayerEntityRenderState playerEntityRenderState, float tickProgress,CallbackInfo info) {
-		PlayerEntityRenderState entityRenderState=(PlayerEntityRenderState)playerEntityRenderState;
-        if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get().length()!=0){
-                if(Registries.ENTITY_TYPE.containsId(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()))){
-                    EntityType<?> newType=Registries.ENTITY_TYPE.get(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()));
-                    playerEntityRenderState.entityType=newType;
-                }
-                
-            }
-        }
-	}*/
 }
 

@@ -50,7 +50,7 @@ public class EntityEquipmentMixin{
                 continue;
             }
 
-            self.spawnAtLocation(level, stack);
+            self.spawnAtLocation(stack);
             self.setItemSlot(slot, ItemStack.EMPTY);
         }
 

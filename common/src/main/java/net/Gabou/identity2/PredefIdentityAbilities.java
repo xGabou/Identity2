@@ -35,7 +35,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
@@ -113,7 +112,7 @@ public final class PredefIdentityAbilities {
         if (identityTypeId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityTypeId)) {
             return false;
         }
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(identityTypeId);
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(identityTypeId);
         if (type == null || type == EntityType.PLAYER) {
             return false;
         }
@@ -172,6 +171,8 @@ public final class PredefIdentityAbilities {
             }
         });
 
+
+
         map.put(ResourceLocation.parse("enderman"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
@@ -181,7 +182,7 @@ public final class PredefIdentityAbilities {
                 Vec3 targetPos = hit.getLocation();
                 BlockPos blockPos = BlockPos.containing(targetPos);
 
-                while (!isSafeTeleportSpot(world, blockPos) && world.isInsideBuildHeight((int) targetPos.y)) {
+                while (!isSafeTeleportSpot(world, blockPos) && ((int) targetPos.y >= world.getMinBuildHeight() && (int) targetPos.y <= world.getMaxBuildHeight())) {
                     blockPos = blockPos.above();
                 }
 

@@ -80,7 +80,7 @@ public final class SoulJarManager {
             return;
         }
         if (killed.level() instanceof ServerLevel serverLevel) {
-            killed.spawnAtLocation(serverLevel, stack);
+            killed.spawnAtLocation(stack);
         }
     }
 
@@ -544,7 +544,7 @@ public final class SoulJarManager {
     private static Item resolveJarItem(String tier) {
         ResourceLocation itemId = ProgressionConfig.resolveJarItemId(tier);
         if (BuiltInRegistries.ITEM.containsKey(itemId)) {
-            Item item = BuiltInRegistries.ITEM.getValue(itemId);
+            Item item = BuiltInRegistries.ITEM.get(itemId);
             if (item != null && item != Items.AIR) {
                 return item;
             }

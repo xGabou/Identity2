@@ -1,8 +1,9 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.client.model.dragon.EnderDragonModel;
+
+import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 
 public interface EnderDragonEntityRendererAccessor {
-    EnderDragonModel getModel();
+    EnderDragonRenderer.DragonModel getModel();
 }
 
