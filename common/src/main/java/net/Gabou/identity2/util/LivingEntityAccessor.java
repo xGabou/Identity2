@@ -5,9 +5,6 @@ import net.minecraft.world.damagesource.DamageSource;
 import org.jetbrains.annotations.Nullable;
 
 public interface LivingEntityAccessor {
-    int getNextAirUnderwater(int air);
-
-    int getNextAirOnLand(int air);
 
     @Nullable
     SoundEvent getHurtSound(DamageSource source);

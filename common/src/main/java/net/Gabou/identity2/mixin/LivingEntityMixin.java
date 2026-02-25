@@ -85,22 +85,7 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         }*/
         return newContainer;
     }
-    @Shadow
-    public int decreaseAirSupply(int air){
-        return 0;
-    };
-    @Shadow
-	public int increaseAirSupply(int air){
-        return 0;
-    };
-    @Override
-    public int getNextAirUnderwater(int air) {
-        return this.decreaseAirSupply(air);
-    }
-    @Override
-    public int getNextAirOnLand(int air) {
-        return this.increaseAirSupply(air);
-    }
+
 @Shadow
 public boolean canUseSlot(EquipmentSlot slot){return false;}
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
@@ -133,7 +118,7 @@ private void getAttributesIdentity(CallbackInfoReturnable info){
 private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirUnderwater(air));
+            info.setReturnValue(air);
         }
     }
 }
@@ -141,7 +126,7 @@ private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
 private void getNextAirOnLandIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirOnLand(air));
+            info.setReturnValue(air);
         }
     }
 }
@@ -155,15 +140,13 @@ private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info){
     }
 }
 @Inject(method = "canBreatheUnderwater()Z", at=@At("HEAD"),cancellable=true)
-private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
+private void canBreatheInWaterIdentity(CallbackInfoReturnable<Boolean> info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
             info.setReturnValue(livingIdentity.canBreatheUnderwater());
         }
     }
 }
-
-
 
 
 @Shadow
