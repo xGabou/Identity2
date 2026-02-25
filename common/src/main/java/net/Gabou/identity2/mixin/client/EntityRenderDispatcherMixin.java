@@ -13,6 +13,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
 import org.spongepowered.asm.mixin.Mixin;
@@ -103,6 +104,8 @@ public abstract class EntityRenderDispatcherMixin {
             LimbAnimatorAccessor origin = (LimbAnimatorAccessor) livingSource.walkAnimation;
             target.setPrevSpeed(origin.getPrevSpeed());
             target.setSpeed(origin.getSpeed());
+            target.setPosition(origin.getPosition());
+            target.setPositionScale(origin.getPositionScale());
 
             livingIdentity.swinging = livingSource.swinging;
             livingIdentity.swingTime = livingSource.swingTime;
@@ -115,7 +118,17 @@ public abstract class EntityRenderDispatcherMixin {
             livingIdentity.yHeadRot = livingSource.yHeadRot;
             livingIdentity.yHeadRotO = livingSource.yHeadRotO;
             livingIdentity.swingingArm = livingSource.swingingArm;
-            livingIdentity.startUsingItem(livingSource.getUsedItemHand());
+            if (livingSource.isUsingItem()) {
+                livingIdentity.startUsingItem(livingSource.getUsedItemHand());
+            } else {
+                livingIdentity.stopUsingItem();
+            }
+
+            if (livingIdentity instanceof Bat batIdentity) {
+                batIdentity.setResting(false);
+                batIdentity.flyAnimationState.startIfStopped(source.tickCount);
+                batIdentity.restAnimationState.stop();
+            }
         }
 
         identity.tickCount = source.tickCount;

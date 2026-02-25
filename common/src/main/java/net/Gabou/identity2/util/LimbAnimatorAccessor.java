@@ -8,4 +8,12 @@ public interface LimbAnimatorAccessor {
     float getPrevSpeed();
 
     float getSpeed();
+
+    void setPosition(float position);
+
+    float getPosition();
+
+    void setPositionScale(float positionScale);
+
+    float getPositionScale();
 }

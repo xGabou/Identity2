@@ -25,6 +25,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -117,15 +118,8 @@ public class EntityMixin implements EntityAccessor{
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
-        boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-        boolean hostClientSide = ((Entity)(Object)this).level().isClientSide();
-        boolean shouldSkipClientTick = hostClientSide && hostIsPlayer && this.currentIdentity instanceof EnderDragon;
-        if(this.currentIdentity!=null && (!hostIsPlayer || hostClientSide) && !shouldSkipClientTick){
-            this.currentIdentity.tick();
-            
-        }
         //this.identity2$applyShulkerOpenVisualState();
-        this.identity2$applyMorphPassiveTraits();
+        //this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
             if(this.entityCanFlyTickEvaluated==false){
                 this.entityCanFlyTickEvaluated=true;
@@ -142,18 +136,34 @@ public class EntityMixin implements EntityAccessor{
     protected void disableNoClipSuffocate(CallbackInfoReturnable info) {
 		if(this.noPhysics){
             info.setReturnValue(false);
+            return;
+        }
+        if ((Entity)(Object)this instanceof Player player) {
+            Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+            if (
+                identity != null
+                    && player.isInWater()
+                    && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identity.getType()))
+            ) {
+                // Aquatic morphs at water/solid boundaries (e.g. under ice) can trigger false in-wall checks.
+                info.setReturnValue(false);
+                return;
+            }
+            if (
+                (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
+                    || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
+            ) {
+                info.setReturnValue(false);
+            }
         }
 	}
 	@Inject(method = "tick", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-            if (hostIsPlayer) {
-                this.identity2$applyMorphAquaticBreathing((Player)(Object)this);
-            }
              
               
-            this.currentIdentity.setInvulnerable(hostIsPlayer);
+            //this.currentIdentity.setInvulnerable(hostIsPlayer);
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
@@ -163,13 +173,11 @@ public class EntityMixin implements EntityAccessor{
             ){
             livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(this.currentIdentity.level().isClientSide()==false){
+            if(!this.currentIdentity.level().isClientSide()){
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
-                if (!hostIsPlayer) {
-                    this.currentIdentity.tick();
-                }
+                this.currentIdentity.tick();
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
@@ -184,9 +192,8 @@ public class EntityMixin implements EntityAccessor{
                 ((Entity)(Object)this instanceof LivingEntity livingEntity)
             ){
                 // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
-                if (!hostIsPlayer) {
-                    livingEntity.setHealth(livingIdentity.getHealth());
-                }
+                livingEntity.setHealth(livingIdentity.getHealth());
+                
             }
         
              
@@ -276,26 +283,42 @@ public class EntityMixin implements EntityAccessor{
     private boolean identity2$grantedMayfly = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
+    private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
-    public boolean canFly(){
-        if(this.entityCanFlyEvaluated==false){
-            Entity self = (Entity)(Object)this;
-            Boolean explicitFlight = IdentityTraitTags.resolveFlight(self.getType());
-            this.entityCanFly = explicitFlight != null && explicitFlight;
 
-            if(this.noPhysics){
-                this.entityCanFly=true;
-            }
-            this.entityCanFlyEvaluated=true;
-            if(this.identityOf!=null){
-                if((Entity)(Object)this.identityOf instanceof Player player){
-                    this.applyIdentityFlightGrant(player, this.entityCanFly);
+    public boolean canFly(){
+        if(!this.entityCanFlyEvaluated){
+            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
+            if (taggedFlight != null) {
+                this.entityCanFly = taggedFlight;
+            } else {
+                try {
+                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(), FALL_METHOD_NAME);
+                } catch (Exception ignored) {
+                }
+                if (!this.shouldTickBlockCollision()) {
+                    this.entityCanFly = true;
+                }
+                if (this.noPhysics) {
+                    this.entityCanFly = true;
                 }
             }
-
+            this.entityCanFlyEvaluated = true;
+            if (this.identityOf instanceof Player player) {
+                ((EntityMixin)(Object)player).applyIdentityFlightGrant(player, this.entityCanFly);
+            }
         }
         return this.entityCanFly;
+    }
+        private static String identity2$resolveFallMethodName() {
+        try {
+            return EntityMethodChecks.class
+                .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
+                .getName();
+        } catch (NoSuchMethodException ignored) {
+            return "checkFallDamage";
+        }
     }
 
     private void applyIdentityFlightGrant(Player player, boolean identityCanFly) {
@@ -326,94 +349,6 @@ public class EntityMixin implements EntityAccessor{
                 serverPlayer.onUpdateAbilities();
             }
         }
-    }
-
-    private void identity2$applyMorphPassiveTraits() {
-        Entity self = (Entity)(Object)this;
-        if (self.level().isClientSide()) {
-            return;
-        }
-        if (!(self instanceof Player player)) {
-            return;
-        }
-        if (this.currentIdentity == null) {
-            this.applyIdentityFlightGrant(player, false);
-            return;
-        }
-
-        this.applyIdentityFlightGrant(player, ((EntityAccessor)this.currentIdentity).canFly());
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (IdentityTraitTags.burnsInDaylight(identityType) && this.identity2$shouldBurnInDaylight(player)) {
-            player.igniteForSeconds(8.0F);
-        }
-
-        if (IdentityTraitTags.hasSlowFalling(identityType) && !player.onGround() && player.getDeltaMovement().y < 0.0D) {
-            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 10, 0, false, false, true));
-        }
-        
-    }
-
-    private void identity2$applyShulkerOpenVisualState() {
-        return;
-        
-    }
-
-    private void identity2$applyShulkerMovementLock(Player player, EntityType<?> identityType) {
-        return;
-        
-    }
-
-    private void identity2$applyGuardianWaterMobility(Player player, EntityType<?> identityType) {
-        return;
-        
-    }
-
-    private boolean identity2$shouldBurnInDaylight(Player player) {
-        if (player.isSpectator() || player.getAbilities().instabuild || player.getAbilities().invulnerable) {
-            return false;
-        }
-        if (!player.level().isBrightOutside()) {
-            return false;
-        }
-        if (player.isInWaterOrRain()) {
-            return false;
-        }
-        BlockPos pos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
-        return player.level().canSeeSky(pos);
-        
-    }
-
-    private void identity2$applyMorphAquaticBreathing(Player player) {
-        if (this.currentIdentity == null) {
-            return;
-        }
-        if (((Entity)(Object)this).level().isClientSide()) {
-            return;
-        }
-        boolean aquaticMorph = Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()));
-        if (!aquaticMorph) {
-            // Clear stale aquatic air state when switching back to a terrestrial morph.
-            // This keeps air bubbles hidden on land for non-aquatic entities.
-            if (!player.isInWater() && player.getAirSupply() < player.getMaxAirSupply()) {
-                player.setAirSupply(player.getMaxAirSupply());
-            }
-            return;
-        }
-
-        if (player.isInWater()) {
-            player.setAirSupply(player.getMaxAirSupply());
-            return;
-        }
-
-        // Aquatic morphs should lose air on land. Players naturally regenerate air,
-        // so apply a stronger decrement to preserve net air loss.
-        int nextAir = player.getAirSupply() - 5;
-        player.setAirSupply(nextAir);
-        if (nextAir <= -20 && player.level() instanceof ServerLevel serverLevel) {
-            player.setAirSupply(0);
-            player.hurtServer(serverLevel, player.damageSources().drown(), 2.0F);
-        }
-       
     }
 
 
@@ -1056,6 +991,7 @@ public class EntityMixin implements EntityAccessor{
         nbt.putString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY, "");
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
+        nbt.putDouble(IdentityProgression.MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
         nbt.putDouble(IdentityProgression.TRANSITION_START_TICK_KEY, 0.0D);
         nbt.putDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D);
 
