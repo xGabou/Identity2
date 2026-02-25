@@ -66,32 +66,54 @@ shadowJar {
 remapJar {
     input.set shadowJar.archiveFile
 }
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN")
-    projectId = "u8V1OwVf" // from your Modrinth project URL
-    versionNumber = "NeoForge-${project.version}"
-    versionName = "Identity ${mod_version}"
-    changelog = rootProject.file("IdentityChangeLog.md").text
-    gameVersions = ["1.21.4"]
-    loaders = ["neoforge"]
-    versionType = "beta"
-    dependencies {
-        required.project "lhGA9TYQ"
-        required.project "N8aGZtvj"
-    }
-    uploadFile = file("build/libs/${archivesBaseName}-${version}.jar")
-}
-curseforge {
-    apiKey = System.getenv("CURSEFORGE_TOKEN")
+def modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()
+def curseforgeToken = System.getenv("CURSEFORGE_TOKEN")?.trim()
 
-    project {
-        id = "1238155"
-        changelog = rootProject.file("IdentityChangeLog.md")
-        releaseType = "beta" // options: alpha, beta, release
-        addGameVersion "1.21.4"
-        addGameVersion "NeoForge"
-        mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
-            displayName = "NeoForge-${version}"
+if (modrinthToken) {
+    modrinth {
+        token = modrinthToken
+        projectId = "u8V1OwVf" // from your Modrinth project URL
+        versionNumber = "NeoForge-${project.version}"
+        versionName = "Identity ${mod_version}"
+        changelog = rootProject.file("IdentityChangeLog.md").text
+        gameVersions = ["1.21.4"]
+        loaders = ["neoforge"]
+        versionType = "beta"
+        dependencies {
+            required.project "lhGA9TYQ"
+            required.project "N8aGZtvj"
+        }
+        uploadFile = file("build/libs/${archivesBaseName}-${version}.jar")
+    }
+} else {
+    logger.lifecycle("Skipping Modrinth config for ${project.path}: MODRINTH_TOKEN is not set.")
+    tasks.configureEach {
+        if (name.toLowerCase().contains("modrinth")) {
+            enabled = false
+        }
+    }
+}
+
+if (curseforgeToken) {
+    curseforge {
+        apiKey = curseforgeToken
+
+        project {
+            id = "1238155"
+            changelog = rootProject.file("IdentityChangeLog.md")
+            releaseType = "beta" // options: alpha, beta, release
+            addGameVersion "1.21.4"
+            addGameVersion "NeoForge"
+            mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
+                displayName = "NeoForge-${version}"
+            }
+        }
+    }
+} else {
+    logger.lifecycle("Skipping CurseForge config for ${project.path}: CURSEFORGE_TOKEN is not set.")
+    tasks.configureEach {
+        if (name.toLowerCase().contains("curseforge")) {
+            enabled = false
         }
     }
 }
