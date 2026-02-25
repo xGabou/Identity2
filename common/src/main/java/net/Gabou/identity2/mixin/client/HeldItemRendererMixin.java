@@ -21,8 +21,9 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import com.mojang.math.Axis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -41,47 +42,15 @@ public class HeldItemRendererMixin {
     private static final String[] RIGHT_HAND_PART_CANDIDATES = new String[] {
         PartNames.RIGHT_ARM,
         "rightArm",
-        PartNames.RIGHT_FRONT_LEG,
-        "rightFrontLeg",
-        "right_front_foot",
-        "rightFrontFoot",
-        PartNames.RIGHT_HIND_LEG,
-        "rightRearLeg",
-        "right_hind_foot",
-        "rightRearFoot",
-        PartNames.RIGHT_WING,
-        "rightWing",
-        "right_wing_tip",
-        "rightWingTip",
-        "right_fin",
-        "rightFin",
-        "right_tentacle",
-        "rightTentacle",
-        "right_claw",
-        "rightClaw",
+        "right_hand",
+        "rightHand",
         "right"
     };
     private static final String[] LEFT_HAND_PART_CANDIDATES = new String[] {
         PartNames.LEFT_ARM,
         "leftArm",
-        PartNames.LEFT_FRONT_LEG,
-        "leftFrontLeg",
-        "left_front_foot",
-        "leftFrontFoot",
-        PartNames.LEFT_HIND_LEG,
-        "leftRearLeg",
-        "left_hind_foot",
-        "leftRearFoot",
-        PartNames.LEFT_WING,
-        "leftWing",
-        "left_wing_tip",
-        "leftWingTip",
-        "left_fin",
-        "leftFin",
-        "left_tentacle",
-        "leftTentacle",
-        "left_claw",
-        "leftClaw",
+        "left_hand",
+        "leftHand",
         "left"
     };
     private static Field modelPartChildrenField;
@@ -102,7 +71,7 @@ public class HeldItemRendererMixin {
 
     @Redirect(
         method = "renderPlayerArm",
-        require = 1,
+        require = 0,
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
@@ -121,7 +90,7 @@ public class HeldItemRendererMixin {
 
     @Redirect(
         method = "renderMapHand",
-        require = 1,
+        require = 0,
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
@@ -140,7 +109,7 @@ public class HeldItemRendererMixin {
 
     @Redirect(
         method = "renderPlayerArm",
-        require = 1,
+        require = 0,
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
@@ -159,7 +128,7 @@ public class HeldItemRendererMixin {
 
     @Redirect(
         method = "renderMapHand",
-        require = 1,
+        require = 0,
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/entity/player/PlayerRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/resources/ResourceLocation;Z)V"
@@ -185,14 +154,15 @@ public class HeldItemRendererMixin {
         boolean sleeveVisible,
         boolean rightArm
     ) {
+        Minecraft client = Minecraft.getInstance();
+        Entity identity = client.player == null ? null : ((EntityAccessor) client.player).getCurrentIdentity();
+        boolean morphed = identity != null;
         try {
-            Minecraft client = Minecraft.getInstance();
             if (client.player == null) {
                 identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
                 return;
             }
 
-            Entity identity = ((EntityAccessor) client.player).getCurrentIdentity();
             if (identity == null) {
                 identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
                 return;
@@ -200,7 +170,6 @@ public class HeldItemRendererMixin {
 
             EntityRenderer<?, ?> identityRenderer = ((MinecraftClientAccessor) client).getEntityRenderManager().getRenderer(identity);
             if (identityRenderer == null) {
-                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
                 return;
             }
 
@@ -212,39 +181,37 @@ public class HeldItemRendererMixin {
             }
 
             if (identityModel == null) {
-                if (identity.getType() == EntityType.PLAYER) {
-                    identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
-                }
                 return;
             }
 
             ModelPart identityArm = identity2$resolveIdentityHandPart(identityModel, rightArm);
             if (identityArm == null) {
-                if (identity.getType() == EntityType.PLAYER) {
-                    identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
-                }
                 return;
             }
 
             ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer);
-            ResourceLocation texture = identityTexture == null ? skinTexture : identityTexture;
+            if (identityTexture == null) {
+                return;
+            }
 
             PlayerModel playerModel = (PlayerModel) renderer.getModel();
             ModelPart playerArm = rightArm ? playerModel.rightArm : playerModel.leftArm;
 
-            float offsetX = (playerArm.x - identityArm.x) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
-            float offsetY = (playerArm.y - identityArm.y) + ARM_TUNE_Y;
-            float offsetZ = (playerArm.z - identityArm.z) + ARM_TUNE_Z;
+            float offsetX = Mth.clamp((playerArm.x - identityArm.x), -12.0F, 12.0F) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
+            float offsetY = Mth.clamp((playerArm.y - identityArm.y), -12.0F, 12.0F) + ARM_TUNE_Y;
+            float offsetZ = Mth.clamp((playerArm.z - identityArm.z), -12.0F, 12.0F) + ARM_TUNE_Z;
 
             matrices.pushPose();
             matrices.translate(offsetX / 16.0F, offsetY / 16.0F, offsetZ / 16.0F);
             matrices.mulPose(Axis.XP.rotationDegrees(ARM_TUNE_ROT_X));
             matrices.mulPose(Axis.YP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Y : -ARM_TUNE_ROT_Y));
             matrices.mulPose(Axis.ZP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Z : -ARM_TUNE_ROT_Z));
-            identity2$callRenderHand(renderer, matrices, queue, light, texture, identityArm, sleeveVisible);
+            identity2$callRenderHand(renderer, matrices, queue, light, identityTexture, identityArm, sleeveVisible);
             matrices.popPose();
         } catch (Exception ignored) {
-            identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+            if (!morphed) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, skinTexture, sleeveVisible, rightArm);
+            }
         }
     }
 
@@ -259,13 +226,6 @@ public class HeldItemRendererMixin {
     ) {
         if (renderer instanceof PlayerEntityRendererAccessor accessor) {
             accessor.callRenderArm(matrices, queue, light, skinTexture, arm, sleeveVisible);
-        } else {
-            PlayerModel model = (PlayerModel) renderer.getModel();
-            if (arm == model.leftArm) {
-                renderer.renderLeftHand(matrices, queue, light, skinTexture, sleeveVisible);
-            } else {
-                renderer.renderRightHand(matrices, queue, light, skinTexture, sleeveVisible);
-            }
         }
     }
 
@@ -291,27 +251,20 @@ public class HeldItemRendererMixin {
         if (exact != null && !exact.isEmpty()) {
             return exact;
         }
-
         ModelPart preferred = identity2$findNamedSidePart(root, rightArm, true);
         if (preferred != null) {
             return preferred;
         }
-
         ModelPart anySide = identity2$findNamedSidePart(root, rightArm, false);
         if (anySide != null) {
             return anySide;
         }
-
-        if (exact != null) {
-            return exact;
-        }
-
         for (ModelPart part : root.getAllParts()) {
             if (!part.isEmpty()) {
                 return part;
             }
         }
-        return null;
+        return exact;
     }
 
     private static ModelPart identity2$findPartByNames(ModelPart root, String[] candidates) {
@@ -381,7 +334,19 @@ public class HeldItemRendererMixin {
     private static ResourceLocation identity2$resolveIdentityTexture(EntityRenderer<?, ?> identityRenderer) {
         if (identityRenderer instanceof LivingEntityRenderer livingRenderer) {
             try {
-                return (ResourceLocation) livingRenderer.getTextureLocation((LivingEntityRenderState) livingRenderer.createRenderState());
+                LivingEntity identity = null;
+                Minecraft client = Minecraft.getInstance();
+                if (client.player != null) {
+                    Entity currentIdentity = ((EntityAccessor) client.player).getCurrentIdentity();
+                    if (currentIdentity instanceof LivingEntity livingIdentity) {
+                        identity = livingIdentity;
+                    }
+                }
+                if (identity != null) {
+                    LivingEntityRenderState state = (LivingEntityRenderState) livingRenderer.createRenderState(identity, 1.0F);
+                    livingRenderer.extractRenderState(identity, state, 1.0F);
+                    return (ResourceLocation) livingRenderer.getTextureLocation(state);
+                }
             } catch (Throwable ignored) {
             }
         }

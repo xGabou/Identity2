@@ -33,6 +33,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -46,6 +47,7 @@ import net.minecraft.world.item.Items;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.minecraft.tags.DamageTypeTags;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
@@ -277,14 +279,31 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,CallbackInfoReturnable info){
-    if ((Entity)(Object)this instanceof Player && source != null && source.is(DamageTypeTags.IS_FALL)) {
-        return;
+    if ((Entity)(Object)this instanceof Player player && source != null) {
+        if (IdentityProgression.isMorphDamageGraceActive(player) && identity2$isMorphCollisionDamage(source)) {
+            info.setReturnValue(true);
+            return;
+        }
+        if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON && identity2$isMorphCollisionDamage(source)) {
+            info.setReturnValue(true);
+            return;
+        }
+        if (source.is(DamageTypeTags.IS_FALL)) {
+            return;
+        }
     }
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
             info.setReturnValue(livingIdentity.isInvulnerableTo(world,source));
         }
     }
+}
+
+private static boolean identity2$isMorphCollisionDamage(DamageSource source) {
+    if (source == null) {
+        return false;
+    }
+    return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.FLY_INTO_WALL) || source.is(DamageTypes.CRAMMING);
 }
 @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at=@At("HEAD"),cancellable=true)
 private void pushAwayFromIdentity(Entity entity,CallbackInfo info){

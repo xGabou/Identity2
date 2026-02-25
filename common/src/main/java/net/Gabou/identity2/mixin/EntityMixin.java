@@ -136,6 +136,16 @@ public class EntityMixin implements EntityAccessor{
     protected void disableNoClipSuffocate(CallbackInfoReturnable info) {
 		if(this.noPhysics){
             info.setReturnValue(false);
+            return;
+        }
+        if ((Entity)(Object)this instanceof Player player) {
+            Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+            if (
+                (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
+                    || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
+            ) {
+                info.setReturnValue(false);
+            }
         }
 	}
 	@Inject(method = "tick", at=@At("RETURN"))
@@ -269,36 +279,26 @@ public class EntityMixin implements EntityAccessor{
 
 
     public boolean canFly(){
- if(this.entityCanFlyEvaluated==false){
-
-        
-        try{
-        this.entityCanFly=net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(),FALL_METHOD_NAME);
-        }catch(
-            Exception e
-        ){int x=0;}
-        if(this.shouldTickBlockCollision()==false){
-            //QualityCommands.LOGGER.info("Reevaluating canFly - blockCollision disabled");
-            this.entityCanFly=true;
-        }
-        if(this.noPhysics){
-            //QualityCommands.LOGGER.info("Reevaluating canFly - no active");
-            this.entityCanFly=true;
-        }
-        this.entityCanFlyEvaluated=true;
-        //QualityCommands.LOGGER.info("Reevaluating canFly - final: "+String.valueOf(this.entityCanFly));
-        if(this.identityOf!=null){
-        if((Entity)(Object)this.identityOf instanceof Player player){
-                if(((EntityAccessor)((EntityAccessor)player).getCurrentIdentity()).canFly()){
-                    player.getAbilities().mayfly=true;
-                    player.getAbilities().flying=true;
-                }else{
-                        player.getAbilities().mayfly=false;
-                        player.getAbilities().flying=false;
+        if(!this.entityCanFlyEvaluated){
+            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
+            if (taggedFlight != null) {
+                this.entityCanFly = taggedFlight;
+            } else {
+                try {
+                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(), FALL_METHOD_NAME);
+                } catch (Exception ignored) {
+                }
+                if (!this.shouldTickBlockCollision()) {
+                    this.entityCanFly = true;
+                }
+                if (this.noPhysics) {
+                    this.entityCanFly = true;
                 }
             }
-        }
-
+            this.entityCanFlyEvaluated = true;
+            if (this.identityOf instanceof Player player) {
+                ((EntityMixin)(Object)player).applyIdentityFlightGrant(player, this.entityCanFly);
+            }
         }
         return this.entityCanFly;
     }
@@ -982,6 +982,7 @@ public class EntityMixin implements EntityAccessor{
         nbt.putString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY, "");
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
+        nbt.putDouble(IdentityProgression.MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
         nbt.putDouble(IdentityProgression.TRANSITION_START_TICK_KEY, 0.0D);
         nbt.putDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D);
 
