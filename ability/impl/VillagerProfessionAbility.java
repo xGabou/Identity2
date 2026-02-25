@@ -10,7 +10,7 @@ import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -48,8 +48,8 @@ public class VillagerProfessionAbility extends IdentityAbility<VillagerEntity> {
         if (poi.isPresent()) {
             RegistryEntry<PointOfInterestType> targetPoi = poi.get();
 
-            Identifier poiId = Registries.POINT_OF_INTEREST_TYPE.getId(targetPoi.value());
-            Identifier worldId = player.getWorld().getRegistryKey().getValue();
+            ResourceLocation poiId = Registries.POINT_OF_INTEREST_TYPE.getId(targetPoi.value());
+            ResourceLocation worldId = player.getWorld().getRegistryKey().getValue();
             Map<String, net.minecraft.nbt.NbtCompound> villagerMap = ((PlayerDataProvider) player).getVillagerIdentities();
             String existingName = null;
             String existingProfession = null;
@@ -68,7 +68,7 @@ public class VillagerProfessionAbility extends IdentityAbility<VillagerEntity> {
                 boolean matches = false;
 
                 // 1) Simple ID match: many mappings name POI types after the profession (e.g., minecraft:librarian)
-                Identifier profIdDirect = Registries.VILLAGER_PROFESSION.getId(profession);
+                ResourceLocation profIdDirect = Registries.VILLAGER_PROFESSION.getId(profession);
                 if (poiId != null && poiId.equals(profIdDirect)) {
                     matches = true;
                 }
@@ -110,7 +110,7 @@ public class VillagerProfessionAbility extends IdentityAbility<VillagerEntity> {
                 }
 
                 if (matches) {
-                    Identifier profId = Registries.VILLAGER_PROFESSION.getId(profession);
+                    ResourceLocation profId = Registries.VILLAGER_PROFESSION.getId(profession);
                     VillagerProfessionPackets.openScreen((ServerPlayerEntity) player, profId, blockResult.getBlockPos(), worldId, existingName, existingProfession);
                     break;
                 }
@@ -125,7 +125,7 @@ public class VillagerProfessionAbility extends IdentityAbility<VillagerEntity> {
         return Items.EMERALD;
     }
 
-    private boolean matchesWorkstation(net.minecraft.nbt.NbtCompound tag, Identifier worldId, long workstationPos) {
+    private boolean matchesWorkstation(net.minecraft.nbt.NbtCompound tag, ResourceLocation worldId, long workstationPos) {
         if (tag == null) {
             return false;
         }

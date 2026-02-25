@@ -27,14 +27,14 @@ accessible field net/minecraft/server/MinecraftServer playerManager Lnet/minecra
 accessible field net/minecraft/server/MinecraftServer commandFunctionManager Lnet/minecraft/server/function/CommandFunctionManager;
 mutable field net/minecraft/server/MinecraftServer commandFunctionManager Lnet/minecraft/server/function/CommandFunctionManager;
 
-accessible method net/minecraft/server/function/CommandFunctionManager executeAll (Ljava/util/Collection;Lnet/minecraft/util/Identifier;)V
+accessible method net/minecraft/server/function/CommandFunctionManager executeAll (Ljava/util/Collection;Lnet/minecraft/util/ResourceLocation;)V
 accessible field net/minecraft/client/network/ClientCommonNetworkHandler client Lnet/minecraft/client/MinecraftClient;
 
 accessible field net/minecraft/client/render/entity/EnderDragonEntityRenderer model Lnet/minecraft/client/render/entity/DragonEntityModel;
 accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontLeg Lnet/minecraft/client/model/ModelPart;
 accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontLegTip Lnet/minecraft/client/model/ModelPart;
 accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontFoot Lnet/minecraft/client/model/ModelPart;
-accessible field net/minecraft/client/render/entity/EnderDragonEntityRenderer TEXTURE Lnet/minecraft/util/Identifier;
+accessible field net/minecraft/client/render/entity/EnderDragonEntityRenderer TEXTURE Lnet/minecraft/util/ResourceLocation;
 
 
 

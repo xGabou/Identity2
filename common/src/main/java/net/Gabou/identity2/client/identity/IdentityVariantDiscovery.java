@@ -12,7 +12,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -50,7 +50,7 @@ public final class IdentityVariantDiscovery {
         }
 
         try {
-            Identifier typeId = EntityType.getKey(type);
+            ResourceLocation typeId = EntityType.getKey(type);
             if (typeId == null) {
                 return List.of(defaultVariant(type));
             }
@@ -71,7 +71,7 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
         if (type == EntityType.SHEEP) {
             List<IdentityVariant> variants = new ArrayList<>(16);
             for (int i = 0; i < 16; i++) {
@@ -112,7 +112,7 @@ public final class IdentityVariantDiscovery {
     }
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(
-        Identifier typeId,
+        ResourceLocation typeId,
         String registryField,
         String variantKey,
         String labelPrefix
@@ -121,10 +121,10 @@ public final class IdentityVariantDiscovery {
         if (registry == null || registry.keySet().isEmpty()) {
             return List.of();
         }
-        List<Identifier> keys = new ArrayList<>(registry.keySet());
+        List<ResourceLocation> keys = new ArrayList<>(registry.keySet());
         keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
         List<IdentityVariant> variants = new ArrayList<>(keys.size());
-        for (Identifier variantId : keys) {
+        for (ResourceLocation variantId : keys) {
             if (variantId == null) {
                 continue;
             }
@@ -149,7 +149,7 @@ public final class IdentityVariantDiscovery {
         try {
             Object key = Registries.class.getField(fieldName).get(null);
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                Object value = BuiltInRegistries.REGISTRY.getValue(resourceKey.identifier());
+                Object value = BuiltInRegistries.REGISTRY.getValue(resourceKey.location());
                 if (value instanceof Registry<?> registry) {
                     return registry;
                 }
@@ -159,7 +159,7 @@ public final class IdentityVariantDiscovery {
         return null;
     }
 
-    private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverCatStringVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
         Set<String> keys = Set.of("variant", "Variant");
         Map<String, IdentityVariant> out = new LinkedHashMap<>();
         for (int i = 0; i < MAX_CAT_SAMPLES; i++) {
@@ -187,7 +187,7 @@ public final class IdentityVariantDiscovery {
         return new ArrayList<>(out.values());
     }
 
-    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
         Entity baseEntity = createEntity(type, world);
         if (baseEntity == null) {
             return List.of();
@@ -245,7 +245,7 @@ public final class IdentityVariantDiscovery {
         return null;
     }
 
-    private static String buildGenericDisplayName(Identifier typeId, String key, int value) {
+    private static String buildGenericDisplayName(ResourceLocation typeId, String key, int value) {
         String entityName = capitalize(typeId.getPath().replace('_', ' '));
         if ("Color".equals(key) && typeId.equals(EntityType.getKey(EntityType.SHEEP))) {
             DyeColor color = DyeColor.byId(value % 16);
@@ -283,11 +283,11 @@ public final class IdentityVariantDiscovery {
     }
 
     private static IdentityVariant defaultVariant(EntityType<?> type) {
-        Identifier typeId = type == null ? Identifier.parse("minecraft:pig") : EntityType.getKey(type);
+        ResourceLocation typeId = type == null ? ResourceLocation.parse("minecraft:pig") : EntityType.getKey(type);
         return defaultVariant(typeId);
     }
 
-    private static IdentityVariant defaultVariant(Identifier typeId) {
+    private static IdentityVariant defaultVariant(ResourceLocation typeId) {
         return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')), new CompoundTag());
     }
 

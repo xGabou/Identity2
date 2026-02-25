@@ -25,16 +25,16 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.WanderingTrader;
 
 public final class IdentityCommand {
     private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
@@ -48,9 +48,9 @@ public final class IdentityCommand {
                 .then(
                     Commands.literal("morph")
                         .then(
-                            Commands.argument("identity_id", IdentifierArgument.id())
+                            Commands.argument("identity_id", ResourceLocationArgument.id())
                                 .suggests(IdentityCommand::suggestUnlockedIdentities)
-                                .executes(context -> morph(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
+                                .executes(context -> morph(context.getSource(), ResourceLocationArgument.getId(context, "identity_id")))
                         )
                 )
                 .then(Commands.literal("clear").executes(context -> clear(context.getSource())))
@@ -59,15 +59,15 @@ public final class IdentityCommand {
                     Commands.literal("unlock")
                         .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                         .then(
-                            Commands.argument("identity_id", IdentifierArgument.id())
+                            Commands.argument("identity_id", ResourceLocationArgument.id())
                                 .suggests(IdentityCommand::suggestMorphableIdentities)
-                                .executes(context -> unlockIdentity(context.getSource(), IdentifierArgument.getId(context, "identity_id"), null))
+                                .executes(context -> unlockIdentity(context.getSource(), ResourceLocationArgument.getId(context, "identity_id"), null))
                                 .then(
                                     Commands.argument("target", EntityArgument.player())
                                         .executes(
                                             context -> unlockIdentity(
                                                 context.getSource(),
-                                                IdentifierArgument.getId(context, "identity_id"),
+                                                ResourceLocationArgument.getId(context, "identity_id"),
                                                 EntityArgument.getPlayer(context, "target")
                                             )
                                         )
@@ -88,9 +88,9 @@ public final class IdentityCommand {
                         .then(
                             Commands.literal("info")
                                 .then(
-                                    Commands.argument("identity_id", IdentifierArgument.id())
+                                    Commands.argument("identity_id", ResourceLocationArgument.id())
                                         .suggests(IdentityCommand::suggestMorphableIdentities)
-                                        .executes(context -> abilityInfo(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
+                                        .executes(context -> abilityInfo(context.getSource(), ResourceLocationArgument.getId(context, "identity_id")))
                                 )
                         )
                         .then(Commands.literal("current").executes(context -> currentAbilityInfo(context.getSource())))
@@ -240,7 +240,7 @@ public final class IdentityCommand {
         return 0;
     }
 
-    private static int morph(CommandSourceStack source, Identifier identityId) {
+    private static int morph(CommandSourceStack source, ResourceLocation identityId) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
             source.sendFailure(Component.literal("Only players can morph."));
@@ -312,7 +312,7 @@ public final class IdentityCommand {
         return 1;
     }
 
-    private static int unlockIdentity(CommandSourceStack source, Identifier identityId, ServerPlayer target) {
+    private static int unlockIdentity(CommandSourceStack source, ResourceLocation identityId, ServerPlayer target) {
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
             if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
                 String reason = IdentityProgression.getDisabledIdentityReason(identityId);
@@ -491,13 +491,13 @@ public final class IdentityCommand {
             return 0;
         }
 
-        List<Identifier> candidates = collectAbilityCandidates(source, player);
+        List<ResourceLocation> candidates = collectAbilityCandidates(source, player);
         List<String> lines = new ArrayList<>();
         int builtinCount = 0;
         int fallbackCount = 0;
         int noneCount = 0;
 
-        for (Identifier id : candidates) {
+        for (ResourceLocation id : candidates) {
             AbilityInfo info = resolveAbilityInfo(id);
             if (!info.hasAny()) {
                 noneCount++;
@@ -527,7 +527,7 @@ public final class IdentityCommand {
         return lines.size();
     }
 
-    private static int abilityInfo(CommandSourceStack source, Identifier identityId) {
+    private static int abilityInfo(CommandSourceStack source, ResourceLocation identityId) {
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
             source.sendFailure(Component.literal("Unsupported identity: " + identityId));
             return 0;
@@ -556,7 +556,7 @@ public final class IdentityCommand {
             return 1;
         }
 
-        Identifier id = EntityType.getKey(current.getType());
+        ResourceLocation id = EntityType.getKey(current.getType());
         if (id == null) {
             source.sendSystemMessage(Component.literal("Current ability: none (unknown identity type)."));
             return 1;
@@ -571,8 +571,8 @@ public final class IdentityCommand {
         }
 
         if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(context.getSource())) {
-            List<Identifier> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
-                .map(IdentityCommand::parseIdentifier)
+            List<ResourceLocation> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
+                .map(IdentityCommand::parseResourceLocation)
                 .flatMap(Optional::stream)
                 .filter(IdentityProgression::isMorphableIdentity)
                 .toList();
@@ -609,20 +609,20 @@ public final class IdentityCommand {
     }
 
     private static boolean isOperator(CommandSourceStack source) {
-        return Commands.LEVEL_ADMINS.check(source.permissions());
+        return source.hasPermission(Commands.LEVEL_ADMINS);
     }
 
     private static boolean isMorphableIdentityString(String value) {
         try {
-            return IdentityProgression.isMorphableIdentity(Identifier.parse(value));
+            return IdentityProgression.isMorphableIdentity(ResourceLocation.parse(value));
         } catch (Exception ignored) {
             return false;
         }
     }
 
-    private static Optional<Identifier> parseIdentifier(String value) {
+    private static Optional<ResourceLocation> parseResourceLocation(String value) {
         try {
-            return Optional.of(Identifier.parse(value));
+            return Optional.of(ResourceLocation.parse(value));
         } catch (Exception ignored) {
             return Optional.empty();
         }
@@ -720,20 +720,20 @@ public final class IdentityCommand {
         return String.valueOf(value);
     }
 
-    private static List<Identifier> collectAbilityCandidates(CommandSourceStack source, ServerPlayer player) {
+    private static List<ResourceLocation> collectAbilityCandidates(CommandSourceStack source, ServerPlayer player) {
         if (!IdentitySettings.requireUnlockedIdentityForMorph || isOperator(source)) {
             return BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity).sorted().toList();
         }
 
         return IdentityProgression.getUnlockedIdentities(player).stream()
-            .map(IdentityCommand::parseIdentifier)
+            .map(IdentityCommand::parseResourceLocation)
             .flatMap(Optional::stream)
             .filter(IdentityProgression::isMorphableIdentity)
             .sorted()
             .toList();
     }
 
-    private static AbilityInfo resolveAbilityInfo(Identifier identityId) {
+    private static AbilityInfo resolveAbilityInfo(ResourceLocation identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return AbilityInfo.none();
         }
@@ -743,8 +743,8 @@ public final class IdentityCommand {
         }
 
         IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type);
-        Identifier predefFromDefinition = definition == null ? null : definition.bultinability();
-        Identifier predefKey = isNullIdentifier(predefFromDefinition) ? identityId : predefFromDefinition;
+        ResourceLocation predefFromDefinition = definition == null ? null : definition.bultinability();
+        ResourceLocation predefKey = isNullResourceLocation(predefFromDefinition) ? identityId : predefFromDefinition;
 
         boolean hasSpecificPredef = hasSpecificPredef(predefKey);
         boolean hasFallback = PredefIdentityAbilities.hasFallbackAbility(identityId);
@@ -756,14 +756,14 @@ public final class IdentityCommand {
         int useDuration = definition == null ? 0 : definition.useduration();
         boolean overrideAttack = definition != null && definition.override_attack();
         String command = definition == null ? "" : definition.command();
-        Identifier predefLabel = hasSpecificPredef ? predefKey : null;
+        ResourceLocation predefLabel = hasSpecificPredef ? predefKey : null;
         boolean genericFallback = !hasSpecificPredef && hasFallback;
 
         return new AbilityInfo(cooldown, useDuration, overrideAttack, command, predefLabel, genericFallback);
     }
 
-    private static boolean hasSpecificPredef(Identifier prebuilt) {
-        if (prebuilt == null || isNullIdentifier(prebuilt)) {
+    private static boolean hasSpecificPredef(ResourceLocation prebuilt) {
+        if (prebuilt == null || isNullResourceLocation(prebuilt)) {
             return false;
         }
 
@@ -771,15 +771,15 @@ public final class IdentityCommand {
             return true;
         }
 
-        Identifier minecraftAlias = Identifier.fromNamespaceAndPath("minecraft", prebuilt.getPath());
+        ResourceLocation minecraftAlias = ResourceLocation.fromNamespaceAndPath("minecraft", prebuilt.getPath());
         if (PredefIdentityAbilities.predef.containsKey(minecraftAlias)) {
             return true;
         }
 
-        return PredefIdentityAbilities.predef.containsKey(Identifier.fromNamespaceAndPath("identity2", prebuilt.getPath()));
+        return PredefIdentityAbilities.predef.containsKey(ResourceLocation.fromNamespaceAndPath("identity2", prebuilt.getPath()));
     }
 
-    private static boolean isNullIdentifier(Identifier id) {
+    private static boolean isNullResourceLocation(ResourceLocation id) {
         return id == null || "null".equals(id.getPath());
     }
 
@@ -788,7 +788,7 @@ public final class IdentityCommand {
         int useDuration,
         boolean overrideAttack,
         String command,
-        Identifier predef,
+        ResourceLocation predef,
         boolean genericFallback
     ) {
         static AbilityInfo none() {

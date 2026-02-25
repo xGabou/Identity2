@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 final class ProgressionConfigHelper {
     private static final Map<String, Integer> DEFAULT_JAR_CAPACITIES = Map.of(
@@ -18,21 +18,21 @@ final class ProgressionConfigHelper {
     private ProgressionConfigHelper() {
     }
 
-    static int resolveChargeGain(Identifier identityId) {
+    static int resolveChargeGain(ResourceLocation identityId) {
         return resolveIdentityScopedInt(identityId, IdentitySettings.chargeGainByIdentity, Math.max(0, IdentitySettings.defaultChargeGainPerKill));
     }
 
-    static int resolveChargeCost(Identifier identityId) {
+    static int resolveChargeCost(ResourceLocation identityId) {
         int fallback = Math.max(1, IdentitySettings.defaultMorphUseChargeCost);
         return Math.max(1, resolveIdentityScopedInt(identityId, IdentitySettings.chargeCostByIdentity, fallback));
     }
 
-    static int resolveChargeDeathPenalty(Identifier identityId) {
+    static int resolveChargeDeathPenalty(ResourceLocation identityId) {
         int fallback = Math.max(1, IdentitySettings.morphDeathChargePenalty);
         return Math.max(1, resolveIdentityScopedInt(identityId, IdentitySettings.chargeDeathPenaltyByIdentity, fallback));
     }
 
-    static int resolvePermanentKillRequirement(Identifier identityId) {
+    static int resolvePermanentKillRequirement(ResourceLocation identityId) {
         int fallback = Math.max(1, IdentitySettings.defaultPermanentKillRequirement);
         return Math.max(1, resolveIdentityScopedInt(identityId, IdentitySettings.permanentKillRequirementByIdentity, fallback));
     }
@@ -62,7 +62,7 @@ final class ProgressionConfigHelper {
         return tier.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static int resolveIdentityScopedInt(Identifier identityId, List<String> entries, int fallback) {
+    private static int resolveIdentityScopedInt(ResourceLocation identityId, List<String> entries, int fallback) {
         if (identityId == null || entries == null || entries.isEmpty()) {
             return fallback;
         }

@@ -2,7 +2,7 @@ package draylar.identity.impl;
 
 import draylar.identity.api.variant.IdentityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
 

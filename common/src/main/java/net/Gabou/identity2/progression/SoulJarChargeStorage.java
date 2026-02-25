@@ -9,7 +9,7 @@ import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -50,7 +50,7 @@ public final class SoulJarChargeStorage {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (itemId == null || itemId.equals(BuiltInRegistries.ITEM.getKey(Items.AIR))) {
             return false;
         }
@@ -69,7 +69,7 @@ public final class SoulJarChargeStorage {
             return null;
         }
 
-        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         String tier = normalizeTier(fallbackTier);
         String tierFromItem = resolveTierFromConfiguredItem(itemId);
         if (tierFromItem != null) {
@@ -134,7 +134,7 @@ public final class SoulJarChargeStorage {
         return out;
     }
 
-    private static String resolveTierFromConfiguredItem(Identifier itemId) {
+    private static String resolveTierFromConfiguredItem(ResourceLocation itemId) {
         if (itemId == null) {
             return null;
         }
@@ -155,9 +155,9 @@ public final class SoulJarChargeStorage {
             if (idText.isBlank()) {
                 continue;
             }
-            Identifier configuredId;
+            ResourceLocation configuredId;
             try {
-                configuredId = Identifier.parse(idText);
+                configuredId = ResourceLocation.parse(idText);
             } catch (Exception exception) {
                 continue;
             }
@@ -168,7 +168,7 @@ public final class SoulJarChargeStorage {
         return null;
     }
 
-    private static String inferTierFromItemId(Identifier itemId) {
+    private static String inferTierFromItemId(ResourceLocation itemId) {
         if (itemId == null) {
             return "";
         }

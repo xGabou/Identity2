@@ -8,19 +8,19 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 public class VillagerProfessionScreen extends Screen {
 
-    private final Identifier professionId;
+    private final ResourceLocation professionId;
     private final net.minecraft.util.math.BlockPos pos;
-    private final Identifier worldId;
+    private final ResourceLocation worldId;
     private final String originalName;
     private final String existingProfessionId;
     private TextFieldWidget nameField;
     private ButtonWidget deleteButton;
 
-    public VillagerProfessionScreen(Identifier professionId, net.minecraft.util.math.BlockPos pos, Identifier worldId, String originalName, String existingProfessionId) {
+    public VillagerProfessionScreen(ResourceLocation professionId, net.minecraft.util.math.BlockPos pos, ResourceLocation worldId, String originalName, String existingProfessionId) {
         super(Text.translatable("identity.profession.title"));
         this.professionId = professionId;
         this.pos = pos;
@@ -81,7 +81,7 @@ public class VillagerProfessionScreen extends Screen {
     }
 
     private Text resolveProfessionName(String professionKey) {
-        Identifier id = Identifier.tryParse(professionKey);
+        ResourceLocation id = ResourceLocation.tryParse(professionKey);
         return id != null ? Text.literal(id.toString()) : Text.literal(professionKey);
     }
 }

@@ -7,7 +7,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -105,9 +105,9 @@ public final class MorphTransitionHelper {
 
     @Nullable
     private static Entity buildIdentity(Entity host, String typeId, String variantRaw) {
-        Identifier identifier;
+        ResourceLocation identifier;
         try {
-            identifier = Identifier.parse(typeId);
+            identifier = ResourceLocation.parse(typeId);
         } catch (Exception ignored) {
             return null;
         }

@@ -9,7 +9,7 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.component.CustomData;
 
@@ -20,7 +20,7 @@ public final class SoulAbsorptionManager {
     private SoulAbsorptionManager() {
     }
 
-    public static boolean isAbsorbed(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean isAbsorbed(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulAbsorption()) {
             return false;
         }
@@ -29,7 +29,7 @@ public final class SoulAbsorptionManager {
         return absorbed.contains(absorptionKey(identityId, token)) || absorbed.contains(absorptionKey(identityId, "-"));
     }
 
-    public static AbsorptionResult absorbMorph(ServerPlayer player, String jarId, Identifier identityId, CompoundTag variantNbt) {
+    public static AbsorptionResult absorbMorph(ServerPlayer player, String jarId, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null) {
             return AbsorptionResult.failure("Invalid absorption request.");
         }
@@ -82,7 +82,7 @@ public final class SoulAbsorptionManager {
         customData.store(ABSORBED_MORPHS_KEY, STRING_LIST_CODEC, new ArrayList<>(absorbed));
     }
 
-    private static String absorptionKey(Identifier identityId, String variantToken) {
+    private static String absorptionKey(ResourceLocation identityId, String variantToken) {
         return identityId + "|" + (variantToken == null || variantToken.isBlank() ? "-" : variantToken);
     }
 

@@ -6,7 +6,7 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,7 +16,7 @@ import java.util.UUID;
 public class Payload {
     public record IdentitySyncPayload(UUID uuid, String id, NbtCompound entityNbt) implements CustomPayload {
         public static final CustomPayload.Id<IdentitySyncPayload> ID =
-                new CustomPayload.Id<>(Identifier.of("identity", "identity_sync"));
+                new CustomPayload.Id<>(ResourceLocation.of("identity", "identity_sync"));
 
         public static final PacketCodec<RegistryByteBuf, UUID> UUID_CODEC =
                 PacketCodec.of(
@@ -40,16 +40,16 @@ public class Payload {
             return ID;
         }
     }
-    public record OpenProfessionScreenPayload(Identifier professionId,
+    public record OpenProfessionScreenPayload(ResourceLocation professionId,
                                               BlockPos pos,
-                                              Identifier worldId,
+                                              ResourceLocation worldId,
                                               Optional<String> existingName,
                                               Optional<String> existingProfessionId) implements CustomPayload {
         public static final CustomPayload.Id<OpenProfessionScreenPayload> ID =
                 new CustomPayload.Id<>(NetworkHandler.OPEN_PROFESSION_SCREEN);
 
-        private static final PacketCodec<RegistryByteBuf, Identifier> IDENTIFIER_CODEC =
-                PacketCodec.of((id, buf) -> buf.writeIdentifier(id), buf -> buf.readIdentifier());
+        private static final PacketCodec<RegistryByteBuf, ResourceLocation> IDENTIFIER_CODEC =
+                PacketCodec.of((id, buf) -> buf.writeResourceLocation(id), buf -> buf.readResourceLocation());
 
         private static final PacketCodec<RegistryByteBuf, BlockPos> BLOCKPOS_CODEC =
                 PacketCodec.of((target, buf) -> buf.writeBlockPos(target), buf -> buf.readBlockPos());
@@ -71,19 +71,19 @@ public class Payload {
     }
 
 
-    public record SetProfessionPayload(Identifier professionId,
+    public record SetProfessionPayload(ResourceLocation professionId,
                                        String name,
                                        boolean reset,
                                        BlockPos pos,
-                                       Identifier worldId,
+                                       ResourceLocation worldId,
                                        Optional<String> originalName) implements CustomPayload {
 
         public static final CustomPayload.Id<SetProfessionPayload> ID =
                 new CustomPayload.Id<>(NetworkHandler.SET_PROFESSION);
 
-        private static final PacketCodec<RegistryByteBuf, Identifier> IDENTIFIER_CODEC =
-                PacketCodec.of((id, buf) -> buf.writeIdentifier(id),
-                        buf -> buf.readIdentifier());
+        private static final PacketCodec<RegistryByteBuf, ResourceLocation> IDENTIFIER_CODEC =
+                PacketCodec.of((id, buf) -> buf.writeResourceLocation(id),
+                        buf -> buf.readResourceLocation());
 
         private static final PacketCodec<RegistryByteBuf, BlockPos> BLOCKPOS_CODEC =
                 PacketCodec.of((target, buf) -> buf.writeBlockPos(target),
@@ -149,7 +149,7 @@ public class Payload {
     public record UseAbilityPayload() implements CustomPayload {
         // Packet ID
         public static final CustomPayload.Id<UseAbilityPayload> ID =
-                new CustomPayload.Id<>(Identifier.of("identity", "use_ability"));
+                new CustomPayload.Id<>(ResourceLocation.of("identity", "use_ability"));
 
         // Codec: always encodes/decodes the same singleton instance
         public static final PacketCodec<RegistryByteBuf, UseAbilityPayload> CODEC =
@@ -176,7 +176,7 @@ public class Payload {
         }
     }
 
-    public record FavoriteUpdatePayload(Identifier entityTypeId,
+    public record FavoriteUpdatePayload(ResourceLocation entityTypeId,
                                         int variant,
                                         boolean favorite) implements CustomPayload {
 
@@ -184,9 +184,9 @@ public class Payload {
                 new CustomPayload.Id<>(NetworkHandler.FAVORITE_UPDATE);
 
         // Mojang official mappings may not have IDENTIFIER, so we roll our own if needed
-        private static final PacketCodec<RegistryByteBuf, Identifier> IDENTIFIER_CODEC =
-                PacketCodec.of((id, buf) -> buf.writeIdentifier(id),
-                        buf -> buf.readIdentifier());
+        private static final PacketCodec<RegistryByteBuf, ResourceLocation> IDENTIFIER_CODEC =
+                PacketCodec.of((id, buf) -> buf.writeResourceLocation(id),
+                        buf -> buf.readResourceLocation());
 
         public static final PacketCodec<RegistryByteBuf, FavoriteUpdatePayload> CODEC =
                 PacketCodec.tuple(
@@ -250,15 +250,15 @@ public class Payload {
         }
     }
     public record SwapRequestPayload(boolean validType,
-                                     @Nullable Identifier entityTypeId,
+                                     @Nullable ResourceLocation entityTypeId,
                                      int variant) implements CustomPayload {
 
         public static final CustomPayload.Id<SwapRequestPayload> ID =
                 new CustomPayload.Id<>(NetworkHandler.IDENTITY_REQUEST);
 
-        private static final PacketCodec<RegistryByteBuf, Identifier> IDENTIFIER_CODEC =
-                PacketCodec.of((id, buf) -> buf.writeIdentifier(id),
-                        buf -> buf.readIdentifier());
+        private static final PacketCodec<RegistryByteBuf, ResourceLocation> IDENTIFIER_CODEC =
+                PacketCodec.of((id, buf) -> buf.writeResourceLocation(id),
+                        buf -> buf.readResourceLocation());
 
         public static final PacketCodec<RegistryByteBuf, SwapRequestPayload> CODEC =
                 PacketCodec.tuple(

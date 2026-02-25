@@ -18,7 +18,7 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.NbtCompoundArgumentType;
-import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.command.argument.ResourceLocationArgumentType;
 import net.minecraft.command.argument.RegistryEntryReferenceArgumentType;
 import net.minecraft.command.suggestion.SuggestionProviders;
 import net.minecraft.entity.Entity;
@@ -34,7 +34,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -139,7 +139,7 @@ public class IdentityCommand {
                 .then(CommandManager.literal("add")
                         .then(CommandManager.argument("entity", RegistryEntryReferenceArgumentType.registryEntry(registryAccess, RegistryKeys.ENTITY_TYPE)).suggests(SuggestionProviders.SUMMONABLE_ENTITIES)
                                 .executes(ctx -> {
-                                    Identifier id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
+                                    ResourceLocation id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
                                     return addToList(ctx.getSource(), listSupplier, false, literal, id.toString());
                                 })))
                 .then(CommandManager.literal("remove")
@@ -156,7 +156,7 @@ public class IdentityCommand {
                         .then(CommandManager.argument("entity", RegistryEntryReferenceArgumentType.registryEntry(registryAccess, RegistryKeys.ENTITY_TYPE)).suggests(SuggestionProviders.SUMMONABLE_ENTITIES)
                                 .then(CommandManager.argument("cooldown", IntegerArgumentType.integer(0))
                                         .executes(ctx -> {
-                                            Identifier id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
+                                            ResourceLocation id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
                                             int cooldown = IntegerArgumentType.getInteger(ctx, "cooldown");
                                             return setAbilityCooldown(ctx.getSource(), id.toString(), cooldown);
                                         }))))
@@ -174,7 +174,7 @@ public class IdentityCommand {
                         .then(CommandManager.argument("entity", RegistryEntryReferenceArgumentType.registryEntry(registryAccess, RegistryKeys.ENTITY_TYPE)).suggests(SuggestionProviders.SUMMONABLE_ENTITIES)
                                 .then(CommandManager.argument("kills", IntegerArgumentType.integer(0))
                                         .executes(ctx -> {
-                                            Identifier id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
+                                            ResourceLocation id = RegistryEntryReferenceArgumentType.getSummonableEntityType(ctx, "entity").registryKey().getValue();
                                             int kills = IntegerArgumentType.getInteger(ctx, "kills");
                                             return setRequiredKillOverride(ctx.getSource(), id.toString(), kills);
                                         }))))
@@ -357,7 +357,7 @@ public class IdentityCommand {
                 return 1;
             }
 
-            Identifier identifier = Identifier.tryParse(rawValue);
+            ResourceLocation identifier = ResourceLocation.tryParse(rawValue);
             if (identifier == null || !Registries.ENTITY_TYPE.containsId(identifier)) {
                 source.sendError(Text.literal("Unknown entity: " + rawValue));
                 return 0;
@@ -421,12 +421,12 @@ public class IdentityCommand {
                                         return 1;
                                     })
                             )
-                            .then(CommandManager.argument("identity", IdentifierArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
                                     .executes(context -> {
                                         grant(
                                                 context.getSource().getPlayer(),
                                                 EntityArgumentType.getPlayer(context, "player"),
-                                                IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                 null
                                         );
                                         return 1;
@@ -438,7 +438,7 @@ public class IdentityCommand {
                                                 grant(
                                                         context.getSource().getPlayer(),
                                                         EntityArgumentType.getPlayer(context, "player"),
-                                                        IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                        ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                         nbt
                                                 );
 
@@ -464,12 +464,12 @@ public class IdentityCommand {
                                         return 1;
                                     })
                             )
-                            .then(CommandManager.argument("identity", IdentifierArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
                                     .executes(context -> {
                                         revoke(
                                                 context.getSource().getPlayer(),
                                                 EntityArgumentType.getPlayer(context, "player"),
-                                                IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                 null
                                         );
                                         return 1;
@@ -481,7 +481,7 @@ public class IdentityCommand {
                                                 revoke(
                                                         context.getSource().getPlayer(),
                                                         EntityArgumentType.getPlayer(context, "player"),
-                                                        IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                        ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                         nbt
                                                 );
 
@@ -495,11 +495,11 @@ public class IdentityCommand {
             LiteralCommandNode<ServerCommandSource> equip = CommandManager
                     .literal("equip")
                     .then(CommandManager.argument("player", EntityArgumentType.players())
-                            .then(CommandManager.argument("identity", IdentifierArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
                                     .executes(context -> {
                                         equip(context.getSource().getPlayer(),
                                                 EntityArgumentType.getPlayer(context, "player"),
-                                                IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                 null);
 
                                         return 1;
@@ -510,7 +510,7 @@ public class IdentityCommand {
 
                                                 equip(context.getSource().getPlayer(),
                                                         EntityArgumentType.getPlayer(context, "player"),
-                                                        IdentifierArgumentType.getIdentifier(context, "identity"),
+                                                        ResourceLocationArgumentType.getResourceLocation(context, "identity"),
                                                         nbt);
 
                                                 return 1;
@@ -537,22 +537,22 @@ public class IdentityCommand {
                     .literal("test")
                     .then(CommandManager.argument("player", EntityArgumentType.player())
                             .then(CommandManager.literal("not")
-                                     .then(CommandManager.argument("identity", IdentifierArgumentType.identifier())
+                                     .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
                                             .executes(context -> {
                                                 return testNot(
                                                         context.getSource().getPlayer(),
                                                         EntityArgumentType.getPlayer(context, "player"),
-                                                         IdentifierArgumentType.getIdentifier(context, "identity")
+                                                         ResourceLocationArgumentType.getResourceLocation(context, "identity")
                                              );
                                          })
                                      )
                              )
-                             .then(CommandManager.argument("identity", IdentifierArgumentType.identifier())
+                             .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
                                      .executes(context -> {
                                          return test(
                                                  context.getSource().getPlayer(),
                                                  EntityArgumentType.getPlayer(context, "player"),
-                                                 IdentifierArgumentType.getIdentifier(context, "identity")
+                                                 ResourceLocationArgumentType.getResourceLocation(context, "identity")
                                          );
                                      })
                              )
@@ -709,7 +709,7 @@ public class IdentityCommand {
         });
     }
 
-    private static int test(ServerPlayerEntity source, ServerPlayerEntity player, Identifier identity) {
+    private static int test(ServerPlayerEntity source, ServerPlayerEntity player, ResourceLocation identity) {
         EntityType<?> type = Registries.ENTITY_TYPE.get(identity);
 
         if(PlayerIdentity.getIdentity(player) != null && PlayerIdentity.getIdentity(player).getType().equals(type)) {
@@ -727,7 +727,7 @@ public class IdentityCommand {
         return 0;
     }
 
-    private static int testNot(ServerPlayerEntity source, ServerPlayerEntity player, Identifier identity) {
+    private static int testNot(ServerPlayerEntity source, ServerPlayerEntity player, ResourceLocation identity) {
         EntityType<?> type = Registries.ENTITY_TYPE.get(identity);
 
         if(PlayerIdentity.getIdentity(player) != null && !PlayerIdentity.getIdentity(player).getType().equals(type)) {
@@ -745,7 +745,7 @@ public class IdentityCommand {
         return 0;
     }
 
-    private static void grant(ServerPlayerEntity source, ServerPlayerEntity player, Identifier id, @Nullable NbtCompound nbt) {
+    private static void grant(ServerPlayerEntity source, ServerPlayerEntity player, ResourceLocation id, @Nullable NbtCompound nbt) {
         IdentityType<LivingEntity> type = new IdentityType(Registries.ENTITY_TYPE.get(id));
         Text name = Text.translatable(type.getEntityType().getTranslationKey());
 
@@ -775,7 +775,7 @@ public class IdentityCommand {
         }
     }
 
-    private static void revoke(ServerPlayerEntity source, ServerPlayerEntity player, Identifier id, @Nullable NbtCompound nbt) {
+    private static void revoke(ServerPlayerEntity source, ServerPlayerEntity player, ResourceLocation id, @Nullable NbtCompound nbt) {
         IdentityType<LivingEntity> type = new IdentityType(Registries.ENTITY_TYPE.get(id));
         Text name = Text.translatable(type.getEntityType().getTranslationKey());
 
@@ -805,7 +805,7 @@ public class IdentityCommand {
         }
     }
 
-    private static void equip(ServerPlayerEntity source, ServerPlayerEntity player, Identifier identity, @Nullable NbtCompound nbt) {
+    private static void equip(ServerPlayerEntity source, ServerPlayerEntity player, ResourceLocation identity, @Nullable NbtCompound nbt) {
         Entity created;
 
         if(nbt != null) {

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.commands.Commands;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
@@ -49,7 +49,7 @@ public final class ProgressionConfig {
             return true;
         }
         return IdentitySettings.bypassMorphChargesForOperators
-            && Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
+                && player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 
 
@@ -72,14 +72,14 @@ public final class ProgressionConfig {
         return !areCheatsEnabled(server);
     }
 
-    public static Identifier resolveJarItemId(String tier) {
+    public static ResourceLocation resolveJarItemId(String tier) {
         String normalizedTier = ProgressionConfigHelper.normalizeTier(tier);
         Map<String, String> configured = parseTierStringEntries(IdentitySettings.soulJarTierItems);
         String value = configured.getOrDefault(normalizedTier, DEFAULT_JAR_ITEMS.getOrDefault(normalizedTier, "minecraft:clay_ball"));
         try {
-            return Identifier.parse(value);
+            return ResourceLocation.parse(value);
         } catch (Exception ignored) {
-            return Identifier.fromNamespaceAndPath("minecraft", "clay_ball");
+            return ResourceLocation.fromNamespaceAndPath("minecraft", "clay_ball");
         }
     }
 

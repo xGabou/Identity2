@@ -91,8 +91,8 @@ tasks.register("discordWebhook") {
                 allowed_mentions: [ parse: ["roles"] ],
                 content: "**New release published!** 🎉\n" +
                         "<@&1363945953546997810>\n" + // role mention
-                        "Project: ${mod_name}\n" +
-                        "Version: v${version}-1.21.11\n\n" +
+                        "Project: ${archives_name}\n" +
+                        "Version: v${version}-1.21.9\n\n" +
                         "${changelogText.take(1900)}"
         ]
 

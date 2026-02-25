@@ -15,7 +15,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -141,7 +141,7 @@ public final class SoulJarManager {
         return changed;
     }
 
-    public static boolean storeMorphInJar(ServerPlayer player, String jarId, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean storeMorphInJar(ServerPlayer player, String jarId, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulJars()) {
             return false;
         }
@@ -182,7 +182,7 @@ public final class SoulJarManager {
         return changed;
     }
 
-    public static boolean removeMorphFromJar(ServerPlayer player, String jarId, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean removeMorphFromJar(ServerPlayer player, String jarId, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulJars()) {
             return false;
         }
@@ -225,7 +225,7 @@ public final class SoulJarManager {
         return changed;
     }
 
-    public static boolean isStoredInAnyJar(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean isStoredInAnyJar(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulJars()) {
             return false;
         }
@@ -240,7 +240,7 @@ public final class SoulJarManager {
         return false;
     }
 
-    public static boolean isStoredInTrueSoulJar(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean isStoredInTrueSoulJar(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulJars()) {
             return false;
         }
@@ -259,7 +259,7 @@ public final class SoulJarManager {
         return false;
     }
 
-    public static boolean isPermanentInJar(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static boolean isPermanentInJar(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !ProgressionConfig.enableSoulJars()) {
             return false;
         }
@@ -280,11 +280,11 @@ public final class SoulJarManager {
         return false;
     }
 
-    public static int getKillProgress(ServerPlayer player, String jarId, Identifier identityId, CompoundTag variantNbt) {
+    public static int getKillProgress(ServerPlayer player, String jarId, ResourceLocation identityId, CompoundTag variantNbt) {
         return JarProgressionManager.getKillProgress(player, jarId, identityId, variantNbt);
     }
 
-    public static void onIdentityKilled(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
+    public static void onIdentityKilled(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         JarProgressionManager.onIdentityKilled(player, identityId, variantNbt);
     }
 
@@ -298,7 +298,7 @@ public final class SoulJarManager {
         customData.store(SOUL_JAR_KILL_PROGRESS_KEY, STRING_INT_MAP_CODEC, progress == null ? Map.of() : progress);
     }
 
-    static boolean applyKillProgressToStoredMorphs(ServerPlayer player, Identifier identityId, String variantToken, int required, Map<String, Integer> progress) {
+    static boolean applyKillProgressToStoredMorphs(ServerPlayer player, ResourceLocation identityId, String variantToken, int required, Map<String, Integer> progress) {
         if (player == null || identityId == null || variantToken == null || progress == null) {
             return false;
         }
@@ -336,7 +336,7 @@ public final class SoulJarManager {
         return changed;
     }
 
-    static String progressKey(String jarId, Identifier identityId, String variantToken) {
+    static String progressKey(String jarId, ResourceLocation identityId, String variantToken) {
         return normalizeJarId(jarId) + "|" + identityId + "|" + (variantToken == null || variantToken.isBlank() ? "-" : variantToken);
     }
 
@@ -347,7 +347,7 @@ public final class SoulJarManager {
         return jarId.trim().toLowerCase();
     }
 
-    private static SoulJarData applyKillProgressToJar(SoulJarData jar, Identifier identityId, String variantToken, int required, Map<String, Integer> progress) {
+    private static SoulJarData applyKillProgressToJar(SoulJarData jar, ResourceLocation identityId, String variantToken, int required, Map<String, Integer> progress) {
         String trueTier = ProgressionConfigHelper.normalizeTier(IdentitySettings.trueSoulJarTier);
         boolean trueSoulPermanent = IdentitySettings.trueSoulJarGrantsPermanent
             && ProgressionConfigHelper.normalizeTier(jar.tier()).equals(trueTier);
@@ -378,7 +378,7 @@ public final class SoulJarManager {
         return new SoulJarData(jar.jarId(), jar.tier(), updatedMorphs);
     }
 
-    private static SoulJarData withStoredMorph(SoulJarData jar, Identifier identityId, String variantToken) {
+    private static SoulJarData withStoredMorph(SoulJarData jar, ResourceLocation identityId, String variantToken) {
         List<StoredMorphData> morphs = new ArrayList<>(jar.morphs());
         for (StoredMorphData stored : morphs) {
             if (stored.identityId().equals(identityId.toString()) && stored.variantToken().equals(variantToken)) {
@@ -395,7 +395,7 @@ public final class SoulJarManager {
         return new SoulJarData(jar.jarId(), jar.tier(), morphs);
     }
 
-    private static SoulJarData withRemovedMorph(SoulJarData jar, Identifier identityId, String variantToken) {
+    private static SoulJarData withRemovedMorph(SoulJarData jar, ResourceLocation identityId, String variantToken) {
         List<StoredMorphData> remaining = new ArrayList<>();
         boolean removed = false;
         for (StoredMorphData stored : jar.morphs()) {
@@ -413,7 +413,7 @@ public final class SoulJarManager {
         return new SoulJarData(jar.jarId(), jar.tier(), remaining);
     }
 
-    private static boolean matchesStoredMorph(StoredMorphData stored, Identifier identityId, String variantToken) {
+    private static boolean matchesStoredMorph(StoredMorphData stored, ResourceLocation identityId, String variantToken) {
         if (stored == null || identityId == null) {
             return false;
         }
@@ -542,7 +542,7 @@ public final class SoulJarManager {
     }
 
     private static Item resolveJarItem(String tier) {
-        Identifier itemId = ProgressionConfig.resolveJarItemId(tier);
+        ResourceLocation itemId = ProgressionConfig.resolveJarItemId(tier);
         if (BuiltInRegistries.ITEM.containsKey(itemId)) {
             Item item = BuiltInRegistries.ITEM.getValue(itemId);
             if (item != null && item != Items.AIR) {

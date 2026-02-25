@@ -19,7 +19,7 @@ import java.util.Set;
 import net.Gabou.identity2.ModBlocks;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.client.model.monster.dragon.EnderDragonModel;
+import net.minecraft.client.model.dragon.EnderDragonModel;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 @Mixin(EnderDragonRenderer.class)
