@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
 
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -589,6 +590,7 @@ public class EntityMixin implements EntityAccessor{
         if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
             return;
         }
+        IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
 
         boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
         if (hasBabyFlag) {

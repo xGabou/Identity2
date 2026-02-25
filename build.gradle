@@ -82,8 +82,15 @@ subprojects {
 
 }
 tasks.register("discordWebhook") {
+    def webhookUrl = System.getenv("DISCORD_WEBHOOK_URL")?.trim()
+    onlyIf {
+        if (!webhookUrl) {
+            logger.lifecycle("Skipping discordWebhook: DISCORD_WEBHOOK_URL is not set.")
+            return false
+        }
+        return true
+    }
     doLast {
-        def webhookUrl = System.getenv("DISCORD_WEBHOOK_URL")
         def changelogText = rootProject.file("IdentityChangeLog.md").text
 
         def payload = [
@@ -107,4 +114,5 @@ tasks.register("discordWebhook") {
         }
     }
 }
+
 
