@@ -116,10 +116,10 @@ public class EntityMixin implements EntityAccessor{
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
-        if(this.currentIdentity!=null){
-            this.currentIdentity.tick();
-            
-        }
+//        if(this.currentIdentity!=null){
+//            this.currentIdentity.tick();
+//
+//        }
         //this.identity2$applyShulkerOpenVisualState();
         //this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
@@ -317,7 +317,8 @@ public class EntityMixin implements EntityAccessor{
 
     @Shadow
     public boolean noPhysics=false;
-    
+    @Shadow
+    public boolean horizontalCollision;
     public boolean entityCanFly=false;
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
@@ -400,36 +401,6 @@ public class EntityMixin implements EntityAccessor{
                 serverPlayer.onUpdateAbilities();
             }
         }
-    }
-
-    private void identity2$applyMorphPassiveTraits() {
-        return;
-        
-    }
-
-    private void identity2$applyShulkerOpenVisualState() {
-        return;
-        
-    }
-
-    private void identity2$applyShulkerMovementLock(Player player, EntityType<?> identityType) {
-        return;
-        
-    }
-
-    private void identity2$applyGuardianWaterMobility(Player player, EntityType<?> identityType) {
-        return;
-        
-    }
-
-    private boolean identity2$shouldBurnInDaylight(Player player) {
-        return false;
-        
-    }
-
-    private void identity2$applyMorphAquaticBreathing(Player player) {
-        return;
-       
     }
 
 

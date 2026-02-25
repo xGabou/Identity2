@@ -1,6 +1,8 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
+
+import net.minecraft.world.entity.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -33,10 +35,6 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -83,22 +81,6 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         }*/
         return newContainer;
     }
-    @Shadow
-    public int decreaseAirSupply(int air){
-        return 0;
-    };
-    @Shadow
-	public int increaseAirSupply(int air){
-        return 0;
-    };
-    @Override
-    public int getNextAirUnderwater(int air) {
-        return this.decreaseAirSupply(air);
-    }
-    @Override
-    public int getNextAirOnLand(int air) {
-        return this.increaseAirSupply(air);
-    }
 @Shadow
 public boolean canUseSlot(EquipmentSlot slot){return false;}
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
@@ -131,7 +113,7 @@ private void getAttributesIdentity(CallbackInfoReturnable info){
 private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirUnderwater(air));
+            info.setReturnValue(air);
         }
     }
 }
@@ -139,7 +121,7 @@ private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
 private void getNextAirOnLandIdentity(int air,CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)livingIdentity).getNextAirOnLand(air));
+            info.setReturnValue(air);
         }
     }
 }
@@ -222,6 +204,21 @@ private void tickMovementIdentity(CallbackInfo info){
 }
 
 //getNextAir(underwater,onland) should be added
+@Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
+private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
+    if (this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> identityType = this.currentIdentity.getType();
+    if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
+        return;
+    }
+    if ((Entity)(Object)this instanceof Player player && player.isSpectator()) {
+        info.setReturnValue(false);
+        return;
+    }
+    info.setReturnValue(this.horizontalCollision);
+}
 
 @Inject(method = "canFreeze()Z", at=@At("HEAD"),cancellable=true)
 private void canFreezeIdentity(CallbackInfoReturnable info){
