@@ -142,6 +142,14 @@ public class EntityMixin implements EntityAccessor{
         }
         if ((Entity)(Object)this instanceof Player player) {
             Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+            if (identity != null
+                            && player.isInWater()
+                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identity.getType()))
+            ) {
+                // Aquatic morphs at water/solid boundaries (e.g. under ice) can trigger false in-wall checks.
+                info.setReturnValue(false);
+                return;
+            }
             if (
                     (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
                             || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)

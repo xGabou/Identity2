@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Locale;
 import java.lang.reflect.Method;
 
+import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -269,6 +271,15 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,CallbackInfoReturnable info){
     if ((Entity)(Object)this instanceof Player player) {
+        if (
+                this.currentIdentity != null
+                        && source.is(DamageTypes.IN_WALL)
+                        && player.isInWater()
+                        && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
+        ) {
+            info.setReturnValue(true);
+            return;
+        }
         Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
         boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
         if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
