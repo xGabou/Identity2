@@ -5,19 +5,16 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.config.IdentityConfigManager;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -37,6 +34,13 @@ import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.InteractionHand;
 
 public final class IdentityCommand {
+    private static final Set<String> HIDDEN_CONFIG_KEYS = Set.of(
+            "EnableMorphCharges",
+            "EnableSoulJars",
+            "EnablePermanentJarMorphs",
+            "EnableSoulAbsorption",
+            "disableMorphLossOnDeath"
+    );
     private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
 
     private IdentityCommand() {
@@ -44,142 +48,142 @@ public final class IdentityCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
-            Commands.literal("identity")
-                .then(
-                    Commands.literal("morph")
+                Commands.literal("identity")
                         .then(
-                            Commands.argument("identity_id", IdentifierArgument.id())
-                                .suggests(IdentityCommand::suggestUnlockedIdentities)
-                                .executes(context -> morph(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
-                        )
-                )
-                .then(Commands.literal("clear").executes(context -> clear(context.getSource())))
-                .then(Commands.literal("list").executes(context -> list(context.getSource())))
-                .then(
-                    Commands.literal("unlock")
-                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
-                        .then(
-                            Commands.argument("identity_id", IdentifierArgument.id())
-                                .suggests(IdentityCommand::suggestMorphableIdentities)
-                                .executes(context -> unlockIdentity(context.getSource(), IdentifierArgument.getId(context, "identity_id"), null))
-                                .then(
-                                    Commands.argument("target", EntityArgument.player())
-                                        .executes(
-                                            context -> unlockIdentity(
-                                                context.getSource(),
-                                                IdentifierArgument.getId(context, "identity_id"),
-                                                EntityArgument.getPlayer(context, "target")
-                                            )
-                                        )
-                                )
-                        )
-                        .then(
-                            Commands.literal("all")
-                                .executes(context -> unlockAll(context.getSource(), null))
-                                .then(
-                                    Commands.argument("target", EntityArgument.player())
-                                        .executes(context -> unlockAll(context.getSource(), EntityArgument.getPlayer(context, "target")))
-                                )
-                        )
-                )
-                .then(
-                    Commands.literal("ability")
-                        .then(Commands.literal("list").executes(context -> listAbilities(context.getSource())))
-                        .then(
-                            Commands.literal("info")
-                                .then(
-                                    Commands.argument("identity_id", IdentifierArgument.id())
-                                        .suggests(IdentityCommand::suggestMorphableIdentities)
-                                        .executes(context -> abilityInfo(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
-                                )
-                        )
-                        .then(Commands.literal("current").executes(context -> currentAbilityInfo(context.getSource())))
-                )
-                .then(
-                    Commands.literal("config")
-                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
-                        .then(Commands.literal("list").executes(context -> listConfig(context.getSource())))
-                        .then(
-                            Commands.literal("get")
-                                .then(
-                                    Commands.argument("key", StringArgumentType.word())
-                                        .suggests(IdentityCommand::suggestConfigKeys)
-                                        .executes(context -> getConfig(context.getSource(), StringArgumentType.getString(context, "key")))
-                                )
-                        )
-                        .then(
-                            Commands.literal("set")
-                                .then(
-                                    Commands.argument("key", StringArgumentType.word())
-                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                Commands.literal("morph")
                                         .then(
-                                            Commands.argument("value", StringArgumentType.greedyString())
-                                                .executes(
-                                                    context -> setConfig(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "key"),
-                                                        StringArgumentType.getString(context, "value")
-                                                    )
-                                                )
+                                                Commands.argument("identity_id", IdentifierArgument.id())
+                                                        .suggests(IdentityCommand::suggestUnlockedIdentities)
+                                                        .executes(context -> morph(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
                                         )
-                                )
                         )
+                        .then(Commands.literal("clear").executes(context -> clear(context.getSource())))
+                        .then(Commands.literal("list").executes(context -> list(context.getSource())))
                         .then(
-                            Commands.literal("add")
-                                .then(
-                                    Commands.argument("key", StringArgumentType.word())
-                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                Commands.literal("unlock")
+                                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                                         .then(
-                                            Commands.argument("value", StringArgumentType.greedyString())
-                                                .executes(
-                                                    context -> addConfigListValue(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "key"),
-                                                        StringArgumentType.getString(context, "value")
-                                                    )
-                                                )
+                                                Commands.argument("identity_id", IdentifierArgument.id())
+                                                        .suggests(IdentityCommand::suggestMorphableIdentities)
+                                                        .executes(context -> unlockIdentity(context.getSource(), IdentifierArgument.getId(context, "identity_id"), null))
+                                                        .then(
+                                                                Commands.argument("target", EntityArgument.player())
+                                                                        .executes(
+                                                                                context -> unlockIdentity(
+                                                                                        context.getSource(),
+                                                                                        IdentifierArgument.getId(context, "identity_id"),
+                                                                                        EntityArgument.getPlayer(context, "target")
+                                                                                )
+                                                                        )
+                                                        )
                                         )
-                                )
-                        )
-                        .then(
-                            Commands.literal("remove")
-                                .then(
-                                    Commands.argument("key", StringArgumentType.word())
-                                        .suggests(IdentityCommand::suggestConfigKeys)
                                         .then(
-                                            Commands.argument("value", StringArgumentType.greedyString())
-                                                .executes(
-                                                    context -> removeConfigListValue(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "key"),
-                                                        StringArgumentType.getString(context, "value")
-                                                    )
-                                                )
+                                                Commands.literal("all")
+                                                        .executes(context -> unlockAll(context.getSource(), null))
+                                                        .then(
+                                                                Commands.argument("target", EntityArgument.player())
+                                                                        .executes(context -> unlockAll(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                                                        )
                                         )
-                                )
                         )
                         .then(
-                            Commands.literal("clear")
-                                .then(
-                                    Commands.argument("key", StringArgumentType.word())
-                                        .suggests(IdentityCommand::suggestConfigKeys)
-                                        .executes(context -> clearConfigList(context.getSource(), StringArgumentType.getString(context, "key")))
-                                )
+                                Commands.literal("ability")
+                                        .then(Commands.literal("list").executes(context -> listAbilities(context.getSource())))
+                                        .then(
+                                                Commands.literal("info")
+                                                        .then(
+                                                                Commands.argument("identity_id", IdentifierArgument.id())
+                                                                        .suggests(IdentityCommand::suggestMorphableIdentities)
+                                                                        .executes(context -> abilityInfo(context.getSource(), IdentifierArgument.getId(context, "identity_id")))
+                                                        )
+                                        )
+                                        .then(Commands.literal("current").executes(context -> currentAbilityInfo(context.getSource())))
                         )
-                )
-                .then(IdentityProgressionCommand.progressionSubcommand())
+                        .then(
+                                Commands.literal("config")
+                                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                                        .then(Commands.literal("list").executes(context -> listConfig(context.getSource())))
+                                        .then(
+                                                Commands.literal("get")
+                                                        .then(
+                                                                Commands.argument("key", StringArgumentType.word())
+                                                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                                                        .executes(context -> getConfig(context.getSource(), StringArgumentType.getString(context, "key")))
+                                                        )
+                                        )
+                                        .then(
+                                                Commands.literal("set")
+                                                        .then(
+                                                                Commands.argument("key", StringArgumentType.word())
+                                                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                                                        .then(
+                                                                                Commands.argument("value", StringArgumentType.greedyString())
+                                                                                        .executes(
+                                                                                                context -> setConfig(
+                                                                                                        context.getSource(),
+                                                                                                        StringArgumentType.getString(context, "key"),
+                                                                                                        StringArgumentType.getString(context, "value")
+                                                                                                )
+                                                                                        )
+                                                                        )
+                                                        )
+                                        )
+                                        .then(
+                                                Commands.literal("add")
+                                                        .then(
+                                                                Commands.argument("key", StringArgumentType.word())
+                                                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                                                        .then(
+                                                                                Commands.argument("value", StringArgumentType.greedyString())
+                                                                                        .executes(
+                                                                                                context -> addConfigListValue(
+                                                                                                        context.getSource(),
+                                                                                                        StringArgumentType.getString(context, "key"),
+                                                                                                        StringArgumentType.getString(context, "value")
+                                                                                                )
+                                                                                        )
+                                                                        )
+                                                        )
+                                        )
+                                        .then(
+                                                Commands.literal("remove")
+                                                        .then(
+                                                                Commands.argument("key", StringArgumentType.word())
+                                                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                                                        .then(
+                                                                                Commands.argument("value", StringArgumentType.greedyString())
+                                                                                        .executes(
+                                                                                                context -> removeConfigListValue(
+                                                                                                        context.getSource(),
+                                                                                                        StringArgumentType.getString(context, "key"),
+                                                                                                        StringArgumentType.getString(context, "value")
+                                                                                                )
+                                                                                        )
+                                                                        )
+                                                        )
+                                        )
+                                        .then(
+                                                Commands.literal("clear")
+                                                        .then(
+                                                                Commands.argument("key", StringArgumentType.word())
+                                                                        .suggests(IdentityCommand::suggestConfigKeys)
+                                                                        .executes(context -> clearConfigList(context.getSource(), StringArgumentType.getString(context, "key")))
+                                                        )
+                                        )
+                        )
+                        .then(IdentityProgressionCommand.progressionSubcommand())
         );
 
         dispatcher.register(
-            Commands.literal("identity_villager")
-                .then(
-                    Commands.literal("trade")
-                        .then(Commands.literal("myself").executes(context -> tradeVillagerMyself(context.getSource())))
+                Commands.literal("identity_villager")
                         .then(
-                            Commands.argument("target", EntityArgument.player())
-                                .executes(context -> tradeVillagerTarget(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                                Commands.literal("trade")
+                                        .then(Commands.literal("myself").executes(context -> tradeVillagerMyself(context.getSource())))
+                                        .then(
+                                                Commands.argument("target", EntityArgument.player())
+                                                        .executes(context -> tradeVillagerTarget(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                                        )
                         )
-                )
         );
     }
 
@@ -251,7 +255,7 @@ public final class IdentityCommand {
             if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
                 String reason = IdentityProgression.getDisabledIdentityReason(identityId);
                 source.sendFailure(
-                    Component.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
+                        Component.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
                 );
                 return 0;
             }
@@ -301,8 +305,8 @@ public final class IdentityCommand {
         }
 
         List<String> unlocked = IdentityProgression.getUnlockedIdentities(player).stream()
-            .filter(IdentityCommand::isMorphableIdentityString)
-            .toList();
+                .filter(IdentityCommand::isMorphableIdentityString)
+                .toList();
         if (unlocked.isEmpty()) {
             source.sendSystemMessage(Component.literal("Unlocked identities: none"));
             return 1;
@@ -317,7 +321,7 @@ public final class IdentityCommand {
             if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
                 String reason = IdentityProgression.getDisabledIdentityReason(identityId);
                 source.sendFailure(
-                    Component.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
+                        Component.literal("Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")"))
                 );
                 return 0;
             }
@@ -342,8 +346,8 @@ public final class IdentityCommand {
 
         String targetName = resolvedTarget.getName().getString();
         source.sendSuccess(
-            () -> Component.literal("Unlocked identity " + identityId + " for " + targetName),
-            true
+                () -> Component.literal("Unlocked identity " + identityId + " for " + targetName),
+                true
         );
         return 1;
     }
@@ -361,8 +365,8 @@ public final class IdentityCommand {
         int granted = IdentityProgression.grantAllMorphableIdentities(resolvedTarget);
         String targetName = resolvedTarget.getName().getString();
         source.sendSuccess(
-            () -> Component.literal("Unlocked " + granted + " identities for " + targetName),
-            true
+                () -> Component.literal("Unlocked " + granted + " identities for " + targetName),
+                true
         );
         return granted;
     }
@@ -416,6 +420,8 @@ public final class IdentityCommand {
             return 0;
         }
 
+        identity2$normalizeAliasedConfigAfterSet(key);
+        IdentityConfigManager.save();
         source.sendSuccess(() -> Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"), true);
         return 1;
     }
@@ -439,6 +445,7 @@ public final class IdentityCommand {
         }
 
         values.add(value);
+        IdentityConfigManager.save();
         source.sendSuccess(() -> Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"), true);
         return 1;
     }
@@ -461,6 +468,7 @@ public final class IdentityCommand {
             return 1;
         }
 
+        IdentityConfigManager.save();
         source.sendSuccess(() -> Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"), true);
         return 1;
     }
@@ -480,6 +488,7 @@ public final class IdentityCommand {
         List<String> values = getOrCreateConfigStringList(field);
         int removed = values.size();
         values.clear();
+        IdentityConfigManager.save();
         source.sendSuccess(() -> Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"), true);
         return removed;
     }
@@ -517,9 +526,9 @@ public final class IdentityCommand {
         }
 
         source.sendSystemMessage(
-            Component.literal(
-                "Abilities (" + lines.size() + "): " + builtinCount + " specific, " + fallbackCount + " fallback, " + noneCount + " none"
-            )
+                Component.literal(
+                        "Abilities (" + lines.size() + "): " + builtinCount + " specific, " + fallbackCount + " fallback, " + noneCount + " none"
+                )
         );
         for (String line : lines) {
             source.sendSystemMessage(Component.literal(line));
@@ -572,23 +581,23 @@ public final class IdentityCommand {
 
         if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(context.getSource())) {
             List<Identifier> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
-                .map(IdentityCommand::parseIdentifier)
-                .flatMap(Optional::stream)
-                .filter(IdentityProgression::isMorphableIdentity)
-                .toList();
+                    .map(IdentityCommand::parseIdentifier)
+                    .flatMap(Optional::stream)
+                    .filter(IdentityProgression::isMorphableIdentity)
+                    .toList();
             return SharedSuggestionProvider.suggestResource(identifiers, builder);
         }
 
         return SharedSuggestionProvider.suggestResource(
-            BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
-            builder
+                BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
+                builder
         );
     }
 
     private static CompletableFuture<Suggestions> suggestMorphableIdentities(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
         return SharedSuggestionProvider.suggestResource(
-            BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
-            builder
+                BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
+                builder
         );
     }
 
@@ -635,6 +644,9 @@ public final class IdentityCommand {
             if (!Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers) || field.isSynthetic()) {
                 continue;
             }
+            if (HIDDEN_CONFIG_KEYS.contains(field.getName())) {
+                continue;
+            }
             fields.add(field);
         }
         fields.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
@@ -644,6 +656,24 @@ public final class IdentityCommand {
             out.put(field.getName(), field);
         }
         return Collections.unmodifiableMap(out);
+    }
+
+    private static void identity2$normalizeAliasedConfigAfterSet(String key) {
+        if ("enableMorphChargeSystem".equals(key) || "EnableMorphCharges".equals(key)) {
+            IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
+            return;
+        }
+        if ("enableSoulJarSystem".equals(key) || "EnableSoulJars".equals(key)) {
+            IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
+            return;
+        }
+        if ("enablePermanentMorphs".equals(key) || "EnablePermanentJarMorphs".equals(key)) {
+            IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
+            return;
+        }
+        if ("enableSoulAbsorption".equals(key) || "EnableSoulAbsorption".equals(key)) {
+            IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
+        }
     }
 
     private static Object parseScalarConfigValue(Class<?> type, String rawValue) {
@@ -687,6 +717,33 @@ public final class IdentityCommand {
         if (type == String.class) {
             return "null".equalsIgnoreCase(trimmed) ? null : rawValue;
         }
+        if (type.isEnum()) {
+            if (trimmed.isEmpty()) {
+                throw new IllegalArgumentException("expected enum value");
+            }
+
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Class<? extends Enum> enumType = (Class<? extends Enum>) type;
+
+            // Accept case insensitive values and allow hyphen or space as underscore
+            String candidate = trimmed
+                    .trim()
+                    .replace('-', '_')
+                    .replace(' ', '_')
+                    .toUpperCase(Locale.ROOT);
+
+            try {
+                return Enum.valueOf(enumType, candidate);
+            } catch (IllegalArgumentException exception) {
+                StringBuilder allowed = new StringBuilder();
+                Object[] constants = enumType.getEnumConstants();
+                for (int i = 0; i < constants.length; i++) {
+                    if (i > 0) allowed.append(", ");
+                    allowed.append(((Enum<?>) constants[i]).name().toLowerCase(Locale.ROOT));
+                }
+                throw new IllegalArgumentException("expected one of: " + allowed);
+            }
+        }
         throw new IllegalArgumentException("unsupported type: " + type.getSimpleName());
     }
 
@@ -726,11 +783,11 @@ public final class IdentityCommand {
         }
 
         return IdentityProgression.getUnlockedIdentities(player).stream()
-            .map(IdentityCommand::parseIdentifier)
-            .flatMap(Optional::stream)
-            .filter(IdentityProgression::isMorphableIdentity)
-            .sorted()
-            .toList();
+                .map(IdentityCommand::parseIdentifier)
+                .flatMap(Optional::stream)
+                .filter(IdentityProgression::isMorphableIdentity)
+                .sorted()
+                .toList();
     }
 
     private static AbilityInfo resolveAbilityInfo(Identifier identityId) {
@@ -784,12 +841,12 @@ public final class IdentityCommand {
     }
 
     private record AbilityInfo(
-        int cooldown,
-        int useDuration,
-        boolean overrideAttack,
-        String command,
-        Identifier predef,
-        boolean genericFallback
+            int cooldown,
+            int useDuration,
+            boolean overrideAttack,
+            String command,
+            Identifier predef,
+            boolean genericFallback
     ) {
         static AbilityInfo none() {
             return new AbilityInfo(0, 0, false, "", null, false);

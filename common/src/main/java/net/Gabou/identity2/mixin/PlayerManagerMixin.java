@@ -1,11 +1,9 @@
 package net.Gabou.identity2.mixin;
 
 import dev.architectury.networking.NetworkManager;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
+
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -139,31 +137,83 @@ public class PlayerManagerMixin {
     }
 
     @Inject(method = "respawn", at = @At("RETURN"))
-    private void identity2$onRespawn(ServerPlayer player, boolean alive, Entity.RemovalReason reason, CallbackInfoReturnable<ServerPlayer> cir) {
+    private void identity2$onRespawn(ServerPlayer player, boolean alive,
+                                     Entity.RemovalReason reason,
+                                     CallbackInfoReturnable<ServerPlayer> cir) {
+
         ServerPlayer respawned = cir.getReturnValue();
-        if (respawned == null) {
+        if (respawned == null) return;
+        identity2$copyCustomData(player, respawned);
+
+        if (alive) {
+            IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
+            identity2$syncUnlockCaches(respawned);
+            DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
             return;
         }
+        IdentitySettings.DeathMorphRule rule =
+                IdentitySettings.getEffectiveDeathMorphRule(respawned.level().getServer());
 
-        if (!alive) {
-            MorphChargeManager.applyDeathPenalty(respawned);
-        }
+        switch (rule) {
 
-        boolean shouldLoseMorphsOnDeath = !alive && ProgressionConfig.shouldLoseMorphsOnDeath(respawned.level().getServer());
-        if (shouldLoseMorphsOnDeath) {
-            int removed = IdentityProgression.clearUnlockedIdentities(respawned);
-            IdentityProgression.clearMorph(respawned);
-            if (removed > 0) {
-                respawned.displayClientMessage(net.minecraft.network.chat.Component.literal("All unlocked identities were removed on death."), false);
+            case WIPE_ALL -> {
+                int removed = IdentityProgression.clearUnlockedIdentities(respawned);
+                IdentityProgression.clearMorph(respawned);
+
+                if (removed > 0) {
+                    respawned.displayClientMessage(
+                            net.minecraft.network.chat.Component.literal(
+                                    "All unlocked identities were removed on death."
+                            ),
+                            false
+                    );
+                }
+            }
+
+            case REVOKE_ACTIVE -> {
+                IdentityProgression.clearMorph(respawned);
+            }
+
+            case NONE -> {
+                MorphChargeManager.applyDeathPenalty(respawned);
+                IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             }
         }
 
-        if (!alive && IdentitySettings.revokeIdentityOnDeath) {
-            IdentityProgression.clearMorph(respawned);
-        }
-
-        IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
+        identity2$syncUnlockCaches(respawned);
         DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
+    }
+
+    private static void identity2$copyCustomData(ServerPlayer source, ServerPlayer target) {
+        if (source == null || target == null || source == target) {
+            return;
+        }
+        CompoundTag sourceNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) source).getCustomData()).getNbt();
+        if (sourceNbt == null || sourceNbt.isEmpty()) {
+            return;
+        }
+        CompoundTag targetNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) target).getCustomData()).getNbt();
+        targetNbt.merge(sourceNbt.copy());
+    }
+
+    private static void identity2$syncUnlockCaches(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        IdentityProgression.ensureClientUnlockCache(player);
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        String unlockedCache = nbt.getStringOr(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
+        String variantCache = nbt.getStringOr(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
+
+        CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
+                player.getId(),
+                List.of(
+                        new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
+                        new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
+                )
+        );
+        sendToWorldPlayers(player, payload);
+        NetworkManager.sendToPlayer(player, payload);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {

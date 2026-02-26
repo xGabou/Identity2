@@ -5,13 +5,12 @@ import java.util.Locale;
 import java.lang.reflect.Method;
 
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.*;
-import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -29,7 +28,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -271,6 +269,13 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,CallbackInfoReturnable info){
     if ((Entity)(Object)this instanceof Player player) {
+        if (player.getAbilities().instabuild || player.isSpectator()) {
+            if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                return;
+            }
+            info.setReturnValue(true);
+            return;
+        }
         if (
                 this.currentIdentity != null
                         && source.is(DamageTypes.IN_WALL)
@@ -286,6 +291,7 @@ private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,Call
             info.setReturnValue(true);
             return;
         }
+        return;
     }
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
@@ -294,6 +300,7 @@ private void isInvulnerableToIdentity(ServerLevel world,DamageSource source,Call
     }
 }
 
+@Unique
 private static boolean identity2$isWallCollisionDamage(DamageSource source) {
     String msgId = identity2$getDamageMessageId(source);
     if (msgId == null || msgId.isBlank()) {
@@ -307,6 +314,7 @@ private static boolean identity2$isWallCollisionDamage(DamageSource source) {
         || normalized.equals("cramming");
 }
 
+@Unique
 private static String identity2$getDamageMessageId(DamageSource source) {
     if (source == null) {
         return "";

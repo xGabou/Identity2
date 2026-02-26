@@ -52,26 +52,6 @@ public final class ProgressionConfig {
             && Commands.LEVEL_ADMINS.check(player.createCommandSourceStack().permissions());
     }
 
-
-
-    public static boolean shouldLoseMorphsOnDeath(@Nullable MinecraftServer server) {
-        // Charge-based progression is a legitimate gameplay replacement for death loss.
-        if (enableMorphCharges()) {
-            return false;
-        }
-
-        boolean disableRequested = IdentitySettings.disableMorphLossOnDeath || !IdentitySettings.loseAllMorphsOnDeath;
-        if (!disableRequested) {
-            return true;
-        }
-
-        if (IdentitySettings.allowDisableMorphLossOnDeathWithoutCheats) {
-            return false;
-        }
-
-        return !areCheatsEnabled(server);
-    }
-
     public static Identifier resolveJarItemId(String tier) {
         String normalizedTier = ProgressionConfigHelper.normalizeTier(tier);
         Map<String, String> configured = parseTierStringEntries(IdentitySettings.soulJarTierItems);
