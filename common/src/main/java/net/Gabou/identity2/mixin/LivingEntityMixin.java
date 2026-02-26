@@ -295,6 +295,13 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable info) {
         if ((Entity) (Object) this instanceof Player player && source != null) {
+            if (player.getAbilities().instabuild || player.isSpectator()) {
+                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                    return;
+                }
+                info.setReturnValue(true);
+                return;
+            }
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -315,6 +322,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             if (source.is(DamageTypeTags.IS_FALL)) {
                 return;
             }
+            return;
         }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {

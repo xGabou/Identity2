@@ -1,5 +1,9 @@
 package net.Gabou.identity2;
 
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.GameRules;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,17 +14,37 @@ public class IdentitySettings {
     //@Comment(value = "Whether an overlay message appears above the hotbar when a new identity is revoked.")
     public static boolean overlayIdentityRevokes = true;
 
-    //@Comment(value = "Whether a player's equipped identity is revoked on death.")
-    public static boolean revokeIdentityOnDeath = false;
+    public enum DeathMorphRule {
+        NONE,
+        REVOKE_ACTIVE,
+        WIPE_ALL
+    }
 
-    //@Comment(value = "If true, all unlocked morphs are removed when the player dies.")
-    public static boolean loseAllMorphsOnDeath = true;
+    public static DeathMorphRule deathMorphRule = DeathMorphRule.WIPE_ALL;
 
-    //@Comment(value = "If true, morph unlock loss on death is disabled. This requires cheats unless explicitly overridden.")
-    public static boolean disableMorphLossOnDeath = false;
+    public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
+        IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
+
+        if (rule != IdentitySettings.DeathMorphRule.NONE) {
+            return rule;
+        }
+
+        if (allowDisableMorphLossOnDeathWithoutCheats) {
+            return IdentitySettings.DeathMorphRule.NONE;
+        }
+
+        boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().getBoolean(GameRules.RULE_SENDCOMMANDFEEDBACK);
+        // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
+
+        if (cheatsEnabled) {
+            return IdentitySettings.DeathMorphRule.NONE;
+        }
+
+        return IdentitySettings.DeathMorphRule.WIPE_ALL;
+    }
 
     //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
-    public static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
+    public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
 
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
@@ -56,7 +80,7 @@ public class IdentitySettings {
     public static List<String> advancementsRequiredForFlight = new ArrayList<>();
 
     //@Comment(value = "Whether Identities modify your max health value based on their max health value.")
-    public static boolean scalingHealth = true;
+    public static boolean scalingHealth = false;
 
     //@Comment(value = "The maximum value of scaling health. Useful for not giving players 300 HP when they turn into a wither.")
     public static int maxHealth = 40;
@@ -162,17 +186,17 @@ public class IdentitySettings {
 
     //@Comment(value = "Per-tier soul jar capacities in the format 'tier=value'.")
     public static List<String> soulJarTierCapacities = new ArrayList<>(
-        List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
+            List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
     );
 
     //@Comment(value = "Per-tier soul jar item mapping in the format 'tier=namespace:item'.")
     public static List<String> soulJarTierItems = new ArrayList<>(
-        List.of(
-            "mud=identity2:mud_jar",
-            "glass=identity2:glass_jar",
-            "reinforced=identity2:reinforced_jar",
-            "true_soul=identity2:endgame_jar"
-        )
+            List.of(
+                    "mud=identity2:mud_jar",
+                    "glass=identity2:glass_jar",
+                    "reinforced=identity2:reinforced_jar",
+                    "true_soul=identity2:endgame_jar"
+            )
     );
 
     //@Comment(value = "Optional per-tier recipe id mapping in the format 'tier=namespace:recipe'.")
@@ -195,7 +219,7 @@ public class IdentitySettings {
 
     //@Comment(value = "Weighted random jar tiers for world drops in the format 'tier=weight'.")
     public static List<String> soulJarWorldDropTierWeights = new ArrayList<>(
-        List.of("mud=85", "glass=12", "reinforced=3", "true_soul=1")
+            List.of("mud=85", "glass=12", "reinforced=3", "true_soul=1")
     );
 
     //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
