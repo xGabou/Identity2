@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.lang.reflect.Method;
 
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.*;
 import org.spongepowered.asm.mixin.Mixin;
@@ -291,6 +292,13 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable info) {
         if ((Entity) (Object) this instanceof Player player) {
+            if (player.getAbilities().instabuild || player.isSpectator()) {
+                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                    return;
+                }
+                info.setReturnValue(true);
+                return;
+            }
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -306,6 +314,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+            return;
         }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {

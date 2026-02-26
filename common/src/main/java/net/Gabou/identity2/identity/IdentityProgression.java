@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.lang.reflect.Method;
+
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -26,6 +28,7 @@ import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
@@ -51,6 +54,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 public final class IdentityProgression {
@@ -147,11 +151,11 @@ public final class IdentityProgression {
             return false;
         }
         if (
-            entityType == EntityType.PLAYER
-                || entityType == EntityType.IRON_GOLEM
-                || entityType == EntityType.SNOW_GOLEM
-                || entityType == EntityType.VILLAGER
-                || entityType == EntityType.WANDERING_TRADER
+                entityType == EntityType.PLAYER
+                        || entityType == EntityType.IRON_GOLEM
+                        || entityType == EntityType.SNOW_GOLEM
+                        || entityType == EntityType.VILLAGER
+                        || entityType == EntityType.WANDERING_TRADER
         ) {
             return true;
         }
@@ -212,6 +216,7 @@ public final class IdentityProgression {
             clearMorphDamageGrace(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             syncMorphData(player, value, serializedVariant, 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
             return true;
@@ -242,10 +247,11 @@ public final class IdentityProgression {
         }
         applyMorphDamageGrace(player, nbt, previousWidth, previousHeight, widthOverride, heightOverride);
 
-        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
-        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        float widthScale = identityDimensions.width() > 0.0F ? (float) (widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float) (heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
+        ensureSafePostResizePosition(player);
 
         nbt.putDouble("width_override", widthOverride);
         nbt.putDouble("height_override", heightOverride);
@@ -280,6 +286,7 @@ public final class IdentityProgression {
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+        ensureSafePostResizePosition(player);
         applyHealthScaling(player, null);
         syncMorphData(player, "", "", 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
     }
@@ -302,6 +309,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -316,6 +324,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -330,6 +339,7 @@ public final class IdentityProgression {
             clearTransitionData(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -342,10 +352,11 @@ public final class IdentityProgression {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
-        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
-        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        float widthScale = identityDimensions.width() > 0.0F ? (float) (widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float) (heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
+        ensureSafePostResizePosition(player);
 
         nbt.putString("model_override", type);
         nbt.putString(SELECTED_IDENTITY_TYPE_KEY, type);
@@ -387,12 +398,12 @@ public final class IdentityProgression {
         }
 
         CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant)
-            )
+                player.getId(),
+                List.of(
+                        new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant)
+                )
         );
 
         NetworkManager.sendToPlayer(player, payload);
@@ -477,7 +488,7 @@ public final class IdentityProgression {
         CompoundTag customData = getCustomData(player);
         List<String> unlocked = new ArrayList<>(customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
@@ -496,7 +507,7 @@ public final class IdentityProgression {
         }
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -566,14 +577,14 @@ public final class IdentityProgression {
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
 
         NetworkManager.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
+                player,
+                new CustomEntityStringDataS2CPacketPayload(
+                        player.getId(),
+                        List.of(
+                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
+                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
+                        )
                 )
-            )
         );
         return removed;
     }
@@ -688,7 +699,7 @@ public final class IdentityProgression {
 
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         // Command/admin unlock means full identity unlock (all variants), so remove per-variant restriction.
         if (variantUnlocks.remove(key) != null) {
@@ -708,7 +719,7 @@ public final class IdentityProgression {
         String key = identityId.toString();
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
 
         boolean changed = false;
@@ -751,14 +762,14 @@ public final class IdentityProgression {
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache);
         NetworkManager.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
+                player,
+                new CustomEntityStringDataS2CPacketPayload(
+                        player.getId(),
+                        List.of(
+                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
+                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
+                        )
                 )
-            )
         );
     }
 
@@ -798,7 +809,7 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-            customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -809,34 +820,34 @@ public final class IdentityProgression {
     }
 
     private static void syncMorphData(
-        ServerPlayer player,
-        String modelOverride,
-        String variant,
-        double widthOverride,
-        double heightOverride,
-        String previousType,
-        String previousVariant,
-        double transitionStartTick,
-        double transitionDurationTicks
+            ServerPlayer player,
+            String modelOverride,
+            String variant,
+            double widthOverride,
+            double heightOverride,
+            String previousType,
+            String previousVariant,
+            double transitionStartTick,
+            double transitionDurationTicks
     ) {
         CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, variant),
-                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
-                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_KEY, previousVariant)
-            )
+                player.getId(),
+                List.of(
+                        new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, variant),
+                        new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
+                        new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_KEY, previousVariant)
+                )
         );
         CustomEntityDataS2CPacketPayload shapePayload = new CustomEntityDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.Entry("width_override", widthOverride),
-                new CustomEntityDataS2CPacket.Entry("height_override", heightOverride),
-                new CustomEntityDataS2CPacket.Entry(TRANSITION_START_TICK_KEY, transitionStartTick),
-                new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
-            )
+                player.getId(),
+                List.of(
+                        new CustomEntityDataS2CPacket.Entry("width_override", widthOverride),
+                        new CustomEntityDataS2CPacket.Entry("height_override", heightOverride),
+                        new CustomEntityDataS2CPacket.Entry(TRANSITION_START_TICK_KEY, transitionStartTick),
+                        new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
+                )
         );
 
         NetworkManager.sendToPlayer(player, modelPayload);
@@ -859,12 +870,12 @@ public final class IdentityProgression {
             return;
         }
         MorphAcquisitionS2CPacketPayload payload = new MorphAcquisitionS2CPacketPayload(
-            player.getId(),
-            acquired.getId(),
-            acquired.getX(),
-            acquired.getY() + acquired.getBbHeight() * 0.5D,
-            acquired.getZ(),
-            morphAcquisition
+                player.getId(),
+                acquired.getId(),
+                acquired.getX(),
+                acquired.getY() + acquired.getBbHeight() * 0.5D,
+                acquired.getZ(),
+                morphAcquisition
         );
         NetworkManager.sendToPlayer(player, payload);
         for (ServerPlayer other : serverWorld.players()) {
@@ -890,11 +901,11 @@ public final class IdentityProgression {
     }
 
     private static void setTransitionData(
-        CompoundTag nbt,
-        String previousType,
-        String previousVariant,
-        double transitionStartTick,
-        double transitionDurationTicks
+            CompoundTag nbt,
+            String previousType,
+            String previousVariant,
+            double transitionStartTick,
+            double transitionDurationTicks
     ) {
         if (transitionDurationTicks <= 0.0D) {
             clearTransitionData(nbt);
@@ -914,12 +925,12 @@ public final class IdentityProgression {
     }
 
     private static void applyMorphDamageGrace(
-        ServerPlayer player,
-        CompoundTag nbt,
-        double previousWidth,
-        double previousHeight,
-        double nextWidth,
-        double nextHeight
+            ServerPlayer player,
+            CompoundTag nbt,
+            double previousWidth,
+            double previousHeight,
+            double nextWidth,
+            double nextHeight
     ) {
         if (player == null || nbt == null) {
             return;
@@ -939,6 +950,44 @@ public final class IdentityProgression {
         }
         nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
     }
+
+    private static void ensureSafePostResizePosition(ServerPlayer player) {
+        if (player == null || player.level() == null || player.level().isClientSide() || player.noPhysics || player.isSpectator()) {
+            return;
+        }
+        if (player.level().noCollision(player, player.getBoundingBox())) {
+            return;
+        }
+
+        Vec3 origin = player.position();
+        double verticalStep = 0.5D;
+        double step = Math.max(0.5D, player.getBbWidth() * 0.5D);
+        double maxRadius = Math.max(2.0D, player.getBbWidth() * 2.0D);
+        int radialSamples = 16;
+        for (int y = 0; y <= 12; y++) {
+            double yOffset = y * verticalStep;
+            if (identity2$tryRelocatePlayer(player, origin.add(0.0D, yOffset, 0.0D))) {
+                return;
+            }
+            for (double radius = step; radius <= maxRadius; radius += step) {
+                for (int i = 0; i < radialSamples; i++) {
+                    double angle = (Math.PI * 2.0D * i) / radialSamples;
+                    Vec3 candidate = origin.add(Math.cos(angle) * radius, yOffset, Math.sin(angle) * radius);
+                    if (identity2$tryRelocatePlayer(player, candidate)) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        player.setPos(origin.x, origin.y, origin.z);
+    }
+
+    private static boolean identity2$tryRelocatePlayer(ServerPlayer player, Vec3 candidate) {
+        player.setPos(candidate.x, candidate.y, candidate.z);
+        return player.level().noCollision(player, player.getBoundingBox());
+    }
+
 
     private static CompoundTag getCustomData(ServerPlayer player) {
         CustomData customData = ((EntityAccessor) player).getCustomData();
@@ -969,7 +1018,7 @@ public final class IdentityProgression {
         double delta = desired - base;
         if (Math.abs(delta) > 1.0E-4D) {
             maxHealthAttr.addOrUpdateTransientModifier(
-                new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
+                    new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
             );
         }
 
@@ -1216,7 +1265,7 @@ public final class IdentityProgression {
                 if (byLocation instanceof ResourceLocation id) {
                     location = id;
                 } else {
-                    Object byResourceLocation = invokeNoArg(resourceKey, "identifier");
+                    Object byResourceLocation = invokeNoArg(resourceKey, "ResourceLocation");
                     if (byResourceLocation instanceof ResourceLocation id) {
                         location = id;
                     } else {
