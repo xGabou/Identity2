@@ -118,24 +118,31 @@ public class TargetPredicateMixin{
     }*/
     @ModifyVariable(method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z", at = @At("HEAD"), index=2)
     private LivingEntity injected(LivingEntity target) {
-        if(((EntityAccessor)target).getCurrentIdentity()!=null){
-            //net.Gabou.identity2.Identity2.LOGGER.info("TargetPredicateMixin active!");
-            Entity identity=((EntityAccessor)target).getCurrentIdentity();
-            identity.setPosRaw(
-                ((Entity)target).position().x,
-                ((Entity)target).position().y,
-                ((Entity)target).position().z
-            );
-            ((EntityAccessor)identity).setIdentityOf(target);
-            //net.Gabou.identity2.Identity2.LOGGER.info("TargetPredicateMixin active!");
-            /*net.Gabou.identity2.Identity2.LOGGER.info("identityentity at "+(
-                String.valueOf(((Entity)identity).getEntityPos().x)+" "+
-                String.valueOf(((Entity)identity).getEntityPos().y)+" "+
-                String.valueOf(((Entity)identity).getEntityPos().z))
-                );*/
-            return (LivingEntity)identity;
-        }else{
+        if (target instanceof Player) {
             return target;
         }
+
+        Entity identity = ((EntityAccessor) target).getCurrentIdentity();
+        if (identity == null) {
+            return target;
+        }
+
+        if (!(identity instanceof LivingEntity livingIdentity)) {
+            return target;
+        }
+
+        // Preserve expected target type contracts in downstream goals/predicates.
+        if (!target.getClass().isAssignableFrom(livingIdentity.getClass())
+            || !livingIdentity.getClass().isAssignableFrom(target.getClass())) {
+            return target;
+        }
+
+        livingIdentity.setPosRaw(
+            target.position().x,
+            target.position().y,
+            target.position().z
+        );
+        ((EntityAccessor) livingIdentity).setIdentityOf(target);
+        return livingIdentity;
     }
 }

@@ -133,10 +133,49 @@ public final class Identity2Client {
     static {
         addVisualPatch((identity, entity) -> {
             if (identity instanceof EnderDragon dragonIdentity) {
-                dragonIdentity.yRotA += Mth.wrapDegrees(entity.getYRot() - identity.getYRot()) * 0.1F;
+                identity2$syncEnderDragonVisualState(dragonIdentity, entity);
             }
             return identity;
         }, ResourceLocation.parse("minecraft:ender_dragon"));
+    }
+
+    private static void identity2$syncEnderDragonVisualState(EnderDragon dragonIdentity, Entity source) {
+        if (dragonIdentity == null || source == null) {
+            return;
+        }
+
+        dragonIdentity.oFlapTime = dragonIdentity.flapTime;
+
+        float flapDelta = 0.2F / ((float) source.getDeltaMovement().horizontalDistance() * 10.0F + 1.0F);
+        flapDelta = (float) (flapDelta * Math.pow(2.0D, source.getDeltaMovement().y));
+
+        if (dragonIdentity.inWall) {
+            dragonIdentity.flapTime += flapDelta * 0.5F;
+        } else {
+            dragonIdentity.flapTime += flapDelta;
+        }
+
+        if (dragonIdentity.isNoAi()) {
+            dragonIdentity.flapTime = 0.5F;
+        }
+
+        dragonIdentity.yRotA += Mth.wrapDegrees(dragonIdentity.getYRot() - dragonIdentity.yRotA) * 0.1F;
+
+        if (dragonIdentity.posPointer < 0) {
+            for (int i = 0; i < dragonIdentity.positions.length; i++) {
+                dragonIdentity.positions[i][0] = dragonIdentity.getYRot();
+                dragonIdentity.positions[i][1] = source.getY();
+            }
+            dragonIdentity.posPointer = 0;
+        } else {
+            dragonIdentity.posPointer++;
+            if (dragonIdentity.posPointer >= dragonIdentity.positions.length) {
+                dragonIdentity.posPointer = 0;
+            }
+        }
+
+        dragonIdentity.positions[dragonIdentity.posPointer][0] = dragonIdentity.getYRot();
+        dragonIdentity.positions[dragonIdentity.posPointer][1] = source.getY();
     }
 
     private Identity2Client() {

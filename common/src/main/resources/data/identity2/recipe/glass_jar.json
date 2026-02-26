@@ -7,8 +7,8 @@
     "GGG"
   ],
   "key": {
-    "G": "minecraft:glass",
-    "M": "identity2:mud_jar"
+    "G": { "item": "minecraft:glass" },
+    "M": { "item": "identity2:mud_jar" }
   },
   "result": {
     "id": "identity2:glass_jar",

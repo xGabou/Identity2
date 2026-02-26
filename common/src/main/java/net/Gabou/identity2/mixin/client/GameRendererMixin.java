@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
-    private void identity2$clampMorphFov(Camera camera, float tickProgress, boolean changingFov, CallbackInfoReturnable<Float> cir) {
+    private void identity2$clampMorphFov(Camera camera, float tickProgress, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.options == null) {
             return;
@@ -27,8 +27,8 @@ public class GameRendererMixin {
             return;
         }
 
-        float currentFov = cir.getReturnValue();
-        float maxMorphFov = configuredFov.floatValue() + 15.0F;
+        double currentFov = cir.getReturnValue();
+        double maxMorphFov = configuredFov.doubleValue() + 15.0D;
         if (currentFov > maxMorphFov) {
             cir.setReturnValue(maxMorphFov);
         }

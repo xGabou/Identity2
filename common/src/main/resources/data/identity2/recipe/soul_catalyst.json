@@ -7,10 +7,10 @@
     "ABA"
   ],
   "key": {
-    "A": "minecraft:amethyst_shard",
-    "E": "minecraft:ender_pearl",
-    "S": "minecraft:nether_star",
-    "B": "minecraft:blaze_powder"
+    "A": { "item": "minecraft:amethyst_shard" },
+    "E": { "item": "minecraft:ender_pearl" },
+    "S": { "item": "minecraft:nether_star" },
+    "B": { "item": "minecraft:blaze_powder" }
   },
   "result": {
     "id": "identity2:soul_catalyst",

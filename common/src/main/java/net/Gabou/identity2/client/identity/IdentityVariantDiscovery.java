@@ -582,21 +582,37 @@ public final class IdentityVariantDiscovery {
     }
 
     private static boolean applyAxisCandidate(VariantAxis axis, Entity entity, Object candidate) {
-        if (axis == null || entity == null) {
-            return false;
-        }
+        if (axis == null || entity == null) return false;
+
         Object converted = convertCandidateForSetter(axis, candidate);
-        if (converted == null) {
-            return false;
-        }
+        if (converted == null) return false;
+
+        Method setter = axis.setter();
+
         try {
-            Method setter = axis.setter();
-            if (!setter.canAccess(entity)) {
-                setter.setAccessible(true);
-            }
+            if (!setter.canAccess(entity)) setter.setAccessible(true);
             setter.invoke(entity, converted);
             return true;
-        } catch (Throwable ignored) {
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause();
+
+            System.out.println("Identity2 axis apply failed");
+            System.out.println("Entity class: " + entity.getClass().getName());
+            System.out.println("Setter: " + setter.getName());
+            System.out.println("Param type: " + setter.getParameterTypes()[0].getName());
+            System.out.println("Candidate class: " + (candidate == null ? "null" : candidate.getClass().getName()));
+            System.out.println("Converted class: " + (converted == null ? "null" : converted.getClass().getName()));
+            System.out.println("Converted value: " + String.valueOf(converted));
+            if (cause != null) {
+                System.out.println("Cause: " + cause.getClass().getName() + " " + cause.getMessage());
+                cause.printStackTrace();
+            } else {
+                e.printStackTrace();
+            }
+            return false;
+        } catch (Throwable t) {
+            System.out.println("Identity2 axis apply failed with " + t.getClass().getName() + " " + t.getMessage());
+            t.printStackTrace();
             return false;
         }
     }
@@ -605,49 +621,47 @@ public final class IdentityVariantDiscovery {
         if (axis == null || candidate == null) {
             return null;
         }
+
         Class<?> param = axis.setter().getParameterTypes()[0];
+
+        // Some Mojang setters are typed as Object but internally cast to Holder.
+        // So if we have a registry, prefer passing a Holder first.
+        if (axis.registry() != null && !(candidate instanceof net.minecraft.core.Holder<?>)) {
+            Object wrapped = wrapAsHolder(axis.registry(), candidate, Object.class);
+            if (wrapped != null) {
+                return wrapped;
+            }
+        }
+
         if (isAssignable(param, candidate.getClass())) {
             return candidate;
         }
+
         if (candidate instanceof Number number) {
-            if (param == int.class || param == Integer.class) {
-                return number.intValue();
-            }
-            if (param == long.class || param == Long.class) {
-                return number.longValue();
-            }
-            if (param == short.class || param == Short.class) {
-                return number.shortValue();
-            }
-            if (param == byte.class || param == Byte.class) {
-                return number.byteValue();
-            }
-            if (param == float.class || param == Float.class) {
-                return number.floatValue();
-            }
-            if (param == double.class || param == Double.class) {
-                return number.doubleValue();
-            }
+            if (param == int.class || param == Integer.class) return number.intValue();
+            if (param == long.class || param == Long.class) return number.longValue();
+            if (param == short.class || param == Short.class) return number.shortValue();
+            if (param == byte.class || param == Byte.class) return number.byteValue();
+            if (param == float.class || param == Float.class) return number.floatValue();
+            if (param == double.class || param == Double.class) return number.doubleValue();
         }
+
         if (candidate instanceof Boolean bool) {
-            if (param == boolean.class || param == Boolean.class) {
-                return bool;
-            }
+            if (param == boolean.class || param == Boolean.class) return bool;
         }
+
         if (param.isEnum()) {
-            if (candidate instanceof Enum<?> enumValue) {
-                return parseEnumValue(param, enumValue.name());
-            }
-            if (candidate instanceof String text) {
-                return parseEnumValue(param, text);
-            }
+            if (candidate instanceof Enum<?> e) return parseEnumValue(param, e.name());
+            if (candidate instanceof String text) return parseEnumValue(param, text);
         }
+
         if (axis.registry() != null) {
             Object wrapped = wrapAsHolder(axis.registry(), candidate, param);
             if (wrapped != null) {
                 return wrapped;
             }
         }
+
         return null;
     }
 

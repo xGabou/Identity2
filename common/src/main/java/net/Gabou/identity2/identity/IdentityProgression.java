@@ -50,6 +50,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 public final class IdentityProgression {
@@ -207,6 +208,7 @@ public final class IdentityProgression {
             nbt.putDouble("height_override", 0.0);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             net.minecraft.world.entity.EntityDimensions nextDimensions = player.getDimensions(player.getPose());
             updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width(), nextDimensions.height());
             applyHealthScaling(player, null);
@@ -242,6 +244,7 @@ public final class IdentityProgression {
         float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
+        ensureSafePostResizePosition(player);
 
         nbt.putDouble("width_override", widthOverride);
         nbt.putDouble("height_override", heightOverride);
@@ -277,6 +280,7 @@ public final class IdentityProgression {
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+        ensureSafePostResizePosition(player);
         applyHealthScaling(player, null);
         syncMorphData(player, "", "", 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
     }
@@ -299,6 +303,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -313,6 +318,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setCurrentIdentity("");
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -327,6 +333,7 @@ public final class IdentityProgression {
             clearTransitionData(nbt);
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
+            ensureSafePostResizePosition(player);
             applyHealthScaling(player, null);
             return;
         }
@@ -343,6 +350,7 @@ public final class IdentityProgression {
         float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
+        ensureSafePostResizePosition(player);
 
         nbt.putString("model_override", type);
         nbt.putString(SELECTED_IDENTITY_TYPE_KEY, type);
@@ -996,6 +1004,43 @@ public final class IdentityProgression {
         }
         long gameTime = player.level().getGameTime();
         nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, gameTime + LARGE_MORPH_DAMAGE_GRACE_TICKS);
+    }
+
+    private static void ensureSafePostResizePosition(ServerPlayer player) {
+        if (player == null || player.level() == null || player.level().isClientSide() || player.noPhysics || player.isSpectator()) {
+            return;
+        }
+        if (player.level().noCollision(player, player.getBoundingBox())) {
+            return;
+        }
+
+        Vec3 origin = player.position();
+        double verticalStep = 0.5D;
+        double step = Math.max(0.5D, player.getBbWidth() * 0.5D);
+        double maxRadius = Math.max(2.0D, player.getBbWidth() * 2.0D);
+        int radialSamples = 16;
+        for (int y = 0; y <= 12; y++) {
+            double yOffset = y * verticalStep;
+            if (identity2$tryRelocatePlayer(player, origin.add(0.0D, yOffset, 0.0D))) {
+                return;
+            }
+            for (double radius = step; radius <= maxRadius; radius += step) {
+                for (int i = 0; i < radialSamples; i++) {
+                    double angle = (Math.PI * 2.0D * i) / radialSamples;
+                    Vec3 candidate = origin.add(Math.cos(angle) * radius, yOffset, Math.sin(angle) * radius);
+                    if (identity2$tryRelocatePlayer(player, candidate)) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        player.setPos(origin.x, origin.y, origin.z);
+    }
+
+    private static boolean identity2$tryRelocatePlayer(ServerPlayer player, Vec3 candidate) {
+        player.setPos(candidate.x, candidate.y, candidate.z);
+        return player.level().noCollision(player, player.getBoundingBox());
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {

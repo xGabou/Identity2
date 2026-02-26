@@ -12,12 +12,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.config.IdentityConfigManager;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
@@ -37,6 +39,13 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
 
 public final class IdentityCommand {
+    private static final Set<String> HIDDEN_CONFIG_KEYS = Set.of(
+        "EnableMorphCharges",
+        "EnableSoulJars",
+        "EnablePermanentJarMorphs",
+        "EnableSoulAbsorption",
+        "disableMorphLossOnDeath"
+    );
     private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
 
     private IdentityCommand() {
@@ -416,7 +425,9 @@ public final class IdentityCommand {
             return 0;
         }
 
-        source.sendSuccess(() -> Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"), true);
+        identity2$normalizeAliasedConfigAfterSet(key);
+        IdentityConfigManager.save();
+        source.sendSuccess(() -> Component.literal("Set " + key + " = " + formatConfigValue(parsed)), true);
         return 1;
     }
 
@@ -439,7 +450,8 @@ public final class IdentityCommand {
         }
 
         values.add(value);
-        source.sendSuccess(() -> Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"), true);
+        IdentityConfigManager.save();
+        source.sendSuccess(() -> Component.literal("Added \"" + value + "\" to " + key), true);
         return 1;
     }
 
@@ -461,7 +473,8 @@ public final class IdentityCommand {
             return 1;
         }
 
-        source.sendSuccess(() -> Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"), true);
+        IdentityConfigManager.save();
+        source.sendSuccess(() -> Component.literal("Removed \"" + value + "\" from " + key), true);
         return 1;
     }
 
@@ -480,7 +493,8 @@ public final class IdentityCommand {
         List<String> values = getOrCreateConfigStringList(field);
         int removed = values.size();
         values.clear();
-        source.sendSuccess(() -> Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"), true);
+        IdentityConfigManager.save();
+        source.sendSuccess(() -> Component.literal("Cleared " + key + " (" + removed + " entries)"), true);
         return removed;
     }
 
@@ -635,6 +649,9 @@ public final class IdentityCommand {
             if (!Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers) || field.isSynthetic()) {
                 continue;
             }
+            if (HIDDEN_CONFIG_KEYS.contains(field.getName())) {
+                continue;
+            }
             fields.add(field);
         }
         fields.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
@@ -644,6 +661,24 @@ public final class IdentityCommand {
             out.put(field.getName(), field);
         }
         return Collections.unmodifiableMap(out);
+    }
+
+    private static void identity2$normalizeAliasedConfigAfterSet(String key) {
+        if ("enableMorphChargeSystem".equals(key) || "EnableMorphCharges".equals(key)) {
+            IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
+            return;
+        }
+        if ("enableSoulJarSystem".equals(key) || "EnableSoulJars".equals(key)) {
+            IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
+            return;
+        }
+        if ("enablePermanentMorphs".equals(key) || "EnablePermanentJarMorphs".equals(key)) {
+            IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
+            return;
+        }
+        if ("enableSoulAbsorption".equals(key) || "EnableSoulAbsorption".equals(key)) {
+            IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
+        }
     }
 
     private static Object parseScalarConfigValue(Class<?> type, String rawValue) {
@@ -686,6 +721,33 @@ public final class IdentityCommand {
         }
         if (type == String.class) {
             return "null".equalsIgnoreCase(trimmed) ? null : rawValue;
+        }
+        if (type.isEnum()) {
+            if (trimmed.isEmpty()) {
+                throw new IllegalArgumentException("expected enum value");
+            }
+
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Class<? extends Enum> enumType = (Class<? extends Enum>) type;
+
+            // Accept case insensitive values and allow hyphen or space as underscore
+            String candidate = trimmed
+                    .trim()
+                    .replace('-', '_')
+                    .replace(' ', '_')
+                    .toUpperCase(Locale.ROOT);
+
+            try {
+                return Enum.valueOf(enumType, candidate);
+            } catch (IllegalArgumentException exception) {
+                StringBuilder allowed = new StringBuilder();
+                Object[] constants = enumType.getEnumConstants();
+                for (int i = 0; i < constants.length; i++) {
+                    if (i > 0) allowed.append(", ");
+                    allowed.append(((Enum<?>) constants[i]).name().toLowerCase(Locale.ROOT));
+                }
+                throw new IllegalArgumentException("expected one of: " + allowed);
+            }
         }
         throw new IllegalArgumentException("unsupported type: " + type.getSimpleName());
     }

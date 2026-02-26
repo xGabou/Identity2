@@ -7,8 +7,8 @@
     " C "
   ],
   "key": {
-    "C": "minecraft:clay_ball",
-    "B": "minecraft:glass_bottle"
+    "C": { "item": "minecraft:clay_ball" },
+    "B": { "item": "minecraft:glass_bottle" }
   },
   "result": {
     "id": "identity2:mud_jar",

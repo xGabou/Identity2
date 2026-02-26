@@ -6,8 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -125,9 +124,9 @@ public final class MorphChargeManager {
         }
 
         CompoundTag customData = getCustomData(player);
-        String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
+        String selectedType = NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
-            selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(customData, "model_override", "");
+            selectedType = NbtCompat.getStringOr(customData, "model_override", "");
         }
         if (selectedType.isBlank()) {
             return;
@@ -143,7 +142,7 @@ public final class MorphChargeManager {
             return;
         }
 
-        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(net.Gabou.identity2.util.NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
+        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(NbtCompat.getStringOr(customData, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, ""));
         if (PermanentMorphManager.hasDeathLossProtection(player, identityId, variantNbt)) {
             return;
         }
@@ -161,12 +160,12 @@ public final class MorphChargeManager {
 
     private static Map<String, Integer> getChargeMap(ServerPlayer player) {
         CompoundTag customData = getCustomData(player);
-        return new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
+        return new HashMap<>(NbtCompat.read(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
     }
 
     private static void setChargeMap(ServerPlayer player, Map<String, Integer> charges) {
         CompoundTag customData = getCustomData(player);
-        net.Gabou.identity2.util.NbtCompat.store(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
+        NbtCompat.store(customData, MORPH_CHARGES_KEY, STRING_INT_MAP_CODEC, charges == null ? Map.of() : charges);
         ProgressionUiSync.sendPlayerCharges(player, charges);
     }
 

@@ -1,11 +1,10 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
-import org.spongepowered.asm.mixin.Mixin;
+
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -23,7 +22,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
-import org.spongepowered.asm.mixin.Overwrite;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.minecraft.world.entity.WalkAnimationState;
 @Mixin(WalkAnimationState.class)
@@ -34,7 +32,8 @@ public class LimbAnimatorMixin implements LimbAnimatorAccessor{
     private float speed;
     @Shadow
     private float position;
-    @Shadow
+    @Deprecated
+    @Unique
     private float positionScale;
     public void setPrevSpeed(float lastSpeed){
         this.speedOld=lastSpeed;

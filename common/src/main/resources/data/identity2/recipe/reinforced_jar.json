@@ -7,9 +7,9 @@
     "IOI"
   ],
   "key": {
-    "I": "minecraft:iron_ingot",
-    "O": "minecraft:obsidian",
-    "G": "identity2:glass_jar"
+    "I": { "item": "minecraft:iron_ingot" },
+    "O": { "item": "minecraft:obsidian" },
+    "G": { "item": "identity2:glass_jar" }
   },
   "result": {
     "id": "identity2:reinforced_jar",

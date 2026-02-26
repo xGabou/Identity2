@@ -25,6 +25,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.entity.EntityLookup;
 import net.minecraft.world.level.entity.EntityTypeTest;
 @Mixin(EntityLookup.class)
@@ -37,8 +38,12 @@ public class EntityIndexMixin{
     private <T,U extends T> U replaceDowncast(EntityTypeTest<T,U> filter, T toDowncast) {
         if(net.Gabou.identity2.Identity2.indexOverrideActive!=0){
             try{
-                if(((EntityAccessor)toDowncast).getCurrentIdentity()!=null){
-                    toDowncast=(T)((EntityAccessor)toDowncast).getCurrentIdentity();
+                if (!(toDowncast instanceof Entity hostEntity) || hostEntity instanceof net.minecraft.world.entity.player.Player) {
+                    return filter.tryCast(toDowncast);
+                }
+                Entity identity = ((EntityAccessor) toDowncast).getCurrentIdentity();
+                if (identity != null && hostEntity.getClass().isAssignableFrom(identity.getClass())) {
+                    toDowncast=(T) identity;
                     return filter.tryCast(toDowncast);
                 }
             }catch(Exception e){

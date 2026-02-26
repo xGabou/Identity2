@@ -7,14 +7,14 @@
     "CGH"
   ],
   "key": {
-    "A": "minecraft:paper",
-    "B": "minecraft:leather",
-    "C": "minecraft:ink_sac",
-    "D": "minecraft:book",
-    "E": "minecraft:amethyst_shard",
-    "F": "minecraft:feather",
-    "G": "minecraft:ender_pearl",
-    "H": "minecraft:glow_ink_sac"
+    "A": { "item": "minecraft:paper" },
+    "B": { "item": "minecraft:leather" },
+    "C": { "item": "minecraft:ink_sac" },
+    "D": { "item": "minecraft:book" },
+    "E": { "item": "minecraft:amethyst_shard" },
+    "F": { "item": "minecraft:feather" },
+    "G": { "item": "minecraft:ender_pearl" },
+    "H": { "item": "minecraft:glow_ink_sac" }
   },
   "result": {
     "id": "identity2:identity_book",
