@@ -21,10 +21,10 @@
 
 ### Important
 
-**Is this 1.21.1?** Yes.  
+**Is this 1.20.6?** Yes.  
 **Is it stable?** It should be, but it is still in beta.
 
-This build is currently available only for **1.21.1**.  
+This build is currently available only for **1.20.6**.  
 Other versions will be re released shortly.
 
 ---

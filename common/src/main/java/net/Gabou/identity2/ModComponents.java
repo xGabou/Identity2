@@ -3,7 +3,6 @@ package net.Gabou.identity2;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.util.Unit;
-import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 
 public final class ModComponents {
     // Runtime-only fallbacks:
@@ -23,7 +22,8 @@ public final class ModComponents {
     public static final DataComponentType<String> ON_CRAFT_PLAYER_COMPONENT =
         DataComponentType.<String>builder().persistent(Codec.STRING).build();
 
-    public static final DataComponentType<Unit> SOULBOUND = EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP;
+    public static final DataComponentType<Unit> SOULBOUND =
+        DataComponentType.<Unit>builder().persistent(Codec.unit(Unit.INSTANCE)).build();
 
     private ModComponents() {
     }

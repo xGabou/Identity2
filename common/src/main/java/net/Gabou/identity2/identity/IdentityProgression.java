@@ -15,6 +15,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.lang.reflect.Method;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
@@ -57,9 +58,10 @@ public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
     // Keep this tunable to match in-game feel.
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
-    private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
-    public static final ResourceLocation PLAYER_IDENTITY_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "player");
-    private static final ResourceLocation GIANT_EASTER_EGG_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "giant");
+    private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = new ResourceLocation(Identity2.MOD_ID, "identity_max_health");
+    private static final UUID HEALTH_SCALING_MODIFIER_UUID = UUID.fromString("4ebfd16b-953d-46e4-a999-c4ca7fed8b62");
+    public static final ResourceLocation PLAYER_IDENTITY_ID = new ResourceLocation("minecraft", "player");
+    private static final ResourceLocation GIANT_EASTER_EGG_ID = new ResourceLocation("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
 
@@ -450,7 +452,7 @@ public final class IdentityProgression {
                 continue;
             }
             try {
-                ResourceLocation id = ResourceLocation.parse(raw);
+                ResourceLocation id = new ResourceLocation(raw);
                 if (isMorphableIdentity(id)) {
                     unlocked.add(id);
                 }
@@ -656,7 +658,7 @@ public final class IdentityProgression {
             }
             if (!selectedType.isBlank()) {
                 try {
-                    ResourceLocation selectedId = ResourceLocation.parse(selectedType);
+                    ResourceLocation selectedId = new ResourceLocation(selectedType);
                     if (isMorphableIdentity(selectedId)) {
                         return new UnlockTarget(selectedId, selectedVariant);
                     }
@@ -1057,7 +1059,7 @@ public final class IdentityProgression {
         float oldHealth = player.getHealth();
         float healthRatio = oldMaxHealth > 0.0F ? (oldHealth / oldMaxHealth) : 1.0F;
 
-        maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_ID);
+        maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_UUID);
 
         if (!IdentitySettings.scalingHealth || !(identity instanceof LivingEntity livingIdentity)) {
             float newMaxHealth = player.getMaxHealth();
@@ -1078,7 +1080,7 @@ public final class IdentityProgression {
         double delta = desired - base;
         if (Math.abs(delta) > 1.0E-4D) {
             maxHealthAttr.addOrUpdateTransientModifier(
-                new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
+                new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADD_VALUE)
             );
         }
 

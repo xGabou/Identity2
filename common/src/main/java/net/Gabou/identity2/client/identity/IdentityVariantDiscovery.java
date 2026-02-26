@@ -1579,7 +1579,7 @@ public final class IdentityVariantDiscovery {
     }
 
     private static IdentityVariant defaultVariant(EntityType<?> type) {
-        ResourceLocation typeId = type == null ? ResourceLocation.parse("minecraft:pig") : EntityType.getKey(type);
+        ResourceLocation typeId = type == null ? new ResourceLocation("minecraft:pig") : EntityType.getKey(type);
         return defaultVariant(typeId);
     }
 

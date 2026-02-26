@@ -95,10 +95,8 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
             //Identity2.LOGGER.info("Mangling B: "+attr.getAttribute().toString());
         }
         AttributeMap newContainer = new AttributeMap(builder.build());
-        newContainer.assignAllValues(a);
-        newContainer.assignAllValues(b);
-        newContainer.assignBaseValues(a);
-        newContainer.assignBaseValues(b);
+        newContainer.assignValues(a);
+        newContainer.assignValues(b);
         /*for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)newContainer).getDefaultAttributes()).getInstances().values()){
             Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(newContainer.getValue(attr.getAttribute())));
         }*/
@@ -298,51 +296,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player player && source != null) {
-            if (player.getAbilities().instabuild || player.isSpectator()) {
-                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-                    return;
-                }
-                info.setReturnValue(true);
-                return;
-            }
-            if (
-                    this.currentIdentity != null
-                            && source.is(DamageTypes.IN_WALL)
-                            && player.isInWater()
-                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-            if (IdentityProgression.isMorphDamageGraceActive(player) && identity2$isMorphCollisionDamage(source)) {
-                info.setReturnValue(true);
-                return;
-            }
-            if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON && identity2$isMorphCollisionDamage(source)) {
-                info.setReturnValue(true);
-                return;
-            }
-            if (source.is(DamageTypeTags.IS_FALL)) {
-                return;
-            }
-            return;
-        }
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
-            }
-        }
-    }
 
-    private static boolean identity2$isMorphCollisionDamage(DamageSource source) {
-        if (source == null) {
-            return false;
-        }
-        return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.FLY_INTO_WALL) || source.is(DamageTypes.CRAMMING);
-    }
 
     @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void pushAwayFromIdentity(Entity entity, CallbackInfo info) {

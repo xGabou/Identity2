@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -34,7 +33,7 @@ public class PlayerInventoryMixin{
     @Redirect(method = "dropAll",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;isEmpty()Z"))
     private boolean cancelDropSoulboundItems(ItemStack stack) {
-        return !(!stack.isEmpty()&&!EnchantmentHelper.has(stack, ModComponents.SOULBOUND));
+        return !(!stack.isEmpty()&&!stack.has(ModComponents.SOULBOUND));
     }
 }
 

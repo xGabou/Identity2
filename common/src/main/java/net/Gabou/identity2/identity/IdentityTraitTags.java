@@ -14,27 +14,27 @@ import org.jetbrains.annotations.Nullable;
 public final class IdentityTraitTags {
     public static final TagKey<EntityType<?>> CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        ResourceLocation.fromNamespaceAndPath("identity2", "can_fly")
+        new ResourceLocation("identity2", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        ResourceLocation.fromNamespaceAndPath("minecraft", "can_fly")
+        new ResourceLocation("minecraft", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
-        ResourceLocation.fromNamespaceAndPath("identity2", "can_breathe_underwater")
+        new ResourceLocation("identity2", "can_breathe_underwater")
     );
 
     public static final TagKey<EntityType<?>> BURNS_IN_DAYLIGHT = TagKey.create(
         Registries.ENTITY_TYPE,
-        ResourceLocation.fromNamespaceAndPath("identity2", "burns_in_daylight")
+        new ResourceLocation("identity2", "burns_in_daylight")
     );
 
     public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
         Registries.ENTITY_TYPE,
-        ResourceLocation.fromNamespaceAndPath("identity2", "slow_falling")
+        new ResourceLocation("identity2", "slow_falling")
     );
 
     private IdentityTraitTags() {
@@ -210,9 +210,9 @@ public final class IdentityTraitTags {
         }
         try {
             if (value.contains(":")) {
-                return ResourceLocation.parse(value);
+                return new ResourceLocation(value);
             }
-            return ResourceLocation.fromNamespaceAndPath("minecraft", value);
+            return new ResourceLocation("minecraft", value);
         } catch (Exception ignored) {
             return null;
         }

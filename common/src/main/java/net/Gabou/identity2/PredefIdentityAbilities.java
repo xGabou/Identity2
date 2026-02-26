@@ -128,7 +128,7 @@ public final class PredefIdentityAbilities {
     private static Map<ResourceLocation, IdentityAbility> create() {
         Map<ResourceLocation, IdentityAbility> map = new HashMap<>();
 
-        map.put(ResourceLocation.parse("ghast"), new IdentityAbility() {
+        map.put(new ResourceLocation("ghast"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -146,7 +146,8 @@ public final class PredefIdentityAbilities {
                 if (!player.isSilent()) {
                     world.levelEvent(null, LevelEvent.SOUND_GHAST_FIREBALL, player.blockPosition(), 0);
                 }
-                LargeFireball fireball = new LargeFireball(world, livingPlayer, direction.normalize(), 1);
+                Vec3 normalized = direction.normalize();
+                LargeFireball fireball = new LargeFireball(world, livingPlayer, normalized.x, normalized.y, normalized.z, 1);
                 fireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
@@ -172,7 +173,7 @@ public final class PredefIdentityAbilities {
 
 
 
-        map.put(ResourceLocation.parse("enderman"), new IdentityAbility() {
+        map.put(new ResourceLocation("enderman"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -214,7 +215,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("shulker"), new IdentityAbility() {
+        map.put(new ResourceLocation("shulker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
@@ -293,13 +294,14 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("blaze"), new IdentityAbility() {
+        map.put(new ResourceLocation("blaze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(0.6));
-                SmallFireball smallFireball = new SmallFireball(world, spawnPos.x, spawnPos.y, spawnPos.z, look);
+                SmallFireball smallFireball = new SmallFireball(world, (LivingEntity) player, look.x, look.y, look.z);
+                smallFireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(smallFireball);
                 world.playSound(
                     null,
@@ -312,7 +314,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("cow"), new IdentityAbility() {
+        map.put(new ResourceLocation("cow"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (player instanceof LivingEntity living) {
@@ -331,21 +333,21 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("villager"), new IdentityAbility() {
+        map.put(new ResourceLocation("villager"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(ResourceLocation.parse("wandering_trader"), new IdentityAbility() {
+        map.put(new ResourceLocation("wandering_trader"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(ResourceLocation.parse("creeper"), new IdentityAbility() {
+        map.put(new ResourceLocation("creeper"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 float power = 3.0F;
@@ -357,7 +359,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("endermite"), new IdentityAbility() {
+        map.put(new ResourceLocation("endermite"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -366,10 +368,10 @@ public final class PredefIdentityAbilities {
                 double startZ = player.getZ();
 
                 for (int i = 0; i < 16; ++i) {
-                    double targetX = startX + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
+                    double targetX = startX + (player.level().random.nextDouble() - 0.5D) * 16.0D;
                     int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(targetX), Mth.floor(startZ));
-                    double targetY = Mth.clamp(startY + (player.getRandom().nextInt(16) - 8), world.getMinBuildHeight(), topY - 1);
-                    double targetZ = startZ + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
+                    double targetY = Mth.clamp(startY + (player.level().random.nextInt(16) - 8), world.getMinBuildHeight(), topY - 1);
+                    double targetZ = startZ + (player.level().random.nextDouble() - 0.5D) * 16.0D;
                     if (player.isPassenger()) {
                         player.stopRiding();
                     }
@@ -381,7 +383,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("evoker"), new IdentityAbility() {
+        map.put(new ResourceLocation("evoker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Vec3 origin = player.position();
@@ -419,7 +421,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("illusioner"), new IdentityAbility() {
+        map.put(new ResourceLocation("illusioner"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 summonIllusionerClones(player);
@@ -446,14 +448,14 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("guardian"), new IdentityAbility() {
+        map.put(new ResourceLocation("guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
             }
         });
 
-        map.put(ResourceLocation.parse("elder_guardian"), new IdentityAbility() {
+        map.put(new ResourceLocation("elder_guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
@@ -478,21 +480,21 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("warden"), new IdentityAbility() {
+        map.put(new ResourceLocation("warden"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeWardenSonicBoom(player);
             }
         });
 
-        map.put(ResourceLocation.parse("breeze"), new IdentityAbility() {
+        map.put(new ResourceLocation("breeze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeBreezeWindProjectile(player);
             }
         });
         
-        map.put(ResourceLocation.parse("iron_golem"), new IdentityAbility() {
+        map.put(new ResourceLocation("iron_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -513,7 +515,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("llama"), new IdentityAbility() {
+        map.put(new ResourceLocation("llama"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -540,7 +542,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("snow_golem"), new IdentityAbility() {
+        map.put(new ResourceLocation("snow_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -569,7 +571,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("witch"), new IdentityAbility() {
+        map.put(new ResourceLocation("witch"), new IdentityAbility() {
             private final List<Holder<Potion>> validPotions = List.of(Potions.HARMING, Potions.POISON, Potions.SLOWNESS, Potions.WEAKNESS);
 
             @Override
@@ -626,7 +628,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(ResourceLocation.parse("wither"), new IdentityAbility() {
+        map.put(new ResourceLocation("wither"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -642,14 +644,14 @@ public final class PredefIdentityAbilities {
                 );
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(2.0));
-                WitherSkull skull = new WitherSkull(world, (LivingEntity) player, look);
+                WitherSkull skull = new WitherSkull(world, (LivingEntity) player, look.x, look.y, look.z);
                 skull.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 skull.shoot(look.x, look.y, look.z, 1.5F, 0.0F);
                 world.addFreshEntity(skull);
             }
         });
 
-        map.put(ResourceLocation.parse("ender_dragon"), new IdentityAbility() {
+        map.put(new ResourceLocation("ender_dragon"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -665,7 +667,8 @@ public final class PredefIdentityAbilities {
                     direction = look;
                 }
 
-                DragonFireball fireball = new DragonFireball(world, livingPlayer, direction.normalize());
+                Vec3 normalized = direction.normalize();
+                DragonFireball fireball = new DragonFireball(world, livingPlayer, normalized.x, normalized.y, normalized.z);
                 fireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
@@ -1134,9 +1137,9 @@ public final class PredefIdentityAbilities {
         if (player.level().isClientSide()) {
             return;
         }
-        boolean spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
+        boolean spawned = spawnWindProjectile(player, new ResourceLocation("minecraft", "breeze_wind_charge"));
         if (!spawned) {
-            spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "wind_charge"));
+            spawned = spawnWindProjectile(player, new ResourceLocation("minecraft", "wind_charge"));
         }
         if (!spawned) {
             EntityHitResult hit = findLivingTarget(player, 20.0D);
@@ -1399,19 +1402,19 @@ public final class PredefIdentityAbilities {
             return null;
         }
         return switch (blockId.getPath()) {
-            case "blast_furnace" -> ResourceLocation.fromNamespaceAndPath("minecraft", "armorer");
-            case "smoker" -> ResourceLocation.fromNamespaceAndPath("minecraft", "butcher");
-            case "cartography_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cartographer");
-            case "brewing_stand" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cleric");
-            case "composter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "farmer");
-            case "barrel" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fisherman");
-            case "fletching_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fletcher");
-            case "cauldron" -> ResourceLocation.fromNamespaceAndPath("minecraft", "leatherworker");
-            case "lectern" -> ResourceLocation.fromNamespaceAndPath("minecraft", "librarian");
-            case "stonecutter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "mason");
-            case "loom" -> ResourceLocation.fromNamespaceAndPath("minecraft", "shepherd");
-            case "smithing_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "toolsmith");
-            case "grindstone" -> ResourceLocation.fromNamespaceAndPath("minecraft", "weaponsmith");
+            case "blast_furnace" -> new ResourceLocation("minecraft", "armorer");
+            case "smoker" -> new ResourceLocation("minecraft", "butcher");
+            case "cartography_table" -> new ResourceLocation("minecraft", "cartographer");
+            case "brewing_stand" -> new ResourceLocation("minecraft", "cleric");
+            case "composter" -> new ResourceLocation("minecraft", "farmer");
+            case "barrel" -> new ResourceLocation("minecraft", "fisherman");
+            case "fletching_table" -> new ResourceLocation("minecraft", "fletcher");
+            case "cauldron" -> new ResourceLocation("minecraft", "leatherworker");
+            case "lectern" -> new ResourceLocation("minecraft", "librarian");
+            case "stonecutter" -> new ResourceLocation("minecraft", "mason");
+            case "loom" -> new ResourceLocation("minecraft", "shepherd");
+            case "smithing_table" -> new ResourceLocation("minecraft", "toolsmith");
+            case "grindstone" -> new ResourceLocation("minecraft", "weaponsmith");
             default -> null;
         };
     }

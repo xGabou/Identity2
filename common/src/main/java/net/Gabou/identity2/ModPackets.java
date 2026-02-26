@@ -42,40 +42,19 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class ModPackets {
-    public static final ResourceLocation CUSTOM_STRING_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
-    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_double");
-    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_bool");
-    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
-    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
-    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
-    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "identity_villager_trade_request"
-    );
-    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "open_progression_screen"
-    );
-    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "progression_charge_sync_request"
-    );
-    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "progression_jar_select"
-    );
-    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "progression_jar_transfer"
-    );
-    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "progression_player_charges"
-    );
-    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "progression_jar_state"
-    );
+    public static final ResourceLocation CUSTOM_STRING_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_string");
+    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_double");
+    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_bool");
+    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "morph_acquisition");
+    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "entity_ability");
+    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_morph_request");
+    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_villager_trade_request");
+    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "open_progression_screen");
+    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_charge_sync_request");
+    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_select");
+    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_transfer");
+    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_player_charges");
+    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_state");
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
@@ -262,14 +241,14 @@ public final class ModPackets {
             return exact;
         }
 
-        ResourceLocation minecraftAlias = ResourceLocation.fromNamespaceAndPath("minecraft", prebuilt.getPath());
+        ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
         PredefIdentityAbilities.IdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
             return minecraft;
         }
 
         PredefIdentityAbilities.IdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
-            ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prebuilt.getPath())
+            new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath())
         );
         if (identity2Alias != null) {
             return identity2Alias;
@@ -292,7 +271,7 @@ public final class ModPackets {
 
         ResourceLocation identityId;
         try {
-            identityId = ResourceLocation.parse(requested);
+            identityId = new ResourceLocation(requested);
         } catch (Exception exception) {
             player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity: " + requested), false);
             return;
@@ -413,7 +392,7 @@ public final class ModPackets {
 
         ResourceLocation identityId;
         try {
-            identityId = ResourceLocation.parse(payload.identityId());
+            identityId = new ResourceLocation(payload.identityId());
         } catch (Exception exception) {
             ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid morph id: " + payload.identityId());
             return;

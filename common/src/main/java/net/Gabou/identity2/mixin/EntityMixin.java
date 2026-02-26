@@ -5,6 +5,8 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageTypes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -571,7 +573,7 @@ public class EntityMixin implements EntityAccessor {
         }
         ResourceLocation identityId;
         try {
-            identityId = ResourceLocation.parse(id);
+            identityId = new ResourceLocation(id);
         } catch (Exception e) {
             this.deactivateIdentityAfterFailure(null, "invalid id");
             return;
@@ -784,9 +786,9 @@ public class EntityMixin implements EntityAccessor {
         }
         try {
             if (raw.contains(":")) {
-                return ResourceLocation.parse(raw);
+                return new ResourceLocation(raw);
             }
-            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
+            return new ResourceLocation("minecraft", raw);
         } catch (Exception ignored) {
             return null;
         }
@@ -1450,6 +1452,53 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         if (this.currentIdentity != null) {
             this.currentIdentity.setCustomNameVisible(visible);
         }
+    }
+
+    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player player && source != null) {
+            if (player.getAbilities().instabuild || player.isSpectator()) {
+                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                    return;
+                }
+                info.setReturnValue(true);
+                return;
+            }
+            if (
+                    this.currentIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && player.isInWater()
+                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+            if (IdentityProgression.isMorphDamageGraceActive(player) && identity2$isMorphCollisionDamage(source)) {
+                info.setReturnValue(true);
+                return;
+            }
+            if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON && identity2$isMorphCollisionDamage(source)) {
+                info.setReturnValue(true);
+                return;
+            }
+            if (source.is(DamageTypeTags.IS_FALL)) {
+                return;
+            }
+            return;
+        }
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
+            }
+        }
+    }
+
+    @Unique
+    private static boolean identity2$isMorphCollisionDamage(DamageSource source) {
+        if (source == null) {
+            return false;
+        }
+        return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.FLY_INTO_WALL) || source.is(DamageTypes.CRAMMING);
     }
 //Tons of Redirects - End
 }

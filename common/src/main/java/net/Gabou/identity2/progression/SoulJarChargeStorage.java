@@ -157,7 +157,7 @@ public final class SoulJarChargeStorage {
             }
             ResourceLocation configuredId;
             try {
-                configuredId = ResourceLocation.parse(idText);
+                configuredId = new ResourceLocation(idText);
             } catch (Exception exception) {
                 continue;
             }

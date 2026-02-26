@@ -31,7 +31,6 @@ import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -136,7 +135,7 @@ public final class Identity2Client {
                 identity2$syncEnderDragonVisualState(dragonIdentity, entity);
             }
             return identity;
-        }, ResourceLocation.parse("minecraft:ender_dragon"));
+        }, ResourceLocation.tryParse("minecraft:ender_dragon"));
     }
 
     private static void identity2$syncEnderDragonVisualState(EnderDragon dragonIdentity, Entity source) {
@@ -600,9 +599,9 @@ public final class Identity2Client {
         }
         return PredefIdentityAbilities.predef.containsKey(identityTypeId)
                 || PredefIdentityAbilities.predef
-                        .containsKey(ResourceLocation.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
+                        .containsKey(new ResourceLocation("minecraft", identityTypeId.getPath()))
                 || PredefIdentityAbilities.predef
-                        .containsKey(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
+                        .containsKey(new ResourceLocation(Identity2.MOD_ID, identityTypeId.getPath()))
                 || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
     }
 
@@ -659,14 +658,14 @@ public final class Identity2Client {
             float progress = MorphTransitionHelper.getTransitionProgress(entity, 0.0F);
             double radius = 0.35D + (0.25D * Math.sin(progress * Math.PI));
             for (int i = 0; i < MORPH_TRANSITION_PARTICLES_PER_TICK; i++) {
-                double angle = entity.getRandom().nextDouble() * (Math.PI * 2.0D);
+                double angle = entity.level().random.nextDouble() * (Math.PI * 2.0D);
                 double y = entity.getY() + 0.2D
-                        + entity.getRandom().nextDouble() * Math.max(0.2D, entity.getBbHeight() - 0.2D);
+                        + entity.level().random.nextDouble() * Math.max(0.2D, entity.getBbHeight() - 0.2D);
                 double x = entity.getX() + Math.cos(angle) * radius;
                 double z = entity.getZ() + Math.sin(angle) * radius;
-                double vx = (entity.getRandom().nextDouble() - 0.5D) * 0.04D;
-                double vy = 0.02D + entity.getRandom().nextDouble() * 0.03D;
-                double vz = (entity.getRandom().nextDouble() - 0.5D) * 0.04D;
+                double vx = (entity.level().random.nextDouble() - 0.5D) * 0.04D;
+                double vy = 0.02D + entity.level().random.nextDouble() * 0.03D;
+                double vz = (entity.level().random.nextDouble() - 0.5D) * 0.04D;
                 client.level.addParticle(ParticleTypes.POOF, x, y, z, vx, vy, vz);
             }
         }
@@ -749,8 +748,7 @@ public final class Identity2Client {
         list.add(packet);
     }
 
-    private static void renderIdentityCooldown(GuiGraphics matrices, DeltaTracker deltax) {
-        float delta = deltax.getGameTimeDeltaPartialTick(false);
+    private static void renderIdentityCooldown(GuiGraphics matrices, float delta) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null) {

@@ -50,19 +50,19 @@ public final class ModBlocks {
     }
 
     private static Item registerVanillaItem(String name, String namespace) {
-        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, name));
+        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, new ResourceLocation(namespace, name));
         BlockItem blockItem = new BlockItem(
-            BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, name)),
+            BuiltInRegistries.BLOCK.get(new ResourceLocation(namespace, name)),
             new Item.Properties()
         );
         return Registry.register(BuiltInRegistries.ITEM, itemKey, blockItem);
     }
 
     public static ResourceKey<Block> keyOfBlock(String name) {
-        return ResourceKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, name));
+        return ResourceKey.create(Registries.BLOCK, new ResourceLocation(Identity2.MOD_ID, name));
     }
 
     private static ResourceKey<Item> keyOfItem(String name) {
-        return ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, name));
+        return ResourceKey.create(Registries.ITEM, new ResourceLocation(Identity2.MOD_ID, name));
     }
 }

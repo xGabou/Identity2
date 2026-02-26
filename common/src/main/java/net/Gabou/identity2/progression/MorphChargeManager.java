@@ -134,7 +134,7 @@ public final class MorphChargeManager {
 
         ResourceLocation identityId;
         try {
-            identityId = ResourceLocation.parse(selectedType);
+            identityId = new ResourceLocation(selectedType);
         } catch (Exception ignored) {
             return;
         }

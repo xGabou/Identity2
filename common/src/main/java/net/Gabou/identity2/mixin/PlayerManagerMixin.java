@@ -49,12 +49,12 @@ public class PlayerManagerMixin {
     }
 
     @Inject(method = "remove", at = @At("HEAD"))
-    private static void removeInject(ServerPlayer player, CallbackInfo info) {
+    private void removeInject(ServerPlayer player, CallbackInfo info) {
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
+        if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
             for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
-                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave"))) {
+                .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
@@ -64,7 +64,7 @@ public class PlayerManagerMixin {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
-    private static void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
+    private void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleData = new ArrayList<>(0);
@@ -109,9 +109,9 @@ public class PlayerManagerMixin {
         DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {
+        if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join")) != null) {
             for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
-                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join"))) {
+                .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
@@ -144,13 +144,12 @@ public class PlayerManagerMixin {
     }
 
     @Inject(method = "respawn", at = @At("RETURN"))
-    private void identity2$onRespawn(ServerPlayer player, boolean alive,
-                                     Entity.RemovalReason reason,
-                                     CallbackInfoReturnable<ServerPlayer> cir) {
+    private void identity2$onRespawn(ServerPlayer player, boolean bl, CallbackInfoReturnable<ServerPlayer> cir) {
 
         ServerPlayer respawned = cir.getReturnValue();
         if (respawned == null) return;
         identity2$copyCustomData(player, respawned);
+        boolean alive = !player.isDeadOrDying();
 
         if (alive) {
             IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
