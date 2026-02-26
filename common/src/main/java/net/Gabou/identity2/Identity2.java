@@ -1,5 +1,6 @@
 package net.Gabou.identity2;
 
+import net.Gabou.identity2.config.IdentityConfigManager;
 import net.Gabou.identity2.identity.IdentityProgression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ public final class Identity2 {
             return;
         }
         initialized = true;
+        IdentityConfigManager.initialize();
         // NeoForge 1.21.11 freezes built-in registries before this point.
         // ModBlocks currently performs direct static registration into built-ins,
         // so defer this bootstrap until it is ported to platform-safe registration.

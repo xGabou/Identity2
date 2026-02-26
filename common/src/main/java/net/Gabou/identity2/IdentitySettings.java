@@ -1,5 +1,9 @@
 package net.Gabou.identity2;
 
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.GameRules;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,17 +14,37 @@ public class IdentitySettings {
     //@Comment(value = "Whether an overlay message appears above the hotbar when a new identity is revoked.")
     public static boolean overlayIdentityRevokes = true;
 
-    //@Comment(value = "Whether a player's equipped identity is revoked on death.")
-    public static boolean revokeIdentityOnDeath = false;
+    public enum DeathMorphRule {
+        NONE,
+        REVOKE_ACTIVE,
+        WIPE_ALL
+    }
 
-    //@Comment(value = "If true, all unlocked morphs are removed when the player dies.")
-    public static boolean loseAllMorphsOnDeath = true;
+    public static DeathMorphRule deathMorphRule = DeathMorphRule.WIPE_ALL;
 
-    //@Comment(value = "If true, morph unlock loss on death is disabled. This requires cheats unless explicitly overridden.")
-    public static boolean disableMorphLossOnDeath = false;
+    public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
+        IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
+
+        if (rule != IdentitySettings.DeathMorphRule.NONE) {
+            return rule;
+        }
+
+        if (allowDisableMorphLossOnDeathWithoutCheats) {
+            return IdentitySettings.DeathMorphRule.NONE;
+        }
+
+        boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().getBoolean(GameRules.RULE_SENDCOMMANDFEEDBACK);
+        // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
+
+        if (cheatsEnabled) {
+            return IdentitySettings.DeathMorphRule.NONE;
+        }
+
+        return IdentitySettings.DeathMorphRule.WIPE_ALL;
+    }
 
     //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
-    public static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
+    public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
 
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
