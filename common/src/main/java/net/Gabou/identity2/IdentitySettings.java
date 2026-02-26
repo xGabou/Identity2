@@ -107,7 +107,10 @@ public class IdentitySettings {
     public static List<String> allowedSwappers = new ArrayList<>();
 
     //@Comment(value = "In blocks, how far can the Enderman ability teleport?")
-    public static int endermanAbilityTeleportDistance = 32;
+    public static int endermanAbilityTeleportDistance = 1024;
+
+    //@Comment(value = "If true, Giants gain zombie-like AI and can appear naturally in Hard difficulty.")
+    public static boolean enableGiantZombieAiAndHardSpawns = false;
 
     //@Comment(value = "Should player nametags render above players disguised with an identity? Note that the server is the authority for this config option.")
     public static boolean showPlayerNametag = false;
