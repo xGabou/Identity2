@@ -32,7 +32,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7683654"
+    modImplementation "curse.maven:gabous-libs-1367332:7684709"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
@@ -64,7 +64,7 @@ if (modrinthToken) {
         versionNumber = "Fabric-${project.version}"
         versionName = "Identity ${mod_version}"
         changelog = rootProject.file("IdentityChangeLog.md").text
-        gameVersions = ["1.20.6"]
+        gameVersions = ["1.20.5"]
         loaders = ["fabric"]
         versionType = "release"
         dependencies {
@@ -91,7 +91,7 @@ if (curseforgeToken) {
             id = "1238155"
             changelog = rootProject.file("IdentityChangeLog.md")
             releaseType = "release" // options: alpha, beta, release
-            addGameVersion "1.20.6"
+            addGameVersion "1.20.5"
             addGameVersion "Fabric"
             mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
                 displayName = "Fabric-${version}"

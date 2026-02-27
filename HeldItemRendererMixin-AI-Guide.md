@@ -1,4 +1,4 @@
-# HeldItemRendererMixin AI Guide (1.20.6 context)
+# HeldItemRendererMixin AI Guide (1.20.5 context)
 
 ## Scope
 This document is for future AI/code agents working on:
@@ -69,5 +69,5 @@ Method call sites differ by version/loader/mappings patch set:
 
 ## Note for 1.21.8 / 1.21.9 / 1.21.11 ports
 
-- Do not assume method/class names or descriptors match 1.20.6.
+- Do not assume method/class names or descriptors match 1.20.5.
 - Re-derive targets from the branch’s own mapped runtime jars before porting this mixin logic.
