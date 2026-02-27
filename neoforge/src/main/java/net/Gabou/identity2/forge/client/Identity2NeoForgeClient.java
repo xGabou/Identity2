@@ -1,4 +1,4 @@
-package net.Gabou.identity2.neoforge.client;
+package net.Gabou.identity2.forge.client;
 
 import net.Gabou.identity2.client.Identity2ClientBootstrap;
 

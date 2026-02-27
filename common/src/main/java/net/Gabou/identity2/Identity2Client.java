@@ -31,6 +31,7 @@ import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -51,7 +52,6 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
-import net.minecraft.world.item.component.CustomData;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -202,40 +202,40 @@ public final class Identity2Client {
             platform.logClientRegistries();
         }
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityDataS2CPacketPayload.ID,
-                CustomEntityDataS2CPacketPayload.CODEC,
+                CustomEntityDataS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityStringDataS2CPacketPayload.ID,
-                CustomEntityStringDataS2CPacketPayload.CODEC,
+                CustomEntityStringDataS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityBoolDataS2CPacketPayload.ID,
-                CustomEntityBoolDataS2CPacketPayload.CODEC,
+                CustomEntityBoolDataS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 MorphAcquisitionS2CPacketPayload.ID,
-                MorphAcquisitionS2CPacketPayload.CODEC,
+                MorphAcquisitionS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> onMorphAcquisition(payload)));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 OpenProgressionScreenS2CPacketPayload.ID,
-                OpenProgressionScreenS2CPacketPayload.CODEC,
+                OpenProgressionScreenS2CPacketPayload::decode,
                 (payload, context) -> context.queue(Identity2Client::openProgressionScreen));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 ProgressionPlayerChargesS2CPacketPayload.ID,
-                ProgressionPlayerChargesS2CPacketPayload.CODEC,
+                ProgressionPlayerChargesS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload)));
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 ProgressionJarStateS2CPacketPayload.ID,
-                ProgressionJarStateS2CPacketPayload.CODEC,
+                ProgressionJarStateS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
@@ -243,7 +243,7 @@ public final class Identity2Client {
     }
 
     public static void sendIdentityAbilityPacket(int entityId) {
-        NetworkManager.sendToServer(new IdentityAbilityPacketPayload(entityId));
+        NetworkCompat.sendToServer(new IdentityAbilityPacketPayload(entityId));
     }
 
     public static void sendMorphRequest(String identityId) {
@@ -251,7 +251,7 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
-        NetworkManager.sendToServer(
+        NetworkCompat.sendToServer(
                 new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
 
@@ -259,22 +259,22 @@ public final class Identity2Client {
         if (targetUuid == null) {
             return;
         }
-        NetworkManager.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
+        NetworkCompat.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
     }
 
     public static void requestProgressionChargeSync() {
-        NetworkManager.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
+        NetworkCompat.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
     }
 
     public static void sendProgressionJarSelect(int slotIndex) {
-        NetworkManager.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
+        NetworkCompat.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
     }
 
     public static void sendProgressionJarTransfer(int slotIndex, String identityId, int amount, boolean deposit) {
         if (identityId == null || identityId.isBlank() || amount <= 0) {
             return;
         }
-        NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
+        NetworkCompat.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
     }
 
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, ResourceLocation id) {
@@ -362,10 +362,10 @@ public final class Identity2Client {
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            CustomData n = ((EntityAccessor) entity).getCustomData();
+            CompoundTag n = ((EntityAccessor) entity).getCustomData();
             boolean shapeChanged = false;
             for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
-                ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
+                n.putDouble(entry.key(), entry.value());
                 if ("width_override".equals(entry.key()) || "height_override".equals(entry.key())) {
                     shapeChanged = true;
                 }
@@ -389,10 +389,10 @@ public final class Identity2Client {
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            CustomData n = ((EntityAccessor) entity).getCustomData();
+            CompoundTag n = ((EntityAccessor) entity).getCustomData();
             boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
-                ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
+                n.putString(entry.key(), entry.value());
                 if ("model_override".equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
@@ -416,9 +416,9 @@ public final class Identity2Client {
 
         Entity entity = resolvePacketTarget(client, packet.entityid());
         if (entity != null) {
-            CustomData n = ((EntityAccessor) entity).getCustomData();
+            CompoundTag n = ((EntityAccessor) entity).getCustomData();
             for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
-                ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
+                n.putBoolean(entry.key(), entry.value());
             }
         }
     }
@@ -490,10 +490,10 @@ public final class Identity2Client {
             return false;
         }
 
-        CustomData n = ((EntityAccessor) entity).getCustomData();
+        CompoundTag n = ((EntityAccessor) entity).getCustomData();
         boolean shapeChanged = false;
         for (CustomEntityDataS2CPacket.Entry entry : packet.entries()) {
-            ((NbtComponentAccessor) (Object) n).getNbt().putDouble(entry.key(), entry.value());
+            n.putDouble(entry.key(), entry.value());
             if ("width_override".equals(entry.key()) || "height_override".equals(entry.key())) {
                 shapeChanged = true;
             }
@@ -514,10 +514,10 @@ public final class Identity2Client {
             return false;
         }
 
-        CustomData n = ((EntityAccessor) entity).getCustomData();
+        CompoundTag n = ((EntityAccessor) entity).getCustomData();
         boolean identityDataChanged = false;
         for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
-            ((NbtComponentAccessor) (Object) n).getNbt().putString(entry.key(), entry.value());
+            n.putString(entry.key(), entry.value());
             if ("model_override".equals(entry.key()) ||
                     IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
                     IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
@@ -538,9 +538,9 @@ public final class Identity2Client {
             return false;
         }
 
-        CustomData n = ((EntityAccessor) entity).getCustomData();
+        CompoundTag n = ((EntityAccessor) entity).getCustomData();
         for (CustomEntityDataS2CPacket.EntryBool entry : packet.entries()) {
-            ((NbtComponentAccessor) (Object) n).getNbt().putBoolean(entry.key(), entry.value());
+            n.putBoolean(entry.key(), entry.value());
         }
         return true;
     }
@@ -705,12 +705,12 @@ public final class Identity2Client {
     }
 
     private static String readCurrentIdentityType(LocalPlayer player) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
         return net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
     }
 
     private static String readCurrentIdentityVariant(LocalPlayer player) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
         return net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
     }
 
@@ -726,8 +726,8 @@ public final class Identity2Client {
     }
 
     private void applyIdentityFromCustomData(Entity entity) {
-        CustomData n = ((EntityAccessor) entity).getCustomData();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) n).getNbt();
+        CompoundTag n = ((EntityAccessor) entity).getCustomData();
+        CompoundTag nbt = n;
         String type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
             type = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
@@ -848,4 +848,6 @@ public final class Identity2Client {
         return eModel;
     }
 }
+
+
 

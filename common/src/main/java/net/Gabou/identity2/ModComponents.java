@@ -1,33 +1,23 @@
 package net.Gabou.identity2;
 
-import com.mojang.serialization.Codec;
-import net.minecraft.core.component.DataComponentType;
-import net.minecraft.util.Unit;
+import net.minecraft.world.item.ItemStack;
 
 public final class ModComponents {
-    // Runtime-only fallbacks:
-    // NeoForge 1.21.11 freezes built-in registries before mod static init.
-    // Until platform-safe registration is wired, keep stable component keys locally
-    // so gameplay does not crash when these fields are referenced.
-    public static final DataComponentType<String> USE_COMMAND_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-    public static final DataComponentType<String> ON_ITEM_DESTROYED_COMMAND_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-    public static final DataComponentType<String> INVENTORY_TICK_COMMAND_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-    public static final DataComponentType<String> ON_CRAFT_ANY_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-    public static final DataComponentType<String> ON_CRAFT_CRAFTER_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-    public static final DataComponentType<String> ON_CRAFT_PLAYER_COMPONENT =
-        DataComponentType.<String>builder().persistent(Codec.STRING).build();
-
-    public static final DataComponentType<Unit> SOULBOUND =
-        DataComponentType.<Unit>builder().persistent(Codec.unit(Unit.INSTANCE)).build();
+    public static final String USE_COMMAND_COMPONENT = "identity2_use_command";
+    public static final String ON_ITEM_DESTROYED_COMMAND_COMPONENT = "identity2_on_item_destroyed_command";
+    public static final String INVENTORY_TICK_COMMAND_COMPONENT = "identity2_inventory_tick_command";
+    public static final String ON_CRAFT_ANY_COMPONENT = "identity2_on_craft_any_command";
+    public static final String ON_CRAFT_CRAFTER_COMPONENT = "identity2_on_craft_crafter_command";
+    public static final String ON_CRAFT_PLAYER_COMPONENT = "identity2_on_craft_player_command";
+    public static final String SOULBOUND = "identity2_soulbound";
 
     private ModComponents() {
     }
 
     public static void initialize() {
+    }
+
+    public static boolean hasSoulbound(ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.hasTag() && stack.getTag().getBoolean(SOULBOUND);
     }
 }

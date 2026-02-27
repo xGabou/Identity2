@@ -1,6 +1,7 @@
 package net.Gabou.identity2.progression;
 
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import java.util.Map;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
@@ -14,7 +15,7 @@ public final class ProgressionUiSync {
         if (player == null) {
             return;
         }
-        NetworkManager.sendToPlayer(
+        NetworkCompat.sendToPlayer(
             player,
             new ProgressionPlayerChargesS2CPacketPayload(ProgressionChargeCodec.serialize(charges))
         );
@@ -54,7 +55,7 @@ public final class ProgressionUiSync {
         if (player == null) {
             return;
         }
-        NetworkManager.sendToPlayer(
+        NetworkCompat.sendToPlayer(
             player,
             new ProgressionJarStateS2CPacketPayload(
                 slotIndex,
@@ -67,3 +68,5 @@ public final class ProgressionUiSync {
         );
     }
 }
+
+

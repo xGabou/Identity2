@@ -9,17 +9,16 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.ShulkerEntityAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -49,9 +48,8 @@ import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.LevelEvent;
@@ -277,7 +275,7 @@ public final class PredefIdentityAbilities {
                     if (!entity.level().loadedAndEntityCanStandOnFace(pos.offset(direction.getNormal()), entity, direction2)) {
                         return false;
                     } else {
-                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F).deflate(1.0E-6);
+                        AABB box = Shulker.getProgressAabb(direction2, 1.0F).deflate(1.0E-6);
                         return entity.level().noCollision(entity, box);
                     }
                 }
@@ -572,7 +570,7 @@ public final class PredefIdentityAbilities {
         });
 
         map.put(new ResourceLocation("witch"), new IdentityAbility() {
-            private final List<Holder<Potion>> validPotions = List.of(Potions.HARMING, Potions.POISON, Potions.SLOWNESS, Potions.WEAKNESS);
+            private final List<Potion> validPotions = List.of(Potions.HARMING, Potions.POISON, Potions.SLOWNESS, Potions.WEAKNESS);
 
             @Override
             public void execute(Entity player) {
@@ -585,10 +583,10 @@ public final class PredefIdentityAbilities {
                 ThrownPotion potionEntity = new ThrownPotion(EntityType.POTION, world);
                 potionEntity.setOwner(livingPlayer);
 
-                Holder<Potion> potion = validPotions.get(world.random.nextInt(validPotions.size()));
+                Potion potion = validPotions.get(world.random.nextInt(validPotions.size()));
 
                 ItemStack potionStack = new ItemStack(Items.SPLASH_POTION);
-                potionStack.set(DataComponents.POTION_CONTENTS, new PotionContents(potion));
+                potionStack = PotionUtils.setPotion(potionStack, potion);
 
                 potionEntity.setItem(potionStack);
 
@@ -710,8 +708,8 @@ public final class PredefIdentityAbilities {
         if (player == null) {
             return false;
         }
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = customData;
         return net.Gabou.identity2.util.NbtCompat.getBooleanOr(nbt, SHULKER_OPEN_STATE_KEY, false);
     }
 
@@ -719,8 +717,8 @@ public final class PredefIdentityAbilities {
         if (player == null) {
             return;
         }
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean(SHULKER_OPEN_STATE_KEY, open);
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        customData.putBoolean(SHULKER_OPEN_STATE_KEY, open);
         syncBoolData(player, SHULKER_OPEN_STATE_KEY, open);
     }
 
@@ -732,11 +730,11 @@ public final class PredefIdentityAbilities {
             player.getId(),
             List.of(new CustomEntityDataS2CPacket.EntryBool(key, value))
         );
-        NetworkManager.sendToPlayer(player, payload);
+        NetworkCompat.sendToPlayer(player, payload);
         if (player.level() instanceof ServerLevel serverLevel) {
             for (ServerPlayer other : serverLevel.players()) {
                 if (other != player) {
-                    NetworkManager.sendToPlayer(other, payload);
+                    NetworkCompat.sendToPlayer(other, payload);
                 }
             }
         }
@@ -1632,8 +1630,8 @@ public final class PredefIdentityAbilities {
         if (player == null || villagerIdentity == null) {
             return;
         }
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = customData;
         CompoundTag variant = IdentityProgression.parseVariantNbt(
             net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")
         );
@@ -1857,5 +1855,9 @@ public final class PredefIdentityAbilities {
         return unwrapped != null ? unwrapped : normalized;
     }
 }
+
+
+
+
 
 

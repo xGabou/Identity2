@@ -27,10 +27,10 @@ import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.util.EntityAccessor;
 import java.util.Map;
 import net.minecraft.util.ClassInstanceMultiMap;
-import net.minecraft.Util;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import java.util.Collections;
+import java.util.stream.Collectors;
 @Mixin(ClassInstanceMultiMap.class)
 public class TypeFilterableListMixin<T>{
     @Shadow
@@ -49,7 +49,7 @@ public class TypeFilterableListMixin<T>{
             if (net.Gabou.identity2.Identity2.indexOverrideActive == 0) {
                 List<S> list = (List<S>) this.byClass.computeIfAbsent(
                     type,
-                    typeClass -> (List) this.allInstances.stream().filter(typeClass::isInstance).collect(Util.toMutableList())
+                    typeClass -> (List) this.allInstances.stream().filter(typeClass::isInstance).collect(Collectors.toList())
                 );
                 return Collections.unmodifiableCollection(list);
             }
@@ -68,7 +68,7 @@ public class TypeFilterableListMixin<T>{
                     return entity;
                 })
                 .filter(type::isInstance)
-                .collect(Util.toMutableList());
+                .collect(Collectors.toList());
             return Collections.unmodifiableCollection(liveList);
 		}
 	}

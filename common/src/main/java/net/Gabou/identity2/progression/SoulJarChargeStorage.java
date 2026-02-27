@@ -7,12 +7,10 @@ import java.util.Locale;
 import java.util.Map;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomData;
 
 public final class SoulJarChargeStorage {
     private static final String ITEM_SOUL_JAR_KEY = "identity2_soul_jar";
@@ -27,11 +25,10 @@ public final class SoulJarChargeStorage {
             return null;
         }
 
-        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        if (customData == null || customData.isEmpty()) {
+        if (!stack.hasTag()) {
             return null;
         }
-        CompoundTag root = customData.copyTag();
+        CompoundTag root = stack.getTag();
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return null;
@@ -86,14 +83,13 @@ public final class SoulJarChargeStorage {
             jarId = "jar_" + Math.abs((itemId == null ? stack.hashCode() : itemId.toString().hashCode()));
         }
 
-        CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        CompoundTag root = currentData == null ? new CompoundTag() : currentData.copyTag();
+        CompoundTag root = stack.hasTag() ? stack.getTag().copy() : new CompoundTag();
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOr(root, ITEM_SOUL_JAR_KEY, new CompoundTag());
         jarTag.putString("jar_id", jarId);
         jarTag.putString("tier", tier);
         net.Gabou.identity2.util.NbtCompat.store(jarTag, CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, Map.of());
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+        stack.setTag(root);
         return read(stack);
     }
 
@@ -101,11 +97,10 @@ public final class SoulJarChargeStorage {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        if (currentData == null || currentData.isEmpty()) {
+        if (!stack.hasTag()) {
             return false;
         }
-        CompoundTag root = currentData.copyTag();
+        CompoundTag root = stack.getTag().copy();
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return false;
@@ -113,7 +108,7 @@ public final class SoulJarChargeStorage {
 
         net.Gabou.identity2.util.NbtCompat.store(jarTag, CHARGE_STORAGE_KEY, STRING_INT_MAP_CODEC, sanitize(charges));
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+        stack.setTag(root);
         return true;
     }
 

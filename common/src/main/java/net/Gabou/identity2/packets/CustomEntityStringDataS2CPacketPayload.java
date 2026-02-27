@@ -2,23 +2,25 @@ package net.Gabou.identity2.packets;
 
 import java.util.List;
 import net.Gabou.identity2.ModPackets;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.Gabou.identity2.util.NetworkPayload;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 
-public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryString> entries) implements CustomPacketPayload {
-    public static final Type<CustomEntityStringDataS2CPacketPayload> ID = new Type<>(ModPackets.CUSTOM_STRING_DATA_ID);
-    public static final StreamCodec<RegistryFriendlyByteBuf, CustomEntityStringDataS2CPacketPayload> CODEC = StreamCodec.composite(
-        ByteBufCodecs.VAR_INT,
-        CustomEntityStringDataS2CPacketPayload::entityid,
-        CustomEntityDataS2CPacket.EntryString.CODEC.apply(ByteBufCodecs.list()),
-        CustomEntityStringDataS2CPacketPayload::entries,
-        CustomEntityStringDataS2CPacketPayload::new
-    );
+public record CustomEntityStringDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryString> entries) implements NetworkPayload {
+    public static final ResourceLocation ID = ModPackets.CUSTOM_STRING_DATA_ID;
+
+    public static CustomEntityStringDataS2CPacketPayload decode(FriendlyByteBuf buffer) {
+        return new CustomEntityStringDataS2CPacketPayload(buffer.readVarInt(), CustomEntityDataS2CPacket.readStringEntries(buffer));
+    }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
+    public ResourceLocation id() {
         return ID;
+    }
+
+    @Override
+    public void write(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(entityid);
+        CustomEntityDataS2CPacket.writeStringEntries(buffer, entries);
     }
 }

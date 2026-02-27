@@ -8,15 +8,15 @@ import java.util.function.Consumer;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.CustomData;
+import org.jetbrains.annotations.Nullable;
 
 public final class SoulJarItem extends Item {
     private static final String ITEM_SOUL_JAR_KEY = "identity2_soul_jar";
@@ -29,7 +29,7 @@ public final class SoulJarItem extends Item {
     @Override
     public void appendHoverText(
             ItemStack stack,
-            TooltipContext context,
+            @Nullable Level level,
             List<Component> tooltipAdder,
             TooltipFlag tooltipFlag
     ) {
@@ -72,14 +72,10 @@ public final class SoulJarItem extends Item {
     }
 
     private static int readStoredMorphCount(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
+        if (stack == null || stack.isEmpty() || !stack.hasTag()) {
             return 0;
         }
-        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        if (customData == null || customData.isEmpty()) {
-            return 0;
-        }
-        CompoundTag root = customData.copyTag();
+        CompoundTag root = stack.getTag();
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return 0;

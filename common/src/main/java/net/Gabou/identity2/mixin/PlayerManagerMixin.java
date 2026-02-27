@@ -1,6 +1,6 @@
 package net.Gabou.identity2.mixin;
 
-import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -18,7 +18,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.NetworkPayload;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
@@ -30,7 +30,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -72,8 +71,8 @@ public class PlayerManagerMixin {
         IdentityProgression.ensureClientUnlockCache(player);
         IdentityProgression.restoreMorphFromSavedData(player);
 
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = customData;
 
         for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {
             Tag raw = nbt.get(key);
@@ -94,15 +93,15 @@ public class PlayerManagerMixin {
 
         CustomEntityDataS2CPacketPayload doublePayload = new CustomEntityDataS2CPacketPayload(player.getId(), doubleData);
         sendToWorldPlayers(player, doublePayload);
-        NetworkManager.sendToPlayer(player, doublePayload);
+        NetworkCompat.sendToPlayer(player, doublePayload);
 
         CustomEntityStringDataS2CPacketPayload stringPayload = new CustomEntityStringDataS2CPacketPayload(player.getId(), stringData);
         sendToWorldPlayers(player, stringPayload);
-        NetworkManager.sendToPlayer(player, stringPayload);
+        NetworkCompat.sendToPlayer(player, stringPayload);
 
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
-        NetworkManager.sendToPlayer(player, boolPayload);
+        NetworkCompat.sendToPlayer(player, boolPayload);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
         // where dimensions are still being initialized by vanilla/mods.
@@ -194,11 +193,11 @@ public class PlayerManagerMixin {
         if (source == null || target == null || source == target) {
             return;
         }
-        CompoundTag sourceNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) source).getCustomData()).getNbt();
+        CompoundTag sourceNbt = ((EntityAccessor) source).getCustomData();
         if (sourceNbt == null || sourceNbt.isEmpty()) {
             return;
         }
-        CompoundTag targetNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) target).getCustomData()).getNbt();
+        CompoundTag targetNbt = ((EntityAccessor) target).getCustomData();
         targetNbt.merge(sourceNbt.copy());
     }
 
@@ -207,7 +206,7 @@ public class PlayerManagerMixin {
             return;
         }
         IdentityProgression.ensureClientUnlockCache(player);
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
         String unlockedCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
         String variantCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
 
@@ -219,17 +218,21 @@ public class PlayerManagerMixin {
             )
         );
         sendToWorldPlayers(player, payload);
-        NetworkManager.sendToPlayer(player, payload);
+        NetworkCompat.sendToPlayer(player, payload);
     }
 
-    private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
+    private static <T extends NetworkPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
         if (source.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer player : serverWorld.players()) {
                 if (player != source) {
-                    NetworkManager.sendToPlayer(player, payload);
+                    NetworkCompat.sendToPlayer(player, payload);
                 }
             }
         }
     }
 }
+
+
+
+
 

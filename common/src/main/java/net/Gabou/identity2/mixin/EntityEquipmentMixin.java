@@ -45,7 +45,7 @@ public class EntityEquipmentMixin{
                 continue;
             }
 
-            if (stack.has(ModComponents.SOULBOUND)) {
+            if (ModComponents.hasSoulbound(stack)) {
                 continue;
             }
 

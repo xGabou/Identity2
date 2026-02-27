@@ -1,10 +1,9 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.Gabou.identity2.util.NetworkPayload;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 
 public record MorphAcquisitionS2CPacketPayload(
     int originEntityId,
@@ -13,28 +12,32 @@ public record MorphAcquisitionS2CPacketPayload(
     double acquiredY,
     double acquiredZ,
     boolean morphAcquisition
-) implements CustomPacketPayload {
-    public static final Type<MorphAcquisitionS2CPacketPayload> ID =
-        new Type<>(ModPackets.MORPH_ACQUISITION_PACKET_ID);
+) implements NetworkPayload {
+    public static final ResourceLocation ID = ModPackets.MORPH_ACQUISITION_PACKET_ID;
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, MorphAcquisitionS2CPacketPayload> CODEC = StreamCodec.composite(
-        ByteBufCodecs.VAR_INT,
-        MorphAcquisitionS2CPacketPayload::originEntityId,
-        ByteBufCodecs.VAR_INT,
-        MorphAcquisitionS2CPacketPayload::acquiredEntityId,
-        ByteBufCodecs.DOUBLE,
-        MorphAcquisitionS2CPacketPayload::acquiredX,
-        ByteBufCodecs.DOUBLE,
-        MorphAcquisitionS2CPacketPayload::acquiredY,
-        ByteBufCodecs.DOUBLE,
-        MorphAcquisitionS2CPacketPayload::acquiredZ,
-        ByteBufCodecs.BOOL,
-        MorphAcquisitionS2CPacketPayload::morphAcquisition,
-        MorphAcquisitionS2CPacketPayload::new
-    );
+    public static MorphAcquisitionS2CPacketPayload decode(FriendlyByteBuf buffer) {
+        return new MorphAcquisitionS2CPacketPayload(
+            buffer.readVarInt(),
+            buffer.readVarInt(),
+            buffer.readDouble(),
+            buffer.readDouble(),
+            buffer.readDouble(),
+            buffer.readBoolean()
+        );
+    }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
+    public ResourceLocation id() {
         return ID;
+    }
+
+    @Override
+    public void write(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(originEntityId);
+        buffer.writeVarInt(acquiredEntityId);
+        buffer.writeDouble(acquiredX);
+        buffer.writeDouble(acquiredY);
+        buffer.writeDouble(acquiredZ);
+        buffer.writeBoolean(morphAcquisition);
     }
 }

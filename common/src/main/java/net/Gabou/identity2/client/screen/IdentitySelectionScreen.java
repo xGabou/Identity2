@@ -590,7 +590,7 @@ public final class IdentitySelectionScreen extends Screen {
             return Set.of();
         }
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
         String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (csv == null || csv.isBlank()) {
             return Set.of();
@@ -612,7 +612,7 @@ public final class IdentitySelectionScreen extends Screen {
             return Map.of();
         }
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
         String serialized = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
         if (serialized == null || serialized.isBlank()) {
             return Map.of();
@@ -728,5 +728,6 @@ public final class IdentitySelectionScreen extends Screen {
     private record IdentityEntry(ResourceLocation id, boolean unlocked, String searchableId, String displayName) {
     }
 }
+
 
 

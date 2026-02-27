@@ -95,7 +95,7 @@ public class ClientPlayerInteractionManagerMixin {
     }
 
     private static boolean identity2$isVillagerLikeIdentity(Player targetPlayer) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) targetPlayer).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) targetPlayer).getCustomData();
         String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
             selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
@@ -103,4 +103,5 @@ public class ClientPlayerInteractionManagerMixin {
         return "minecraft:villager".equals(selectedType) || "minecraft:wandering_trader".equals(selectedType);
     }
 }
+
 

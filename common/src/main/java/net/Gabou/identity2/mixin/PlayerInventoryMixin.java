@@ -33,7 +33,7 @@ public class PlayerInventoryMixin{
     @Redirect(method = "dropAll",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;isEmpty()Z"))
     private boolean cancelDropSoulboundItems(ItemStack stack) {
-        return !(!stack.isEmpty()&&!stack.has(ModComponents.SOULBOUND));
+        return !(!stack.isEmpty() && !ModComponents.hasSoulbound(stack));
     }
 }
 

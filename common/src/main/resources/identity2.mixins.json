@@ -17,7 +17,6 @@
     "PlayerManagerMixin",
     "MinecraftServerMixin",
     "MobGoalSelectorAccessorMixin",
-    "NbtComponentMixin",
     "LimbAnimatorMixin",
     "GiantEntityMixin",
     "EntityTrackerEntryMixin",
@@ -31,7 +30,6 @@
     "AttributeContainerMixin",
     "DefaultAttributeContainerMixin",
     "RegistriesMixin",
-    "RegistryMixin",
     "ShulkerEntityMixin",
     "ZombieEntityMixin"
   ],

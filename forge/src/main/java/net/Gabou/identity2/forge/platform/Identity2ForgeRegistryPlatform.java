@@ -1,13 +1,13 @@
-package net.Gabou.identity2.neoforge.platform;
+package net.Gabou.identity2.forge.platform;
 
 import com.mojang.serialization.Codec;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DataPackRegistryEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DataPackRegistryEvent;
 
-public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatform {
+public final class Identity2ForgeRegistryPlatform implements ModRegistryPlatform {
     private static ResourceKey<? extends Registry<?>> pendingRegistryKey;
     private static Codec<?> pendingCodec;
     private static boolean eventBound = false;
@@ -17,7 +17,7 @@ public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatf
             return;
         }
         eventBound = true;
-        modEventBus.addListener(Identity2NeoForgeRegistryPlatform::onNewDataPackRegistry);
+        modEventBus.addListener(Identity2ForgeRegistryPlatform::onNewDataPackRegistry);
     }
 
     @Override

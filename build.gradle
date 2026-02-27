@@ -99,7 +99,7 @@ tasks.register("discordWebhook") {
                 content: "**New release published!** 🎉\n" +
                         "<@&1363945953546997810>\n" + // role mention
                         "Project: ${archives_name}\n" +
-                        "Version: v${version}-1.20.5\n\n" +
+                        "Version: v${version}-1.20.4\n\n" +
                         "${changelogText.take(1900)}"
         ]
 

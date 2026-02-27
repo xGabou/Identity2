@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin;
 
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import java.util.ArrayList;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -27,7 +28,7 @@ public class EntityTrackerEntryMixin {
     private void sendCustomDataPackets(ServerPlayer player, CallbackInfo info) {
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleValues = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringValues = new ArrayList<>(0);
-        CompoundTag data = ((NbtComponentAccessor) (Object) ((EntityAccessor) this.entity).getCustomData()).getNbt();
+        CompoundTag data = ((EntityAccessor) this.entity).getCustomData();
 
         for (String key : net.Gabou.identity2.util.NbtCompat.keySet(data)) {
             Tag value = data.get(key);
@@ -43,10 +44,13 @@ public class EntityTrackerEntryMixin {
         }
 
         if (!doubleValues.isEmpty()) {
-            NetworkManager.sendToPlayer(player, new CustomEntityDataS2CPacketPayload(this.entity.getId(), doubleValues));
+            NetworkCompat.sendToPlayer(player, new CustomEntityDataS2CPacketPayload(this.entity.getId(), doubleValues));
         }
         if (!stringValues.isEmpty()) {
-            NetworkManager.sendToPlayer(player, new CustomEntityStringDataS2CPacketPayload(this.entity.getId(), stringValues));
+            NetworkCompat.sendToPlayer(player, new CustomEntityStringDataS2CPacketPayload(this.entity.getId(), stringValues));
         }
     }
 }
+
+
+

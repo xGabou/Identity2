@@ -287,7 +287,7 @@ public final class IdentityVariantDiscovery {
                 continue;
             }
             ResourceKey<?> valueKey = ref.key();
-            ResourceKey<? extends Registry<?>> registryKey = valueKey.registryKey();
+            ResourceKey<? extends Registry<?>> registryKey = ResourceKey.createRegistryKey(valueKey.registry());
             net.minecraft.core.Registry<?> registry = world.registryAccess().registryOrThrow(registryKey);
             List<net.minecraft.resources.ResourceKey<?>> keys = new ArrayList<>(registry.registryKeySet());
             keys.sort(Comparator.comparing(k -> k.location().toString(), String.CASE_INSENSITIVE_ORDER));

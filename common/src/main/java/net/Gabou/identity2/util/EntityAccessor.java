@@ -3,13 +3,12 @@ package net.Gabou.identity2.util;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
 
 public interface EntityAccessor {
     void fixAttributes(Entity entity, Entity identity);
 
-    CustomData getCustomData();
+    CompoundTag getCustomData();
 
     Entity getCurrentIdentity();
 

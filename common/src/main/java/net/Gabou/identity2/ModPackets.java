@@ -22,6 +22,7 @@ import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
@@ -72,20 +73,10 @@ public final class ModPackets {
         }
         initialized = true;
 
-        if (Platform.getEnvironment() == Env.SERVER) {
-            NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
-        }
-
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             IdentityAbilityPacketPayload.ID,
-            IdentityAbilityPacketPayload.CODEC,
+            IdentityAbilityPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleIdentityAbilityPacket(player, payload);
@@ -93,10 +84,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             IdentityMorphRequestC2SPacketPayload.ID,
-            IdentityMorphRequestC2SPacketPayload.CODEC,
+            IdentityMorphRequestC2SPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleMorphRequestPacket(player, payload);
@@ -104,10 +95,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             IdentityVillagerTradeRequestC2SPacketPayload.ID,
-            IdentityVillagerTradeRequestC2SPacketPayload.CODEC,
+            IdentityVillagerTradeRequestC2SPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleVillagerTradeRequestPacket(player, payload);
@@ -115,10 +106,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             ProgressionChargeSyncRequestC2SPacketPayload.ID,
-            ProgressionChargeSyncRequestC2SPacketPayload.CODEC,
+            ProgressionChargeSyncRequestC2SPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     ProgressionUiSync.sendPlayerCharges(player);
@@ -126,10 +117,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             ProgressionJarSelectC2SPacketPayload.ID,
-            ProgressionJarSelectC2SPacketPayload.CODEC,
+            ProgressionJarSelectC2SPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleProgressionJarSelect(player, payload);
@@ -137,10 +128,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             ProgressionJarTransferC2SPacketPayload.ID,
-            ProgressionJarTransferC2SPacketPayload.CODEC,
+            ProgressionJarTransferC2SPacketPayload::decode,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleProgressionJarTransfer(player, payload);

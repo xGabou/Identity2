@@ -41,7 +41,6 @@ import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -63,7 +62,6 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -78,13 +76,6 @@ import java.lang.reflect.Modifier;
 
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor {
-    @Nullable
-    @Unique
-    private CustomData identity2$customDataView;
-
-    @Nullable
-    @Unique
-    private static Constructor<CustomData> identity2$customDataCtor;
 
     @Nullable
     private CompoundTag persistentData;
@@ -143,7 +134,7 @@ public class EntityMixin implements EntityAccessor {
     @Redirect(method = "move",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
         if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
@@ -246,7 +237,7 @@ public class EntityMixin implements EntityAccessor {
     @Redirect(method = "move",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
         if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
@@ -385,7 +376,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "getBbWidth", at = @At("HEAD"), cancellable = true)
     private void getWidthOverride(CallbackInfoReturnable info) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
         if (override > 0.0D) {
             info.setReturnValue((float) override);
@@ -395,12 +386,12 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true)
     private void getDimensionsModification(CallbackInfoReturnable info) {
         EntityDimensions dimensions = (EntityDimensions) info.getReturnValue();
-        float oldWidth = dimensions.width();
-        float oldHeight = dimensions.height();
+        float oldWidth = dimensions.width;
+        float oldHeight = dimensions.height;
         float widthOverride = oldWidth;
         float heightOverride = oldHeight;
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double widthValue = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
         if (widthValue > 0.0D) {
             widthOverride = (float) widthValue;
@@ -417,7 +408,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "getBbHeight", at = @At("HEAD"), cancellable = true)
     private void getHeightOverride(CallbackInfoReturnable info) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
         if (override > 0.0D) {
             info.setReturnValue((float) override);
@@ -439,7 +430,7 @@ public class EntityMixin implements EntityAccessor {
         double new_height = old_height;
         boolean hasOverride = false;
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         double widthOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
         if (widthOverride > 0.0D) {
             new_width = widthOverride;
@@ -463,39 +454,11 @@ public class EntityMixin implements EntityAccessor {
     }
 
     @Override
-    public CustomData getCustomData() {
+    public CompoundTag getCustomData() {
         if (this.persistentData == null) {
             this.persistentData = new CompoundTag();
         }
-        CompoundTag persistentTag = this.persistentData;
-        if (
-                this.identity2$customDataView == null
-                        || ((NbtComponentAccessor) (Object) this.identity2$customDataView).getNbt() != persistentTag
-        ) {
-            this.identity2$customDataView = identity2$wrapTagReference(persistentTag);
-        }
-        return this.identity2$customDataView;
-    }
-
-    ;
-
-    @Unique
-    private static CustomData identity2$wrapTagReference(CompoundTag tag) {
-        Constructor<CustomData> ctor = identity2$customDataCtor;
-        if (ctor == null) {
-            try {
-                ctor = CustomData.class.getDeclaredConstructor(CompoundTag.class);
-                ctor.setAccessible(true);
-                identity2$customDataCtor = ctor;
-            } catch (Throwable ignored) {
-                return CustomData.of(tag);
-            }
-        }
-        try {
-            return ctor.newInstance(tag);
-        } catch (Throwable ignored) {
-            return CustomData.of(tag);
-        }
+        return this.persistentData;
     }
 
     @Nullable
@@ -550,7 +513,7 @@ public class EntityMixin implements EntityAccessor {
             nbtCompound = new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty()) {
-            CompoundTag dataNbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+            CompoundTag dataNbt = this.getCustomData();
             String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(dataNbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
@@ -1035,7 +998,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = this.getCustomData();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
@@ -1211,21 +1174,9 @@ public class EntityMixin implements EntityAccessor {
     }
 
 
-    @Shadow
-    public double getDefaultGravity() {
-        return 0;
-    }
-
     @Override
     public double getIdentityGravity() {
-        return this.getDefaultGravity();
-    }
-
-    @Inject(method = "getDefaultGravity()D", at = @At("HEAD"), cancellable = true)
-    private void getGravityIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(((EntityAccessor) this.currentIdentity).getIdentityGravity());
-        }
+        return 0.08D;
     }
 
 
@@ -1502,6 +1453,9 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 //Tons of Redirects - End
 }
+
+
+
 
 
 

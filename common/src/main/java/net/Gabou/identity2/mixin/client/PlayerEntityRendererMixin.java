@@ -28,7 +28,7 @@ public class PlayerEntityRendererMixin {
     )
     private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, CallbackInfoReturnable<ResourceLocation> cir) {
         net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) entity).getCustomData();
         String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
             selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
@@ -75,4 +75,5 @@ public class PlayerEntityRendererMixin {
         return minecraft.getSkinManager().getInsecureSkin(new GameProfile(uuid, (name == null || name.isBlank()) ? "Player" : name));
     }
 }
+
 

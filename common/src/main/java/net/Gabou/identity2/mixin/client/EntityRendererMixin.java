@@ -3,7 +3,6 @@ package net.Gabou.identity2.mixin.client;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.ModelPartCompat;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -50,12 +49,7 @@ public class EntityRendererMixin {
         if (!(entity instanceof EntityAccessor accessor)) {
             return;
         }
-        Object customData = accessor.getCustomData();
-        if (!(customData instanceof NbtComponentAccessor nbtAccessor)) {
-            return;
-        }
-
-        CompoundTag nbt = nbtAccessor.getNbt();
+        CompoundTag nbt = accessor.getCustomData();
         boolean hasHiddenPartOverrides = false;
 
         for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {

@@ -1,21 +1,24 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.Gabou.identity2.util.NetworkPayload;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 
-public record IdentityAbilityPacketPayload(int entityid) implements CustomPacketPayload {
-    public static final Type<IdentityAbilityPacketPayload> ID = new Type<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);
-    public static final StreamCodec<RegistryFriendlyByteBuf, IdentityAbilityPacketPayload> CODEC = StreamCodec.composite(
-        ByteBufCodecs.VAR_INT,
-        IdentityAbilityPacketPayload::entityid,
-        IdentityAbilityPacketPayload::new
-    );
+public record IdentityAbilityPacketPayload(int entityid) implements NetworkPayload {
+    public static final ResourceLocation ID = ModPackets.IDENTITY_ABILITY_PACKET_ID;
+
+    public static IdentityAbilityPacketPayload decode(FriendlyByteBuf buffer) {
+        return new IdentityAbilityPacketPayload(buffer.readVarInt());
+    }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
+    public ResourceLocation id() {
         return ID;
+    }
+
+    @Override
+    public void write(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(entityid);
     }
 }

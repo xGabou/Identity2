@@ -515,7 +515,7 @@ public final class IdentityProgressionScreen extends Screen {
         if (client == null || client.player == null) {
             return Set.of();
         }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
         String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (csv == null || csv.isBlank()) {
             return Set.of();
@@ -666,3 +666,4 @@ public final class IdentityProgressionScreen extends Screen {
     private record InventorySlotView(int index, int x, int y) {
     }
 }
+

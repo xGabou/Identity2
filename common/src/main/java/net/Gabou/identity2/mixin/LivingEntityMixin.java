@@ -103,9 +103,17 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         return newContainer;
     }
 
-    @Shadow
-    public boolean canUseSlot(EquipmentSlot slot) {
-        return false;
+    private static boolean identity2$canUseSlot(LivingEntity livingIdentity, EquipmentSlot slot) {
+        if (livingIdentity == null || slot == null) {
+            return true;
+        }
+        try {
+            return (boolean) LivingEntity.class
+                .getMethod("canUseSlot", EquipmentSlot.class)
+                .invoke(livingIdentity, slot);
+        } catch (Throwable ignored) {
+            return true;
+        }
     }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
@@ -310,32 +318,23 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "getMainHandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getMainHandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(EquipmentSlot.MAINHAND)) {
+        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, EquipmentSlot.MAINHAND)) {
             info.setReturnValue(Items.AIR.getDefaultInstance());
         }
     }
 
     @Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(EquipmentSlot.OFFHAND)) {
+        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, EquipmentSlot.OFFHAND)) {
             info.setReturnValue(Items.AIR.getDefaultInstance());
         }
     }
 
     @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
     private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(slot)) {
+        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
             info.setReturnValue(false);
-        }
-    }
-
-    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canUseSlot(slot));
-            }
-        }
+        };
     }
 
     @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
@@ -348,3 +347,4 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 //Tons of Redirects - End
 }
+

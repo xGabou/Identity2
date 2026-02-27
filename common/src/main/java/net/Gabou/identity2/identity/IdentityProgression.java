@@ -3,6 +3,7 @@ package net.Gabou.identity2.identity;
 import com.mojang.brigadier.StringReader;
 import com.mojang.serialization.Codec;
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import java.nio.charset.StandardCharsets;
@@ -49,7 +50,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -165,25 +165,25 @@ public final class IdentityProgression {
         if (player == null || identityId == null) {
             return false;
         }
-        CustomData customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
         String value = identityId.toString();
         CompoundTag safeVariant = variantNbt == null ? new CompoundTag() : variantNbt.copy();
         if (!MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
             return false;
         }
         String serializedVariant = serializeVariantNbt(safeVariant);
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag nbt = customData;
         net.minecraft.world.entity.EntityDimensions previousDimensions = player.getDimensions(player.getPose());
-        double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width());
-        double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height());
+        double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width);
+        double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height);
         Entity previousIdentity = ((EntityAccessor) player).getCurrentIdentity();
         if (previousIdentity != null) {
             net.minecraft.world.entity.EntityDimensions previousIdentityDimensions = previousIdentity.getDimensions(previousIdentity.getPose());
             if (previousWidth <= 0.0D) {
-                previousWidth = previousIdentityDimensions.width();
+                previousWidth = previousIdentityDimensions.width;
             }
             if (previousHeight <= 0.0D) {
-                previousHeight = previousIdentityDimensions.height();
+                previousHeight = previousIdentityDimensions.height;
             }
         }
         String previousType = resolveTransitionSourceType(nbt);
@@ -212,7 +212,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             ensureSafePostResizePosition(player);
             net.minecraft.world.entity.EntityDimensions nextDimensions = player.getDimensions(player.getPose());
-            updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width(), nextDimensions.height());
+            updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width, nextDimensions.height);
             applyHealthScaling(player, null);
             syncMorphData(player, value, serializedVariant, 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
             return true;
@@ -235,15 +235,15 @@ public final class IdentityProgression {
         }
 
         net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
-        widthOverride = identityDimensions.width();
-        heightOverride = identityDimensions.height();
+        widthOverride = identityDimensions.width;
+        heightOverride = identityDimensions.height;
 
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
-        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
-        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        float widthScale = identityDimensions.width > 0.0F ? (float)(widthOverride / identityDimensions.width) : 1.0F;
+        float heightScale = identityDimensions.height > 0.0F ? (float)(heightOverride / identityDimensions.height) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
         ensureSafePostResizePosition(player);
@@ -257,8 +257,8 @@ public final class IdentityProgression {
     }
 
     public static void clearMorph(ServerPlayer player) {
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        CompoundTag nbt = customData;
         String previousType = resolveTransitionSourceType(nbt);
         String previousVariant = resolveTransitionSourceVariant(nbt, previousType);
         if (previousType.isBlank()) {
@@ -341,15 +341,15 @@ public final class IdentityProgression {
         }
 
         net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
-        double widthOverride = identityDimensions.width();
-        double heightOverride = identityDimensions.height();
+        double widthOverride = identityDimensions.width;
+        double heightOverride = identityDimensions.height;
 
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
-        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
-        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
+        float widthScale = identityDimensions.width > 0.0F ? (float)(widthOverride / identityDimensions.width) : 1.0F;
+        float heightScale = identityDimensions.height > 0.0F ? (float)(heightOverride / identityDimensions.height) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
         ensureSafePostResizePosition(player);
@@ -403,11 +403,11 @@ public final class IdentityProgression {
             )
         );
 
-        NetworkManager.sendToPlayer(player, payload);
+        NetworkCompat.sendToPlayer(player, payload);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkManager.sendToPlayer(other, payload);
+                    NetworkCompat.sendToPlayer(other, payload);
                 }
             }
         }
@@ -577,7 +577,7 @@ public final class IdentityProgression {
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained));
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
 
-        NetworkManager.sendToPlayer(
+        NetworkCompat.sendToPlayer(
             player,
             new CustomEntityStringDataS2CPacketPayload(
                 player.getId(),
@@ -811,7 +811,7 @@ public final class IdentityProgression {
         String variantCache = serializeUnlockedVariantMap(variantUnlocks);
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache);
-        NetworkManager.sendToPlayer(
+        NetworkCompat.sendToPlayer(
             player,
             new CustomEntityStringDataS2CPacketPayload(
                 player.getId(),
@@ -900,13 +900,13 @@ public final class IdentityProgression {
             )
         );
 
-        NetworkManager.sendToPlayer(player, modelPayload);
-        NetworkManager.sendToPlayer(player, shapePayload);
+        NetworkCompat.sendToPlayer(player, modelPayload);
+        NetworkCompat.sendToPlayer(player, shapePayload);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkManager.sendToPlayer(other, modelPayload);
-                    NetworkManager.sendToPlayer(other, shapePayload);
+                    NetworkCompat.sendToPlayer(other, modelPayload);
+                    NetworkCompat.sendToPlayer(other, shapePayload);
                 }
             }
         }
@@ -924,10 +924,10 @@ public final class IdentityProgression {
             acquired.getZ(),
             morphAcquisition
         );
-        NetworkManager.sendToPlayer(player, payload);
+        NetworkCompat.sendToPlayer(player, payload);
         for (ServerPlayer other : serverWorld.players()) {
             if (other != player) {
-                NetworkManager.sendToPlayer(other, payload);
+                NetworkCompat.sendToPlayer(other, payload);
             }
         }
     }
@@ -983,7 +983,7 @@ public final class IdentityProgression {
         if (!(entity instanceof Player) || entity.level() == null) {
             return false;
         }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) entity).getCustomData()).getNbt();
+        CompoundTag nbt = ((EntityAccessor) entity).getCustomData();
         double graceEndTick = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
         return graceEndTick > entity.level().getGameTime();
     }
@@ -1046,8 +1046,8 @@ public final class IdentityProgression {
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        return ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        return customData;
     }
 
     private static void applyHealthScaling(ServerPlayer player, @Nullable Entity identity) {
@@ -1079,8 +1079,8 @@ public final class IdentityProgression {
         desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
         double delta = desired - base;
         if (Math.abs(delta) > 1.0E-4D) {
-            maxHealthAttr.addOrUpdateTransientModifier(
-                new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADD_VALUE)
+            maxHealthAttr.addTransientModifier(
+                new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADDITION)
             );
         }
 
@@ -1469,5 +1469,10 @@ public final class IdentityProgression {
     private record UnlockTarget(ResourceLocation identityId, CompoundTag variantNbt) {
     }
 }
+
+
+
+
+
 
 

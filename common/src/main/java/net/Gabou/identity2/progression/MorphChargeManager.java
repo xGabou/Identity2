@@ -11,7 +11,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.component.CustomData;
 
 public final class MorphChargeManager {
     private static final String MORPH_CHARGES_KEY = "identity2.progression.morph_charges";
@@ -170,9 +169,11 @@ public final class MorphChargeManager {
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {
-        CustomData customData = ((EntityAccessor) player).getCustomData();
-        return ((NbtComponentAccessor) (Object) customData).getNbt();
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        return customData;
     }
 }
+
+
 
 

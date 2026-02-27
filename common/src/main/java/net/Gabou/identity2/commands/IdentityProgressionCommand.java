@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.List;
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
@@ -228,7 +229,7 @@ public final class IdentityProgressionCommand {
             source.sendFailure(Component.literal("Specify a target player."));
             return 0;
         }
-        NetworkManager.sendToPlayer(player, new OpenProgressionScreenS2CPacketPayload());
+        NetworkCompat.sendToPlayer(player, new OpenProgressionScreenS2CPacketPayload());
         source.sendSuccess(() -> Component.literal("Opened progression UI for " + player.getName().getString()), false);
         return 1;
     }
@@ -378,3 +379,5 @@ public final class IdentityProgressionCommand {
         return source.getPlayer();
     }
 }
+
+
