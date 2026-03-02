@@ -6,9 +6,7 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -29,22 +27,21 @@ import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EntityNbtIoCompat;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NumericTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -83,6 +80,7 @@ public final class IdentityProgression {
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
+    private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int LARGE_MORPH_DAMAGE_GRACE_TICKS = 40;
     private static boolean initialized = false;
 
@@ -506,6 +504,9 @@ public final class IdentityProgression {
         if (player == null || identityId == null || !isUnlocked(player, identityId)) {
             return false;
         }
+        if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
+            return true;
+        }
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
             net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
@@ -682,7 +683,7 @@ public final class IdentityProgression {
     private static int incrementKillCount(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
         CompoundTag nbt = getCustomData(player);
         Map<String, Integer> killMap = new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(nbt, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
-        String key = identityId + "|" + toVariantUnlockToken(variantNbt);
+        String key = identityId + "|" + toVariantUnlockToken(normalizeVariantForUnlock(variantNbt));
         int kills = killMap.getOrDefault(key, 0) + 1;
         killMap.put(key, kills);
         net.Gabou.identity2.util.NbtCompat.store(nbt, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, killMap);
@@ -717,6 +718,9 @@ public final class IdentityProgression {
     }
 
     private static boolean unlockIdentityVariant(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+        if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
+            return unlockIdentity(player, identityId);
+        }
         List<String> unlocked = getUnlockedIdentities(player);
         String key = identityId.toString();
         CompoundTag customData = getCustomData(player);
@@ -741,7 +745,7 @@ public final class IdentityProgression {
         }
 
         List<String> tokens = new ArrayList<>(variantUnlocks.getOrDefault(key, List.of()));
-        String token = toVariantUnlockToken(variantNbt);
+        String token = toVariantUnlockToken(normalizeVariantForUnlock(variantNbt));
         if (!tokens.contains(token)) {
             tokens.add(token);
             variantUnlocks.put(key, tokens);
@@ -1061,7 +1065,7 @@ public final class IdentityProgression {
 
         maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_UUID);
 
-        if (!IdentitySettings.scalingHealth || !(identity instanceof LivingEntity livingIdentity)) {
+        if (!IdentitySettings.scalingHealth) {
             float newMaxHealth = player.getMaxHealth();
             // When scaling is disabled, avoid rewriting health every morph/login tick.
             // Only clamp if health is outside the valid range.
@@ -1073,15 +1077,16 @@ public final class IdentityProgression {
             }
             return;
         }
-
-        double base = maxHealthAttr.getBaseValue();
-        double desired = resolveIdentityMaxHealth(player, livingIdentity);
-        desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
-        double delta = desired - base;
-        if (Math.abs(delta) > 1.0E-4D) {
-            maxHealthAttr.addOrUpdateTransientModifier(
+        if (identity instanceof LivingEntity livingIdentity) {
+            double base = maxHealthAttr.getBaseValue();
+            double desired = resolveIdentityMaxHealth(player, livingIdentity);
+            desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
+            double delta = desired - base;
+            if (Math.abs(delta) > 1.0E-4D) {
+                maxHealthAttr.addOrUpdateTransientModifier(
                 new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADD_VALUE)
-            );
+                );
+            }
         }
 
         float newMaxHealth = player.getMaxHealth();
@@ -1158,9 +1163,131 @@ public final class IdentityProgression {
             copyVariantKey(full, variant, "type");
             extractAnimalVariantData(entity, variant);
             extractVillagerVariantData(entity, variant);
+            Boolean isBaby = detectBabyState(entity, variant);
+            if (isBaby != null) {
+                variant.putBoolean("IsBaby", isBaby);
+            }
         } catch (Throwable ignored) {
         }
-        return variant;
+        return normalizeVariantForUnlock(variant);
+    }
+
+    @Nullable
+    private static Boolean detectBabyState(LivingEntity entity, CompoundTag variant) {
+        if (entity == null) {
+            return null;
+        }
+        if (variant != null) {
+            if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
+                return NbtCompat.getBooleanOr(variant, "IsBaby", false);
+            }
+
+            if (variant.contains("Baby", Tag.TAG_BYTE)) {
+                return NbtCompat.getBooleanOr(variant, "Baby", false);
+            }
+
+            if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+                return NbtCompat.getIntOr(variant, "Age", 0) < 0;
+            }
+        }
+
+        Object isBaby = invokeNoArg(entity, "isBaby");
+        if (isBaby instanceof Boolean value) {
+            return value;
+        }
+        Object isChild = invokeNoArg(entity, "isChild");
+        if (isChild instanceof Boolean value) {
+            return value;
+        }
+        Object age = invokeNoArg(entity, "getAge");
+        if (age instanceof Number number) {
+            return number.intValue() < 0;
+        }
+        return null;
+    }
+
+    public static CompoundTag normalizeVariantForUnlock(CompoundTag source) {
+        return sanitizeVariantNbt(source, true);
+    }
+
+    public static boolean matchesStoredVariantToken(CompoundTag requestedVariantNbt, String storedToken) {
+        if (storedToken == null || storedToken.isBlank()) {
+            return false;
+        }
+        CompoundTag requested = normalizeVariantForUnlock(requestedVariantNbt);
+        CompoundTag stored = normalizeVariantForUnlock(fromVariantUnlockToken(storedToken));
+        return isVariantEquivalent(requested, stored);
+    }
+
+    public static boolean isVariantEquivalent(CompoundTag first, CompoundTag second) {
+        CompoundTag left = normalizeVariantForUnlock(first);
+        CompoundTag right = normalizeVariantForUnlock(second);
+        if (tagEquivalent(left, right)) {
+            return true;
+        }
+        // Accept subset matches to tolerate noisy or partial historical tokens.
+        return compoundContains(left, right) || compoundContains(right, left);
+    }
+
+    private static CompoundTag sanitizeVariantNbt(CompoundTag source, boolean root) {
+        if (source == null || source.isEmpty()) {
+            return new CompoundTag();
+        }
+        CompoundTag out = new CompoundTag();
+        for (String key : source.getAllKeys()) {
+            if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
+                continue;
+            }
+            Tag tag = source.get(key);
+            if (tag == null) {
+                continue;
+            }
+            if (tag instanceof CompoundTag nested) {
+                CompoundTag sanitizedNested = sanitizeVariantNbt(nested, false);
+                if (!sanitizedNested.isEmpty()) {
+                    out.put(key, sanitizedNested);
+                }
+                continue;
+            }
+            out.put(key, tag.copy());
+        }
+        return out;
+    }
+
+    private static boolean compoundContains(CompoundTag container, CompoundTag subset) {
+        if (subset == null || subset.isEmpty()) {
+            return true;
+        }
+        if (container == null || container.isEmpty()) {
+            return false;
+        }
+        for (String key : subset.getAllKeys()) {
+            Tag required = subset.get(key);
+            Tag actual = container.get(key);
+            if (required == null) {
+                continue;
+            }
+            if (actual == null || !tagEquivalent(actual, required)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean tagEquivalent(Tag left, Tag right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        if (left instanceof NumericTag leftNum && right instanceof NumericTag rightNum) {
+            return Double.compare(leftNum.getAsDouble(), rightNum.getAsDouble()) == 0;
+        }
+        if (left instanceof CompoundTag leftCompound && right instanceof CompoundTag rightCompound) {
+            return compoundContains(leftCompound, rightCompound) && compoundContains(rightCompound, leftCompound);
+        }
+        return left.equals(right);
     }
 
     private static void copyVariantKey(CompoundTag source, CompoundTag target, String key) {
@@ -1295,8 +1422,28 @@ public final class IdentityProgression {
         if (entity == null || variant == null) {
             return;
         }
+        // Sheep and other dyeable entities expose color through getColor() and may omit it in default NBT.
+        if (!variant.contains("Color")) {
+            Object color = invokeNoArg(entity, "getColor");
+            Integer colorId = resolveDyeColorId(color);
+            if (colorId != null) {
+                int clamped = Math.max(0, Math.min(255, colorId));
+                variant.putByte("Color", (byte) clamped);
+            }
+        }
 
         Object variantValue = invokeNoArg(entity, "getVariant");
+        if (!variant.contains("Variant") && !variant.contains("variant")) {
+            Integer variantId = resolveNumericVariantValue(variantValue);
+            if (variantId != null) {
+                variant.putInt("Variant", variantId);
+            } else {
+                String variantName = resolveVariantStringValue(variantValue);
+                if (variantName != null && !variantName.isBlank()) {
+                    variant.putString("Variant", variantName);
+                }
+            }
+        }
         ResourceLocation catVariantId = resolveRegistryResourceLocation("CAT_VARIANT", variantValue);
         if (catVariantId != null) {
             variant.putString("CatVariant", catVariantId.toString());
@@ -1333,6 +1480,47 @@ public final class IdentityProgression {
         Object ordinal = invokeNoArg(value, "ordinal");
         if (ordinal instanceof Number number) {
             return number.intValue();
+        }
+        return null;
+    }
+    private static Integer resolveNumericVariantValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof Enum<?> enumValue) {
+            return enumValue.ordinal();
+        }
+        Object id = invokeNoArg(value, "getId");
+        if (id instanceof Number number) {
+            return number.intValue();
+        }
+        Object ordinal = invokeNoArg(value, "ordinal");
+        if (ordinal instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
+    }
+
+    private static String resolveVariantStringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof ResourceLocation identifier) {
+            return identifier.toString();
+        }
+        if (value instanceof Enum<?> enumValue) {
+            return enumValue.name().toLowerCase(Locale.ROOT);
+        }
+        Object serialized = invokeNoArg(value, "getSerializedName");
+        if (serialized instanceof String string && !string.isBlank()) {
+            return string;
+        }
+        Object asString = invokeNoArg(value, "asString");
+        if (asString instanceof String string && !string.isBlank()) {
+            return string;
         }
         return null;
     }
