@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-03-02
+
+### Highlights
+
+- New option: `unlockAllVariantsOnFirstUnlock` (unlocking an identity can unlock all its variants).
+- Spider and Cave Spider identities now move normally through cobwebs.
+- Variant unlocks are now more consistent and reliable.
+- Better automatic variant detection for more mobs.
+
+### Fixes
+
+- Fixed an issue where returning to human could leave you with very low hearts after tiny morphs (like salmon).
+- Improved overall morph stability in gameplay.
+
+---
+
 ## 2026-02-26
 
 ### Respawn Progression Sync Fix
