@@ -1,12 +1,10 @@
 package net.Gabou.identity2.mixin;
-
 import com.google.common.collect.Lists;
-
 import java.util.List;
 
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
+import net.minecraft.world.level.block.Blocks;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,9 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
-
 import java.util.Set;
-
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -34,6 +30,7 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -69,13 +66,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.identity.IdentityProgression;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-
 @Mixin(Entity.class)
-public class EntityMixin implements EntityAccessor {
+public class EntityMixin implements EntityAccessor{
     @Nullable
     @Unique
     private CustomData identity2$customDataView;
@@ -88,49 +83,31 @@ public class EntityMixin implements EntityAccessor {
     private CompoundTag persistentData;
     @Shadow
     private int id;
-
     @Shadow
-    public void setId(int id) {
-        this.id = id;
+    public void setId(int id){
+        this.id=id;
     }
-
     @Shadow
-    public int getId() {
+    public int getId(){
         return id;
     }
 
 
-    @Shadow
-    public Vec3 getDeltaMovement() {
-        return null;
-    }
+
 
     @Shadow
-    public int getAirSupply() {
-        return 0;
-    }
-
+    public Vec3 getDeltaMovement(){return null;}
     @Shadow
-    public void setAirSupply(int air) {
-        return;
-    }
-
+    public int getAirSupply(){return 0;}
     @Shadow
-    public Vec3 position() {
-        return null;
-    }
-
+    public void setAirSupply(int air){return;}
     @Shadow
-    public final void setPos(Vec3 v) {
-        return;
-    }
-
+    public Vec3 position(){return null;}
     @Shadow
-    public void setDeltaMovement(Vec3 v) {
-        return;
-    }
-
-    //    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
+    public final void setPos(Vec3 v){return;}
+    @Shadow
+    public void setDeltaMovement(Vec3 v){return;}
+//    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
 //    private static double TDIOA(double x){
 //        return Identity2.maxWorldSize;
 //    }
@@ -143,76 +120,91 @@ public class EntityMixin implements EntityAccessor {
     private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
             return;
         }
         block.updateEntityAfterFallOn(view, entity);
     }
-
-    @Inject(method = "tick", at = @At("HEAD"))
-    private void identityFixCanFlyCheck(CallbackInfo info) {
+	@Inject(method = "tick", at=@At("HEAD"))
+	private void identityFixCanFlyCheck(CallbackInfo info) {
         //this.identity2$applyShulkerOpenVisualState();
         //this.identity2$applyMorphPassiveTraits();
-        if (this.identityOf != null) {
-            if (this.entityCanFlyTickEvaluated == false) {
-                this.entityCanFlyTickEvaluated = true;
-                this.entityCanFlyEvaluated = false;
+        if(this.identityOf!=null){
+            if(this.entityCanFlyTickEvaluated==false){
+                this.entityCanFlyTickEvaluated=true;
+                this.entityCanFlyEvaluated=false;
             }
-            if (this.entityCanFlyEvaluated == false) {
+            if(this.entityCanFlyEvaluated==false){
                 //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
-                this.canFly();
-            }
-            this.identityOf.noPhysics = this.noPhysics;
+                    this.canFly();
+                }
+            this.identityOf.noPhysics=this.noPhysics;
         }
     }
-
-    @Inject(method = "isInWall", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "isInWall", at=@At("HEAD"),cancellable = true)
     protected void disableNoClipSuffocate(CallbackInfoReturnable info) {
-        if (this.noPhysics) {
+		if(this.noPhysics){
             info.setReturnValue(false);
             return;
         }
-        if ((Entity) (Object) this instanceof Player player) {
+        if ((Entity)(Object)this instanceof Player player) {
             Entity identity = ((EntityAccessor) player).getCurrentIdentity();
             if (
-                    identity != null
-                            && player.isInWater()
-                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identity.getType()))
+                identity != null
+                    && player.isInWater()
+                    && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identity.getType()))
             ) {
                 // Aquatic morphs at water/solid boundaries (e.g. under ice) can trigger false in-wall checks.
                 info.setReturnValue(false);
                 return;
             }
             if (
-                    (!((Entity) (Object) this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
-                            || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
+                (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
+                    || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
             }
         }
+	}
+    @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
+    private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
+        if (!state.is(Blocks.COBWEB)) {
+            return;
+        }
+
+        EntityType<?> hostType = ((Entity) (Object) this).getType();
+        if (hostType == EntityType.SPIDER || hostType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
+            return;
+        }
+
+        if (this.currentIdentity == null) {
+            return;
+        }
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (identityType == EntityType.SPIDER || identityType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
+        }
     }
-
-    @Inject(method = "tick", at = @At("RETURN"))
-    private void identityFix(CallbackInfo info) {
-        if (this.currentIdentity != null) {
-            boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
-
-//            if(((Entity) (Object) this) instanceof Player player)
-//            {
-//                this.currentIdentity.setInvulnerable(player.isInvulnerable());
-//            }
+	@Inject(method = "tick", at=@At("RETURN"))
+	private void identityFix(CallbackInfo info) {
+		if(this.currentIdentity!=null){
+            boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
+             
+              
+            //this.currentIdentity.setInvulnerable(hostIsPlayer);
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
-            if (
-                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
-                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
-            ) {
-                livingIdentity.setHealth(livingEntity.getHealth());
+            if(
+                (this.currentIdentity instanceof LivingEntity livingIdentity)&&
+                ((Entity)(Object)this instanceof LivingEntity livingEntity)
+            ){
+            livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if (!this.currentIdentity.level().isClientSide()) {
-                if (this.currentIdentity instanceof Mob mobIdentity) {
+            if(!this.currentIdentity.level().isClientSide()){
+                if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
                 this.currentIdentity.tick();
@@ -220,49 +212,49 @@ public class EntityMixin implements EntityAccessor {
                 //    mobIdentity.setAiDisabled(false);
                 //}
             }
-
-
+             
+            
             this.setPos(this.currentIdentity.position());
             this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
             this.setAirSupply(this.currentIdentity.getAirSupply());
-
-            if (
-                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
-                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
-            ) {
+            if(
+                (this.currentIdentity instanceof LivingEntity livingIdentity)&&
+                ((Entity)(Object)this instanceof LivingEntity livingEntity)
+            ){
                 // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
-                if (!hostIsPlayer) {
-                    livingEntity.setHealth(livingIdentity.getHealth());
-                }
-
+                livingEntity.setHealth(livingIdentity.getHealth());
+                
             }
-
-
+        
+             
         }
-    }
-
+	}
     @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
-    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
+    private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
             return;
         }
-        entity.setDeltaMovement(x, y, z);
+        entity.setDeltaMovement(x,y,z);
     }
 
 
-    public int abilityCooldown = 0;
-    public int secondaryAbilityCooldown = 0;
 
-    public int getAbilityCooldown() {
+
+
+
+
+    public int abilityCooldown=0;
+    public int secondaryAbilityCooldown=0;
+
+    public int getAbilityCooldown(){
         return this.abilityCooldown;
     }
-
-    public void setAbilityCooldown(int cooldown) {
-        this.abilityCooldown = cooldown;
+    public void setAbilityCooldown(int cooldown){
+        this.abilityCooldown=cooldown;
     }
 
     public int getSecondaryAbilityCooldown() {
@@ -274,42 +266,62 @@ public class EntityMixin implements EntityAccessor {
     }
 
 
-    @Inject(method = "baseTick", at = @At("HEAD"), cancellable = true)
-    private void identity2$baseTick(CallbackInfo info) {
-        if (this.abilityCooldown > 0) {
-            this.abilityCooldown -= 1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    @Inject(method="baseTick",at=@At("HEAD"),cancellable=true)
+    private void identity2$baseTick(CallbackInfo info){
+        if(this.abilityCooldown>0){
+            this.abilityCooldown-=1;
         }
-        if (this.secondaryAbilityCooldown > 0) {
-            this.secondaryAbilityCooldown -= 1;
+        if(this.secondaryAbilityCooldown>0){
+            this.secondaryAbilityCooldown-=1;
         }
-        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+        if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
     }
+    
+
 
 
     @Shadow
-    public boolean noPhysics = false;
+    public boolean noPhysics=false;
     @Shadow
     public boolean horizontalCollision;
-
-    public boolean entityCanFly = false;
-    public boolean entityCanFlyEvaluated = false;
-    public boolean entityCanFlyTickEvaluated = false;
+    
+    public boolean entityCanFly=false;
+    public boolean entityCanFlyEvaluated=false;
+    public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
+    
 
 
-    public boolean canFly() {
-        if (!this.entityCanFlyEvaluated) {
-            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity) (Object) this).getType());
+    public boolean canFly(){
+        if(!this.entityCanFlyEvaluated){
+            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
             } else {
                 try {
-                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object) this).getClass(), FALL_METHOD_NAME);
+                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(), FALL_METHOD_NAME);
                 } catch (Exception ignored) {
                 }
                 if (!this.shouldTickBlockCollision()) {
@@ -321,17 +333,16 @@ public class EntityMixin implements EntityAccessor {
             }
             this.entityCanFlyEvaluated = true;
             if (this.identityOf instanceof Player player) {
-                ((EntityMixin) (Object) player).applyIdentityFlightGrant(player, this.entityCanFly);
+                ((EntityMixin)(Object)player).applyIdentityFlightGrant(player, this.entityCanFly);
             }
         }
         return this.entityCanFly;
     }
-
-    private static String identity2$resolveFallMethodName() {
+        private static String identity2$resolveFallMethodName() {
         try {
             return EntityMethodChecks.class
-                    .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
-                    .getName();
+                .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
+                .getName();
         } catch (NoSuchMethodException ignored) {
             return "checkFallDamage";
         }
@@ -345,17 +356,11 @@ public class EntityMixin implements EntityAccessor {
         }
 
         if (identityCanFly) {
-            boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
-                abilitiesChanged = true;
-            }
-            if (!player.getAbilities().flying && !player.onGround()) {
-                player.getAbilities().flying = true;
-                abilitiesChanged = true;
-            }
-            if (abilitiesChanged && player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.onUpdateAbilities();
+                if (player instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.onUpdateAbilities();
+                }
             }
             this.identity2$grantedMayfly = true;
             return;
@@ -380,18 +385,17 @@ public class EntityMixin implements EntityAccessor {
             info.setReturnValue(((Entity) this.identityOf).isControlledByLocalInstance());
         }
     }
-
-    @Inject(method = "getBbWidth", at = @At("HEAD"), cancellable = true)
-    private void getWidthOverride(CallbackInfoReturnable info) {
+    
+    @Inject(method="getBbWidth",at=@At("HEAD"),cancellable=true)
+    private void getWidthOverride(CallbackInfoReturnable info){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
         if (override > 0.0D) {
             info.setReturnValue((float) override);
         }
     }
-
-    @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true)
-    private void getDimensionsModification(CallbackInfoReturnable info) {
+    @Inject(method="getDimensions",at=@At("RETURN"),cancellable=true)
+    private void getDimensionsModification(CallbackInfoReturnable info){
         EntityDimensions dimensions = (EntityDimensions) info.getReturnValue();
         float oldWidth = dimensions.width();
         float oldHeight = dimensions.height();
@@ -412,30 +416,27 @@ public class EntityMixin implements EntityAccessor {
         float heightScale = oldHeight > 0.0F ? heightOverride / oldHeight : 1.0F;
         info.setReturnValue(dimensions.scale(widthScale, heightScale));
     }
-
-    @Inject(method = "getBbHeight", at = @At("HEAD"), cancellable = true)
-    private void getHeightOverride(CallbackInfoReturnable info) {
+    @Inject(method="getBbHeight",at=@At("HEAD"),cancellable=true)
+    private void getHeightOverride(CallbackInfoReturnable info){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
         if (override > 0.0D) {
             info.setReturnValue((float) override);
         }
     }
-
     @Shadow
     private AABB bb;
-
-    @Inject(method = "setBoundingBox", at = @At("TAIL"))
-    private void getBoundingBoxModification(CallbackInfo info) {
-        AABB box = ((AABB) this.bb);
-        double old_width = box.maxX - box.minX;
-        double old_height = box.maxY - box.minY;
-        double center_x = (box.maxX + box.minX) / 2;
-        double center_z = (box.maxZ + box.minZ) / 2;
-        double center_y = box.minY;
-        double new_width = old_width;
-        double new_height = old_height;
-        boolean hasOverride = false;
+    @Inject(method="setBoundingBox",at=@At("TAIL"))
+    private void getBoundingBoxModification(CallbackInfo info){
+        AABB box=((AABB)this.bb);
+        double old_width=box.maxX-box.minX;
+        double old_height=box.maxY-box.minY;
+        double center_x=(box.maxX+box.minX)/2;
+        double center_z=(box.maxZ+box.minZ)/2;
+        double center_y=box.minY;
+        double new_width=old_width;
+        double new_height=old_height;
+        boolean hasOverride=false;
 
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double widthOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
@@ -448,34 +449,31 @@ public class EntityMixin implements EntityAccessor {
             new_height = heightOverride;
             hasOverride = true;
         }
-        if (!hasOverride) {
+        if(!hasOverride){
             return;
         }
-        box = box.setMaxX(center_x + new_width / 2);
-        box = box.setMinX(center_x - new_width / 2);
-        box = box.setMaxZ(center_z + new_width / 2);
-        box = box.setMinZ(center_z - new_width / 2);
-        box = box.setMaxY(center_y + new_height);
-        this.bb = box;
+        box=box.setMaxX(center_x+new_width/2);
+        box=box.setMinX(center_x-new_width/2);
+        box=box.setMaxZ(center_z+new_width/2);
+        box=box.setMinZ(center_z-new_width/2);
+        box=box.setMaxY(center_y+new_height);
+        this.bb=box;
         //info.setReturnValue(box);
     }
-
     @Override
-    public CustomData getCustomData() {
+    public CustomData getCustomData(){
         if (this.persistentData == null) {
             this.persistentData = new CompoundTag();
         }
         CompoundTag persistentTag = this.persistentData;
         if (
-                this.identity2$customDataView == null
-                        || ((NbtComponentAccessor) (Object) this.identity2$customDataView).getNbt() != persistentTag
+            this.identity2$customDataView == null
+                || ((NbtComponentAccessor) (Object) this.identity2$customDataView).getNbt() != persistentTag
         ) {
             this.identity2$customDataView = identity2$wrapTagReference(persistentTag);
         }
         return this.identity2$customDataView;
-    }
-
-    ;
+    };
 
     @Unique
     private static CustomData identity2$wrapTagReference(CompoundTag tag) {
@@ -495,57 +493,50 @@ public class EntityMixin implements EntityAccessor {
             return CustomData.of(tag);
         }
     }
-
+    
     @Nullable
-    public Entity currentIdentity = null;
+    public Entity currentIdentity=null;
     @Nullable
-    public Entity identityOf = null;
-
+    public Entity identityOf=null;
     @Nullable
-    public Entity getCurrentIdentity() {
+    public Entity getCurrentIdentity(){
         return this.currentIdentity;
     }
-
     @Nullable
-    public Entity getIdentityOwner() {
+    public Entity getIdentityOwner(){
         return this.identityOf;
     }
-
-    public void setCurrentIdentity(Entity e) {
-        this.currentIdentity = e;
+    public void setCurrentIdentity(Entity e){
+        this.currentIdentity=e;
     }
-
-    public void setIdentityOf(Entity e) {
-        this.identityOf = e;
+    public void setIdentityOf(Entity e){
+        this.identityOf=e;
     }
-
-    public void setCurrentIdentity(String id, CompoundTag data) {
+    public void setCurrentIdentity(String id, CompoundTag data){
         if (data != null && !data.isEmpty()) {
             this.setCurrentIdentity(id + data.toString());
             return;
         }
         this.setCurrentIdentity(id);
     }
-
-    public void fixAttributes(Entity entity, Entity identity) {
-    }
-
-    public void setCurrentIdentity(String id) {
-        this.noPhysics = false;
+    public void fixAttributes(Entity entity, Entity identity){}
+    public void setCurrentIdentity(String id){
+        this.noPhysics=false;
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
-        CompoundTag nbtCompound = null;
-        if (id.contains("{")) {
-            try {
-                nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag().parse(new com.mojang.brigadier.StringReader(id.substring(id.indexOf('{'))));
-                id = id.substring(0, id.indexOf('{'));
-            } catch (Exception e) {
-                id = id.substring(0, id.indexOf('{'));
+        this.identity2$clearTransientMovementOverrides();
+        CompoundTag nbtCompound=null;
+        if(id.contains("{")){
+            try{
+            nbtCompound=net.minecraft.commands.arguments.CompoundTagArgument.compoundTag().parse(new com.mojang.brigadier.StringReader(id.substring(id.indexOf('{'))));
+            id=id.substring(0,id.indexOf('{'));
+            }catch(Exception e){
+            id=id.substring(0,id.indexOf('{'));
             }
         }
-        if (nbtCompound == null) {
-            nbtCompound = new CompoundTag().copy();
+        if(nbtCompound==null){
+            nbtCompound=new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty()) {
             CompoundTag dataNbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
@@ -553,18 +544,18 @@ public class EntityMixin implements EntityAccessor {
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
-                            .parse(new com.mojang.brigadier.StringReader(variantRaw));
+                        .parse(new com.mojang.brigadier.StringReader(variantRaw));
                 } catch (Exception ignored) {
                     nbtCompound = new CompoundTag().copy();
                 }
             }
         }
-        if (id.length() == 0) {
-            this.currentIdentity = null;
+        if(id.length()==0){
+            this.currentIdentity=null;
             this.entityCanFly = false;
-            ((Entity) (Object) this).refreshDimensions();
-            this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
-            if ((Entity) (Object) this instanceof Player player) {
+            ((Entity)(Object)this).refreshDimensions();
+            this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
+            if((Entity)(Object)this instanceof Player player){
                 this.applyIdentityFlightGrant(player, false);
             }
             return;
@@ -579,9 +570,9 @@ public class EntityMixin implements EntityAccessor {
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
             this.currentIdentity = null;
             this.entityCanFly = false;
-            ((Entity) (Object) this).refreshDimensions();
-            this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
-            if ((Entity) (Object) this instanceof Player player) {
+            ((Entity)(Object)this).refreshDimensions();
+            this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
+            if((Entity)(Object)this instanceof Player player){
                 this.applyIdentityFlightGrant(player, false);
             }
             return;
@@ -596,7 +587,7 @@ public class EntityMixin implements EntityAccessor {
         }
 
         nbtCompound.putString("id", identityId.toString());
-        Vec3 pos = new Vec3(0, 0, 0);
+        Vec3 pos=new Vec3(0,0,0);
         try {
             Level serverWorld = (Level) ((Entity) (Object) this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, entityx -> {
@@ -608,9 +599,9 @@ public class EntityMixin implements EntityAccessor {
             }
             entity.setId(-this.getId());
             this.identity2$applyIdentityVariantState(entity, nbtCompound);
-            ((EntityAccessor) entity).fixAttributes((Entity) (Object) this, entity);
-            this.currentIdentity = entity;
-            ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
+            ((EntityAccessor)entity).fixAttributes((Entity)(Object)this, entity);
+            this.currentIdentity=entity;
+            ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
         } catch (Throwable throwable) {
             String reason = throwable.getClass().getSimpleName();
             IdentityProgression.disableIdentity(identityId, reason);
@@ -618,20 +609,20 @@ public class EntityMixin implements EntityAccessor {
             this.deactivateIdentityAfterFailure(identityId, reason);
             return;
         }
-
-        if (this.currentIdentity != null) {
-            ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
+        
+        if(this.currentIdentity!=null){
+            ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
             //if(((Entity)(Object)this).getEntityWorld().isClient()){
-            ((EntityAccessor) (this.currentIdentity)).setId(((EntityAccessor) (this.currentIdentity)).getId() * -1);
+            ((EntityAccessor)(this.currentIdentity)).setId(((EntityAccessor)(this.currentIdentity)).getId()*-1);
             //}
-            ((Entity) (Object) this).refreshDimensions();
+            ((Entity)(Object)this).refreshDimensions();
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
-            if ((Entity) (Object) this instanceof Player player) {
+            if((Entity)(Object)this instanceof Player player){
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
         }
-
+        
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
@@ -1033,6 +1024,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
+        this.identity2$clearTransientMovementOverrides();
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
@@ -1051,133 +1043,141 @@ public class EntityMixin implements EntityAccessor {
             this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
             if (player instanceof ServerPlayer serverPlayer && identityId != null) {
                 serverPlayer.displayClientMessage(
-                        Component.literal(
-                                "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
-                        ),
-                        false
+                    Component.literal(
+                        "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
+                    ),
+                    false
                 );
             }
         }
     }
-
+    @Unique
+    private void identity2$clearTransientMovementOverrides() {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        nbt.putDouble("land_speed_multiplier_override", 0.0D);
+        nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
+    }
     @Shadow
     protected boolean wasTouchingWater;
     @Shadow
-    @Nullable
-    private Entity vehicle;
-
-    public void setVehicle(Entity vehicle) {
-        this.vehicle = vehicle;
+    @Nullable private Entity vehicle;
+    public void setVehicle(Entity vehicle){
+        this.vehicle=vehicle;
     }
-
-    public void setTouchingWater(boolean isTouchingWater) {
-        this.wasTouchingWater = isTouchingWater;
+	public void setTouchingWater(boolean isTouchingWater){
+        this.wasTouchingWater=isTouchingWater;
     }
-
     @Shadow
-    public double xo;
+	public double xo;
     @Shadow
-    public double yo;
+	public double yo;
     @Shadow
-    public double zo;
+	public double zo;
     @Shadow
-    public double xOld;
+	public double xOld;
     @Shadow
-    public double yOld;
+	public double yOld;
     @Shadow
-    public double zOld;
-
-    @Unique
-    private void identity2$setOldPos(Vec3 pos) {
-        this.xo = this.xOld = pos.x;
-        this.yo = this.yOld = pos.y;
-        this.zo = this.zOld = pos.z;
-    }
-
+	public double zOld;
+    @Overwrite
+    public void setOldPos(Vec3 pos){
+		this.xo = this.xOld = pos.x;
+		this.yo = this.yOld = pos.y;
+		this.zo = this.zOld = pos.z;
+    };
     @Override
     public void setLastPosition(Vec3 pos) {
-        this.identity2$setOldPos(pos);
+        this.setOldPos(pos);
     }
-
     @Shadow
-    public void processFlappingMovement() {
-    }
-
-    ;
-
-    public void runAddAirTravelEffects() {
+    public void processFlappingMovement(){};
+    public void runAddAirTravelEffects(){
         this.processFlappingMovement();
     }
-
     @Shadow
     EntityDimensions dimensions;
     @Shadow
     float eyeHeight;
-
-    public EntityDimensions getEntityDimensions() {
+	public EntityDimensions getEntityDimensions(){
         return this.dimensions;
-    }
-
-    ;
-
-    public void setEntityDimensions(EntityDimensions dimensions) {
-        this.dimensions = dimensions;
-        ((Entity) (Object) this).refreshDimensions();
-    }
-
-    ;
+    };
+	public void setEntityDimensions(EntityDimensions dimensions){
+        this.dimensions=dimensions;
+        ((Entity)(Object)this).refreshDimensions();
+    };
 
     @Shadow
-    public float getEyeHeight() {
+	public float getEyeHeight(){
         return this.eyeHeight;
-    }
-
-    ;
-
+    };
     @Override
     public float getStandingEyeHeight() {
         return this.getEyeHeight();
     }
+	public void setStandingEyeHeight(float standingEyeHeight){
+        this.eyeHeight=standingEyeHeight;
+    };
 
-    public void setStandingEyeHeight(float standingEyeHeight) {
-        this.eyeHeight = standingEyeHeight;
-    }
 
-    ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     //Tons of Redirects - Begin!
-    @Shadow
-    public Entity.MovementEmission getMovementEmission() {
-        return null;
+@Shadow
+public Entity.MovementEmission getMovementEmission(){return null;}
+@Override
+public Entity.MovementEmission getMoveEffect() {
+    return this.getMovementEmission();
+}
+@Inject(method = "getMovementEmission()Lnet/minecraft/world/entity/Entity$MovementEmission;", at=@At("HEAD"),cancellable=true)
+private void getMoveEffectIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(((EntityAccessor)this.currentIdentity).getMoveEffect());
     }
-
-    @Override
-    public Entity.MovementEmission getMoveEffect() {
-        return this.getMovementEmission();
-    }
-
-    @Inject(method = "getMovementEmission()Lnet/minecraft/world/entity/Entity$MovementEmission;", at = @At("HEAD"), cancellable = true)
-    private void getMoveEffectIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(((EntityAccessor) this.currentIdentity).getMoveEffect());
-        }
-    }
+}
 
 
-    @Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
-    private void onDamagedActual(DamageSource source, CallbackInfo info) {
-        if (this.currentIdentity != null && !(((Entity) (Object) this) instanceof Player) && !this.currentIdentity.isRemoved()) {
-            this.currentIdentity.handleDamageEvent(source);
-        }
+@Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at=@At("HEAD"),cancellable=true)
+private void onDamagedActual(DamageSource source,CallbackInfo info){
+    if(this.currentIdentity!=null && !(((Entity)(Object)this) instanceof Player) && !this.currentIdentity.isRemoved()){
+        this.currentIdentity.handleDamageEvent(source);
     }
-
-    @Inject(method = "isRemoved()Z", at = @At("HEAD"), cancellable = true)
-    private void isRemovedActual(CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            info.setReturnValue(false);
-        }
+}
+@Inject(method = "isRemoved()Z", at=@At("HEAD"),cancellable=true)
+private void isRemovedActual(CallbackInfoReturnable info){
+    if(this.identityOf!=null){
+        info.setReturnValue(false);
     }
+}
 
 
     @Shadow
@@ -1209,45 +1209,41 @@ public class EntityMixin implements EntityAccessor {
     }
 
 
-    @Shadow
-    public double getDefaultGravity() {
-        return 0;
+@Shadow
+public double getDefaultGravity(){return 0;}
+@Override
+public double getIdentityGravity() {
+    return this.getDefaultGravity();
+}
+@Inject(method = "getDefaultGravity()D", at=@At("HEAD"),cancellable=true)
+private void getGravityIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(((EntityAccessor)this.currentIdentity).getIdentityGravity());
     }
-
-    @Override
-    public double getIdentityGravity() {
-        return this.getDefaultGravity();
-    }
-
-    @Inject(method = "getDefaultGravity()D", at = @At("HEAD"), cancellable = true)
-    private void getGravityIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(((EntityAccessor) this.currentIdentity).getIdentityGravity());
-        }
-    }
+}
 
 
-    @Inject(method = "getSoundSource()Lnet/minecraft/sounds/SoundSource;", at = @At("HEAD"), cancellable = true)
-    private void getSoundCategoryIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getSoundSource());
-        }
+@Inject(method = "getSoundSource()Lnet/minecraft/sounds/SoundSource;", at=@At("HEAD"),cancellable=true)
+private void getSoundCategoryIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getSoundSource());
     }
+}
 
-    @Inject(method = "lerpTo(DDDFFI)V", at = @At("HEAD"))
-    private void identity2$forwardLerpTo(
-            double x,
-            double y,
-            double z,
-            float yRot,
-            float xRot,
-            int interpolationSteps,
-            CallbackInfo info
-    ) {
-        if (this.currentIdentity != null) {
-            this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
-        }
+@Inject(method = "lerpTo(DDDFFI)V", at=@At("HEAD"))
+private void identity2$forwardLerpTo(
+    double x,
+    double y,
+    double z,
+    float yRot,
+    float xRot,
+    int interpolationSteps,
+    CallbackInfo info
+){
+    if (this.currentIdentity != null) {
+        this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
     }
+}
 
     @Inject(method = "canBeCollidedWith", at = @At("HEAD"), cancellable = true)
     private void identity2$canBeCollidedWith(CallbackInfoReturnable<Boolean> cir) {
@@ -1257,138 +1253,129 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
 
-        if ((Object) this instanceof Entity self) {
+        if ((Object)this instanceof Entity self) {
             try {
                 if (((EntityAccessor) self).getIdentityOwner() != null) {
                     cir.setReturnValue(false);
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
-    @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at = @At("HEAD"), cancellable = true)
-    private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info) {
-        if (((Entity) (Object) this) instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isColliding(pos, state));
+@Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
+private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof Player){
+        return;
+    }
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isColliding(pos, state));
+    }
+}
+
+@Inject(method = "canSpawnSprintParticle()Z", at=@At("HEAD"),cancellable=true)
+private void shouldSpawnSprintingParticlesIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canSpawnSprintParticle());
+    }
+}
+
+@Inject(method = "canBeHitByProjectile()Z", at=@At("HEAD"),cancellable=true)
+private void canBeHitByProjectileIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canBeHitByProjectile());
+    }
+}
+
+@Inject(method = "isPickable()Z", at=@At("HEAD"),cancellable=true)
+private void canHitIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isPickable());
+    }
+}
+
+@Inject(method = "isPushable()Z", at=@At("HEAD"),cancellable=true)
+private void isPushableIdentity(CallbackInfoReturnable info){
+
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isPushable());
+    }
+}
+@Inject(method = "isPushedByFluid()Z", at=@At("HEAD"),cancellable=true)
+private void isPushedByFluidsIdentity(CallbackInfoReturnable info){
+
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isPushedByFluid());
+    }
+}
+
+@Inject(method = "isInWall()Z", at=@At("HEAD"),cancellable=true)
+private void isInsideWallIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof Player){
+        return;
+    }
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isInWall());
+    }
+}
+
+
+
+
+@Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at=@At("HEAD"),cancellable=true)
+private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        InteractionResult actionResult = this.currentIdentity.interact(player, hand);
+        if (actionResult != InteractionResult.PASS) {
+            info.setReturnValue(actionResult);
         }
     }
+}
 
-    @Inject(method = "canSpawnSprintParticle()Z", at = @At("HEAD"), cancellable = true)
-    private void shouldSpawnSprintingParticlesIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canSpawnSprintParticle());
-        }
+@Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
+private void collidesWithIdentity(Entity other, CallbackInfoReturnable info){
+    if(((EntityAccessor)other).getIdentityOwner()!=null){
+        info.setReturnValue(false);
+        return;
     }
-
-    @Inject(method = "canBeHitByProjectile()Z", at = @At("HEAD"), cancellable = true)
-    private void canBeHitByProjectileIdentity(CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canBeHitByProjectile());
-        }
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canCollideWith(other));
     }
+}
 
-    @Inject(method = "isPickable()Z", at = @At("HEAD"), cancellable = true)
-    private void canHitIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isPickable());
-        }
+@Inject(method = "getMaxAirSupply()I", at=@At("HEAD"),cancellable=true)
+private void getMaxAirIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getMaxAirSupply());
     }
+}
 
-    @Inject(method = "isPushable()Z", at = @At("HEAD"), cancellable = true)
-    private void isPushableIdentity(CallbackInfoReturnable info) {
-
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isPushable());
-        }
+@Inject(method = "getPercentFrozen()F", at=@At("HEAD"),cancellable=true)
+private void getFreezingScaleIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getPercentFrozen());
     }
+}
 
-    @Inject(method = "isPushedByFluid()Z", at = @At("HEAD"), cancellable = true)
-    private void isPushedByFluidsIdentity(CallbackInfoReturnable info) {
-
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isPushedByFluid());
-        }
+@Inject(method = "isAttackable()Z", at=@At("HEAD"),cancellable=true)
+private void isAttackableIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isAttackable());
     }
+}
 
-    @Inject(method = "isInWall()Z", at = @At("HEAD"), cancellable = true)
-    private void isInsideWallIdentity(CallbackInfoReturnable info) {
-        if (((Entity) (Object) this) instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isInWall());
-        }
+@Inject(method = "isInvulnerable()Z", at=@At("HEAD"),cancellable=true)
+private void isInvulnerableIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isInvulnerable());
     }
+}
 
-
-    @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
-    private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            InteractionResult actionResult = this.currentIdentity.interact(player, hand);
-            if (actionResult != InteractionResult.PASS) {
-                info.setReturnValue(actionResult);
-            }
-        }
+@Inject(method = "isCustomNameVisible()Z", at=@At("HEAD"),cancellable=true)
+private void isCustomNameVisibleIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.isCustomNameVisible());
     }
-
-    @Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
-    private void collidesWithIdentity(Entity other, CallbackInfoReturnable info) {
-        if (((EntityAccessor) other).getIdentityOwner() != null) {
-            info.setReturnValue(false);
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canCollideWith(other));
-        }
-    }
-
-    @Inject(method = "getMaxAirSupply()I", at = @At("HEAD"), cancellable = true)
-    private void getMaxAirIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getMaxAirSupply());
-        }
-    }
-
-    @Inject(method = "getPercentFrozen()F", at = @At("HEAD"), cancellable = true)
-    private void getFreezingScaleIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getPercentFrozen());
-        }
-    }
-
-    @Inject(method = "isAttackable()Z", at = @At("HEAD"), cancellable = true)
-    private void isAttackableIdentity(CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isAttackable());
-        }
-    }
-
-    @Inject(method = "isInvulnerable()Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableIdentity(CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isInvulnerable());
-        }
-    }
-
-    @Inject(method = "isCustomNameVisible()Z", at = @At("HEAD"), cancellable = true)
-    private void isCustomNameVisibleIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.isCustomNameVisible());
-        }
-    }
+}
 
 /*@Inject(method = "getEyeHeight(Lnet/minecraft/entity/Entity;)F", at=@At("HEAD"),cancellable=true)
 private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
@@ -1397,60 +1384,60 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 }*/
 
-    public boolean saving = false;
+public boolean saving=false;
 
-    @Inject(method = "saveWithoutId", at = @At("HEAD"), cancellable = true, require = 0)
-    public void writeDataLabelSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
-        this.saving = true;
+@Inject(method = "saveWithoutId", at=@At("HEAD"),cancellable=true, require = 0)
+public void writeDataLabelSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
+    this.saving=true;
+}
+@Inject(method = "saveWithoutId", at=@At("TAIL"),cancellable=true, require = 0)
+public void writeDataLabelDoneSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
+    this.saving=false;
+}
+
+
+
+@Inject(method = "getEyeHeight()F", at=@At("HEAD"),cancellable=true)
+private void getStandingEyeHeightIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getEyeHeight());
     }
+}
 
-    @Inject(method = "saveWithoutId", at = @At("TAIL"), cancellable = true, require = 0)
-    public void writeDataLabelDoneSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
-        this.saving = false;
+@Inject(method = "getPistonPushReaction()Lnet/minecraft/world/level/material/PushReaction;", at=@At("HEAD"),cancellable=true)
+private void getPistonBehaviorIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getPistonPushReaction());
     }
+}
 
-
-    @Inject(method = "getEyeHeight()F", at = @At("HEAD"), cancellable = true)
-    private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getEyeHeight());
-        }
+@Inject(method = "canSprint()Z", at=@At("HEAD"),cancellable=true)
+private void canSprintAsVehicleIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canSprint());
     }
+}
 
-    @Inject(method = "getPistonPushReaction()Lnet/minecraft/world/level/material/PushReaction;", at = @At("HEAD"), cancellable = true)
-    private void getPistonBehaviorIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getPistonPushReaction());
-        }
+@Inject(method = "maxUpStep()F", at=@At("HEAD"),cancellable=true)
+private void getStepHeightIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.maxUpStep());
     }
+}
 
-    @Inject(method = "canSprint()Z", at = @At("HEAD"), cancellable = true)
-    private void canSprintAsVehicleIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canSprint());
-        }
+@Inject(method = "resetFallDistance()V", at=@At("HEAD"))
+private void onLandingIdentity(CallbackInfo info){
+    if(this.currentIdentity!=null){
+       this.currentIdentity.resetFallDistance();
     }
+}
 
-    @Inject(method = "maxUpStep()F", at = @At("HEAD"), cancellable = true)
-    private void getStepHeightIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.maxUpStep());
-        }
+@Inject(method = "setCustomNameVisible(Z)V", at=@At("HEAD"))
+private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
+    if(this.currentIdentity!=null){
+       this.currentIdentity.setCustomNameVisible(visible);
     }
-
-    @Inject(method = "resetFallDistance()V", at = @At("HEAD"))
-    private void onLandingIdentity(CallbackInfo info) {
-        if (this.currentIdentity != null) {
-            this.currentIdentity.resetFallDistance();
-        }
-    }
-
-    @Inject(method = "setCustomNameVisible(Z)V", at = @At("HEAD"))
-    private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info) {
-        if (this.currentIdentity != null) {
-            this.currentIdentity.setCustomNameVisible(visible);
-        }
-    }
+}
 //Tons of Redirects - End
 }
 

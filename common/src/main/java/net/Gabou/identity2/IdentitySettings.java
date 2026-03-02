@@ -42,6 +42,8 @@ public class IdentitySettings {
         return IdentitySettings.DeathMorphRule.WIPE_ALL;
     }
 
+    //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
+    public static boolean unlockAllVariantsOnFirstUnlock = false;
     //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
     public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
 
