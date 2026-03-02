@@ -445,7 +445,9 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         Set<String> unlockedTokensForType = this.unlockedVariantTokens.get(entry.id().toString());
-        boolean wildcardUnlocked = !IdentitySettings.requireUnlockedIdentityForMorph || unlockedTokensForType == null;
+        boolean wildcardUnlocked = !IdentitySettings.requireUnlockedIdentityForMorph
+            || IdentitySettings.unlockAllVariantsOnFirstUnlock
+            || unlockedTokensForType == null;
         client.setScreen(
             new IdentityVariantSelectionScreen(
                 this,
@@ -577,11 +579,26 @@ public final class IdentitySelectionScreen extends Screen {
         if (!this.unlockedIdentityIds.contains(identityId.toString())) {
             return true;
         }
-        Set<String> tokens = this.unlockedVariantTokens.get(identityId.toString());
-        if (tokens == null) {
+        if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
             return false;
         }
-        return !tokens.contains(IdentityProgression.toVariantUnlockToken(variant.variantNbt()));
+        Set<String> tokens = this.unlockedVariantTokens.get(identityId.toString());
+        if (tokens == null || tokens.isEmpty()) {
+            return false;
+        }
+        for (String storedToken : tokens) {
+            if (IdentityProgression.matchesStoredVariantToken(variant.variantNbt(), storedToken)) {
+                return false;
+            }
+        }
+        // Compatibility for legacy noisy tokens on identities that effectively have one selectable variant.
+        String requestedToken = IdentityProgression.toVariantUnlockToken(
+            IdentityProgression.normalizeVariantForUnlock(variant.variantNbt())
+        );
+        if ("-".equals(requestedToken)) {
+            return false;
+        }
+        return true;
     }
 
     private static Set<String> readUnlockedIdentities() {

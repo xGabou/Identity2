@@ -140,6 +140,8 @@ public class IdentitySettings {
 
     //@Comment(value = "Kills required to unlock an identity.")
     public static int identityKillsRequired = 1;
+    //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
+    public static boolean unlockAllVariantsOnFirstUnlock = false;
 
     //@Comment(value = "Morph transition duration in ticks for dynamic model blending.")
     public static int morphTransitionTicks = 30;
