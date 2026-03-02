@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.minecraft.client.Minecraft;
@@ -425,10 +426,18 @@ public final class IdentityVariantSelectionScreen extends Screen {
         if (!this.enforceUnlocks) {
             return false;
         }
+        if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
+            return false;
+        }
         if (this.wildcardUnlocked) {
             return false;
         }
-        return !this.unlockedVariantTokens.contains(IdentityProgression.toVariantUnlockToken(variant.variantNbt()));
+        for (String storedToken : this.unlockedVariantTokens) {
+            if (IdentityProgression.matchesStoredVariantToken(variant.variantNbt(), storedToken)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private ResourceLocation currentWorldId() {
