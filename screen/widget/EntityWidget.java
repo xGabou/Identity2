@@ -78,7 +78,7 @@ public class EntityWidget<T extends LivingEntity> extends PressableWidget {
     public Text getHoverName() { return entity.getDisplayName(); }
 
 
-    // 1.20.4: do not override render, override renderWidget instead
+    // 1.20.1: do not override render, override renderWidget instead
     @Override
     protected void renderWidget(DrawContext ctx, int mouseX, int mouseY, float delta) {
         // 2) clamp GUI-scale to [1..5], default Auto→3
