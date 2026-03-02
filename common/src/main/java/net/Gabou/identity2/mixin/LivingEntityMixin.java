@@ -3,12 +3,17 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 
 import java.util.List;
+import java.util.Locale;
+import java.lang.reflect.Method;
 
-import org.spongepowered.asm.mixin.Mixin;
+import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.phys.AABB;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -28,7 +33,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -38,12 +42,6 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -53,8 +51,6 @@ import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.identity.IdentityTraitTags;
-import net.minecraft.tags.DamageTypeTags;
 
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
@@ -109,20 +105,18 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 }*/
 
-    @Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at = @At("HEAD"), cancellable = true)
-    private void getAttributesIdentity(CallbackInfoReturnable info) {
+    @Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at=@At("HEAD"),cancellable=true)
+    private void getAttributesIdentity(CallbackInfoReturnable info){
         // Keep vanilla attributes for the host entity (especially players) so
         // combat damage and other modded attribute changes are not replaced by identity stats.
+        if ((Entity)(Object)this instanceof Player) {
+            return;
+        }
         try {
-            if (this.saving == false) {
-                if (this.currentIdentity != null) {
-                    if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                        info.setReturnValue(livingIdentity.getAttributes());
-                    }
-                }
+            if(!this.saving && this.currentIdentity instanceof LivingEntity livingIdentity){
+                info.setReturnValue(livingIdentity.getAttributes());
             }
-        } catch (Exception e) {
-            int x = 0;
+        } catch (Exception ignored){
         }
     }
 
@@ -229,6 +223,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
+    //getNextAir(underwater,onland) should be added
     @Inject(method = "onClimbable()Z", at = @At("HEAD"), cancellable = true)
     private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info) {
         if (this.currentIdentity == null) {
@@ -244,8 +239,6 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
         info.setReturnValue(this.horizontalCollision);
     }
-
-//getNextAir(underwater,onland) should be added
 
     @Inject(method = "canFreeze()Z", at = @At("HEAD"), cancellable = true)
     private void canFreezeIdentity(CallbackInfoReturnable info) {
@@ -293,8 +286,8 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
 
     @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player player && source != null) {
+    private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if ((Object) this instanceof Player player) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;
@@ -311,15 +304,30 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-            if (IdentityProgression.isMorphDamageGraceActive(player) && identity2$isMorphCollisionDamage(source)) {
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            if (
+                    activeIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
+            ) {
                 info.setReturnValue(true);
                 return;
             }
-            if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON && identity2$isMorphCollisionDamage(source)) {
+
+            if (
+                    activeIdentity != null
+                            && identity2$isFallDamage(source)
+                            && (
+                            activeIdentity.getType() == EntityType.CHICKEN
+                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                    )
+            ) {
                 info.setReturnValue(true);
                 return;
             }
-            if (source.is(DamageTypeTags.IS_FALL)) {
+            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
+                info.setReturnValue(true);
                 return;
             }
             return;
@@ -330,12 +338,108 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             }
         }
     }
+    @Unique
+    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
+        float idHeight = activeIdentity.getBbHeight();
+        if (idHeight >= 1.2f) {
+            return false;
+        }
 
-    private static boolean identity2$isMorphCollisionDamage(DamageSource source) {
+        if (player.isCrouching() || player.isSwimming()) {
+            return false;
+        }
+
+        AABB box = player.getBoundingBox();
+
+        AABB feet = new AABB(
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.minY + 0.35, box.maxZ
+        );
+
+        double headStart = box.maxY - 0.35;
+        AABB head = new AABB(
+                box.minX, headStart, box.minZ,
+                box.maxX, box.maxY, box.maxZ
+        );
+
+        boolean feetCollide = !player.level().noCollision(player, feet);
+        boolean headCollide = !player.level().noCollision(player, head);
+
+        return headCollide && !feetCollide;
+    }
+    @Unique
+    private static boolean identity2$isFallDamage(DamageSource source) {
         if (source == null) {
             return false;
         }
-        return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.FLY_INTO_WALL) || source.is(DamageTypes.CRAMMING);
+        if (source.is(DamageTypes.FALL)) {
+            return true;
+        }
+        if (source.is(DamageTypeTags.IS_FALL)) {
+            return true;
+        }
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("fall");
+    }
+
+    private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("inwall")
+                || normalized.equals("in_wall")
+                || normalized.equals("flyintowall")
+                || normalized.equals("fly_into_wall")
+                || normalized.equals("cramming");
+    }
+
+    private static String identity2$getDamageMessageId(DamageSource source) {
+        if (source == null) {
+            return "";
+        }
+        Object direct = identity2$invokeNoArg(source, "getMsgId");
+        if (direct instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object type = identity2$invokeNoArg(source, "type");
+        Object fromType = identity2$invokeNoArg(type, "msgId");
+        if (fromType instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object holder = identity2$invokeNoArg(source, "typeHolder");
+        Object value = identity2$invokeNoArg(holder, "value");
+        Object fromHolder = identity2$invokeNoArg(value, "msgId");
+        if (fromHolder instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return "";
+    }
+
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return null;
     }
 
     @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
@@ -370,6 +474,10 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "doHurtTarget(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(ServerLevel world, Entity entity, CallbackInfoReturnable info) {
+        if ((Entity)(Object)this instanceof Player) {
+            // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
+            return;
+        }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.doHurtTarget(world, entity));
