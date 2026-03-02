@@ -216,7 +216,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)
     private void tickMovementIdentity(CallbackInfo info) {
-        if ((Entity)(Object)this instanceof Player) {
+        if ((Entity) (Object) this instanceof Player) {
             return;
         }
         if (this.currentIdentity != null) {
@@ -294,8 +294,6 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             cir.setReturnValue(livingIdentity.getLastHurtByMobTimestamp());
         }
     }
-
-
 
 
     @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
