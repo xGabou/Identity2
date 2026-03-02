@@ -3,12 +3,10 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
+import net.minecraft.world.level.block.Blocks;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -30,7 +28,6 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -119,9 +116,10 @@ public class EntityMixin implements EntityAccessor{
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
+
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
             return;
         }
@@ -168,6 +166,26 @@ public class EntityMixin implements EntityAccessor{
             }
         }
 	}
+    @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
+    private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
+        if (!state.is(Blocks.COBWEB)) {
+            return;
+        }
+
+        EntityType<?> hostType = ((Entity) (Object) this).getType();
+        if (hostType == EntityType.SPIDER || hostType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
+            return;
+        }
+
+        if (this.currentIdentity == null) {
+            return;
+        }
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (identityType == EntityType.SPIDER || identityType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
+        }
+    }
 	@Inject(method = "tick", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
@@ -215,7 +233,7 @@ public class EntityMixin implements EntityAccessor{
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
             return;
         }
@@ -478,7 +496,7 @@ public class EntityMixin implements EntityAccessor{
             return CustomData.of(tag);
         }
     }
-    
+
     @Nullable
     public Entity currentIdentity=null;
     @Nullable
@@ -510,6 +528,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
+        this.identity2$clearTransientMovementOverrides();
         CompoundTag nbtCompound=null;
         if(id.contains("{")){
             try{
@@ -1008,6 +1027,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
+        this.identity2$clearTransientMovementOverrides();
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
@@ -1033,6 +1053,12 @@ public class EntityMixin implements EntityAccessor{
                 );
             }
         }
+    }
+    @Unique
+    private void identity2$clearTransientMovementOverrides() {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        nbt.putDouble("land_speed_multiplier_override", 0.0D);
+        nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
     }
     @Shadow
     protected boolean wasTouchingWater;
