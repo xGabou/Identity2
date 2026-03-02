@@ -32,7 +32,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7671190"
+    modImplementation "curse.maven:gabous-libs-1367332:7701614"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

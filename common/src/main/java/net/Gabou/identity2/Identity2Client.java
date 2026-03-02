@@ -43,6 +43,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -607,7 +608,7 @@ public final class Identity2Client {
 
     private static ItemStack resolveAbilityIconStack(Entity identity, IdentityAbilityDefinition identityAbility) {
         if (identityAbility != null && identityAbility.icon() != null) {
-            ItemStack fromDefinition = new ItemStack(identityAbility.icon());
+            ItemStack fromDefinition = new ItemStack(BuiltInRegistries.ITEM.get(identityAbility.icon()));
             if (!fromDefinition.isEmpty() && !fromDefinition.is(Items.AIR)) {
                 return fromDefinition;
             }

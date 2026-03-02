@@ -124,20 +124,18 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 }*/
 
-    @Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at = @At("HEAD"), cancellable = true)
-    private void getAttributesIdentity(CallbackInfoReturnable info) {
+    @Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at=@At("HEAD"),cancellable=true)
+    private void getAttributesIdentity(CallbackInfoReturnable info){
         // Keep vanilla attributes for the host entity (especially players) so
         // combat damage and other modded attribute changes are not replaced by identity stats.
+        if ((Entity)(Object)this instanceof Player) {
+            return;
+        }
         try {
-            if (this.saving == false) {
-                if (this.currentIdentity != null) {
-                    if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                        info.setReturnValue(livingIdentity.getAttributes());
-                    }
-                }
+            if(!this.saving && this.currentIdentity instanceof LivingEntity livingIdentity){
+                info.setReturnValue(livingIdentity.getAttributes());
             }
-        } catch (Exception e) {
-            int x = 0;
+        } catch (Exception ignored){
         }
     }
 
@@ -339,6 +337,10 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+        if ((Entity)(Object)this instanceof Player) {
+            // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
+            return;
+        }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 cir.setReturnValue(livingIdentity.doHurtTarget(entity));

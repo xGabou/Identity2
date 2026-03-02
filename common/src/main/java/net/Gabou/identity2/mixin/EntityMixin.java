@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 
+import java.util.Locale;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -37,7 +38,6 @@ import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
@@ -57,6 +57,7 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.player.Player;
@@ -65,6 +66,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -136,7 +138,7 @@ public class EntityMixin implements EntityAccessor {
     private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
         CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
+        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
             entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
             return;
         }
@@ -183,6 +185,27 @@ public class EntityMixin implements EntityAccessor {
             ) {
                 info.setReturnValue(false);
             }
+        }
+    }
+
+    @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
+    private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
+        if (!state.is(Blocks.COBWEB)) {
+            return;
+        }
+
+        EntityType<?> hostType = ((Entity) (Object) this).getType();
+        if (hostType == EntityType.SPIDER || hostType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
+            return;
+        }
+
+        if (this.currentIdentity == null) {
+            return;
+        }
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (identityType == EntityType.SPIDER || identityType == EntityType.CAVE_SPIDER) {
+            ci.cancel();
         }
     }
 
@@ -236,11 +259,14 @@ public class EntityMixin implements EntityAccessor {
 
     @Redirect(method = "move",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
-    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
+    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, MoverType moverType, Vec3 movementInput) {
         CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
-        if (!Double.isNaN(multiplier) && multiplier != 0.0D) {
-            entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
+        if (this.currentIdentity != null &&!Double.isNaN(multiplier) && multiplier != 0.0D) {
+            Vec3 baseDelta = entity.getDeltaMovement();
+            boolean collidedX = x == 0.0D && baseDelta.x != 0.0D;
+            boolean collidedZ = z == 0.0D && baseDelta.z != 0.0D;
+            entity.setDeltaMovement(collidedX ? baseDelta.x * multiplier : baseDelta.x, baseDelta.y, collidedZ ? baseDelta.z * multiplier : baseDelta.z);
             return;
         }
         entity.setDeltaMovement(x, y, z);
@@ -500,6 +526,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
+        this.identity2$clearTransientMovementOverrides();
         CompoundTag nbtCompound = null;
         if (id.contains("{")) {
             try {
@@ -998,6 +1025,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
+        this.identity2$clearTransientMovementOverrides();
         CompoundTag nbt = this.getCustomData();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
@@ -1023,6 +1051,12 @@ public class EntityMixin implements EntityAccessor {
                 );
             }
         }
+    }
+    @Unique
+    private void identity2$clearTransientMovementOverrides() {
+        CompoundTag nbt = this.getCustomData();
+        nbt.putDouble("land_speed_multiplier_override", 0.0D);
+        nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
     }
 
     @Shadow
@@ -1405,9 +1439,13 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player player && source != null) {
+    @Inject(
+            method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if ((Object) this instanceof Player player) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;
@@ -1415,6 +1453,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1424,19 +1463,39 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-            if (IdentityProgression.isMorphDamageGraceActive(player) && identity2$isMorphCollisionDamage(source)) {
+
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+
+            if (
+                    activeIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
+            ) {
                 info.setReturnValue(true);
                 return;
             }
-            if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON && identity2$isMorphCollisionDamage(source)) {
+
+            if (
+                    activeIdentity != null
+                            && identity2$isFallDamage(source)
+                            && (
+                            activeIdentity.getType() == EntityType.CHICKEN
+                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                    )
+            ) {
                 info.setReturnValue(true);
                 return;
             }
-            if (source.is(DamageTypeTags.IS_FALL)) {
+
+            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
+                info.setReturnValue(true);
                 return;
             }
+
             return;
         }
+
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(source));
@@ -1445,11 +1504,87 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 
     @Unique
-    private static boolean identity2$isMorphCollisionDamage(DamageSource source) {
+    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
+        float idHeight = activeIdentity.getBbHeight();
+        if (idHeight >= 1.2f) {
+            return false;
+        }
+
+        if (player.isCrouching() || player.isSwimming()) {
+            return false;
+        }
+
+        AABB box = player.getBoundingBox();
+
+        AABB feet = new AABB(
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.minY + 0.35, box.maxZ
+        );
+
+        double headStart = box.maxY - 0.35;
+        AABB head = new AABB(
+                box.minX, headStart, box.minZ,
+                box.maxX, box.maxY, box.maxZ
+        );
+
+        boolean feetCollide = !player.level().noCollision(player, feet);
+        boolean headCollide = !player.level().noCollision(player, head);
+
+        return headCollide && !feetCollide;
+    }
+    @Unique
+    private static boolean identity2$isFallDamage(DamageSource source) {
         if (source == null) {
             return false;
         }
-        return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.FLY_INTO_WALL) || source.is(DamageTypes.CRAMMING);
+        if (source.is(DamageTypes.FALL)) {
+            return true;
+        }
+        if (source.is(DamageTypeTags.IS_FALL)) {
+            return true;
+        }
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("fall");
+    }
+
+    @Unique
+    private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("inwall")
+                || normalized.equals("in_wall")
+                || normalized.equals("flyintowall")
+                || normalized.equals("fly_into_wall")
+                || normalized.equals("cramming");
+    }
+    @Unique
+    private static String identity2$getDamageMessageId(DamageSource source) {
+        if (source == null) {
+            return "";
+        }
+        Object direct = identity2$invokeNoArg(source, "getMsgId");
+        if (direct instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object type = identity2$invokeNoArg(source, "type");
+        Object fromType = identity2$invokeNoArg(type, "msgId");
+        if (fromType instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object holder = identity2$invokeNoArg(source, "typeHolder");
+        Object value = identity2$invokeNoArg(holder, "value");
+        Object fromHolder = identity2$invokeNoArg(value, "msgId");
+        if (fromHolder instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return "";
     }
 //Tons of Redirects - End
 }

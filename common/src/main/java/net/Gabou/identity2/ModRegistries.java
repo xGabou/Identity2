@@ -1,11 +1,11 @@
 package net.Gabou.identity2;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.resources.ResourceLocation;
@@ -15,12 +15,22 @@ public final class ModRegistries {
     public static final ResourceKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
         ResourceKey.createRegistryKey(new ResourceLocation("identity2", "identity_ability"));
 
+    private static final Codec<ResourceLocation> RESOURCE_LOCATION_STRING_CODEC = Codec.STRING.comapFlatMap(
+        id -> {
+            ResourceLocation parsed = ResourceLocation.tryParse(id);
+            return parsed == null
+                ? DataResult.error(() -> "Invalid resource location: " + id)
+                : DataResult.success(parsed);
+        },
+        ResourceLocation::toString
+    );
+
     public static final Codec<IdentityAbilityDefinition> IDENTITY_ABILITY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-        BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
+        RESOURCE_LOCATION_STRING_CODEC.fieldOf("icon").forGetter(IdentityAbilityDefinition::icon),
         Codec.STRING.optionalFieldOf("command", "").forGetter(IdentityAbilityDefinition::command),
         Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
         Codec.INT.optionalFieldOf("use_duration", 0).forGetter(IdentityAbilityDefinition::useduration),
-        ResourceLocation.CODEC.optionalFieldOf("predef", new ResourceLocation("null")).forGetter(IdentityAbilityDefinition::bultinability),
+        RESOURCE_LOCATION_STRING_CODEC.optionalFieldOf("predef", new ResourceLocation("null")).forGetter(IdentityAbilityDefinition::bultinability),
         Codec.BOOL.optionalFieldOf("override_attack", false).forGetter(IdentityAbilityDefinition::override_attack)
     ).apply(inst, IdentityAbilityDefinition::new));
 

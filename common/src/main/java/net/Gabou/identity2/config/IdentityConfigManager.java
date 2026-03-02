@@ -21,7 +21,7 @@ import net.Gabou.identity2.IdentitySettings;
 
 public final class IdentityConfigManager {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = Platform.getConfigFolder().resolve(Identity2.MOD_ID + ".json");
+    private static final String CONFIG_FILE_NAME = Identity2.MOD_ID + ".json";
     private static final Set<String> HIDDEN_KEYS = Set.of(
         "EnableMorphCharges",
         "EnableSoulJars",
@@ -44,11 +44,12 @@ public final class IdentityConfigManager {
     }
 
     public static synchronized void load() {
-        if (!Files.exists(CONFIG_PATH)) {
+        Path configPath = identity2$resolveConfigPath();
+        if (!Files.exists(configPath)) {
             return;
         }
         try {
-            String raw = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
+            String raw = Files.readString(configPath, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
             identity2$applyLegacyAliases(root);
             for (Field field : IdentitySettings.class.getFields()) {
@@ -63,7 +64,7 @@ public final class IdentityConfigManager {
             }
             identity2$normalizeSettings();
         } catch (Throwable throwable) {
-            Identity2.LOGGER.error("Failed to load config from {}", CONFIG_PATH, throwable);
+            Identity2.LOGGER.error("Failed to load config from {}", configPath, throwable);
         }
     }
 
@@ -103,13 +104,14 @@ public final class IdentityConfigManager {
             }
         }
 
+        Path configPath = identity2$resolveConfigPath();
         try {
-            Path parent = CONFIG_PATH.getParent();
+            Path parent = configPath.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
             Files.writeString(
-                CONFIG_PATH,
+                configPath,
                 GSON.toJson(root),
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE,
@@ -117,8 +119,20 @@ public final class IdentityConfigManager {
                 StandardOpenOption.WRITE
             );
         } catch (Throwable throwable) {
-            Identity2.LOGGER.error("Failed to save config to {}", CONFIG_PATH, throwable);
+            Identity2.LOGGER.error("Failed to save config to {}", configPath, throwable);
         }
+    }
+
+    private static Path identity2$resolveConfigPath() {
+        Path configFolder = null;
+        try {
+            configFolder = Platform.getConfigFolder();
+        } catch (Throwable ignored) {
+        }
+        if (configFolder == null) {
+            configFolder = Path.of("config");
+        }
+        return configFolder.resolve(CONFIG_FILE_NAME);
     }
 
     private static boolean identity2$isSupportedConfigField(Field field, boolean forSave) {

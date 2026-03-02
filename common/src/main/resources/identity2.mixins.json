@@ -1,9 +1,24 @@
 {
   "required": true,
   "package": "net.Gabou.identity2.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_17",
   "minVersion": "0.8",
-  "client": [],
+  "client": [
+    "client.ClientWorldMixin",
+    "client.CreativeModeInventoryScreenMixin",
+    "client.EntityRenderDispatcherMixin",
+    "client.EntityRendererMixin",
+    "client.GameRendererMixin",
+    "client.MinecraftClientMixin",
+    "client.PlayerEntityRendererMixin",
+    "client.HeldItemRendererMixin",
+    "client.InventoryScreenMixin",
+    "client.EnderDragonEntityRendererMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.ClientPlayNetworkHandlerMixin",
+    "EntityTrackerEntryMixin",
+    "client.WorldRendererMixin"
+  ],
   "mixins": [
     "FishingBobberEntityMixin",
     "WorldMixin",
@@ -35,8 +50,5 @@
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "overwrites": {
-    "requireAnnotations": true
   }
 }

@@ -1,6 +1,8 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
+
+import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -48,6 +50,29 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             info.setReturnValue(true);
         }
 	}
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+    private void attackAlsoAsIdentity(Entity target, CallbackInfo ci) {
+        Entity identity = getCurrentIdentity();
+        if (identity == null) return;
+        if (identity instanceof LivingEntity livingIdentity) {
+
+            // Optional guard so it only triggers when the player actually hit something
+            if (target instanceof LivingEntity livingTarget) {
+                if (livingTarget.hurtTime <= 0) return;
+
+                // Optional, makes sure the second hit is not blocked by i frames
+                int oldInvul = livingTarget.invulnerableTime;
+                livingTarget.invulnerableTime = 0;
+
+                livingIdentity.doHurtTarget(target);
+
+                livingTarget.invulnerableTime = oldInvul;
+                return;
+            }
+
+            livingIdentity.doHurtTarget( target);
+        }
+    }
 
 //    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
 //    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
