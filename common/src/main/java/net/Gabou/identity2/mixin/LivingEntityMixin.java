@@ -2,13 +2,13 @@ package net.Gabou.identity2.mixin;
 
 import com.google.common.collect.Lists;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
-import org.spongepowered.asm.mixin.Mixin;
+import net.minecraft.world.phys.AABB;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 
+import java.util.Locale;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -120,16 +121,14 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     private void getAttributesIdentity(CallbackInfoReturnable info) {
         // Keep vanilla attributes for the host entity (especially players) so
         // combat damage and other modded attribute changes are not replaced by identity stats.
+        if ((Entity)(Object)this instanceof Player) {
+            return;
+        }
         try {
-            if (this.saving == false) {
-                if (this.currentIdentity != null) {
-                    if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                        info.setReturnValue(livingIdentity.getAttributes());
-                    }
-                }
+            if(!this.saving && this.currentIdentity instanceof LivingEntity livingIdentity){
+                info.setReturnValue(livingIdentity.getAttributes());
             }
-        } catch (Exception e) {
-            int x = 0;
+        } catch (Exception ignored){
         }
     }
 
@@ -336,11 +335,15 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
-    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
+    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {
+        if ((Entity)(Object)this instanceof Player) {
+            // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
+            return;
+        }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                cir.setReturnValue(livingIdentity.doHurtTarget(entity));
+                info.setReturnValue(livingIdentity.doHurtTarget(entity));
             }
         }
     }
