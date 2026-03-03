@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-03-03
+
+### Known Issues
+
+- Player skin sync is currently bugged: you will see your own correct skin locally, but other players on the server may see the default Steve skin instead.
+- A fix for this skin sync issue is planned in an upcoming update.
+
+### Added Entity Abilities
+
+- Naturalist: bear.
+- Alex's Mobs: anaconda, bald_eagle, bone_serpent, cockroach, crimson_mosquito, crocodile, crow, dropbear, elephant, emu, enderiophage, fly, giant_squid, gorilla, grizzly_bear, guster, hummingbird, kangaroo, komodo_dragon, mimicube, moose, orca, raccoon, rattlesnake, roadrunner, skunk, snow_leopard, soul_vulture, spectre, sunbird, tarantula_hawk, tasmanian_devil, tiger, void_worm, warped_mosco.
+
+---
+
 ## 2026-03-02
 
 ### Highlights
