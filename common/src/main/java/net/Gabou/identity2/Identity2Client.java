@@ -129,6 +129,7 @@ public final class Identity2Client {
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
+    private static long identity2$lastSkinPacketLogMs = 0L;
 
     static {
         addVisualPatch((identity, entity) -> {
@@ -252,6 +253,25 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
+        if (IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(identityId)) {
+            CompoundTag parsed = IdentityProgression.parseVariantNbt(variantNbt);
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                ""
+            );
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                ""
+            );
+            Identity2.LOGGER.info(
+                "[SkinDiag] Client sendMorphRequest player identity rawVariant='{}' uuid='{}' name='{}'",
+                variantNbt,
+                skinUuid,
+                skinName
+            );
+        }
         NetworkCompat.sendToServer(
                 new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
@@ -394,6 +414,30 @@ public final class Identity2Client {
             boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
                 n.putString(entry.key(), entry.value());
+                if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key())) {
+                    long now = System.currentTimeMillis();
+                    if (now - identity2$lastSkinPacketLogMs > 800L) {
+                        CompoundTag parsed = IdentityProgression.parseVariantNbt(entry.value());
+                        String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                            parsed,
+                            IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                            ""
+                        );
+                        String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                            parsed,
+                            IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                            ""
+                        );
+                        Identity2.LOGGER.info(
+                            "[SkinDiag] Client received variant packet entityId={} rawVariant='{}' uuid='{}' name='{}'",
+                            packet.entityid(),
+                            entry.value(),
+                            skinUuid,
+                            skinName
+                        );
+                        identity2$lastSkinPacketLogMs = now;
+                    }
+                }
                 if ("model_override".equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
@@ -739,6 +783,27 @@ public final class Identity2Client {
             return;
         }
         String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        if (IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(type)) {
+            CompoundTag parsed = IdentityProgression.parseVariantNbt(variantRaw);
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                ""
+            );
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                ""
+            );
+            Identity2.LOGGER.info(
+                "[SkinDiag] applyIdentityFromCustomData entity={} type={} rawVariant='{}' uuid='{}' name='{}'",
+                entity.getId(),
+                type,
+                variantRaw,
+                skinUuid,
+                skinName
+            );
+        }
         ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
     }
 

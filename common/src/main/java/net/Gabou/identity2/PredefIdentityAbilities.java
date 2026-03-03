@@ -3,12 +3,10 @@ package net.Gabou.identity2;
 import java.util.*;
 import java.util.function.Predicate;
 
-import javax.swing.Box;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
 import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -26,6 +24,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -43,7 +42,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerProfession;
-import net.minecraft.world.entity.npc.VillagerType;
 import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -673,7 +671,332 @@ public final class PredefIdentityAbilities {
             }
         });
 
+        registerNaturalistAbilities(map);
+        registerAlexsMobsAbilities(map);
+
         return map;
+    }
+
+    private static void registerNaturalistAbilities(Map<ResourceLocation, IdentityAbility> map) {
+        map.put(
+            new ResourceLocation("naturalist", "bear"),
+            simpleAbility(player -> {
+                if (player instanceof LivingEntity livingPlayer) {
+                    livingPlayer.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 200, 1));
+                }
+            })
+        );
+    }
+
+    private static void registerAlexsMobsAbilities(Map<ResourceLocation, IdentityAbility> map) {
+        map.put(new ResourceLocation("alexsmobs", "anaconda"), alexsMobsAbility(player -> constrictNearby(player, 3.0F)));
+        map.put(new ResourceLocation("alexsmobs", "bald_eagle"), alexsMobsAbility(player -> dashForward(player, 1.2D)));
+        map.put(
+            new ResourceLocation("alexsmobs", "bone_serpent"),
+            alexsMobsAbility(player -> {
+                if (player.isInLava()) {
+                    dashForward(player, 1.8D);
+                }
+            })
+        );
+        map.put(
+            new ResourceLocation("alexsmobs", "cockroach"),
+            alexsMobsAbility(player -> {
+                if (player instanceof LivingEntity livingPlayer) {
+                    livingPlayer.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 200, 0));
+                }
+                player.level().playSound(
+                    null,
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    SoundEvents.PLAYER_ATTACK_SWEEP,
+                    SoundSource.PLAYERS,
+                    1.0F,
+                    1.2F
+                );
+            })
+        );
+        map.put(new ResourceLocation("alexsmobs", "crimson_mosquito"), alexsMobsAbility(player -> damageAndLeechRaycastTarget(player, 2.5D, 2.0F, 1.0F)));
+        map.put(new ResourceLocation("alexsmobs", "crocodile"), alexsMobsAbility(player -> pullRaycastTargetTowardPlayer(player, 5.0D, 1.5D)));
+        map.put(new ResourceLocation("alexsmobs", "crow"), alexsMobsAbility(player -> dashUpward(player, 0.5D)));
+        map.put(new ResourceLocation("alexsmobs", "dropbear"), alexsMobsAbility(player -> dashForward(player, 1.0D)));
+        map.put(new ResourceLocation("alexsmobs", "elephant"), alexsMobsAbility(player -> knockbackNearbyEntities(player, 4.0F, 2.0D)));
+        map.put(new ResourceLocation("alexsmobs", "emu"), alexsMobsAbility(player -> dashForward(player, 1.4D)));
+        map.put(new ResourceLocation("alexsmobs", "enderiophage"), alexsMobsAbility(player -> shortTeleportForward(player, 5.0D)));
+        map.put(new ResourceLocation("alexsmobs", "fly"), alexsMobsAbility(player -> dashForward(player, 0.4D)));
+        map.put(new ResourceLocation("alexsmobs", "giant_squid"), alexsMobsAbility(player -> waterDash(player, 1.5D)));
+        map.put(new ResourceLocation("alexsmobs", "gorilla"), alexsMobsAbility(player -> knockbackNearbyEntities(player, 3.0F, 1.5D)));
+        map.put(new ResourceLocation("alexsmobs", "grizzly_bear"), alexsMobsAbility(player -> knockbackNearbyEntities(player, 3.0F, 1.0D)));
+        map.put(new ResourceLocation("alexsmobs", "guster"), alexsMobsAbility(player -> knockbackNearbyEntities(player, 5.0F, 2.0D)));
+        map.put(new ResourceLocation("alexsmobs", "hummingbird"), alexsMobsAbility(player -> dashUpward(player, 0.7D)));
+        map.put(
+            new ResourceLocation("alexsmobs", "kangaroo"),
+            alexsMobsAbility(player -> {
+                dashForward(player, 1.2D);
+                dashUpward(player, 0.5D);
+            })
+        );
+        map.put(new ResourceLocation("alexsmobs", "komodo_dragon"), alexsMobsAbility(player -> poisonNearbyEnemies(player, 3.0D, 100, 0)));
+        map.put(new ResourceLocation("alexsmobs", "mimicube"), alexsMobsAbility(PredefIdentityAbilities::randomMorphNearby));
+        map.put(
+            new ResourceLocation("alexsmobs", "moose"),
+            alexsMobsAbility(player -> {
+                dashForward(player, 1.4D);
+                knockbackNearbyEntities(player, 2.5F, 1.2D);
+            })
+        );
+        map.put(new ResourceLocation("alexsmobs", "orca"), alexsMobsAbility(player -> waterDash(player, 1.2D)));
+        map.put(new ResourceLocation("alexsmobs", "raccoon"), alexsMobsAbility(PredefIdentityAbilities::dropRandomItemFromInventory));
+        map.put(new ResourceLocation("alexsmobs", "rattlesnake"), alexsMobsAbility(player -> applyPoisonToRaycastTarget(player, 2.0D, 60, 0)));
+        map.put(new ResourceLocation("alexsmobs", "roadrunner"), alexsMobsAbility(player -> dashForward(player, 1.8D)));
+        map.put(new ResourceLocation("alexsmobs", "skunk"), alexsMobsAbility(player -> healNearbyPlayers(player, 2.5D, -2.0F)));
+        map.put(
+            new ResourceLocation("alexsmobs", "snow_leopard"),
+            alexsMobsAbility(player -> {
+                if (player.level().getBlockState(player.blockPosition().below()).is(Blocks.SNOW_BLOCK)) {
+                    dashForward(player, 1.3D);
+                }
+            })
+        );
+        map.put(new ResourceLocation("alexsmobs", "soul_vulture"), alexsMobsAbility(player -> healNearbyPlayers(player, 4.0D, 4.0F)));
+        map.put(new ResourceLocation("alexsmobs", "spectre"), alexsMobsAbility(player -> dashForward(player, 2.0D)));
+        map.put(new ResourceLocation("alexsmobs", "sunbird"), alexsMobsAbility(player -> dashUpward(player, 2.0D)));
+        map.put(new ResourceLocation("alexsmobs", "tarantula_hawk"), alexsMobsAbility(player -> applyPoisonToRaycastTarget(player, 3.0D, 100, 0)));
+        map.put(new ResourceLocation("alexsmobs", "tasmanian_devil"), alexsMobsAbility(player -> dashForward(player, 1.8D)));
+        map.put(new ResourceLocation("alexsmobs", "tiger"), alexsMobsAbility(player -> dashForward(player, 1.5D)));
+        map.put(new ResourceLocation("alexsmobs", "void_worm"), alexsMobsAbility(player -> dashForward(player, 2.5D)));
+        map.put(
+            new ResourceLocation("alexsmobs", "warped_mosco"),
+            alexsMobsAbility(player -> {
+                dashForward(player, 2.5D);
+                knockbackNearbyEntities(player, 3.0F, 2.5D);
+            })
+        );
+    }
+
+    private static IdentityAbility simpleAbility(java.util.function.Consumer<Entity> action) {
+        return new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (player == null || action == null) {
+                    return;
+                }
+                action.accept(player);
+            }
+        };
+    }
+
+    private static IdentityAbility alexsMobsAbility(java.util.function.Consumer<Entity> action) {
+        return simpleAbility(player -> {
+            if (!isAlexsMobsLoaded()) {
+                return;
+            }
+            action.accept(player);
+        });
+    }
+
+    private static boolean isAlexsMobsLoaded() {
+        return Platform.isModLoaded("alexsmobs");
+    }
+
+    private static void dashForward(Entity player, double strength) {
+        if (player == null) {
+            return;
+        }
+        Vec3 look = player.getViewVector(1.0F);
+        player.setDeltaMovement(
+            player.getDeltaMovement().add(look.x * strength, Math.max(0.06D, strength * 0.08D), look.z * strength)
+        );
+        player.hurtMarked = true;
+    }
+
+    private static void dashUpward(Entity player, double strength) {
+        if (player == null) {
+            return;
+        }
+        player.setDeltaMovement(player.getDeltaMovement().add(0.0D, strength, 0.0D));
+        player.hurtMarked = true;
+    }
+
+    private static void waterDash(Entity player, double strength) {
+        if (player == null) {
+            return;
+        }
+        if (player.isInWater()) {
+            dashForward(player, strength);
+            return;
+        }
+        dashForward(player, Math.max(0.25D, strength * 0.5D));
+    }
+
+    private static void shortTeleportForward(Entity player, double distance) {
+        if (player == null) {
+            return;
+        }
+        Vec3 look = player.getViewVector(1.0F).normalize();
+        if (look.lengthSqr() < 1.0E-6D) {
+            return;
+        }
+        for (double step = distance; step >= 1.0D; step -= 1.0D) {
+            Vec3 target = player.position().add(look.scale(step));
+            if (!canTeleportTo(player, target)) {
+                continue;
+            }
+            player.teleportTo(target.x, target.y, target.z);
+            player.level().playSound(
+                null,
+                target.x,
+                target.y,
+                target.z,
+                SoundEvents.ENDERMAN_TELEPORT,
+                SoundSource.PLAYERS,
+                1.0F,
+                1.0F
+            );
+            return;
+        }
+    }
+
+    private static boolean canTeleportTo(Entity player, Vec3 target) {
+        if (player == null || target == null) {
+            return false;
+        }
+        Vec3 delta = target.subtract(player.position());
+        AABB movedBox = player.getBoundingBox().move(delta);
+        return player.level().noCollision(player, movedBox);
+    }
+
+    private static void constrictNearby(Entity player, double radius) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        AABB area = player.getBoundingBox().inflate(radius);
+        for (LivingEntity target : serverLevel.getEntitiesOfClass(LivingEntity.class, area, target -> target != player && target.isAlive())) {
+            target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 3));
+            target.hurt(player.damageSources().mobAttack(livingPlayer), 2.0F);
+        }
+    }
+
+    private static void knockbackNearbyEntities(Entity player, double radius, double strength) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        AABB area = player.getBoundingBox().inflate(radius);
+        for (LivingEntity target : serverLevel.getEntitiesOfClass(LivingEntity.class, area, target -> target != player && target.isAlive())) {
+            Vec3 push = target.position().subtract(player.position());
+            if (push.lengthSqr() < 1.0E-6D) {
+                push = player.getViewVector(1.0F);
+            }
+            Vec3 normalized = push.normalize();
+            target.push(normalized.x * strength, 0.2D + (strength * 0.08D), normalized.z * strength);
+        }
+    }
+
+    private static void poisonNearbyEnemies(Entity player, double radius, int duration, int amplifier) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        AABB area = player.getBoundingBox().inflate(radius);
+        for (LivingEntity target : serverLevel.getEntitiesOfClass(LivingEntity.class, area, target -> target != player && target.isAlive())) {
+            target.addEffect(new MobEffectInstance(MobEffects.POISON, Math.max(1, duration), amplifier));
+        }
+    }
+
+    private static void healNearbyPlayers(Entity player, double radius, float amount) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        AABB area = player.getBoundingBox().inflate(radius);
+        for (Player target : serverLevel.getEntitiesOfClass(Player.class, area, target -> target.isAlive())) {
+            if (amount > 0.0F) {
+                target.heal(amount);
+            } else if (amount < 0.0F && player instanceof LivingEntity livingPlayer) {
+                target.hurt(player.damageSources().mobAttack(livingPlayer), -amount);
+            }
+        }
+    }
+
+    private static void applyPoisonToRaycastTarget(Entity player, double range, int duration, int amplifier) {
+        EntityHitResult hit = findLivingTarget(player, range);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        target.addEffect(new MobEffectInstance(MobEffects.POISON, Math.max(1, duration), amplifier));
+    }
+
+    private static void pullRaycastTargetTowardPlayer(Entity player, double range, double strength) {
+        EntityHitResult hit = findLivingTarget(player, range);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        Vec3 toPlayer = player.position().subtract(target.position());
+        if (toPlayer.lengthSqr() < 1.0E-6D) {
+            return;
+        }
+        Vec3 pull = toPlayer.normalize().scale(strength);
+        target.setDeltaMovement(target.getDeltaMovement().add(pull.x, pull.y * 0.35D, pull.z));
+        target.hurtMarked = true;
+    }
+
+    private static void damageAndLeechRaycastTarget(Entity player, double range, float damage, float healAmount) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        EntityHitResult hit = findLivingTarget(player, range);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+        livingPlayer.heal(healAmount);
+    }
+
+    private static void dropRandomItemFromInventory(Entity player) {
+        if (!(player instanceof Player user)) {
+            return;
+        }
+        List<Integer> nonEmptySlots = new ArrayList<>();
+        for (int i = 0; i < user.getInventory().getContainerSize(); i++) {
+            if (!user.getInventory().getItem(i).isEmpty()) {
+                nonEmptySlots.add(i);
+            }
+        }
+        if (nonEmptySlots.isEmpty()) {
+            return;
+        }
+        int slot = nonEmptySlots.get(user.getRandom().nextInt(nonEmptySlots.size()));
+        ItemStack dropped = user.getInventory().removeItem(slot, 1);
+        if (dropped.isEmpty()) {
+            return;
+        }
+        user.drop(dropped, true, false);
+    }
+
+    private static void randomMorphNearby(Entity player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        if (!(serverPlayer.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        List<LivingEntity> candidates = serverLevel.getEntitiesOfClass(
+            LivingEntity.class,
+            serverPlayer.getBoundingBox().inflate(8.0D),
+            target -> target != serverPlayer && target.isAlive() && IdentityProgression.isMorphableType(target.getType())
+        );
+        if (candidates.isEmpty()) {
+            return;
+        }
+        LivingEntity target = candidates.get(serverPlayer.getRandom().nextInt(candidates.size()));
+        ResourceLocation targetId = EntityType.getKey(target.getType());
+        if (targetId == null || !IdentityProgression.isMorphableIdentity(targetId)) {
+            return;
+        }
+        IdentityProgression.morph(serverPlayer, targetId);
     }
 
     private static EntityHitResult findLivingTarget(Entity player, double range) {
@@ -1147,7 +1470,24 @@ public final class PredefIdentityAbilities {
                 renderSonicBoom(player.level(), player.getEyePosition(1.0F), target.getEyePosition(1.0F));
             }
         }
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BREEZE_SHOOT, SoundSource.HOSTILE, 1.0F, 1.0F);
+        player.level().playSound(
+            null,
+            player.getX(),
+            player.getY(),
+            player.getZ(),
+            identity2$resolveBreezeShootSound(),
+            SoundSource.HOSTILE,
+            1.0F,
+            1.0F
+        );
+    }
+
+    private static SoundEvent identity2$resolveBreezeShootSound() {
+        SoundEvent breezeShoot = BuiltInRegistries.SOUND_EVENT.get(new ResourceLocation("minecraft", "breeze_shoot"));
+        if (breezeShoot != null) {
+            return breezeShoot;
+        }
+        return SoundEvents.BLAZE_SHOOT;
     }
 
     private static boolean spawnWindProjectile(Entity player, ResourceLocation projectileId) {

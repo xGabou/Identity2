@@ -111,8 +111,6 @@ public abstract class EntityRenderDispatcherMixin {
 
             if (livingIdentity instanceof Bat batIdentity) {
                 batIdentity.setResting(false);
-                batIdentity.flyAnimationState.startIfStopped(source.tickCount);
-                batIdentity.restAnimationState.stop();
             }
         }
 

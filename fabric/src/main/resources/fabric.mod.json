@@ -29,7 +29,7 @@
     "fabricloader": ">=0.18.4",
     "minecraft": "~1.20.1",
     "java": ">=17",
-    "architectury": ">=11.1.17",
+    "architectury": ">=9.0.0",
     "gaboulibs": ">=1.4",
     "fabric-api": "*"
   },

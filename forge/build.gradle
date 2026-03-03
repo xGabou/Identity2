@@ -4,6 +4,33 @@ plugins {
     id "com.modrinth.minotaur" version "2.8.10" // Modrinth uploader
 }
 loom {
+    runs {
+        client {
+            client()
+            runDir "run"
+            vmArg "-Dmixin.env.disableRefMap=true"
+            vmArg "-Ddevauth.enabled=true"
+            vmArg "-Ddevauth.account=main"
+            vmArg "-Dlog4j2.level=DEBUG"
+        }
+
+        server {
+            server()
+            runDir "run"
+            vmArg "-Dmixin.env.disableRefMap=true"
+            vmArg "-Dlog4j2.level=DEBUG"
+        }
+
+        data {
+            data()
+            runDir "run"
+            vmArg "-Dmixin.env.disableRefMap=true"
+            programArgs "--mod", "identity2", "--all",
+                    "--output", project(":common").file("src/generated/resources/").absolutePath,
+                    "--existing", project(":common").file("src/main/resources/").absolutePath
+        }
+    }
+
     forge {
         mixinConfigs = [
                 "identity2.mixins.json",
@@ -24,14 +51,20 @@ configurations {
     developmentForge.extendsFrom common
 }
 
+
 dependencies {
     forge "net.minecraftforge:forge:$rootProject.forge_version"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7701613"
+    modImplementation "curse.maven:gabous-libs-1367332:7519775"
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionForge")) { transitive = false }
+    runtimeOnly("me.djtheredstoner:DevAuth-forge-latest:1.2.1")
+    modImplementation "curse.maven:naturalist-627986:6863943"
+    modImplementation "curse.maven:geckolib-388172:7553267"
+    modImplementation "curse.maven:alexs-mobs-426558:5698791"
+    modImplementation "curse.maven:citadel-331936:7476570"
 }
 processResources {
     inputs.property "version", project.version.toString()

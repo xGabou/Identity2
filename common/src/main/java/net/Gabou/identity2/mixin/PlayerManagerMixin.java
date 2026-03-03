@@ -20,14 +20,13 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
 import net.Gabou.identity2.util.NetworkPayload;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.functions.CommandFunction;
+import net.minecraft.commands.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -52,7 +51,7 @@ public class PlayerManagerMixin {
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
-            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+            for (CommandFunction function : accessor.getCommandFunctionManager()
                 .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
@@ -63,7 +62,7 @@ public class PlayerManagerMixin {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
-    private void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
+    private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleData = new ArrayList<>(0);
@@ -109,7 +108,7 @@ public class PlayerManagerMixin {
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join")) != null) {
-            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+            for (CommandFunction function : accessor.getCommandFunctionManager()
                 .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,

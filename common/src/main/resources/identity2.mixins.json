@@ -3,6 +3,7 @@
   "package": "net.Gabou.identity2.mixin",
   "compatibilityLevel": "JAVA_17",
   "minVersion": "0.8",
+  "refmap": "identity2-common-refmap.json",
   "client": [
     "client.ClientWorldMixin",
     "client.CreativeModeInventoryScreenMixin",

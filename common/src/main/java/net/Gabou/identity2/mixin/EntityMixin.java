@@ -1,46 +1,12 @@
 package net.Gabou.identity2.mixin;
 
 import com.google.common.collect.Lists;
-
-import java.util.List;
-
-import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
-import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.world.damagesource.DamageTypes;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-
-import java.util.Locale;
-import java.util.Set;
-
-import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.context.CommandContext;
-import net.Gabou.identity2.ModComponents;
-import net.Gabou.identity2.PredefIdentityAbilities;
-import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.checkonly.EntityMethodChecks;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
-import org.spongepowered.asm.mixin.injection.Redirect;
-
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -48,33 +14,33 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.Gabou.identity2.identity.IdentityProgression;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor {
@@ -133,16 +99,16 @@ public class EntityMixin implements EntityAccessor {
 //    private static double TDIOB(double x){
 //        return -Identity2.maxWorldSize;
 //    }
-    @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
-    private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
+    @Inject(method = "move", at = @At("TAIL"))
+    private void moveOnEntityLandOverride(MoverType moverType, Vec3 movementInput, CallbackInfo ci) {
         CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
         if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
-            entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
-            return;
+            Entity entity = (Entity) (Object) this;
+            if (entity.onGround()) {
+                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
+            }
         }
-        block.updateEntityAfterFallOn(view, entity);
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
@@ -1221,7 +1187,7 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
-    @Inject(method = "lerpTo(DDDFFI)V", at = @At("HEAD"))
+    @Inject(method = "lerpTo(DDDFFIZ)V", at = @At("HEAD"))
     private void identity2$forwardLerpTo(
             double x,
             double y,
@@ -1229,10 +1195,11 @@ public class EntityMixin implements EntityAccessor {
             float yRot,
             float xRot,
             int interpolationSteps,
+            boolean interpolate,
             CallbackInfo info
     ) {
         if (this.currentIdentity != null) {
-            this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
+            this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps, interpolate);
         }
     }
 

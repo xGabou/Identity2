@@ -41,12 +41,15 @@ subprojects {
                 includeGroup('eu.pb4')
             }
         }
+        maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
+        flatDir { dir 'libs' }
     }
 
     dependencies {
         minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
         mappings loom.officialMojangMappings()
     }
+
 
     java {
         // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task

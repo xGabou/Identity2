@@ -87,12 +87,9 @@ final class IdentityMenuRenderHelper {
         float syntheticMouseY = centerY - angleY * 40.0F;
         InventoryScreen.renderEntityInInventoryFollowsMouse(
             context,
-            renderLeft,
-            renderTop,
-            renderRight,
+            (renderLeft + renderRight) / 2,
             renderBottom,
             scale,
-            0.0F,
             syntheticMouseX,
             syntheticMouseY,
             entity
@@ -131,7 +128,8 @@ final class IdentityMenuRenderHelper {
         if (maxDimension < 0.15F) {
             maxDimension = 0.15F;
         }
-        int target = (int) (Math.min(width, height) * 0.84F / maxDimension);
-        return Mth.clamp(target, 10, 92);
+        int minSide = Math.min(width, height);
+        int target = (int) (minSide * 0.55F / maxDimension);
+        return Mth.clamp(target, 4, 48);
     }
 }

@@ -158,18 +158,18 @@ public final class IdentityVariantSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (verticalAmount > 0 && this.scrollOffset > 0) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
+        if (verticalAmount > 0.0D && this.scrollOffset > 0) {
             this.scrollOffset--;
             refreshRows();
             return true;
         }
-        if (verticalAmount < 0 && this.scrollOffset < maxScrollOffset()) {
+        if (verticalAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
             this.scrollOffset++;
             refreshRows();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
     }
 
     @Override
@@ -187,7 +187,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
             this.cachedWorldId = worldId;
         }
 
-        renderBackground(context);
+        renderIdentityBackground(context);
         renderPanelSections(context);
         super.render(context, mouseX, mouseY, delta);
         renderRowEntityPreviews(context, delta);
@@ -209,7 +209,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         );
     }
 
-    private void renderBackground(GuiGraphics context) {
+    private void renderIdentityBackground(GuiGraphics context) {
         context.fillGradient(0, 0, this.width, this.height, 0xCC09131A, 0xE20A1821);
         context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xDE172732);
         context.fillGradient(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 12, 0x805EC8A6, 0x105EC8A6);

@@ -17,30 +17,24 @@ public class CreativeModeInventoryScreenMixin {
         method = "renderBg(Lnet/minecraft/client/gui/GuiGraphics;FII)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/screens/inventory/InventoryScreen;renderEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphics;IIIIIFFFLnet/minecraft/world/entity/LivingEntity;)V"
+            target = "Lnet/minecraft/client/gui/screens/inventory/InventoryScreen;renderEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphics;IIIFFLnet/minecraft/world/entity/LivingEntity;)V"
         ),
         require = 0
     )
     private void identity2$renderMorphPreviewInCreativeInventory(
         GuiGraphics graphics,
-        int x1,
-        int y1,
-        int x2,
-        int y2,
+        int x,
+        int y,
         int scale,
-        float bodyYOffset,
         float mouseX,
         float mouseY,
         LivingEntity entity
     ) {
         InventoryScreen.renderEntityInInventoryFollowsMouse(
             graphics,
-            x1,
-            y1,
-            x2,
-            y2,
+            x,
+            y,
             scale,
-            bodyYOffset,
             mouseX,
             mouseY,
             identity2$resolvePreviewEntity(entity)

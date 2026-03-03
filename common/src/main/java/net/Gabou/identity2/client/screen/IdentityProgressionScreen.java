@@ -198,9 +198,9 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
         if (!isWithinList(mouseX, mouseY)) {
-            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+            return super.mouseScrolled(mouseX, mouseY, verticalAmount);
         }
         if (verticalAmount > 0.0D && this.scrollOffset > 0) {
             this.scrollOffset--;
@@ -212,7 +212,7 @@ public final class IdentityProgressionScreen extends Screen {
             refreshButtons();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
     }
 
     @Override

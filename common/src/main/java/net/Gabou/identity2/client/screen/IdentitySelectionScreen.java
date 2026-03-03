@@ -14,7 +14,6 @@ import net.Gabou.identity2.client.identity.IdentityVariantDiscovery;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -177,18 +176,18 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (verticalAmount > 0 && this.scrollOffset > 0) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
+        if (verticalAmount > 0.0D && this.scrollOffset > 0) {
             this.scrollOffset--;
             refreshEntries(false);
             return true;
         }
-        if (verticalAmount < 0 && this.scrollOffset < maxScrollOffset()) {
+        if (verticalAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
             this.scrollOffset++;
             refreshEntries(false);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
     }
 
     @Override
@@ -284,7 +283,7 @@ public final class IdentitySelectionScreen extends Screen {
             int iconTop = button.getY() + 1;
             int iconRight = iconLeft + 20;
             int iconBottom = button.getY() + button.getHeight() - 1;
-            int iconMouseX = (iconLeft + iconRight) / 2 + (int) (Mth.sin((tick + i * 5) * 0.08F) * 5.0F);
+            int iconMouseX = (iconLeft + iconRight) / 2 + (int) (Mth.sin((tick + i * 5) * 0.08F) * 3.0F);
             int iconMouseY = (iconTop + iconBottom) / 2;
             IdentityMenuRenderHelper.renderEntityInBox(context, iconLeft, iconTop, iconRight, iconBottom, iconMouseX, iconMouseY, tick, preview);
         }

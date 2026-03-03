@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[49,)"
+loaderVersion = "[47,)"
 license = "All Rights Reserved"
 
 [[mods]]
@@ -14,7 +14,7 @@ description = '''
 [[dependencies.identity2]]
 modId = "forge"
 mandatory = true
-versionRange = "[49,)"
+versionRange = "[47,)"
 ordering = "NONE"
 side = "BOTH"
 
@@ -28,7 +28,7 @@ side = "BOTH"
 [[dependencies.identity2]]
 modId = "architectury"
 mandatory = true
-versionRange = "[11.1.17,)"
+versionRange = "[9.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
 

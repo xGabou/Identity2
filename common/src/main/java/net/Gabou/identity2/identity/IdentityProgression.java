@@ -2,6 +2,7 @@ package net.Gabou.identity2.identity;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.serialization.Codec;
+import com.mojang.authlib.GameProfile;
 import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.util.*;
 import dev.architectury.event.EventResult;
@@ -54,6 +55,8 @@ public final class IdentityProgression {
     private static final ResourceLocation GIANT_EASTER_EGG_ID = new ResourceLocation("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
+    public static final String PLAYER_SKIN_TEXTURE_VALUE_VARIANT_KEY = "SkinTextureValue";
+    public static final String PLAYER_SKIN_TEXTURE_SIGNATURE_VARIANT_KEY = "SkinTextureSignature";
 
     private static final String UNLOCKED_IDENTITIES_KEY = "identity2.unlocked_identities";
     private static final String UNLOCKED_IDENTITY_VARIANTS_KEY = "identity2.unlocked_identity_variants";
@@ -162,7 +165,27 @@ public final class IdentityProgression {
         if (!MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
             return false;
         }
+        if (PLAYER_IDENTITY_ID.equals(identityId)) {
+            if (net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_UUID_VARIANT_KEY, "").isBlank()) {
+                safeVariant.putString(PLAYER_SKIN_UUID_VARIANT_KEY, player.getUUID().toString());
+            }
+            if (net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_NAME_VARIANT_KEY, "").isBlank()) {
+                safeVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, player.getGameProfile().getName());
+            }
+            identity2$storeSkinTextureProperties(player.getGameProfile(), safeVariant);
+        }
         String serializedVariant = serializeVariantNbt(safeVariant);
+        if (PLAYER_IDENTITY_ID.equals(identityId)) {
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_UUID_VARIANT_KEY, "");
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_NAME_VARIANT_KEY, "");
+            Identity2.LOGGER.info(
+                "[SkinDiag] IdentityProgression.morph player identity for {} serializedVariant='{}' uuid='{}' name='{}'",
+                player.getGameProfile().getName(),
+                serializedVariant,
+                skinUuid,
+                skinName
+            );
+        }
         CompoundTag nbt = customData;
         net.minecraft.world.entity.EntityDimensions previousDimensions = player.getDimensions(player.getPose());
         double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width);
@@ -673,6 +696,7 @@ public final class IdentityProgression {
             CompoundTag playerSkinVariant = new CompoundTag();
             playerSkinVariant.putString(PLAYER_SKIN_UUID_VARIANT_KEY, killedPlayer.getUUID().toString());
             playerSkinVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, killedPlayer.getGameProfile().getName());
+            identity2$storeSkinTextureProperties(killedPlayer.getGameProfile(), playerSkinVariant);
             return new UnlockTarget(PLAYER_IDENTITY_ID, playerSkinVariant);
         }
 
@@ -681,6 +705,46 @@ public final class IdentityProgression {
             return null;
         }
         return new UnlockTarget(identityId, normalizeVariantForUnlock(extractVariantData(killed)));
+    }
+
+    private static void identity2$storeSkinTextureProperties(GameProfile profile, CompoundTag variant) {
+        if (profile == null || variant == null) {
+            return;
+        }
+        try {
+            Collection<?> textures = profile.getProperties().get("textures");
+            if (textures == null || textures.isEmpty()) {
+                return;
+            }
+            Object texture = textures.iterator().next();
+            String value = identity2$readAuthlibString(texture, "value", "getValue");
+            if (value == null || value.isBlank()) {
+                return;
+            }
+            variant.putString(PLAYER_SKIN_TEXTURE_VALUE_VARIANT_KEY, value);
+            String signature = identity2$readAuthlibString(texture, "signature", "getSignature");
+            if (signature != null && !signature.isBlank()) {
+                variant.putString(PLAYER_SKIN_TEXTURE_SIGNATURE_VARIANT_KEY, signature);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Nullable
+    private static String identity2$readAuthlibString(Object target, String... methodNames) {
+        if (target == null || methodNames == null) {
+            return null;
+        }
+        for (String methodName : methodNames) {
+            if (methodName == null || methodName.isBlank()) {
+                continue;
+            }
+            Object value = invokeNoArg(target, methodName);
+            if (value instanceof String text && !text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
     }
 
     private static int incrementKillCount(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
@@ -906,6 +970,19 @@ public final class IdentityProgression {
                 new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
             )
         );
+
+        if (PLAYER_IDENTITY_ID.toString().equals(modelOverride)) {
+            CompoundTag parsed = parseVariantNbt(variant);
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(parsed, PLAYER_SKIN_UUID_VARIANT_KEY, "");
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(parsed, PLAYER_SKIN_NAME_VARIANT_KEY, "");
+            Identity2.LOGGER.info(
+                "[SkinDiag] syncMorphData player identity sender={} variant='{}' uuid='{}' name='{}'",
+                player.getGameProfile().getName(),
+                variant,
+                skinUuid,
+                skinName
+            );
+        }
 
         NetworkCompat.sendToPlayer(player, modelPayload);
         NetworkCompat.sendToPlayer(player, shapePayload);

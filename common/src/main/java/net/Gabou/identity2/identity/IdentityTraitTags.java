@@ -7,7 +7,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
-import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.entity.EntityType;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,6 +24,11 @@ public final class IdentityTraitTags {
     public static final TagKey<EntityType<?>> CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
         new ResourceLocation("identity2", "can_breathe_underwater")
+    );
+
+    public static final TagKey<EntityType<?>> VANILLA_CAN_BREATHE_UNDERWATER = TagKey.create(
+        Registries.ENTITY_TYPE,
+        new ResourceLocation("minecraft", "can_breathe_under_water")
     );
 
     public static final TagKey<EntityType<?>> BURNS_IN_DAYLIGHT = TagKey.create(
@@ -82,7 +86,7 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_BREATHE_UNDERWATER), tagId(EntityTypeTags.CAN_BREATHE_UNDER_WATER));
+        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_BREATHE_UNDERWATER), tagId(VANILLA_CAN_BREATHE_UNDERWATER));
         if (assignmentOverride != null) {
             return assignmentOverride;
         }
@@ -95,7 +99,7 @@ public final class IdentityTraitTags {
             return Boolean.TRUE;
         }
 
-        return type.is(CAN_BREATHE_UNDERWATER) || type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
+        return type.is(CAN_BREATHE_UNDERWATER) || type.is(VANILLA_CAN_BREATHE_UNDERWATER);
     }
 
     public static boolean burnsInDaylight(EntityType<?> type) {

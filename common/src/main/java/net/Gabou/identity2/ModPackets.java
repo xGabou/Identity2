@@ -284,6 +284,25 @@ public final class ModPackets {
         }
 
         CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                variantNbt,
+                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                ""
+            );
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                variantNbt,
+                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                ""
+            );
+            Identity2.LOGGER.info(
+                "[SkinDiag] C2S morph request player-skin from {} rawVariant='{}' parsedUuid='{}' parsedName='{}'",
+                player.getGameProfile().getName(),
+                payload.variantNbt(),
+                skinUuid,
+                skinName
+            );
+        }
         if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
@@ -295,7 +314,14 @@ public final class ModPackets {
             }
         }
 
-        IdentityProgression.morph(player, identityId, variantNbt);
+        boolean success = IdentityProgression.morph(player, identityId, variantNbt);
+        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            Identity2.LOGGER.info(
+                "[SkinDiag] Server morph(player identity) result={} player={}",
+                success,
+                player.getGameProfile().getName()
+            );
+        }
     }
 
     private static void handleVillagerTradeRequestPacket(ServerPlayer requester, IdentityVillagerTradeRequestC2SPacketPayload payload) {
