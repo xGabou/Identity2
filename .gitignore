@@ -102,6 +102,7 @@ $RECYCLE.BIN/
 
 .gradle
 .gradle-user/
+.gradle-user-run/
 gradle-home/
 build/
 
