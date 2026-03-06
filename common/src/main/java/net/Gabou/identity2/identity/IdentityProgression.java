@@ -6,9 +6,18 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.lang.reflect.Method;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -21,8 +30,8 @@ import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EntityNbtIoCompat;
-import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -476,7 +485,7 @@ public final class IdentityProgression {
         CompoundTag customData = getCustomData(player);
         List<String> unlocked = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-                net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
             net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
@@ -502,7 +511,7 @@ public final class IdentityProgression {
         }
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-                net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -572,14 +581,14 @@ public final class IdentityProgression {
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
 
         NetworkManager.sendToPlayer(
-                player,
-                new CustomEntityStringDataS2CPacketPayload(
-                        player.getId(),
-                        List.of(
-                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
-                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
-                        )
+            player,
+            new CustomEntityStringDataS2CPacketPayload(
+                player.getId(),
+                List.of(
+                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
+                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
                 )
+            )
         );
         return removed;
     }
@@ -694,7 +703,7 @@ public final class IdentityProgression {
 
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-                net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         // Command/admin unlock means full identity unlock (all variants), so remove per-variant restriction.
         if (variantUnlocks.remove(key) != null) {
@@ -718,7 +727,7 @@ public final class IdentityProgression {
         String key = identityId.toString();
         CompoundTag customData = getCustomData(player);
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-                net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
 
         boolean changed = false;
@@ -809,14 +818,14 @@ public final class IdentityProgression {
         customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
         customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache);
         NetworkManager.sendToPlayer(
-                player,
-                new CustomEntityStringDataS2CPacketPayload(
-                        player.getId(),
-                        List.of(
-                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                                new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-                        )
+            player,
+            new CustomEntityStringDataS2CPacketPayload(
+                player.getId(),
+                List.of(
+                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
+                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
                 )
+            )
         );
     }
 
@@ -856,7 +865,7 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         Map<String, List<String>> variantUnlocks = new HashMap<>(
-                net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         List<String> tokens = variantUnlocks.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
@@ -867,34 +876,34 @@ public final class IdentityProgression {
     }
 
     private static void syncMorphData(
-            ServerPlayer player,
-            String modelOverride,
-            String variant,
-            double widthOverride,
-            double heightOverride,
-            String previousType,
-            String previousVariant,
-            double transitionStartTick,
-            double transitionDurationTicks
+        ServerPlayer player,
+        String modelOverride,
+        String variant,
+        double widthOverride,
+        double heightOverride,
+        String previousType,
+        String previousVariant,
+        double transitionStartTick,
+        double transitionDurationTicks
     ) {
         CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                        new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, variant),
-                        new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
-                        new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_KEY, previousVariant)
-                )
+            player.getId(),
+            List.of(
+                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
+                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
+                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, variant),
+                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
+                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_KEY, previousVariant)
+            )
         );
         CustomEntityDataS2CPacketPayload shapePayload = new CustomEntityDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                        new CustomEntityDataS2CPacket.Entry("width_override", widthOverride),
-                        new CustomEntityDataS2CPacket.Entry("height_override", heightOverride),
-                        new CustomEntityDataS2CPacket.Entry(TRANSITION_START_TICK_KEY, transitionStartTick),
-                        new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
-                )
+            player.getId(),
+            List.of(
+                new CustomEntityDataS2CPacket.Entry("width_override", widthOverride),
+                new CustomEntityDataS2CPacket.Entry("height_override", heightOverride),
+                new CustomEntityDataS2CPacket.Entry(TRANSITION_START_TICK_KEY, transitionStartTick),
+                new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
+            )
         );
 
         NetworkManager.sendToPlayer(player, modelPayload);
@@ -914,12 +923,12 @@ public final class IdentityProgression {
             return;
         }
         MorphAcquisitionS2CPacketPayload payload = new MorphAcquisitionS2CPacketPayload(
-                player.getId(),
-                acquired.getId(),
-                acquired.getX(),
-                acquired.getY() + acquired.getBbHeight() * 0.5D,
-                acquired.getZ(),
-                morphAcquisition
+            player.getId(),
+            acquired.getId(),
+            acquired.getX(),
+            acquired.getY() + acquired.getBbHeight() * 0.5D,
+            acquired.getZ(),
+            morphAcquisition
         );
         NetworkManager.sendToPlayer(player, payload);
         for (ServerPlayer other : serverWorld.players()) {
@@ -953,11 +962,11 @@ public final class IdentityProgression {
     }
 
     private static void setTransitionData(
-            CompoundTag nbt,
-            String previousType,
-            String previousVariant,
-            double transitionStartTick,
-            double transitionDurationTicks
+        CompoundTag nbt,
+        String previousType,
+        String previousVariant,
+        double transitionStartTick,
+        double transitionDurationTicks
     ) {
         if (transitionDurationTicks <= 0.0D) {
             clearTransitionData(nbt);
@@ -986,12 +995,12 @@ public final class IdentityProgression {
     }
 
     private static void updateMorphDamageGrace(
-            ServerPlayer player,
-            CompoundTag nbt,
-            double previousWidth,
-            double previousHeight,
-            double nextWidth,
-            double nextHeight
+        ServerPlayer player,
+        CompoundTag nbt,
+        double previousWidth,
+        double previousHeight,
+        double nextWidth,
+        double nextHeight
     ) {
         if (player == null || player.level() == null || nbt == null) {
             return;
@@ -1161,6 +1170,10 @@ public final class IdentityProgression {
                 variant.putBoolean("IsBaby", isBaby);
             }
         } catch (Throwable ignored) {
+        }
+        CompoundTag adapterVariant = IdentityApi.extractVariantData(entity);
+        if (adapterVariant != null && !adapterVariant.isEmpty()) {
+            variant.merge(adapterVariant);
         }
         return normalizeVariantForUnlock(variant);
     }

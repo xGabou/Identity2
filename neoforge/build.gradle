@@ -75,7 +75,7 @@ if (modrinthToken) {
         projectId = "u8V1OwVf" // from your Modrinth project URL
         versionNumber = "NeoForge-${project.version}"
         versionName = "Identity ${mod_version}"
-        changelog = rootProject.file("IdentityChangeLog.md").text
+        changelog = rootProject.file("docs/public/IdentityChangeLog.md").text
         gameVersions = ["1.21.1"]
         loaders = ["neoforge"]
         versionType = "release"
@@ -100,7 +100,7 @@ if (curseforgeToken) {
 
         project {
             id = "1238155"
-            changelog = rootProject.file("IdentityChangeLog.md")
+            changelog = rootProject.file("docs/public/IdentityChangeLog.md")
             releaseType = "release" // options: alpha, beta, release
             addGameVersion "1.21.1"
             addGameVersion "NeoForge"

@@ -7,6 +7,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.*;
 
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
@@ -150,6 +151,9 @@ public final class IdentityVariantDiscovery {
             }
 
             Map<String, IdentityVariant> out = new LinkedHashMap<>();
+            for (IdentityVariant variant : IdentityApi.discoverVariants(type, world)) {
+                addVariant(out, variant);
+            }
             List<IdentityVariant> known = discoverKnownVariants(type, typeId);
             for (IdentityVariant variant : known) {
                 addVariant(out, variant);

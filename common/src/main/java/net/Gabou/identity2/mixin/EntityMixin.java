@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
 
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.*;
@@ -207,6 +208,7 @@ public class EntityMixin implements EntityAccessor{
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
+                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
@@ -678,6 +680,7 @@ public class EntityMixin implements EntityAccessor{
         }
 
         identity2$applyVillagerVariantState(identityEntity, variantNbt);
+        IdentityApi.applyVariantData(identityEntity, variantNbt);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
