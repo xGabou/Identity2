@@ -94,7 +94,7 @@ tasks.register("discordWebhook") {
         return true
     }
     doLast {
-        def changelogText = rootProject.file("IdentityChangeLog.md").text
+        def changelogText = rootProject.file("docs/public/IdentityChangeLog.md").text
 
         def payload = [
                 username: "Build Bot",

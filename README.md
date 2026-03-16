@@ -92,6 +92,17 @@ Fabric profiling helper:
 - `fabric/` Fabric bootstrap and platform bindings
 - `neoforge/` NeoForge bootstrap and platform bindings
 
+## Addon Development
+
+Addon-facing API and integration docs:
+
+- [`docs/public/ADDON_DEV_GUIDE.md`](./docs/public/ADDON_DEV_GUIDE.md)
+
+Documentation folders:
+
+- [`docs/public`](./docs/public/README.md)
+- [`docs/Gabou's thing`](./docs/Gabou's%20thing/README.md)
+
 ## Current Defaults (Code)
 
 Important defaults are in:

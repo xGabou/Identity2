@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin;
 
 import com.google.common.collect.Lists;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
@@ -44,6 +45,14 @@ import java.util.Set;
 
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor {
+    @Unique
+    private static final Set<ResourceLocation> identity2$ravagerRiderIds = Set.of(
+            new ResourceLocation("minecraft", "pillager"),
+            new ResourceLocation("minecraft", "vindicator"),
+            new ResourceLocation("minecraft", "evoker"),
+            new ResourceLocation("minecraft", "illusioner"),
+            new ResourceLocation("minecraft", "witch")
+    );
 
     @Nullable
     private CompoundTag persistentData;
@@ -197,6 +206,7 @@ public class EntityMixin implements EntityAccessor {
                 if (this.currentIdentity instanceof Mob mobIdentity) {
                     mobIdentity.setNoAi(true);
                 }
+                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
@@ -645,6 +655,7 @@ public class EntityMixin implements EntityAccessor {
         }
 
         identity2$applyVillagerVariantState(identityEntity, variantNbt);
+        IdentityApi.applyVariantData(identityEntity, variantNbt);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
@@ -1284,12 +1295,35 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
     private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info) {
+        Entity self = (Entity) (Object) this;
+        if (hand == InteractionHand.MAIN_HAND
+                && identity2$isRavager(self)
+                && identity2$canRideRavager(player)
+                && !player.isPassenger()) {
+            if (player.level().isClientSide()) {
+                info.setReturnValue(InteractionResult.SUCCESS);
+                return;
+            }
+            if (player.startRiding(self)) {
+                info.setReturnValue(InteractionResult.CONSUME);
+                return;
+            }
+        }
         if (this.currentIdentity != null) {
             InteractionResult actionResult = this.currentIdentity.interact(player, hand);
             if (actionResult != InteractionResult.PASS) {
                 info.setReturnValue(actionResult);
             }
         }
+    }
+
+    @Inject(method = "canAddPassenger", at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$canAddIllagerMorphPassenger(Entity passenger, CallbackInfoReturnable<Boolean> cir) {
+        Entity self = (Entity) (Object) this;
+        if (!identity2$isRavager(self) || !(passenger instanceof Player player) || !identity2$canRideRavager(player)) {
+            return;
+        }
+        cir.setReturnValue(self.getPassengers().isEmpty());
     }
 
     @Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
@@ -1552,6 +1586,28 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
             return text;
         }
         return "";
+    }
+
+    @Unique
+    private static boolean identity2$isRavager(Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(entity.getType());
+        return new ResourceLocation("minecraft", "ravager").equals(typeId);
+    }
+
+    @Unique
+    private static boolean identity2$canRideRavager(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(currentIdentity.getType());
+        return identity2$ravagerRiderIds.contains(typeId);
     }
 //Tons of Redirects - End
 }

@@ -65,13 +65,13 @@ public abstract class EntityRenderDispatcherMixin {
             return;
         }
 
-        identity2$syncIdentityForRender(entity, renderIdentity);
+        syncIdentityVisualState(entity, renderIdentity);
 
         //noinspection unchecked
         ((EntityRenderer) identityRenderer).render(renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
     }
 
-    private static void identity2$syncIdentityForRender(Entity source, Entity identity) {
+    public static void syncIdentityVisualState(Entity source, Entity identity) {
         identity.setPosRaw(source.position().x, source.position().y, source.position().z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
@@ -96,6 +96,10 @@ public abstract class EntityRenderDispatcherMixin {
             livingIdentity.swingTime = livingSource.swingTime;
             livingIdentity.oAttackAnim = livingSource.oAttackAnim;
             livingIdentity.attackAnim = livingSource.attackAnim;
+            livingIdentity.hurtTime = livingSource.hurtTime;
+            livingIdentity.hurtDuration = livingSource.hurtDuration;
+            livingIdentity.deathTime = livingSource.deathTime;
+            livingIdentity.invulnerableTime = livingSource.invulnerableTime;
             if (!(livingIdentity instanceof Shulker)) {
                 livingIdentity.yBodyRot = livingSource.yBodyRot;
                 livingIdentity.yBodyRotO = livingSource.yBodyRotO;

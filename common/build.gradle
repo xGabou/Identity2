@@ -23,7 +23,8 @@ dependencies {
     modImplementation "curse.maven:naturalist-627986:6863943"
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:alexs-mobs-426558:5698791"
-    modImplementation "curse.maven:citadel-331936:7476570"
+    modImplementation "curse.maven:citadel-331936:7476570";
+    runtimeOnly "curse.maven:midnightlib-488090:7318663"
 }
 architectury {
     common("fabric", "forge","neoforge")

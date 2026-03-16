@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.lang.reflect.Method;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -1247,6 +1248,10 @@ public final class IdentityProgression {
                 variant.putBoolean("IsBaby", isBaby);
             }
         } catch (Throwable ignored) {
+        }
+        CompoundTag adapterVariant = IdentityApi.extractVariantData(entity);
+        if (!adapterVariant.isEmpty()) {
+            variant.merge(adapterVariant);
         }
         return normalizeVariantForUnlock(variant);
     }
