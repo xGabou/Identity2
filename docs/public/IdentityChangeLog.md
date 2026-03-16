@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-03-16
+
+### Highlights
+
+- Restored animation playback for a wide range of morphs instead of leaving them visually static.
+- Improved Forge stability so the mod starts correctly and no longer disconnects on certain animated morphs.
+
+### Fixes
+
+- Fixed missing morph animations for many identities, including Ravager, Warden, Naturalist mobs, and many Alex's Mobs identities such as crocodile, gorilla, emu, and tasmanian_devil.
+- Fixed client-side morph state syncing so attack, hurt, movement, and other visual animations update correctly.
+- Fixed morphs failing to initialize tracked animation data correctly when joining a world or changing form.
+- Fixed a Forge disconnect caused by animated morphs receiving Citadel animation packets on the player entity instead of the morph identity.
+- Fixed Forge startup/runtime dependency issues affecting MidnightLib, GeckoLib, and related Forge development/runtime compatibility.
+
+### Added / Improved Behavior
+
+- Illager morphs can now ride Ravagers.
+- Ravager morphs now have a roar-based rage ability for nearby knockback behavior, closer to the Ravager shield-stun rage burst.
+
+---
+
 ## 2026-03-03
 
 ### Known Issues

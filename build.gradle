@@ -41,6 +41,7 @@ subprojects {
                 includeGroup('eu.pb4')
             }
         }
+        maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
         maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
         flatDir { dir 'libs' }
     }

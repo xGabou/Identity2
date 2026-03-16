@@ -8,7 +8,6 @@ loom {
         client {
             client()
             runDir "run"
-            vmArg "-Dmixin.env.disableRefMap=true"
             vmArg "-Ddevauth.enabled=true"
             vmArg "-Ddevauth.account=main"
             vmArg "-Dlog4j2.level=DEBUG"
@@ -17,14 +16,12 @@ loom {
         server {
             server()
             runDir "run"
-            vmArg "-Dmixin.env.disableRefMap=true"
             vmArg "-Dlog4j2.level=DEBUG"
         }
 
         data {
             data()
             runDir "run"
-            vmArg "-Dmixin.env.disableRefMap=true"
             programArgs "--mod", "identity2", "--all",
                     "--output", project(":common").file("src/generated/resources/").absolutePath,
                     "--existing", project(":common").file("src/main/resources/").absolutePath
@@ -65,7 +62,8 @@ dependencies {
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:alexs-mobs-426558:5698791"
     modImplementation "curse.maven:citadel-331936:7476570"
-    runtimeOnly "curse.maven:midnightlib-488090:7318663"
+    runtimeOnly "curse.maven:midnightlib-488090:4980331"
+    forgeRuntimeLibrary "com.eliotlash.mclib:mclib:20"
 }
 processResources {
     inputs.property "version", project.version.toString()

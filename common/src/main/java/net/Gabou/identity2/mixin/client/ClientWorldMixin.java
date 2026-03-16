@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import java.util.function.BiFunction;
+import net.Gabou.identity2.client.IdentityRenderStateHelper;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -22,12 +23,12 @@ public class ClientWorldMixin {
             return;
         }
 
-        EntityRenderDispatcherMixin.syncIdentityVisualState(entity, identity);
+        IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);
         if (identity instanceof Mob mobIdentity) {
             mobIdentity.setNoAi(true);
         }
         identity.tick();
-        EntityRenderDispatcherMixin.syncIdentityVisualState(entity, identity);
+        IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);
 
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(identity.getType());
         if (id == null) {

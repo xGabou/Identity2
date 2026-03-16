@@ -589,9 +589,6 @@ public class EntityMixin implements EntityAccessor {
 
         if (this.currentIdentity != null) {
             ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
-            //if(((Entity)(Object)this).getEntityWorld().isClient()){
-            ((EntityAccessor) (this.currentIdentity)).setId(((EntityAccessor) (this.currentIdentity)).getId() * -1);
-            //}
             ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
             if ((Entity) (Object) this instanceof Player player) {
