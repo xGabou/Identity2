@@ -31,7 +31,6 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -1082,15 +1081,11 @@ public class EntityMixin implements EntityAccessor{
 	public double yOld;
     @Shadow
 	public double zOld;
-    @Overwrite
-    public void setOldPos(Vec3 pos){
-		this.xo = this.xOld = pos.x;
-		this.yo = this.yOld = pos.y;
-		this.zo = this.zOld = pos.z;
-    };
     @Override
     public void setLastPosition(Vec3 pos) {
-        this.setOldPos(pos);
+        this.xo = this.xOld = pos.x;
+        this.yo = this.yOld = pos.y;
+        this.zo = this.zOld = pos.z;
     }
     @Shadow
     public void processFlappingMovement(){};
