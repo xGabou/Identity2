@@ -13,6 +13,8 @@ loom {
     runs {
         client {
             runDir "run-client"
+            vmArg "-Ddevauth.enabled=true"
+            vmArg "-Ddevauth.account=main"
         }
     }
 }
@@ -50,6 +52,7 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7701615"
+    runtimeOnly "me.djtheredstoner:DevAuth-neoforge-latest:1.2.1"
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }

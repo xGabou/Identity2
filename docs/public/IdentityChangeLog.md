@@ -2,6 +2,48 @@
 
 ---
 
+## 1.3.1
+
+### Compatibility
+
+- Replaced Identity2 client render interception in `EntityRenderDispatcher` from `@Redirect` to `@WrapOperation` (MixinExtras) to reduce hard conflicts with mods patching the same `EntityRenderer.render(...)` invoke.
+- Morph render path now safely falls back to the original render operation when no valid resolved identity renderer is available.
+- Cleaned up `EntityRenderDispatcherMixin` shadow usage as part of the render interception refactor.
+
+### Morph Stat / Combat Sync (Forge 1.20.1)
+
+- Reworked player morph attribute syncing to copy supported attributes directly from the current identity instance (including modded attributes when present on both sides).
+- Added centralized attribute sync/cleanup flow so morph stats are reapplied reliably after morph refreshes and cleared cleanly when returning to player form.
+- Fixed flying morph wall/ceiling false-positive damage by ignoring in-wall suffocation checks for fly-capable identities.
+- Disabled fall damage for fly-capable player morphs to prevent unintended damage while airborne.
+- Kept unarmed attack path routed through identity attack logic, with held-item attacks still using normal player attack flow.
+
+### Notes
+
+- Tide `2.0.3` (`bTaXAgQ8`) still uses a hard `@Redirect` on the same invoke, so final compatibility can still depend on mixin application order.
+- If needed, the next fallback is moving Identity2 interception earlier to `EntityRenderDispatcher.render(...)` `@Inject(HEAD, cancellable = true)` with guarded re-dispatch.
+
+## Side note
+Don't forget to check out my new channel https://discord.com/channels/1363919699745837118/1483554094495961100 to see what the status of the mod is.
+Also, I'll be hosting a server with a random modpack that yall choose. Get the @MinecraftServer role in the discord to vote for the modpack and get updates about the server. The server will be up in a few weeks, so stay tuned!
+---
+
+## 2026-03-18
+
+### Highlights
+
+- Custom Attribute system re-ported from `1.21.11`.
+- Apotheosis compatibility added (**alpha**).
+- Default config changed to disable the progression system for more casual players.
+
+### Fixes / Adjustments
+
+- Fixed issues mentioned by Alex.
+- Rewired attack behavior so identity attack is used when no item is selected.
+- This attack rewiring still needs more tuning and is not fully behaving as intended yet.
+
+---
+
 ## 2026-03-16
 
 ### Highlights
@@ -14,6 +56,7 @@
 - Fixed missing morph animations for many identities, including Ravager, Warden, Naturalist mobs, and many Alex's Mobs identities such as crocodile, gorilla, emu, and tasmanian_devil.
 - Fixed client-side morph state syncing so attack, hurt, movement, and other visual animations update correctly.
 - Fixed morphs failing to initialize tracked animation data correctly when joining a world or changing form.
+- Fixed a Forge startup crash in published builds caused by the production mixin/refmap configuration not being packaged correctly.
 - Fixed a Forge disconnect caused by animated morphs receiving Citadel animation packets on the player entity instead of the morph identity.
 - Fixed Forge startup/runtime dependency issues affecting MidnightLib, GeckoLib, and related Forge development/runtime compatibility.
 

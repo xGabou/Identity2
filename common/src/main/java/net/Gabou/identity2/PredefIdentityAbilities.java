@@ -388,6 +388,35 @@ public final class PredefIdentityAbilities {
             }
         });
 
+        map.put(new ResourceLocation("alexscaves", "nucleeper"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                Level world = player.level();
+                if (world == null || world.isClientSide()) {
+                    return;
+                }
+
+                Entity current = ((EntityAccessor) player).getCurrentIdentity();
+                boolean charged = identity2$isAlexsCavesNucleeperCharged(current);
+
+                Entity explosionBase = identity2$createAlexsCavesEntity(
+                    "com.github.alexmodguy.alexscaves.server.entity.ACEntityRegistry",
+                    "NUCLEAR_EXPLOSION",
+                    world
+                );
+                if (explosionBase == null) {
+                    return;
+                }
+
+                explosionBase.copyPosition(player);
+                identity2$invokeOneArgLoose(explosionBase, "setSize", charged ? 1.75F : 1.0F);
+                if (!world.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_MOBGRIEFING)) {
+                    identity2$invokeOneArgLoose(explosionBase, "setNoGriefing", true);
+                }
+                world.addFreshEntity(explosionBase);
+            }
+        });
+
         map.put(new ResourceLocation("endermite"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
@@ -2250,6 +2279,82 @@ public final class PredefIdentityAbilities {
         }
         Object unwrapped = unwrapHolderValue(normalized);
         return unwrapped != null ? unwrapped : normalized;
+    }
+
+    private static Entity identity2$createAlexsCavesEntity(String registryClassName, String fieldName, Level level) {
+        if (registryClassName == null || registryClassName.isBlank() || fieldName == null || fieldName.isBlank() || level == null) {
+            return null;
+        }
+        try {
+            Class<?> registryClass = Class.forName(registryClassName);
+            Object registryObject = registryClass.getField(fieldName).get(null);
+            Object entityTypeObject = invokeNoArg(registryObject, "get");
+            if (!(entityTypeObject instanceof EntityType<?> entityType)) {
+                return null;
+            }
+            return entityType.create(level);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static boolean identity2$isAlexsCavesNucleeperCharged(Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        if (!"com.github.alexmodguy.alexscaves.server.entity.living.NucleeperEntity".equals(entity.getClass().getName())) {
+            return false;
+        }
+        Object charged = invokeNoArg(entity, "isCharged");
+        return charged instanceof Boolean value && value;
+    }
+
+    private static Object identity2$invokeOneArgLoose(Object target, String methodName, Object arg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (!identity2$isParameterCompatible(paramType, arg)) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                return method.invoke(target, arg);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static boolean identity2$isParameterCompatible(Class<?> paramType, Object arg) {
+        if (paramType == null) {
+            return false;
+        }
+        if (arg == null) {
+            return !paramType.isPrimitive();
+        }
+        if (paramType.isAssignableFrom(arg.getClass())) {
+            return true;
+        }
+        if (paramType == boolean.class && arg instanceof Boolean) {
+            return true;
+        }
+        if (paramType == float.class && arg instanceof Float) {
+            return true;
+        }
+        if (paramType == double.class && arg instanceof Double) {
+            return true;
+        }
+        if (paramType == int.class && arg instanceof Integer) {
+            return true;
+        }
+        return false;
     }
 }
 

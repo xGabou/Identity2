@@ -1,8 +1,12 @@
 package net.Gabou.identity2.mixin;
 
+import java.lang.reflect.Method;
+import net.Gabou.identity2.compat.ApotheosisAttributeCompat;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
+import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
@@ -39,7 +43,7 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
 
     public void fixAttributes(Entity entity, Entity identity) {
         if ((identity instanceof LivingEntity livingIdentity) && (entity instanceof LivingEntity livingEntity)) {
-            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes());
+            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes(), livingIdentity);
             /*Identity2.LOGGER.info("Attributes mangled!");
             for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)this.attributes).getDefaultAttributes()).getInstances().values()){
                 Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(this.attributes.getValue(attr.getAttribute())));
@@ -49,7 +53,7 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
     }
 
 
-    public AttributeMap createMangled(AttributeMap a, AttributeMap b) {
+    public AttributeMap createMangled(AttributeMap a, AttributeMap b, @Nullable LivingEntity owner) {
         AttributeSupplier.Builder builder = AttributeSupplier.builder();
         for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) a).getDefaultAttributes()).getInstances().values()) {
             builder.add(attr.getAttribute(), attr.getBaseValue());
@@ -60,12 +64,59 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
             //Identity2.LOGGER.info("Mangling B: "+attr.getAttribute().toString());
         }
         AttributeMap newContainer = new AttributeMap(builder.build());
-        newContainer.assignValues(a);
-        newContainer.assignValues(b);
+        ApotheosisAttributeCompat.setOwner(newContainer, owner);
+        ApotheosisAttributeCompat.beginAttributeUpdate(newContainer);
+        try {
+            identity2$assignAllValues(newContainer, a);
+            identity2$assignAllValues(newContainer, b);
+            identity2$assignBaseValues(newContainer, a);
+            identity2$assignBaseValues(newContainer, b);
+        } finally {
+            ApotheosisAttributeCompat.endAttributeUpdate(newContainer);
+        }
         /*for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)newContainer).getDefaultAttributes()).getInstances().values()){
             Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(newContainer.getValue(attr.getAttribute())));
         }*/
         return newContainer;
+    }
+
+    private static void identity2$assignAllValues(AttributeMap target, AttributeMap source) {
+        if (target == null || source == null) {
+            return;
+        }
+        if (identity2$invokeAttributeMapCopy(target, "assignAllValues", source)) {
+            return;
+        }
+        identity2$invokeAttributeMapCopy(target, "assignValues", source);
+    }
+
+    private static void identity2$assignBaseValues(AttributeMap target, AttributeMap source) {
+        if (target == null || source == null) {
+            return;
+        }
+        // 1.21.11 behavior: copy base values explicitly after full value merge.
+        // On older mappings where this method does not exist, all available values
+        // were already copied by assignValues/assignAllValues above.
+        identity2$invokeAttributeMapCopy(target, "assignBaseValues", source);
+    }
+
+    private static boolean identity2$invokeAttributeMapCopy(AttributeMap target, String methodName, AttributeMap source) {
+        for (Method method : AttributeMap.class.getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> param = method.getParameterTypes()[0];
+            if (!param.isAssignableFrom(AttributeMap.class) && !AttributeMap.class.isAssignableFrom(param)) {
+                continue;
+            }
+            try {
+                method.invoke(target, source);
+                return true;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+        return false;
     }
 
     private static boolean identity2$canUseSlot(LivingEntity livingIdentity, EquipmentSlot slot) {
@@ -79,6 +130,14 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         } catch (Throwable ignored) {
             return true;
         }
+    }
+
+    private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
+        return livingIdentity != null
+            && (
+                livingIdentity.canBreatheUnderwater()
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
+            );
     }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
@@ -106,20 +165,39 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "decreaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirUnderwaterIdentity(int air, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(air);
-            }
+        if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+
+        LivingEntity host = (LivingEntity) (Object) this;
+        if (host.isInWaterOrBubble() && identity2$isAquaticMorph(livingIdentity)) {
+            info.setReturnValue(host.getMaxAirSupply());
         }
     }
 
     @Inject(method = "increaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirOnLandIdentity(int air, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(air);
-            }
+        if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+            return;
         }
+
+        LivingEntity host = (LivingEntity) (Object) this;
+        if (host.isInWaterOrBubble()) {
+            return;
+        }
+
+        if (identity2$isAquaticMorph(livingIdentity)) {
+            int nextAir = air - 1;
+            if (nextAir <= -20) {
+                nextAir = 0;
+                host.hurt(host.damageSources().dryOut(), 2.0F);
+            }
+            info.setReturnValue(nextAir);
+            return;
+        }
+
+        // Clear stale bubbles immediately after leaving an aquatic morph.
+        info.setReturnValue(host.getMaxAirSupply());
     }
 
     @Inject(method = "isInvertedHealAndHarm()Z", at = @At("HEAD"), cancellable = true)
@@ -135,8 +213,18 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     private void canBreatheInWaterIdentity(CallbackInfoReturnable<Boolean> info) {
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canBreatheUnderwater());
+                info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
             }
+        }
+    }
+
+    @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
+    private void identity2$disableFallDamageForFlyingMorphs(float distance, float damageMultiplier, DamageSource source, CallbackInfoReturnable<Boolean> cir) {
+        if (!((Entity) (Object) this instanceof Player)) {
+            return;
+        }
+        if (this.currentIdentity != null && ((EntityAccessor) this.currentIdentity).canFly()) {
+            cir.setReturnValue(false);
         }
     }
 

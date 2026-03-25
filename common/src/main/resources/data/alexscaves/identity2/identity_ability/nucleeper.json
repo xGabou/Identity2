@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:gunpowder",
+  "cooldown": 100,
+  "predef": "alexscaves:nucleeper"
+}

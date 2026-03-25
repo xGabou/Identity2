@@ -9,6 +9,15 @@ architectury {
     fabric()
 }
 
+loom {
+    runs {
+        client {
+            vmArg "-Ddevauth.enabled=true"
+            vmArg "-Ddevauth.account=main"
+        }
+    }
+}
+
 configurations {
     common {
         canBeResolved = true
@@ -30,12 +39,14 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+    modImplementation include("io.github.llamalad7:mixinextras-fabric:0.3.2")
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7519776"
     modImplementation "curse.maven:geckolib-388172:7553256"
     modImplementation "curse.maven:naturalist-627986:6863939"
-    runtimeOnly "curse.maven:midnightlib-488090:7318658"
+    runtimeOnly "curse.maven:midnightlib-488090:4980331"
+    runtimeOnly "me.djtheredstoner:DevAuth-fabric-latest:1.2.1"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

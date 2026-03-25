@@ -8,6 +8,8 @@ loom {
         client {
             client()
             runDir "run"
+            programArg "--mixin.config"
+            programArg "identity2.dev.mixins.json"
             vmArg "-Ddevauth.enabled=true"
             vmArg "-Ddevauth.account=main"
             vmArg "-Dlog4j2.level=DEBUG"
@@ -16,22 +18,20 @@ loom {
         server {
             server()
             runDir "run"
+            programArg "--mixin.config"
+            programArg "identity2.dev.mixins.json"
             vmArg "-Dlog4j2.level=DEBUG"
         }
 
         data {
             data()
             runDir "run"
+            programArg "--mixin.config"
+            programArg "identity2.dev.mixins.json"
             programArgs "--mod", "identity2", "--all",
                     "--output", project(":common").file("src/generated/resources/").absolutePath,
                     "--existing", project(":common").file("src/main/resources/").absolutePath
         }
-    }
-
-    forge {
-        mixinConfigs = [
-                "identity2.mixins.json",
-        ]
     }
 }
 
@@ -51,6 +51,8 @@ configurations {
 
 dependencies {
     forge "net.minecraftforge:forge:$rootProject.forge_version"
+    modImplementation include("io.github.llamalad7:mixinextras-forge:0.3.2")
+    forgeRuntimeLibrary "io.github.llamalad7:mixinextras-common:0.3.2"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
@@ -58,12 +60,21 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionForge")) { transitive = false }
     runtimeOnly("me.djtheredstoner:DevAuth-forge-latest:1.2.1")
-    modImplementation "curse.maven:naturalist-627986:6863943"
-    modImplementation "curse.maven:geckolib-388172:7553267"
-    modImplementation "curse.maven:alexs-mobs-426558:5698791"
-    modImplementation "curse.maven:citadel-331936:7476570"
-    runtimeOnly "curse.maven:midnightlib-488090:4980331"
+    compileOnly "curse.maven:naturalist-627986:6863943"
+    compileOnly "curse.maven:geckolib-388172:7553267"
+    compileOnly "curse.maven:alexs-mobs-426558:5698791"
+    compileOnly "curse.maven:citadel-331936:7476570"
+    compileOnly "curse.maven:midnightlib-488090:4980331"
+    compileOnly "curse.maven:apotheosis-313970:6461960"
     forgeRuntimeLibrary "com.eliotlash.mclib:mclib:20"
+    compileOnly "curse.maven:placebo-283644:6274231"
+    compileOnly "curse.maven:patchouli-306770:7731017"
+    compileOnly "curse.maven:apothic-attributes-898963:5634071"
+    modImplementation "curse.maven:alexs-caves-924854:5848216"
+    modImplementation "curse.maven:sonicraft-490147:6120917"
+    modImplementation "curse.maven:curios-309927:6418456"
+    modImplementation "curse.maven:geckolib-388172:7553267"
+    modImplementation "curse.maven:citadel-331936:7476570"
 }
 processResources {
     inputs.property "version", project.version.toString()
@@ -81,12 +92,30 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowCommon]
     archiveClassifier.set("dev-shadow")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude("fabric.mod.json")
+    manifest {
+        attributes("MixinConfigs": "identity2.mixins.json")
+    }
 }
 
 remapJar {
     input.set(shadowJar.archiveFile)
     dependsOn(shadowJar)
+    doLast {
+        def jarExecutable = new File(System.getProperty("java.home"), "bin/jar.exe")
+        exec {
+            executable = jarExecutable.exists() ? jarExecutable.absolutePath : "jar"
+            commandLine(
+                executable,
+                "uf",
+                archiveFile.get().asFile.absolutePath,
+                "-C",
+                project.file("build/resources/main").absolutePath,
+                "identity2.mixins.json"
+            )
+        }
+    }
 }
 
 jar {

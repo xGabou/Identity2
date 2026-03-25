@@ -2,6 +2,64 @@
 
 ---
 
+## 1.3.1
+
+
+### Compatibility
+
+- Replaced Identity2 client render interception in `EntityRenderDispatcher` from `@Redirect` to `@WrapOperation` (MixinExtras) to reduce hard conflicts with mods patching the same `EntityRenderer.render(...)` invoke.
+- Morph render path now safely falls back to the original render operation when no valid resolved identity renderer is available.
+- Cleaned up `EntityRenderDispatcherMixin` shadow usage as part of the render interception refactor.
+
+### Notes
+
+- Tide `2.0.3` (`bTaXAgQ8`) still uses a hard `@Redirect` on the same invoke, so final compatibility can still depend on mixin application order.
+- If needed, the next fallback is moving Identity2 interception earlier to `EntityRenderDispatcher.render(...)` `@Inject(HEAD, cancellable = true)` with guarded re-dispatch.
+
+## Side note
+Don't forget to check out my new channel https://discord.com/channels/1363919699745837118/1483554094495961100 to see what the status of the mod is.
+Also, I'll be hosting a server with a random modpack that yall choose. Get the @MinecraftServer role in the discord to vote for the modpack and get updates about the server. The server will be up in a few weeks, so stay tuned!
+---
+
+## 2026-03-18
+
+### Highlights
+
+- Custom Attribute system re-ported from `1.21.11`.
+- Apotheosis compatibility added (**alpha**).
+- Default config changed to disable the progression system for more casual players.
+
+### Fixes / Adjustments
+
+- Fixed issues mentioned by Alex.
+- Rewired attack behavior so identity attack is used when no item is selected.
+- This attack rewiring still needs more tuning and is not fully behaving as intended yet.
+
+---
+
+## 2026-03-16
+
+### Highlights
+
+- Restored animation playback for a wide range of morphs instead of leaving them visually static.
+- Improved Forge stability so the mod starts correctly and no longer disconnects on certain animated morphs.
+
+### Fixes
+
+- Fixed missing morph animations for many identities, including Ravager, Warden, Naturalist mobs, and many Alex's Mobs identities such as crocodile, gorilla, emu, and tasmanian_devil.
+- Fixed client-side morph state syncing so attack, hurt, movement, and other visual animations update correctly.
+- Fixed morphs failing to initialize tracked animation data correctly when joining a world or changing form.
+- Fixed a Forge startup crash in published builds caused by the production mixin/refmap configuration not being packaged correctly.
+- Fixed a Forge disconnect caused by animated morphs receiving Citadel animation packets on the player entity instead of the morph identity.
+- Fixed Forge startup/runtime dependency issues affecting MidnightLib, GeckoLib, and related Forge development/runtime compatibility.
+
+### Added / Improved Behavior
+
+- Illager morphs can now ride Ravagers.
+- Ravager morphs now have a roar-based rage ability for nearby knockback behavior, closer to the Ravager shield-stun rage burst.
+
+---
+
 ## 2026-03-03
 
 ### Known Issues
@@ -37,11 +95,13 @@
 ### Respawn Progression Sync Fix
 
 #### Fixes
+
 - Added a proper custom data merge from the old player entity to the new respawned entity.
 - Rebuilt the unlock cache on respawn and forced a fresh packet sync.
 - Synced both `identity2.unlocked_identities_cache` and `identity2.unlocked_identity_variants_cache` after respawn so the client UI stays aligned with server progression data.
 
 #### Why this was needed
+
 - Unlocks could appear to reset after death or respawn even though the data still existed server side.
 - The morph UI reads cached values, so stale or missing cache sync could show an empty unlock list.
 
