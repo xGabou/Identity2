@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
-import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
@@ -51,10 +51,14 @@ public class PlayerEntityMixin extends LivingEntityMixin {
     private static double TDIOB(double x) {
         return -Identity2.maxWorldSize + 1;
     }
-
-    @Inject(method = "freeAt", at = @At("HEAD"))
+    @Inject(method = "freeAt", at = @At("HEAD"), cancellable = true)
     protected void disableNoClipSuffocate(BlockPos pos, CallbackInfoReturnable info) {
         if (this.noPhysics) {
+            info.setReturnValue(true);
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (identity != null && ((EntityAccessor) identity).canFly()) {
             info.setReturnValue(true);
         }
     }

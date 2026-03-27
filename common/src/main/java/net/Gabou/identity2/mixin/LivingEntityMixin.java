@@ -87,6 +87,14 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
     }
 @Shadow
 public boolean canUseSlot(EquipmentSlot slot){return false;}
+
+    private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
+        return livingIdentity != null
+            && (
+                livingIdentity.canBreatheUnderwater()
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
+            );
+    }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
@@ -111,22 +119,41 @@ private void getAttributesIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "decreaseAirSupply(I)I", at=@At("HEAD"),cancellable=true)
-private void getNextAirUnderwaterIdentity(int air,CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(air);
+    @Inject(method = "decreaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
+    private void getNextAirUnderwaterIdentity(int air, CallbackInfoReturnable info) {
+        if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+
+        LivingEntity host = (LivingEntity) (Object) this;
+        if (host.isInWater() && identity2$isAquaticMorph(livingIdentity)) {
+            info.setReturnValue(host.getMaxAirSupply());
         }
     }
-}
-@Inject(method = "increaseAirSupply(I)I", at=@At("HEAD"),cancellable=true)
-private void getNextAirOnLandIdentity(int air,CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(air);
+
+    @Inject(method = "increaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
+    private void getNextAirOnLandIdentity(int air, CallbackInfoReturnable info) {
+        if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+            return;
         }
+
+        LivingEntity host = (LivingEntity) (Object) this;
+        if (host.isInWater()) {
+            return;
+        }
+
+        if (identity2$isAquaticMorph(livingIdentity)) {
+            int nextAir = air - 1;
+            if (nextAir <= -20) {
+                nextAir = 0;
+                host.hurt(host.damageSources().dryOut(), 2.0F);
+            }
+            info.setReturnValue(nextAir);
+            return;
+        }
+
+        info.setReturnValue(host.getMaxAirSupply());
     }
-}
 
 @Inject(method = "isInvertedHealAndHarm()Z", at=@At("HEAD"),cancellable=true)
 private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info){
@@ -136,17 +163,25 @@ private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info){
         }
     }
 }
+
 @Inject(method = "canBreatheUnderwater()Z", at=@At("HEAD"),cancellable=true)
 private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(livingIdentity.canBreatheUnderwater());
+            info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
         }
     }
 }
 
-
-
+    @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
+    private void identity2$disableFallDamageForFlyingMorphs(float distance, float damageMultiplier, DamageSource source, CallbackInfoReturnable<Boolean> cir) {
+        if (!((Entity) (Object) this instanceof Player)) {
+            return;
+        }
+        if (this.currentIdentity != null && ((EntityAccessor) this.currentIdentity).canFly()) {
+            cir.setReturnValue(false);
+        }
+    }
 
 @Shadow
 @Nullable
@@ -154,9 +189,6 @@ public SoundEvent getHurtSound(DamageSource source){return null;}
 @Shadow
 @Nullable
 public SoundEvent getDeathSound(){return null;}
-
-
-
 
 @Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable info){

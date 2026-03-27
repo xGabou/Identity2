@@ -52,6 +52,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -261,6 +262,9 @@ public final class Identity2Client {
 
         while (identityMenuKeyBinding.consumeClick()) {
             if (client.player != null && client.screen == null) {
+                if (!IdentitySettings.enableClientSwapMenu) {
+                    continue;
+                }
                 client.setScreen(new IdentitySelectionScreen());
             }
         }
