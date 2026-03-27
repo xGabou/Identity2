@@ -3,6 +3,7 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.*;
@@ -196,6 +197,7 @@ public class EntityMixin implements EntityAccessor{
                     mobIdentity.setNoAi(true);
                 }
                 this.currentIdentity.tick();
+                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
@@ -407,11 +409,17 @@ public class EntityMixin implements EntityAccessor{
         }
 
         if (identityCanFly) {
+            boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
-                if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.onUpdateAbilities();
-                }
+                abilitiesChanged = true;
+            }
+            if (!player.getAbilities().flying && !player.onGround()) {
+                player.getAbilities().flying = true;
+                abilitiesChanged = true;
+            }
+            if (abilitiesChanged && player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.onUpdateAbilities();
             }
             this.identity2$grantedMayfly = true;
             return;
@@ -717,6 +725,7 @@ public class EntityMixin implements EntityAccessor{
         }
 
         identity2$applyVillagerVariantState(identityEntity, variantNbt);
+        IdentityApi.applyVariantData(identityEntity, variantNbt);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
