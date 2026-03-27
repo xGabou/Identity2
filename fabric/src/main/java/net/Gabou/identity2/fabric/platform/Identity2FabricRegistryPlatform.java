@@ -23,11 +23,10 @@ public final class Identity2FabricRegistryPlatform implements ModRegistryPlatfor
         DynamicRegistrySetupCallback.EVENT.register(registryView -> {
             for (Registry<?> entry : registryView.stream().toList()) {
                 if (entry.key().equals(ModRegistries.IDENTITY_ABILITY_KEY)) {
-                    ModRegistries.identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) entry;
+                    ModRegistries.setIdentityAbilityRegistry((Registry<IdentityAbilityDefinition>) entry, "fabric_dynamic_registry_setup");
                     return;
                 }
             }
-            ModRegistries.refreshIdentityAbilityRegistry();
         });
     }
 }

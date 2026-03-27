@@ -322,7 +322,7 @@ public final class Identity2Client {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
+        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType(), identity.level().registryAccess());
         boolean hasFallbackPredefAbility = hasPredefFallback(identity);
         if (identityAbility == null && !hasFallbackPredefAbility) {
             return;
@@ -770,7 +770,7 @@ public final class Identity2Client {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
+        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType(), identity.level().registryAccess());
         boolean hasFallbackPredefAbility = hasPredefFallback(identity);
         if (identityAbility == null && !hasFallbackPredefAbility) {
             return;

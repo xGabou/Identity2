@@ -28,6 +28,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -506,13 +507,14 @@ public final class IdentityCommand {
         }
 
         List<ResourceLocation> candidates = collectAbilityCandidates(source, player);
+        RegistryAccess registryAccess = source.getLevel().registryAccess();
         List<String> lines = new ArrayList<>();
         int builtinCount = 0;
         int fallbackCount = 0;
         int noneCount = 0;
 
         for (ResourceLocation id : candidates) {
-            AbilityInfo info = resolveAbilityInfo(id);
+            AbilityInfo info = resolveAbilityInfo(id, registryAccess);
             if (!info.hasAny()) {
                 noneCount++;
                 continue;
@@ -547,7 +549,7 @@ public final class IdentityCommand {
             return 0;
         }
 
-        AbilityInfo info = resolveAbilityInfo(identityId);
+        AbilityInfo info = resolveAbilityInfo(identityId, source.getLevel().registryAccess());
         if (!info.hasAny()) {
             source.sendSystemMessage(Component.literal("Ability for " + identityId + ": none"));
             return 1;
@@ -795,7 +797,7 @@ public final class IdentityCommand {
             .toList();
     }
 
-    private static AbilityInfo resolveAbilityInfo(ResourceLocation identityId) {
+    private static AbilityInfo resolveAbilityInfo(ResourceLocation identityId, RegistryAccess registryAccess) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return AbilityInfo.none();
         }
@@ -804,7 +806,7 @@ public final class IdentityCommand {
             return AbilityInfo.none();
         }
 
-        IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type);
+        IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type, registryAccess);
         ResourceLocation predefFromDefinition = definition == null ? null : definition.bultinability();
         ResourceLocation predefKey = isNullResourceLocation(predefFromDefinition) ? identityId : predefFromDefinition;
 

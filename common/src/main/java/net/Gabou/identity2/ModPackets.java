@@ -40,7 +40,9 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ModPackets {
     public static final ResourceLocation CUSTOM_STRING_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
@@ -83,6 +85,8 @@ public final class ModPackets {
     public static final int ABILITY_ACTION_PASSIVE = -1;
     public static final int ABILITY_ACTION_PASSIVE_USED = -2;
 
+    private static final Set<String> loggedResolvedPredefDebug = ConcurrentHashMap.newKeySet();
+    private static final Set<String> loggedMissingPredefWarnings = ConcurrentHashMap.newKeySet();
     private static boolean initialized = false;
 
     private ModPackets() {
@@ -177,7 +181,7 @@ public final class ModPackets {
             return;
         }
 
-        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
+        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType(), identity.level().registryAccess());
         String command = "";
         ResourceLocation prebuilt = EntityType.getKey(identity.getType());
         if (identityAbility != null) {
@@ -260,23 +264,49 @@ public final class ModPackets {
 
         BuiltinIdentityAbility exact = PredefIdentityAbilities.predef.get(prebuilt);
         if (exact != null) {
+            logResolvedPredef(identityTypeId, prebuilt, prebuilt);
             return exact;
         }
 
         ResourceLocation minecraftAlias = ResourceLocation.fromNamespaceAndPath("minecraft", prebuilt.getPath());
         BuiltinIdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
+            logResolvedPredef(identityTypeId, prebuilt, minecraftAlias);
             return minecraft;
         }
 
-        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
-            ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prebuilt.getPath())
-        );
+        ResourceLocation identity2AliasId = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prebuilt.getPath());
+        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(identity2AliasId);
         if (identity2Alias != null) {
+            logResolvedPredef(identityTypeId, prebuilt, identity2AliasId);
             return identity2Alias;
         }
 
+        logMissingPredef(identityTypeId, prebuilt);
         return PredefIdentityAbilities.resolveFallbackAbility(identityTypeId);
+    }
+
+    private static void logResolvedPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId, ResourceLocation resolvedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId + "->" + resolvedPredefId;
+        if (loggedResolvedPredefDebug.add(key)) {
+            Identity2.LOGGER.debug(
+                "Resolved builtin identity ability for {} using predef {} via {}.",
+                identityTypeId,
+                requestedPredefId,
+                resolvedPredefId
+            );
+        }
+    }
+
+    private static void logMissingPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId;
+        if (loggedMissingPredefWarnings.add(key)) {
+            Identity2.LOGGER.warn(
+                "No builtin identity ability is registered for predef {} while resolving {}. Falling back to the generic identity ability.",
+                requestedPredefId,
+                identityTypeId
+            );
+        }
     }
 
     private static void handleMorphRequestPacket(ServerPlayer player, IdentityMorphRequestC2SPacketPayload payload) {

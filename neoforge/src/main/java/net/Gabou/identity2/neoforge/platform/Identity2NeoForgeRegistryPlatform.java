@@ -1,6 +1,7 @@
 package net.Gabou.identity2.neoforge.platform;
 
 import com.mojang.serialization.Codec;
+import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -38,11 +39,10 @@ public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatf
             return;
         }
         register(event, pendingRegistryKey, pendingCodec);
-        try {
-            Class<?> registriesClass = Class.forName("net.Gabou.identity2.ModRegistries");
-            registriesClass.getMethod("refreshIdentityAbilityRegistry").invoke(null);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        Identity2.LOGGER.debug(
+            "Declared NeoForge datapack registry {}. Runtime identity ability entries will resolve from active RegistryAccess once worlds load.",
+            pendingRegistryKey.location()
+        );
     }
 
     @SuppressWarnings("unchecked")
