@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -78,27 +79,36 @@ public final class PredefIdentityAbilities {
     private static final String ILLUSIONER_CLONE_TAG = "identity2.illusioner_clone";
     private static final String ILLUSIONER_OWNER_TAG_PREFIX = "identity2.illusioner_owner:";
 
-
-    abstract static class IdentityAbility {
+    @Deprecated
+    public abstract static class IdentityAbility implements BuiltinIdentityAbility {
+        @Override
         public void execute(Entity player) {
         }
 
+        @Override
         public void executeSecondary(Entity player) {
         }
 
+        @Override
         public void tick(Entity player, int cooldown) {
+        }
+
+        @Override
+        public void passiveTick(Entity player, boolean used) {
+            passivetick(player, used);
         }
 
         public void passivetick(Entity player, boolean used) {
         }
 
+        @Override
         public boolean overrideAttack(Entity player) {
             return false;
         }
     }
 
-    public static final Map<ResourceLocation, IdentityAbility> predef = create();
-    private static final IdentityAbility genericMobAbility = createGenericMobAbility();
+    public static final Map<ResourceLocation, BuiltinIdentityAbility> predef = create();
+    private static final BuiltinIdentityAbility genericMobAbility = createGenericMobAbility();
     private static final Map<UUID, List<IllusionerCloneRef>> illusionerCloneRefs = new HashMap<>();
 
     private record IllusionerCloneRef(UUID cloneUuid, long expiresAt, Vec3 offset) {
@@ -118,15 +128,36 @@ public final class PredefIdentityAbilities {
         return type.getCategory() != MobCategory.MISC;
     }
 
-    public static IdentityAbility resolveFallbackAbility(ResourceLocation identityTypeId) {
+    public static BuiltinIdentityAbility resolveFallbackAbility(ResourceLocation identityTypeId) {
         if (!hasFallbackAbility(identityTypeId)) {
             return null;
         }
         return genericMobAbility;
     }
 
-    private static Map<ResourceLocation, IdentityAbility> create() {
-        Map<ResourceLocation, IdentityAbility> map = new HashMap<>();
+    public static void register(ResourceLocation id, BuiltinIdentityAbility ability) {
+        if (id == null) {
+            throw new IllegalArgumentException("Ability id cannot be null.");
+        }
+        if (ability == null) {
+            throw new IllegalArgumentException("Ability cannot be null.");
+        }
+        predef.put(id, ability);
+    }
+
+    public static void register(EntityType<?> type, BuiltinIdentityAbility ability) {
+        if (type == null) {
+            throw new IllegalArgumentException("Entity type cannot be null.");
+        }
+        ResourceLocation id = EntityType.getKey(type);
+        if (id == null) {
+            throw new IllegalArgumentException("Entity type is not registered: " + type);
+        }
+        register(id, ability);
+    }
+
+    private static Map<ResourceLocation, BuiltinIdentityAbility> create() {
+        Map<ResourceLocation, BuiltinIdentityAbility> map = new HashMap<>();
 
         map.put(ResourceLocation.parse("ghast"), new IdentityAbility() {
             @Override
@@ -645,6 +676,18 @@ public final class PredefIdentityAbilities {
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
             }
         });
+
+        map.put(
+            ResourceLocation.fromNamespaceAndPath("naturalist", "bear"),
+            new IdentityAbility() {
+                @Override
+                public void execute(Entity player) {
+                    if (player instanceof LivingEntity livingPlayer) {
+                        livingPlayer.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 200, 1));
+                    }
+                }
+            }
+        );
 
         return map;
     }
@@ -1204,7 +1247,7 @@ public final class PredefIdentityAbilities {
         return player.damageSources().mobAttack(attacker);
     }
 
-    private static IdentityAbility createGenericMobAbility() {
+    private static BuiltinIdentityAbility createGenericMobAbility() {
         return new IdentityAbility() {
             @Override
             public void execute(Entity player) {
