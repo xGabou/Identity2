@@ -357,11 +357,19 @@ public class EntityMixin implements EntityAccessor{
         }
 
         if (identityCanFly) {
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
-                if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.onUpdateAbilities();
-                }
+                abilitiesChanged = true;
+            }
+            if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
+                player.getAbilities().flying = true;
+                abilitiesChanged = true;
+            }
+            if (abilitiesChanged && player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.onUpdateAbilities();
             }
             this.identity2$grantedMayfly = true;
             return;

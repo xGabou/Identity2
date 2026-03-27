@@ -151,8 +151,16 @@ public final class IdentityVariantDiscovery {
             }
 
             Map<String, IdentityVariant> out = new LinkedHashMap<>();
-            for (IdentityVariant variant : IdentityApi.discoverVariants(type, world)) {
+            List<IdentityVariant> adapterVariants = IdentityApi.discoverVariants(type, world);
+            for (IdentityVariant variant : adapterVariants) {
                 addVariant(out, variant);
+            }
+            if (!adapterVariants.isEmpty()) {
+                ensureDefaultVariantWhenBabyPresent(typeId, out);
+                if (out.isEmpty()) {
+                    return List.of(defaultVariant(typeId));
+                }
+                return new ArrayList<>(out.values());
             }
             List<IdentityVariant> known = discoverKnownVariants(type, typeId);
             for (IdentityVariant variant : known) {

@@ -704,6 +704,18 @@ public final class PredefIdentityAbilities {
             }
         });
 
+        map.put(
+            ResourceLocation.fromNamespaceAndPath("naturalist", "bear"),
+            new IdentityAbility() {
+                @Override
+                public void execute(Entity player) {
+                    if (player instanceof LivingEntity livingPlayer) {
+                        livingPlayer.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 200, 1));
+                    }
+                }
+            }
+        );
+
         return map;
     }
 

@@ -53,6 +53,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -146,17 +147,20 @@ public final class Identity2Client {
 
         dragonIdentity.oFlapTime = dragonIdentity.flapTime;
 
-        float flapDelta = 0.2F / ((float) source.getDeltaMovement().horizontalDistance() * 10.0F + 1.0F);
-        flapDelta = (float) (flapDelta * Math.pow(2.0D, source.getDeltaMovement().y));
+        Vec3 motion = source.getDeltaMovement();
+        double horizontalSpeed = motion.horizontalDistance();
+        float flapDelta = 0.2F / ((float) horizontalSpeed * 10.0F + 1.0F);
+        flapDelta = (float) (flapDelta * Math.pow(2.0D, motion.y));
+        if (source.onGround() || (horizontalSpeed < 0.01D && Math.abs(motion.y) < 0.01D)) {
+            flapDelta = 0.025F;
+        } else {
+            flapDelta = Mth.clamp(flapDelta, 0.015F, 0.06F);
+        }
 
         if (dragonIdentity.inWall) {
             dragonIdentity.flapTime += flapDelta * 0.5F;
         } else {
             dragonIdentity.flapTime += flapDelta;
-        }
-
-        if (dragonIdentity.isNoAi()) {
-            dragonIdentity.flapTime = 0.5F;
         }
 
         dragonIdentity.yRotA += Mth.wrapDegrees(dragonIdentity.getYRot() - dragonIdentity.yRotA) * 0.1F;
@@ -300,6 +304,9 @@ public final class Identity2Client {
 
         while (identityMenuKeyBinding.consumeClick()) {
             if (client.player != null && client.screen == null) {
+                if (!IdentitySettings.enableClientSwapMenu) {
+                    continue;
+                }
                 client.setScreen(new IdentitySelectionScreen());
             }
         }
