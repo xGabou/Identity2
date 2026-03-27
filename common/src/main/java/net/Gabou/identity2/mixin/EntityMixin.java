@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -184,6 +185,10 @@ public class EntityMixin implements EntityAccessor {
                             || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
+                return;
+            }
+            if (identity != null && ((EntityAccessor) identity).canFly()) {
+                info.setReturnValue(false);
             }
         }
     }
@@ -231,6 +236,7 @@ public class EntityMixin implements EntityAccessor {
                 if (this.currentIdentity instanceof Mob mobIdentity) {
                     mobIdentity.setNoAi(true);
                 }
+                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
@@ -238,9 +244,31 @@ public class EntityMixin implements EntityAccessor {
             }
 
 
-            this.setPos(this.currentIdentity.position());
-            this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
-            this.setAirSupply(this.currentIdentity.getAirSupply());
+            if (hostIsPlayer) {
+                // For players, keep vanilla movement/gravity authoritative.
+                // Some morph AIs (especially flying mobs) can otherwise inject
+                // non-player motion and feel like speed/gravity glitches.
+                this.currentIdentity.setPos(this.position());
+                this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+                this.setAirSupply(this.currentIdentity.getAirSupply());
+                Entity hostEntity = (Entity) (Object) this;
+                if (
+                    !hostEntity.onGround()
+                        && !hostEntity.isInWater()
+                        && this.currentIdentity != null
+                        && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
+                ) {
+                    Vec3 motion = hostEntity.getDeltaMovement();
+                    if (motion.y < -0.08D) {
+                        hostEntity.setDeltaMovement(motion.x, -0.08D, motion.z);
+                    }
+                    hostEntity.resetFallDistance();
+                }
+            } else {
+                this.setPos(this.currentIdentity.position());
+                this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
+                this.setAirSupply(this.currentIdentity.getAirSupply());
+            }
 
             if (
                     (this.currentIdentity instanceof LivingEntity livingIdentity) &&
@@ -364,12 +392,14 @@ public class EntityMixin implements EntityAccessor {
         }
 
         if (identityCanFly) {
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
-            if (!player.getAbilities().flying && !player.onGround()) {
+            if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
                 player.getAbilities().flying = true;
                 abilitiesChanged = true;
             }
@@ -391,7 +421,6 @@ public class EntityMixin implements EntityAccessor {
             }
         }
     }
-
 
     @Inject(method = "isControlledByLocalInstance", at = @At("HEAD"), cancellable = true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info) {
@@ -613,9 +642,6 @@ public class EntityMixin implements EntityAccessor {
 
         if (this.currentIdentity != null) {
             ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
-            //if(((Entity)(Object)this).getEntityWorld().isClient()){
-            ((EntityAccessor) (this.currentIdentity)).setId(((EntityAccessor) (this.currentIdentity)).getId() * -1);
-            //}
             ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
             if ((Entity) (Object) this instanceof Player player) {
@@ -679,6 +705,7 @@ public class EntityMixin implements EntityAccessor {
         }
 
         identity2$applyVillagerVariantState(identityEntity, variantNbt);
+        IdentityApi.applyVariantData(identityEntity, variantNbt);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {

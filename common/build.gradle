@@ -14,6 +14,8 @@ dependencies {
 
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7701613"
+    compileOnly "io.github.llamalad7:mixinextras-common:0.3.2"
+    annotationProcessor "io.github.llamalad7:mixinextras-common:0.3.2"
 }
 architectury {
     common("fabric", "forge","neoforge")

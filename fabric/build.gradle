@@ -30,6 +30,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+    modImplementation include("io.github.llamalad7:mixinextras-fabric:0.3.2")
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:7701614"

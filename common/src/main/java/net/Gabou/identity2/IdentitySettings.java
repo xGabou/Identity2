@@ -19,7 +19,7 @@ public class IdentitySettings {
         WIPE_ALL
     }
 
-    public static DeathMorphRule deathMorphRule = DeathMorphRule.WIPE_ALL;
+    public static DeathMorphRule deathMorphRule = DeathMorphRule.NONE;
 
     public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
         IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
@@ -143,12 +143,12 @@ public class IdentitySettings {
     public static int morphAcquisitionAnimationTicks = 26;
 
     //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
-    public static boolean requireUnlockedIdentityForMorph = true;
+    public static boolean requireUnlockedIdentityForMorph = false;
 
     //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
-    public static boolean enableMorphChargeSystem = true;
+    public static boolean enableMorphChargeSystem = false;
     //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
-    public static boolean EnableMorphCharges = true;
+    public static boolean EnableMorphCharges = false;
 
     //@Comment(value = "Default number of charges gained per qualifying kill.")
     public static int defaultChargeGainPerKill = 1;
