@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.lang.reflect.Method;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -30,6 +31,7 @@ import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -44,12 +46,16 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import net.Gabou.identity2.util.AttributeContainerAccessor;
+import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 
 public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
@@ -57,6 +63,8 @@ public final class IdentityProgression {
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
     private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = new ResourceLocation(Identity2.MOD_ID, "identity_max_health");
     private static final UUID HEALTH_SCALING_MODIFIER_UUID = UUID.fromString("4ebfd16b-953d-46e4-a999-c4ca7fed8b62");
+    private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = Identity2.MOD_ID + ".morph_attribute_base.";
+    private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = Identity2.MOD_ID + ".morph_attribute_modifier.";
     public static final ResourceLocation PLAYER_IDENTITY_ID = new ResourceLocation("minecraft", "player");
     private static final ResourceLocation GIANT_EASTER_EGG_ID = new ResourceLocation("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
@@ -211,6 +219,7 @@ public final class IdentityProgression {
             ensureSafePostResizePosition(player);
             net.minecraft.world.entity.EntityDimensions nextDimensions = player.getDimensions(player.getPose());
             updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width(), nextDimensions.height());
+            applyMorphAttributes(player, null);
             applyHealthScaling(player, null);
             syncMorphData(player, value, serializedVariant, 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
             return true;
@@ -249,6 +258,7 @@ public final class IdentityProgression {
         nbt.putDouble("width_override", widthOverride);
         nbt.putDouble("height_override", heightOverride);
         updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, widthOverride, heightOverride);
+        applyMorphAttributes(player, identity);
         applyHealthScaling(player, identity);
         syncMorphData(player, value, serializedVariant, widthOverride, heightOverride, previousType, previousVariant, transitionStart, transitionDuration);
         return true;
@@ -281,6 +291,7 @@ public final class IdentityProgression {
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
         ensureSafePostResizePosition(player);
+        applyMorphAttributes(player, null);
         applyHealthScaling(player, null);
         syncMorphData(player, "", "", 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
     }
@@ -304,6 +315,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             ensureSafePostResizePosition(player);
+            applyMorphAttributes(player, null);
             applyHealthScaling(player, null);
             return;
         }
@@ -319,6 +331,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             ensureSafePostResizePosition(player);
+            applyMorphAttributes(player, null);
             applyHealthScaling(player, null);
             return;
         }
@@ -334,6 +347,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             ensureSafePostResizePosition(player);
+            applyMorphAttributes(player, null);
             applyHealthScaling(player, null);
             return;
         }
@@ -359,6 +373,7 @@ public final class IdentityProgression {
         nbt.putDouble("height_override", heightOverride);
         nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
         clearTransitionData(nbt);
+        applyMorphAttributes(player, identity);
         applyHealthScaling(player, identity);
     }
 
@@ -415,6 +430,7 @@ public final class IdentityProgression {
         if (player == null) {
             return;
         }
+        applyMorphAttributes(player, ((EntityAccessor) player).getCurrentIdentity());
         applyHealthScaling(player, ((EntityAccessor) player).getCurrentIdentity());
     }
 
@@ -1054,6 +1070,330 @@ public final class IdentityProgression {
         return ((NbtComponentAccessor) (Object) customData).getNbt();
     }
 
+    private static void applyMorphAttributes(ServerPlayer player, @Nullable Entity identity) {
+        if (player == null) {
+            return;
+        }
+
+        AttributeMap playerAttributes = player.getAttributes();
+        if (playerAttributes == null) {
+            return;
+        }
+
+        clearMorphAttributes(playerAttributes);
+
+        if (!(identity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+
+        AttributeMap sourceAttributes = livingIdentity.getAttributes();
+        for (AttributeInstance sourceInstance : getAttributeInstances(sourceAttributes)) {
+            if (sourceInstance == null) {
+                continue;
+            }
+
+            Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute = sourceInstance.getAttribute();
+            if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
+                continue;
+            }
+
+            AttributeInstance targetInstance = identity2$ensureMorphAttributeInstance(playerAttributes, sourceAttributes, attribute);
+            if (targetInstance == null) {
+                continue;
+            }
+
+            String attributeKey = resolveAttributeKey(attribute);
+            UUID modifierId = morphAttributeModifierUuid(attributeKey);
+            targetInstance.removeModifier(modifierId);
+
+            double delta = sourceInstance.getBaseValue() - targetInstance.getBaseValue();
+            if (Math.abs(delta) > 1.0E-4D) {
+                targetInstance.addOrUpdateTransientModifier(
+                    new AttributeModifier(
+                        modifierId,
+                        MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX + attributeKey,
+                        delta,
+                        AttributeModifier.Operation.ADD_VALUE
+                    )
+                );
+            }
+
+            for (AttributeModifier sourceModifier : sourceInstance.getModifiers()) {
+                if (sourceModifier == null) {
+                    continue;
+                }
+
+                AttributeModifier.Operation operation = identity2$getModifierOperation(sourceModifier);
+                if (operation == null) {
+                    continue;
+                }
+
+                UUID copiedModifierId = morphAttributeModifierUuid(attributeKey, sourceModifier);
+                String modifierName = identity2$getModifierName(sourceModifier);
+                targetInstance.removeModifier(copiedModifierId);
+                targetInstance.addOrUpdateTransientModifier(
+                    new AttributeModifier(
+                        copiedModifierId,
+                        MORPH_ATTRIBUTE_MODIFIER_PREFIX + attributeKey + "." + modifierName,
+                        identity2$getModifierAmount(sourceModifier),
+                        operation
+                    )
+                );
+            }
+        }
+    }
+
+    @Nullable
+    private static AttributeInstance identity2$ensureMorphAttributeInstance(
+        @Nullable AttributeMap targetAttributes,
+        @Nullable AttributeMap sourceAttributes,
+        @Nullable Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute
+    ) {
+        if (targetAttributes == null || attribute == null) {
+            return null;
+        }
+
+        AttributeInstance targetInstance = targetAttributes.getInstance(attribute);
+        if (targetInstance != null) {
+            return targetInstance;
+        }
+
+        AttributeInstance template = identity2$findAttributeTemplate(sourceAttributes, attribute);
+        if (template == null) {
+            return null;
+        }
+
+        Map<Object, AttributeInstance> targetTemplates = identity2$getDefaultAttributeTemplates(targetAttributes);
+        if (targetTemplates == null) {
+            return null;
+        }
+
+        Object attributeKey = identity2$resolveTemplateKey(sourceAttributes, attribute, template);
+        if (attributeKey == null) {
+            attributeKey = attribute;
+        }
+
+        Map<Object, AttributeInstance> rebuiltTemplates = new LinkedHashMap<>(targetTemplates);
+        rebuiltTemplates.putIfAbsent(attributeKey, template);
+        AttributeSupplier rebuiltSupplier = identity2$createAttributeSupplier(rebuiltTemplates);
+        if (rebuiltSupplier == null) {
+            return null;
+        }
+        ((AttributeContainerAccessor) targetAttributes).setDefaultAttributes(rebuiltSupplier);
+        return targetAttributes.getInstance(attribute);
+    }
+
+    private static void clearMorphAttributes(AttributeMap attributes) {
+        for (AttributeInstance instance : getAttributeInstances(attributes)) {
+            if (instance == null) {
+                continue;
+            }
+
+            Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute = instance.getAttribute();
+            if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
+                continue;
+            }
+
+            instance.removeModifier(morphAttributeModifierUuid(resolveAttributeKey(attribute)));
+            List<AttributeModifier> morphModifiers = new ArrayList<>();
+            for (AttributeModifier modifier : instance.getModifiers()) {
+                String modifierName = identity2$getModifierName(modifier);
+                if (modifierName.startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX)) {
+                    morphModifiers.add(modifier);
+                }
+            }
+            for (AttributeModifier modifier : morphModifiers) {
+                UUID modifierId = identity2$getModifierId(modifier);
+                if (modifierId != null) {
+                    instance.removeModifier(modifierId);
+                }
+            }
+        }
+    }
+
+    private static Collection<AttributeInstance> getAttributeInstances(@Nullable AttributeMap attributes) {
+        if (attributes == null) {
+            return List.of();
+        }
+        Map<String, AttributeInstance> resolved = new LinkedHashMap<>();
+
+        try {
+            for (AttributeInstance instance : attributes.getSyncableAttributes()) {
+                if (instance == null || instance.getAttribute() == null) {
+                    continue;
+                }
+                resolved.putIfAbsent(resolveAttributeKey(instance.getAttribute()), instance);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            for (AttributeInstance instance : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) attributes).getDefaultAttributes())
+                .getInstances()
+                .values()) {
+                if (instance == null || instance.getAttribute() == null) {
+                    continue;
+                }
+                resolved.putIfAbsent(resolveAttributeKey(instance.getAttribute()), instance);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return resolved.values();
+    }
+
+    @Nullable
+    private static AttributeInstance identity2$findAttributeTemplate(
+        @Nullable AttributeMap attributes,
+        @Nullable Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute
+    ) {
+        if (attributes == null || attribute == null) {
+            return null;
+        }
+
+        Map<Object, AttributeInstance> defaultTemplates = identity2$getDefaultAttributeTemplates(attributes);
+        if (defaultTemplates != null) {
+            for (AttributeInstance instance : defaultTemplates.values()) {
+                if (instance != null && attribute.equals(instance.getAttribute())) {
+                    return instance;
+                }
+            }
+        }
+
+        return attributes.getInstance(attribute);
+    }
+
+    @Nullable
+    private static Object identity2$resolveTemplateKey(
+        @Nullable AttributeMap attributes,
+        @Nullable Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute,
+        @Nullable AttributeInstance expectedInstance
+    ) {
+        if (attributes == null || attribute == null) {
+            return null;
+        }
+
+        Map<Object, AttributeInstance> defaultTemplates = identity2$getDefaultAttributeTemplates(attributes);
+        if (defaultTemplates == null) {
+            return null;
+        }
+
+        for (Map.Entry<Object, AttributeInstance> entry : defaultTemplates.entrySet()) {
+            AttributeInstance instance = entry.getValue();
+            if (instance == null) {
+                continue;
+            }
+            if (instance == expectedInstance || attribute.equals(instance.getAttribute())) {
+                return entry.getKey();
+            }
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    private static Map<Object, AttributeInstance> identity2$getDefaultAttributeTemplates(@Nullable AttributeMap attributes) {
+        if (attributes == null) {
+            return null;
+        }
+        try {
+            return (Map<Object, AttributeInstance>) (Map<?, ?>) ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) attributes)
+                .getDefaultAttributes())
+                .getInstances();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private static AttributeSupplier identity2$createAttributeSupplier(Map<Object, AttributeInstance> templates) {
+        if (templates == null) {
+            return null;
+        }
+        try {
+            java.lang.reflect.Constructor<AttributeSupplier> constructor = AttributeSupplier.class.getDeclaredConstructor(Map.class);
+            if (!constructor.canAccess(null)) {
+                constructor.setAccessible(true);
+            }
+            return constructor.newInstance(templates);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String resolveAttributeKey(Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute) {
+        if (attribute == null) {
+            return "unknown";
+        }
+        try {
+            ResourceLocation attributeId = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value());
+            if (attributeId != null) {
+                return attributeId.toString();
+            }
+        } catch (Throwable ignored) {
+        }
+        return attribute.toString();
+    }
+
+    private static UUID morphAttributeModifierUuid(String attributeKey) {
+        String safeKey = attributeKey == null ? "unknown" : attributeKey;
+        return UUID.nameUUIDFromBytes((MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX + safeKey).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static UUID morphAttributeModifierUuid(String attributeKey, AttributeModifier modifier) {
+        String safeKey = attributeKey == null ? "unknown" : attributeKey;
+        UUID sourceId = identity2$getModifierId(modifier);
+        String sourceToken = sourceId != null
+            ? sourceId.toString()
+            : identity2$getModifierName(modifier) + "|" + identity2$getModifierAmount(modifier) + "|" + String.valueOf(identity2$getModifierOperation(modifier));
+        return UUID.nameUUIDFromBytes((MORPH_ATTRIBUTE_MODIFIER_PREFIX + safeKey + "." + sourceToken).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static boolean identity2$shouldSkipPlayerMorphAttribute(Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute) {
+        if (attribute == null) {
+            return true;
+        }
+        return attribute.equals(Attributes.MAX_HEALTH);
+    }
+
+    @Nullable
+    private static UUID identity2$getModifierId(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "getId");
+        if (!(value instanceof UUID)) {
+            value = invokeNoArg(modifier, "id");
+        }
+        return value instanceof UUID uuid ? uuid : null;
+    }
+
+    private static String identity2$getModifierName(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "getName");
+        if (!(value instanceof String)) {
+            value = invokeNoArg(modifier, "name");
+        }
+        if (value instanceof String stringValue && !stringValue.isBlank()) {
+            return stringValue;
+        }
+        return "modifier";
+    }
+
+    private static double identity2$getModifierAmount(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "getAmount");
+        if (!(value instanceof Number)) {
+            value = invokeNoArg(modifier, "amount");
+        }
+        return value instanceof Number number ? number.doubleValue() : 0.0D;
+    }
+
+    @Nullable
+    private static AttributeModifier.Operation identity2$getModifierOperation(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "getOperation");
+        if (!(value instanceof AttributeModifier.Operation)) {
+            value = invokeNoArg(modifier, "operation");
+        }
+        return value instanceof AttributeModifier.Operation operation ? operation : null;
+    }
+
     private static void applyHealthScaling(ServerPlayer player, @Nullable Entity identity) {
         AttributeInstance maxHealthAttr = player.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealthAttr == null) {
@@ -1168,6 +1508,10 @@ public final class IdentityProgression {
                 variant.putBoolean("IsBaby", isBaby);
             }
         } catch (Throwable ignored) {
+        }
+        CompoundTag adapterVariant = IdentityApi.extractVariantData(entity);
+        if (!adapterVariant.isEmpty()) {
+            variant.merge(adapterVariant);
         }
         return normalizeVariantForUnlock(variant);
     }

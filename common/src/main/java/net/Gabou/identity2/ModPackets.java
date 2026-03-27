@@ -16,6 +16,7 @@ import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
+import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
@@ -163,7 +164,7 @@ public final class ModPackets {
             prebuilt = identityAbility.bultinability();
         }
 
-        PredefIdentityAbilities.IdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
+        BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
         if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
             int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
             EntityAccessor accessor = (EntityAccessor) player;
@@ -201,7 +202,7 @@ public final class ModPackets {
         }
 
         if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
-            predefAbility.passivetick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
+            predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
         } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
             predefAbility.overrideAttack(player);
         } else {
@@ -231,23 +232,23 @@ public final class ModPackets {
         return 20;
     }
 
-    private static PredefIdentityAbilities.IdentityAbility resolvePredefAbility(ResourceLocation prebuilt, ResourceLocation identityTypeId) {
+    private static BuiltinIdentityAbility resolvePredefAbility(ResourceLocation prebuilt, ResourceLocation identityTypeId) {
         if (prebuilt == null || "null".equals(prebuilt.getPath())) {
             return PredefIdentityAbilities.resolveFallbackAbility(identityTypeId);
         }
 
-        PredefIdentityAbilities.IdentityAbility exact = PredefIdentityAbilities.predef.get(prebuilt);
+        BuiltinIdentityAbility exact = PredefIdentityAbilities.predef.get(prebuilt);
         if (exact != null) {
             return exact;
         }
 
         ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
-        PredefIdentityAbilities.IdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
+        BuiltinIdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
             return minecraft;
         }
 
-        PredefIdentityAbilities.IdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
+        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
             new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath())
         );
         if (identity2Alias != null) {
