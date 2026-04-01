@@ -1,8 +1,28 @@
 # Identity2 Public Changelog
+---
+
+## 1.3.4
+
+
+### Gameplay Fixes (Forge 1.20.1)
+
+- Fixed `killToUnlock` enforcement so kill-based unlock progression now blocks locked identities consistently in the morph menu, morph packet handling, and command suggestions/validation.
+- Fixed riding/crawling duplicate morph visuals by suppressing previous-identity transition rendering while the host is mounted or in the swimming/crawling pose.
+- Fixed false corner/side suffocation for morphed players by requiring real collision-box overlap with a suffocating block shape before treating the morph as inside a wall.
+- Removed broken generic player sync for raw `Attributes.MOVEMENT_SPEED`, which was making many morphs dramatically too fast because mob movement-speed values are not directly compatible with player movement.
+- Kept the newer generic attribute sync for other supported attributes, but movement speed now stays on the stable player path until a dedicated morph-speed mapping is introduced.
 
 ---
 
 ## 1.3.1
+
+### Gameplay Fixes (Forge 1.20.1)
+
+- Fixed `killToUnlock` enforcement so kill-based unlock progression now blocks locked identities consistently in the morph menu, morph packet handling, and command suggestions/validation.
+- Fixed riding/crawling duplicate morph visuals by suppressing previous-identity transition rendering while the host is mounted or in the swimming/crawling pose.
+- Fixed false corner/side suffocation for morphed players by requiring real collision-box overlap with a suffocating block shape before treating the morph as inside a wall.
+- Removed broken generic player sync for raw `Attributes.MOVEMENT_SPEED`, which was making many morphs dramatically too fast because mob movement-speed values are not directly compatible with player movement.
+- Kept the newer generic attribute sync for other supported attributes, but movement speed now stays on the stable player path until a dedicated morph-speed mapping is introduced.
 
 ### Compatibility
 

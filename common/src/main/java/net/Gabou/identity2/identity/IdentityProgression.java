@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.compat.UntamedWildsCompat;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
@@ -37,6 +38,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -106,6 +108,12 @@ public final class IdentityProgression {
         return getUnlockedIdentities(player).contains(identityId.toString());
     }
 
+    public static boolean shouldEnforceIdentityUnlocksForMorph() {
+        return IdentitySettings.requireUnlockedIdentityForMorph
+            || IdentitySettings.killForIdentity
+            || IdentitySettings.enableIdentityKillUnlocks;
+    }
+
     public static boolean isMorphableIdentity(ResourceLocation identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
@@ -150,11 +158,24 @@ public final class IdentityProgression {
             return true;
         }
         if (entityType.getCategory() == MobCategory.MISC) {
+            return isMorphableMiscMob(entityType);
+        }
+        return true;
+    }
+
+    public static boolean isMorphableMiscMob(EntityType<?> entityType) {
+        if (entityType == null || entityType.getCategory() != MobCategory.MISC) {
             return false;
         }
-        // 1.21.11 mappings return Entity.class from EntityType#getBaseClass(),
-        // so class-based living checks are unreliable here.
-        return true;
+        if (UntamedWildsCompat.isSupportedIdentityType(entityType)) {
+            return true;
+        }
+        try {
+            Class<? extends Entity> baseClass = entityType.getBaseClass();
+            return baseClass != null && Mob.class.isAssignableFrom(baseClass);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static boolean morph(ServerPlayer player, ResourceLocation identityId) {
@@ -1172,6 +1193,10 @@ public final class IdentityProgression {
 
             Attribute attribute = sourceInstance.getAttribute();
             if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
+                continue;
+            }
+
+            if (attribute.equals(Attributes.MOVEMENT_SPEED)) {
                 continue;
             }
 

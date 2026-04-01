@@ -11,6 +11,7 @@ This document lists what is **currently implemented and wired** in the active Id
 - Unlocks are stored per-player and synced to client caches.
 - Variant unlocks are tracked per identity (tokenized variant NBT).
 - Killing entities unlocks their identity/variant (`enableIdentityKillUnlocks`, `identityKillsRequired`).
+- Kill-based unlock progression is enforced on actual morph usage as well as UI visibility / command suggestion paths.
 - Killing players can unlock:
   - Their current morphed identity variant, if they were morphed
   - Otherwise a `minecraft:player` identity variant carrying victim skin UUID/name
@@ -28,8 +29,10 @@ This document lists what is **currently implemented and wired** in the active Id
   - `identity2.transition_start_tick`
   - `identity2.transition_duration_ticks`
 - Collision box width/height and standing eye height are synced to identity shape.
+- In-wall suffocation checks for morphed players use real collision-shape overlap to reduce false corner/side suffocation.
 - Health scaling is implemented (`scalingHealth`) with max cap (`maxHealth`).
 - Sheep morph has custom width scaling adjustment.
+- Generic morph attribute sync intentionally does not copy raw `Attributes.MOVEMENT_SPEED` onto players, because many mob movement-speed values are not semantically compatible with player movement.
 
 ## 3. Ability System
 
@@ -103,6 +106,7 @@ For morphs with no specific predef/command ability, non-`MISC` entities get a fa
 
 - Render substitution: players/entities render as their current morph identity.
 - Morph transition renderer can blend previous/current identities during transition window.
+- Transition blending is suppressed while mounted or in swimming/crawling pose to avoid duplicate render states during special movement states.
 - Optional transition particles (`enableMorphTransitionParticles`).
 - Unlock acquisition tendril particles (`enableMorphAcquisitionTendrils`, `morphAcquisitionAnimationTicks`).
 - First-person hand rendering attempts to map hand/arm from morph model where possible.

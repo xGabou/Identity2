@@ -5,6 +5,7 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.api.morph.IdentityMorphTickHandler;
 import net.Gabou.identity2.api.variant.IdentityVariantAdapter;
+import net.Gabou.identity2.compat.UntamedWildsCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -64,7 +65,15 @@ public final class IdentityApi {
 
     @Nullable
     public static IdentityVariantAdapter getVariantAdapter(EntityType<?> type) {
-        return type == null ? null : VARIANT_ADAPTERS.get(type);
+        if (type == null) {
+            return null;
+        }
+        IdentityVariantAdapter adapter = VARIANT_ADAPTERS.get(type);
+        if (adapter != null) {
+            return adapter;
+        }
+        UntamedWildsCompat.ensureVariantAdapterRegistered(type);
+        return VARIANT_ADAPTERS.get(type);
     }
 
     public static CompoundTag extractVariantData(LivingEntity entity) {

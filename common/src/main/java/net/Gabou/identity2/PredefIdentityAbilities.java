@@ -123,7 +123,7 @@ public final class PredefIdentityAbilities {
         if (type == null || type == EntityType.PLAYER) {
             return false;
         }
-        return type.getCategory() != MobCategory.MISC;
+        return IdentityProgression.isMorphableType(type);
     }
 
     public static BuiltinIdentityAbility resolveFallbackAbility(ResourceLocation identityTypeId) {
