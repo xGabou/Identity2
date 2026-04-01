@@ -267,7 +267,7 @@ public final class IdentityCommand {
             return 0;
         }
 
-        if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(source) && !IdentityProgression.isUnlocked(player, identityId)) {
+        if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(source) && !IdentityProgression.isUnlocked(player, identityId)) {
             source.sendFailure(Component.literal("Identity not unlocked: " + identityId));
             return 0;
         }
@@ -578,13 +578,13 @@ public final class IdentityCommand {
             return Suggestions.empty();
         }
 
-        if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(context.getSource())) {
-            List<ResourceLocation> ResourceLocations = IdentityProgression.getUnlockedIdentities(player).stream()
+        if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(context.getSource())) {
+            List<ResourceLocation> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
                     .map(IdentityCommand::parseResourceLocation)
                     .flatMap(Optional::stream)
                     .filter(IdentityProgression::isMorphableIdentity)
                     .toList();
-            return SharedSuggestionProvider.suggestResource(ResourceLocations, builder);
+            return SharedSuggestionProvider.suggestResource(identifiers, builder);
         }
 
         return SharedSuggestionProvider.suggestResource(
@@ -777,7 +777,7 @@ public final class IdentityCommand {
     }
 
     private static List<ResourceLocation> collectAbilityCandidates(CommandSourceStack source, ServerPlayer player) {
-        if (!IdentitySettings.requireUnlockedIdentityForMorph || isOperator(source)) {
+        if (!IdentityProgression.shouldEnforceIdentityUnlocksForMorph() || isOperator(source)) {
             return BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity).sorted().toList();
         }
 
