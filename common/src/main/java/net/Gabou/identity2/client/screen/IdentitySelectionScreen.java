@@ -445,7 +445,7 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         Set<String> unlockedTokensForType = this.unlockedVariantTokens.get(entry.id().toString());
-        boolean wildcardUnlocked = !IdentitySettings.requireUnlockedIdentityForMorph
+        boolean wildcardUnlocked = !IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
                 || IdentitySettings.unlockAllVariantsOnFirstUnlock
                 || unlockedTokensForType == null;
         client.setScreen(
@@ -455,7 +455,7 @@ public final class IdentitySelectionScreen extends Screen {
                 variants,
                 unlockedTokensForType == null ? Set.of() : unlockedTokensForType,
                 wildcardUnlocked,
-                IdentitySettings.requireUnlockedIdentityForMorph
+                IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
             )
         );
     }
@@ -566,14 +566,14 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private boolean isLockedForMorph(IdentityEntry entry) {
-        if (!IdentitySettings.requireUnlockedIdentityForMorph) {
+        if (!IdentityProgression.shouldEnforceIdentityUnlocksForMorph()) {
             return false;
         }
         return !entry.unlocked();
     }
 
     private boolean isVariantLockedForMorph(ResourceLocation identityId, IdentityVariant variant) {
-        if (!IdentitySettings.requireUnlockedIdentityForMorph) {
+        if (!IdentityProgression.shouldEnforceIdentityUnlocksForMorph()) {
             return false;
         }
         if (!this.unlockedIdentityIds.contains(identityId.toString())) {
