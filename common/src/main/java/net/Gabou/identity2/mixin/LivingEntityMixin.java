@@ -186,7 +186,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
     @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
-    private void identity2$disableFallDamageForFlyingMorphs(float distance, float damageMultiplier, DamageSource source, CallbackInfoReturnable<Boolean> cir) {
+    private void identity2$disableFallDamageForFlyingMorphs(double d, float f, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
         if (!((Entity) (Object) this instanceof Player)) {
             return;
         }
