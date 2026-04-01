@@ -315,7 +315,7 @@ public final class ModPackets {
         }
 
         CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
-        if (IdentitySettings.requireUnlockedIdentityForMorph && !isOperator(player)) {
+        if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
                 return;

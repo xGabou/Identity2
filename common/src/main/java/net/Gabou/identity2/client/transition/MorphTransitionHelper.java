@@ -12,6 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Pose;
 import org.jetbrains.annotations.Nullable;
 
 public final class MorphTransitionHelper {
@@ -45,6 +46,11 @@ public final class MorphTransitionHelper {
     @Nullable
     public static Entity resolveRenderIdentity(Entity host, @Nullable Entity currentIdentity, float partialTick) {
         if (!isTransitionActive(host, partialTick)) {
+            clearCachedPreviousIdentity(host.getId());
+            return currentIdentity;
+        }
+
+        if (host.isPassenger() || host.getPose() == Pose.SWIMMING) {
             clearCachedPreviousIdentity(host.getId());
             return currentIdentity;
         }
