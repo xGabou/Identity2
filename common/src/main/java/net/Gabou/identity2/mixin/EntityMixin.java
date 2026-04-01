@@ -43,6 +43,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -64,6 +65,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.Gabou.identity2.identity.IdentityProgression;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -150,6 +154,10 @@ public class EntityMixin implements EntityAccessor{
         }
         if ((Entity)(Object)this instanceof Player player) {
             Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+            if (identity != null && !identity2$hasMorphSuffocatingCollision(player)) {
+                info.setReturnValue(false);
+                return;
+            }
             if (
                 identity != null
                     && player.isInWater()
@@ -166,7 +174,51 @@ public class EntityMixin implements EntityAccessor{
                 info.setReturnValue(false);
             }
         }
-	}
+    }
+    @Unique
+    private static boolean identity2$hasMorphSuffocatingCollision(Entity entity) {
+        if (entity == null || entity.level() == null) {
+            return false;
+        }
+
+        AABB box = entity.getBoundingBox().deflate(1.0E-3D);
+        if (box.getSize() <= 1.0E-6D) {
+            return false;
+        }
+
+        Level level = entity.level();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int minX = Mth.floor(box.minX);
+        int maxX = Mth.floor(box.maxX);
+        int minY = Mth.floor(box.minY);
+        int maxY = Mth.floor(box.maxY);
+        int minZ = Mth.floor(box.minZ);
+        int maxZ = Mth.floor(box.maxZ);
+        VoxelShape entityShape = Shapes.create(box);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.isAir() || !state.isSuffocating(level, cursor)) {
+                        continue;
+                    }
+
+                    VoxelShape blockShape = state.getCollisionShape(level, cursor);
+                    if (blockShape.isEmpty()) {
+                        continue;
+                    }
+
+                    if (Shapes.joinIsNotEmpty(blockShape.move(x, y, z), entityShape, BooleanOp.AND)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
     @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
     private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
         if (!state.is(Blocks.COBWEB)) {
