@@ -53,9 +53,12 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
     @Mutable
     @Shadow
     private AttributeMap attributes;
-    public void fixAttributes(Entity entity, Entity identity){
-        if((identity instanceof LivingEntity livingIdentity)&&(entity instanceof LivingEntity livingEntity)){
-            this.attributes=createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes());
+    public void fixAttributes(Entity entity, Entity identity) {
+        if (entity instanceof Player) {
+            return;
+        }
+        if ((identity instanceof LivingEntity livingIdentity) && (entity instanceof LivingEntity livingEntity)) {
+            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes());
             /*Identity2.LOGGER.info("Attributes mangled!");
             for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)this.attributes).getDefaultAttributes()).getInstances().values()){
                 Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(this.attributes.getValue(attr.getAttribute())));

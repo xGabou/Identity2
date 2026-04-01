@@ -119,6 +119,12 @@ public final class IdentityProgression {
         return getUnlockedIdentities(player).contains(identityId.toString());
     }
 
+    public static boolean shouldEnforceIdentityUnlocksForMorph() {
+        return IdentitySettings.requireUnlockedIdentityForMorph
+            || IdentitySettings.killForIdentity
+            || IdentitySettings.enableIdentityKillUnlocks;
+    }
+
     public static boolean isMorphableIdentity(Identifier identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
@@ -1055,6 +1061,10 @@ public final class IdentityProgression {
 
             Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute = sourceInstance.getAttribute();
             if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
+                continue;
+            }
+
+            if (attribute.equals(Attributes.MOVEMENT_SPEED)) {
                 continue;
             }
 
