@@ -1,0 +1,288 @@
+{
+  "notes": [
+    "Command data is based on the current 1.21.1 branch source.",
+    "Admin-restricted commands use operator/admin permission checks in current code.",
+    "The progression command tree is available both under /identity progression ... and /identity_progression ..."
+  ],
+  "commands": [
+    {
+      "name": "/identity morph",
+      "syntax": "/identity morph <identity_id>",
+      "permission": "player",
+      "description": "Morphs the executing player into a supported identity.",
+      "examples": [
+        "/identity morph minecraft:axolotl"
+      ],
+      "notes": [
+        "Fails if swaps are disabled for that player.",
+        "By default non-operators must unlock the identity first."
+      ]
+    },
+    {
+      "name": "/identity clear",
+      "syntax": "/identity clear",
+      "permission": "player",
+      "description": "Clears the executing player's current morph.",
+      "examples": [
+        "/identity clear"
+      ],
+      "notes": [
+        "Fails if swaps are disabled for that player."
+      ]
+    },
+    {
+      "name": "/identity list",
+      "syntax": "/identity list",
+      "permission": "player",
+      "description": "Lists unlocked identities for the executing player.",
+      "examples": [
+        "/identity list"
+      ],
+      "notes": [
+        "This lists unlocked identities, not every morphable entity in the game."
+      ]
+    },
+    {
+      "name": "/identity unlock",
+      "syntax": "/identity unlock <identity_id> [target]",
+      "permission": "operator/admin",
+      "description": "Grants one identity to the target player or to the command source player.",
+      "examples": [
+        "/identity unlock minecraft:blaze",
+        "/identity unlock minecraft:blaze SomePlayer"
+      ],
+      "notes": [
+        "Only morphable identities can be granted."
+      ]
+    },
+    {
+      "name": "/identity unlock all",
+      "syntax": "/identity unlock all [target]",
+      "permission": "operator/admin",
+      "description": "Grants all currently morphable identities to the target player or the command source player.",
+      "examples": [
+        "/identity unlock all",
+        "/identity unlock all SomePlayer"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity ability list",
+      "syntax": "/identity ability list",
+      "permission": "player",
+      "description": "Lists ability coverage for identities available to the current player context.",
+      "examples": [
+        "/identity ability list"
+      ],
+      "notes": [
+        "Output distinguishes specific abilities, fallback abilities, and identities with no ability."
+      ]
+    },
+    {
+      "name": "/identity ability info",
+      "syntax": "/identity ability info <identity_id>",
+      "permission": "none documented",
+      "description": "Shows the resolved ability info for one identity.",
+      "examples": [
+        "/identity ability info minecraft:shulker"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity ability current",
+      "syntax": "/identity ability current",
+      "permission": "player",
+      "description": "Shows the resolved ability info for the player's current morph.",
+      "examples": [
+        "/identity ability current"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity config list",
+      "syntax": "/identity config list",
+      "permission": "operator/admin",
+      "description": "Lists editable config keys exposed by the current command layer.",
+      "examples": [
+        "/identity config list"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity config get",
+      "syntax": "/identity config get <key>",
+      "permission": "operator/admin",
+      "description": "Shows the current value of one supported config key.",
+      "examples": [
+        "/identity config get requireUnlockedIdentityForMorph"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity config set",
+      "syntax": "/identity config set <key> <value>",
+      "permission": "operator/admin",
+      "description": "Sets one scalar config key and saves it.",
+      "examples": [
+        "/identity config set requireUnlockedIdentityForMorph false"
+      ],
+      "notes": [
+        "List-valued keys must use add/remove/clear instead."
+      ]
+    },
+    {
+      "name": "/identity config add",
+      "syntax": "/identity config add <key> <value>",
+      "permission": "operator/admin",
+      "description": "Adds one value to a list-valued config key and saves it.",
+      "examples": [
+        "/identity config add extraFlyingEntities minecraft:bee"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity config remove",
+      "syntax": "/identity config remove <key> <value>",
+      "permission": "operator/admin",
+      "description": "Removes one value from a list-valued config key and saves it.",
+      "examples": [
+        "/identity config remove extraFlyingEntities minecraft:bee"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity config clear",
+      "syntax": "/identity config clear <key>",
+      "permission": "operator/admin",
+      "description": "Clears all values from a list-valued config key and saves it.",
+      "examples": [
+        "/identity config clear extraFlyingEntities"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression ui",
+      "syntax": "/identity progression ui [target]",
+      "permission": "operator/admin",
+      "description": "Opens the progression UI for a target player or the command source player.",
+      "examples": [
+        "/identity progression ui",
+        "/identity_progression ui SomePlayer"
+      ],
+      "notes": [
+        "Also available under the standalone /identity_progression root."
+      ]
+    },
+    {
+      "name": "/identity progression charges get",
+      "syntax": "/identity progression charges get <identity_id> [target]",
+      "permission": "operator/admin",
+      "description": "Reads the stored morph charge count for an identity.",
+      "examples": [
+        "/identity progression charges get minecraft:axolotl",
+        "/identity_progression charges get minecraft:axolotl SomePlayer"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression charges add",
+      "syntax": "/identity progression charges add <identity_id> <amount> [target]",
+      "permission": "operator/admin",
+      "description": "Adds charges to a stored identity entry.",
+      "examples": [
+        "/identity progression charges add minecraft:axolotl 3",
+        "/identity_progression charges add minecraft:axolotl 3 SomePlayer"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar list",
+      "syntax": "/identity progression jar list [target]",
+      "permission": "operator/admin",
+      "description": "Lists soul jars and stored morphs for a player.",
+      "examples": [
+        "/identity progression jar list",
+        "/identity_progression jar list SomePlayer"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar create",
+      "syntax": "/identity progression jar create <jar_id> <tier> [target]",
+      "permission": "operator/admin",
+      "description": "Creates a soul jar entry for a player.",
+      "examples": [
+        "/identity progression jar create alpha mud",
+        "/identity_progression jar create alpha reinforced SomePlayer"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar upgrade",
+      "syntax": "/identity progression jar upgrade <jar_id> <tier> [target]",
+      "permission": "operator/admin",
+      "description": "Upgrades an existing soul jar entry to a new tier.",
+      "examples": [
+        "/identity progression jar upgrade alpha reinforced"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar store",
+      "syntax": "/identity progression jar store <jar_id> <identity_id> [target]",
+      "permission": "operator/admin",
+      "description": "Stores a morph in a soul jar entry.",
+      "examples": [
+        "/identity progression jar store alpha minecraft:axolotl"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar remove",
+      "syntax": "/identity progression jar remove <jar_id> <identity_id> [target]",
+      "permission": "operator/admin",
+      "description": "Removes a stored morph from a soul jar entry.",
+      "examples": [
+        "/identity progression jar remove alpha minecraft:axolotl"
+      ],
+      "notes": []
+    },
+    {
+      "name": "/identity progression jar absorb",
+      "syntax": "/identity progression jar absorb <jar_id> <identity_id> [target]",
+      "permission": "operator/admin",
+      "description": "Absorbs a stored morph through the soul absorption progression path.",
+      "examples": [
+        "/identity progression jar absorb alpha minecraft:axolotl"
+      ],
+      "notes": [
+        "Also available under /identity_progression."
+      ]
+    },
+    {
+      "name": "/identity_villager trade myself",
+      "syntax": "/identity_villager trade myself",
+      "permission": "player",
+      "description": "Trades with your own villager or wandering trader morph.",
+      "examples": [
+        "/identity_villager trade myself"
+      ],
+      "notes": [
+        "Requires canTradeWithHimSelf to be enabled."
+      ]
+    },
+    {
+      "name": "/identity_villager trade",
+      "syntax": "/identity_villager trade <target>",
+      "permission": "player",
+      "description": "Trades with another player's villager or wandering trader morph.",
+      "examples": [
+        "/identity_villager trade SomePlayer"
+      ],
+      "notes": [
+        "The target must be in the same dimension.",
+        "The target must currently be morphed as villager or wandering trader."
+      ]
+    }
+  ]
+}

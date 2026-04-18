@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "id": "legacy-config-aliases-normalized-on-save",
+      "title": "Legacy config alias keys are accepted on load but normalized on save",
+      "affectedVersions": [
+        "1.3.4"
+      ],
+      "symptoms": [
+        "Older alias keys such as EnableMorphCharges can still be read from config.",
+        "After saving through current code, the config is written back with canonical key names instead of the old alias names."
+      ],
+      "workarounds": [
+        "Use the canonical keys: enableMorphChargeSystem, enableSoulJarSystem, enablePermanentMorphs, enableSoulAbsorption."
+      ],
+      "status": "open",
+      "sourceType": "reviewed-issues"
+    },
+    {
+      "id": "deathmorphrule-not-persisted-by-config-manager",
+      "title": "deathMorphRule is not currently part of identity2.json",
+      "affectedVersions": [
+        "1.3.4"
+      ],
+      "symptoms": [
+        "deathMorphRule exists in IdentitySettings but is not loaded or saved by the current JSON config manager.",
+        "Support staff may not find a matching key in config/identity2.json."
+      ],
+      "workarounds": [
+        "No supported JSON config key is present in current code.",
+        "Treat deathMorphRule as code-only until the mod author confirms a supported config path."
+      ],
+      "status": "open",
+      "sourceType": "reviewed-issues"
+    },
+    {
+      "id": "respawn-unlock-cache-desync-before-1-0-0",
+      "title": "Older builds could show stale or empty unlock caches after respawn",
+      "affectedVersions": [
+        "before 1.0.0 (exact first affected version UNKNOWN)"
+      ],
+      "symptoms": [
+        "Unlocks could appear to reset after death or respawn even though the server still had the data.",
+        "The morph UI could show an empty or stale unlock list after respawn."
+      ],
+      "workarounds": [
+        "Update to 1.0.0 or later."
+      ],
+      "status": "fixed",
+      "fixedIn": "1.0.0",
+      "sourceType": "official"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "notes": [
+    "Descriptions are based on the current 1.21.1 branch source and public README."
+  ],
+  "features": [
+    {
+      "id": "morph-progression",
+      "name": "Unlock and morph progression",
+      "description": "Players unlock supported identities and morph into them.",
+      "examples": [
+        "Kill an entity to unlock it when kill-based unlocks are enabled.",
+        "/identity morph minecraft:axolotl"
+      ]
+    },
+    {
+      "id": "identity-menu",
+      "name": "Identity selection menu",
+      "description": "Client menu supports search, filters, previews, and variant selection.",
+      "examples": [
+        "Default keybind: G"
+      ]
+    },
+    {
+      "id": "variant-support",
+      "name": "Variant-aware morphs",
+      "description": "Selected morph variants are stored and reapplied so visuals match the chosen form.",
+      "examples": [
+        "Player skin variants",
+        "Sheep color variants",
+        "Axolotl variants"
+      ]
+    },
+    {
+      "id": "identity-abilities",
+      "name": "Identity abilities",
+      "description": "Morphs can use built-in or datapack-defined abilities.",
+      "examples": [
+        "Default keybind: V",
+        "Data registry: identity2:identity_ability"
+      ]
+    },
+    {
+      "id": "generic-ability-fallback",
+      "name": "Generic fallback ability",
+      "description": "Morphs without a specific ability can fall back to a generic active ability path.",
+      "notes": [
+        "Current code uses fallback ability resolution for supported morphable identities."
+      ]
+    },
+    {
+      "id": "shape-and-health-sync",
+      "name": "Shape and health sync",
+      "description": "Morphs sync collision size, eye height, and optional health scaling.",
+      "notes": [
+        "Health scaling is configurable."
+      ]
+    },
+    {
+      "id": "progression-systems",
+      "name": "Charges and soul jars",
+      "description": "The mod includes morph charges, soul jar storage, and permanent morph progression settings.",
+      "examples": [
+        "/identity progression charges get <identity_id>",
+        "/identity progression jar list"
+      ]
+    },
+    {
+      "id": "runtime-config-commands",
+      "name": "Runtime config commands",
+      "description": "Admins can query and edit supported config keys through commands.",
+      "examples": [
+        "/identity config list",
+        "/identity config set requireUnlockedIdentityForMorph false"
+      ]
+    },
+    {
+      "id": "villager-trade-interaction",
+      "name": "Villager trade interaction",
+      "description": "Players morphed as villager-type identities can trigger trade interactions.",
+      "examples": [
+        "/identity_villager trade myself"
+      ]
+    },
+    {
+      "id": "addon-api",
+      "name": "Addon integration API",
+      "description": "Public API exists for built-in abilities, variant adapters, and morph tick hooks.",
+      "notes": [
+        "See docs/public/ADDON_DEV_GUIDE.md"
+      ]
+    }
+  ]
+}

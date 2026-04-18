@@ -1,0 +1,681 @@
+{
+  "configFile": "config/identity2.json",
+  "notes": [
+    "This schema reflects keys currently loaded and saved by IdentityConfigManager on the 1.21.1 branch.",
+    "Legacy alias keys are accepted on load but not written on save: EnableMorphCharges, EnableSoulJars, EnablePermanentJarMorphs, EnableSoulAbsorption.",
+    "deathMorphRule exists in IdentitySettings but is not currently persisted by IdentityConfigManager."
+  ],
+  "entries": [
+    {
+      "key": "overlayIdentityUnlocks",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether an overlay message appears above the hotbar when a new identity is unlocked.",
+      "example": false,
+      "category": "ui"
+    },
+    {
+      "key": "overlayIdentityRevokes",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether an overlay message appears above the hotbar when a new identity is revoked.",
+      "example": false,
+      "category": "ui"
+    },
+    {
+      "key": "unlockAllVariantsOnFirstUnlock",
+      "type": "boolean",
+      "default": false,
+      "description": "If true, unlocking an identity also unlocks all of its variants.",
+      "example": true,
+      "category": "progression"
+    },
+    {
+      "key": "identitiesEquipItems",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether identities equip the items held by the underlying player.",
+      "example": false,
+      "category": "rendering"
+    },
+    {
+      "key": "identitiesEquipArmor",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether identities equip the armor worn by the underlying player.",
+      "example": false,
+      "category": "rendering"
+    },
+    {
+      "key": "hostilesIgnoreHostileIdentityPlayer",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether hostile mobs ignore players with hostile mob identities.",
+      "example": false,
+      "category": "mob-reactions"
+    },
+    {
+      "key": "hostilesForgetNewHostileIdentityPlayer",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether a hostile mob stops targeting a player after switching to a hostile identity.",
+      "example": true,
+      "category": "mob-reactions"
+    },
+    {
+      "key": "villagersRunFromIdentities",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether villagers run from identities they normally fear.",
+      "example": false,
+      "category": "mob-reactions"
+    },
+    {
+      "key": "useIdentitySounds",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether identity sounds take priority over player sounds.",
+      "example": false,
+      "category": "audio"
+    },
+    {
+      "key": "playAmbientSounds",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morphed players randomly emit identity ambient sounds.",
+      "example": false,
+      "category": "audio"
+    },
+    {
+      "key": "hearSelfAmbient",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether a player hears their own ambient morph sounds.",
+      "example": true,
+      "category": "audio"
+    },
+    {
+      "key": "enableFlight",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether entities in the flying trait set can fly.",
+      "example": false,
+      "category": "movement"
+    },
+    {
+      "key": "hostilityTime",
+      "type": "integer",
+      "default": 300,
+      "description": "How long hostile-mob hostility lasts for players morphed as hostile identities.",
+      "example": 600,
+      "category": "mob-reactions"
+    },
+    {
+      "key": "advancementsRequiredForFlight",
+      "type": "string-list",
+      "default": [],
+      "description": "Advancement ids required before the player can fly using an identity.",
+      "example": [
+        "minecraft:adventure/root"
+      ],
+      "category": "movement"
+    },
+    {
+      "key": "scalingHealth",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morphs scale player max health based on the identity.",
+      "example": false,
+      "category": "stats"
+    },
+    {
+      "key": "maxHealth",
+      "type": "integer",
+      "default": 40,
+      "description": "Maximum value used when health scaling is enabled.",
+      "example": 60,
+      "category": "stats"
+    },
+    {
+      "key": "enableClientSwapMenu",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether non-operators can use the client swap menu.",
+      "example": false,
+      "category": "ui"
+    },
+    {
+      "key": "enableSwaps",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether non-operators can swap identities at all.",
+      "example": false,
+      "category": "permissions"
+    },
+    {
+      "key": "canTradeWithHimSelf",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether players can trade with their own villager identity through the command.",
+      "example": true,
+      "category": "interaction"
+    },
+    {
+      "key": "allowedSwappers",
+      "type": "string-list",
+      "default": [],
+      "description": "Player names allowed to swap when swaps are otherwise disabled.",
+      "example": [
+        "PlayerName"
+      ],
+      "category": "permissions"
+    },
+    {
+      "key": "endermanAbilityTeleportDistance",
+      "type": "integer",
+      "default": 1024,
+      "description": "Maximum teleport distance for the Enderman ability, in blocks.",
+      "example": 128,
+      "category": "abilities"
+    },
+    {
+      "key": "enableGiantZombieAiAndHardSpawns",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether Giants gain zombie-like AI and can appear naturally in Hard difficulty.",
+      "example": true,
+      "category": "mob-behavior"
+    },
+    {
+      "key": "showPlayerNametag",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether nametags render above disguised players.",
+      "example": true,
+      "category": "rendering"
+    },
+    {
+      "key": "renderOwnNametag",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether a morphed player sees their own nametag in third person.",
+      "example": true,
+      "category": "rendering"
+    },
+    {
+      "key": "forceChangeNew",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether players are forced into a newly unlocked identity on kill.",
+      "example": true,
+      "category": "progression"
+    },
+    {
+      "key": "forceChangeAlways",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether players are forced into any entity they kill.",
+      "example": true,
+      "category": "progression"
+    },
+    {
+      "key": "logCommands",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether identity commands send feedback in the action bar.",
+      "example": false,
+      "category": "commands"
+    },
+    {
+      "key": "flySpeed",
+      "type": "number",
+      "default": 0.05,
+      "description": "Flight speed setting. Official field comment is missing in source; exact intended behavior should be confirmed manually.",
+      "example": 0.08,
+      "category": "movement"
+    },
+    {
+      "key": "killForIdentity",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether players need a configured number of kills before unlocking an identity.",
+      "example": true,
+      "category": "progression"
+    },
+    {
+      "key": "requiredKillsForIdentity",
+      "type": "integer",
+      "default": 50,
+      "description": "Kills required when killForIdentity is enabled.",
+      "example": 10,
+      "category": "progression"
+    },
+    {
+      "key": "enableIdentityKillUnlocks",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether killing entities unlocks their identities.",
+      "example": false,
+      "category": "progression"
+    },
+    {
+      "key": "identityKillsRequired",
+      "type": "integer",
+      "default": 1,
+      "description": "Kills required to unlock an identity when kill unlocks are enabled.",
+      "example": 5,
+      "category": "progression"
+    },
+    {
+      "key": "morphTransitionTicks",
+      "type": "integer",
+      "default": 30,
+      "description": "Morph transition duration in ticks for model blending.",
+      "example": 15,
+      "category": "visual-effects"
+    },
+    {
+      "key": "enableMorphTransitionParticles",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morph transitions spawn swirl particles.",
+      "example": false,
+      "category": "visual-effects"
+    },
+    {
+      "key": "enableMorphAcquisitionTendrils",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether newly unlocked morphs play tendril-style acquisition particles.",
+      "example": false,
+      "category": "visual-effects"
+    },
+    {
+      "key": "morphAcquisitionAnimationTicks",
+      "type": "integer",
+      "default": 26,
+      "description": "Duration of the morph acquisition tendril animation in ticks.",
+      "example": 40,
+      "category": "visual-effects"
+    },
+    {
+      "key": "requireUnlockedIdentityForMorph",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether non-operators can only morph into already unlocked identities.",
+      "example": false,
+      "category": "permissions"
+    },
+    {
+      "key": "enableMorphChargeSystem",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morphing consumes charges and kills grant charges.",
+      "example": false,
+      "category": "charges"
+    },
+    {
+      "key": "defaultChargeGainPerKill",
+      "type": "integer",
+      "default": 1,
+      "description": "Default number of charges gained per qualifying kill.",
+      "example": 2,
+      "category": "charges"
+    },
+    {
+      "key": "defaultMorphUseChargeCost",
+      "type": "integer",
+      "default": 1,
+      "description": "Default charge cost paid when selecting a morph.",
+      "example": 3,
+      "category": "charges"
+    },
+    {
+      "key": "dontRequireChargeForMorphing",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morphing can happen without paying charges.",
+      "example": false,
+      "category": "charges"
+    },
+    {
+      "key": "bypassMorphChargesForCreativePlayers",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Creative players bypass morph charge checks and penalties.",
+      "example": false,
+      "category": "charges"
+    },
+    {
+      "key": "bypassMorphChargesForOperators",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether operators bypass morph charge checks and penalties.",
+      "example": false,
+      "category": "charges"
+    },
+    {
+      "key": "removeMorphChargeOnDeath",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether dying while morphed removes charges from the active morph.",
+      "example": false,
+      "category": "charges"
+    },
+    {
+      "key": "morphDeathChargePenalty",
+      "type": "integer",
+      "default": 1,
+      "description": "How many charges are removed on death when removeMorphChargeOnDeath is enabled.",
+      "example": 2,
+      "category": "charges"
+    },
+    {
+      "key": "chargeGainByIdentity",
+      "type": "string-list",
+      "default": [],
+      "description": "Per-identity charge gain overrides in the format namespace:entity=value.",
+      "example": [
+        "minecraft:ender_dragon=5"
+      ],
+      "category": "charges"
+    },
+    {
+      "key": "chargeCostByIdentity",
+      "type": "string-list",
+      "default": [],
+      "description": "Per-identity charge cost overrides in the format namespace:entity=value.",
+      "example": [
+        "minecraft:wither=3"
+      ],
+      "category": "charges"
+    },
+    {
+      "key": "chargeDeathPenaltyByIdentity",
+      "type": "string-list",
+      "default": [],
+      "description": "Per-identity death charge penalty overrides in the format namespace:entity=value.",
+      "example": [
+        "minecraft:blaze=2"
+      ],
+      "category": "charges"
+    },
+    {
+      "key": "enableSoulJarSystem",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether soul jar storage and protection systems are enabled.",
+      "example": true,
+      "category": "soul-jars"
+    },
+    {
+      "key": "soulJarTierCapacities",
+      "type": "string-list",
+      "default": [
+        "mud=5",
+        "glass=10",
+        "reinforced=15",
+        "true_soul=24"
+      ],
+      "description": "Per-tier soul jar capacities in the format tier=value.",
+      "example": [
+        "mud=5",
+        "glass=12",
+        "reinforced=18",
+        "true_soul=24"
+      ],
+      "category": "soul-jars"
+    },
+    {
+      "key": "soulJarTierItems",
+      "type": "string-list",
+      "default": [
+        "mud=identity2:mud_jar",
+        "glass=identity2:glass_jar",
+        "reinforced=identity2:reinforced_jar",
+        "true_soul=identity2:endgame_jar"
+      ],
+      "description": "Per-tier soul jar item mapping in the format tier=namespace:item.",
+      "example": [
+        "mud=identity2:mud_jar",
+        "glass=identity2:glass_jar"
+      ],
+      "category": "soul-jars"
+    },
+    {
+      "key": "soulJarTierRecipes",
+      "type": "string-list",
+      "default": [],
+      "description": "Optional per-tier recipe id mapping in the format tier=namespace:recipe.",
+      "example": [
+        "mud=namespace:recipe_id"
+      ],
+      "category": "soul-jars"
+    },
+    {
+      "key": "trueSoulJarTier",
+      "type": "string",
+      "default": "true_soul",
+      "description": "Tier key used for the endgame true soul jar.",
+      "example": "true_soul",
+      "category": "soul-jars"
+    },
+    {
+      "key": "trueSoulJarGrantsPermanent",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether morphs stored in true soul jars are treated as permanent.",
+      "example": false,
+      "category": "soul-jars"
+    },
+    {
+      "key": "trueSoulJarPreventsDeathPenalty",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether true soul jar morphs ignore charge death penalties.",
+      "example": false,
+      "category": "soul-jars"
+    },
+    {
+      "key": "enableRandomSoulJarWorldDrops",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether soul jars can randomly drop on non-player mob death.",
+      "example": false,
+      "category": "soul-jars"
+    },
+    {
+      "key": "soulJarWorldDropChance",
+      "type": "number",
+      "default": 0.005,
+      "allowedValues": "0.0 to 1.0",
+      "description": "Chance per non-player mob death to drop a random soul jar.",
+      "example": 0.01,
+      "category": "soul-jars"
+    },
+    {
+      "key": "soulJarWorldDropTierWeights",
+      "type": "string-list",
+      "default": [
+        "mud=85",
+        "glass=12",
+        "reinforced=3",
+        "true_soul=1"
+      ],
+      "description": "Weighted random jar tiers for world drops in the format tier=weight.",
+      "example": [
+        "mud=80",
+        "glass=15",
+        "reinforced=4",
+        "true_soul=1"
+      ],
+      "category": "soul-jars"
+    },
+    {
+      "key": "enablePermanentMorphs",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether stored morphs can become permanent by kill dedication.",
+      "example": true,
+      "category": "permanent-morphs"
+    },
+    {
+      "key": "defaultPermanentKillRequirement",
+      "type": "integer",
+      "default": 250,
+      "description": "Default kills required to permanently bind a stored morph.",
+      "example": 100,
+      "category": "permanent-morphs"
+    },
+    {
+      "key": "permanentKillRequirementByIdentity",
+      "type": "string-list",
+      "default": [],
+      "description": "Per-identity permanent requirement overrides in the format namespace:entity=value.",
+      "example": [
+        "minecraft:wither=500"
+      ],
+      "category": "permanent-morphs"
+    },
+    {
+      "key": "enableSoulAbsorption",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether players can absorb permanent morphs for account-bound permanence.",
+      "example": true,
+      "category": "permanent-morphs"
+    },
+    {
+      "key": "elderGuardianMiningFatigueRadius",
+      "type": "number",
+      "default": 50.0,
+      "description": "Elder Guardian active ability radius in blocks.",
+      "example": 32.0,
+      "category": "abilities"
+    },
+    {
+      "key": "elderGuardianMiningFatigueDurationTicks",
+      "type": "integer",
+      "default": 1200,
+      "description": "Elder Guardian active ability Mining Fatigue duration in ticks.",
+      "example": 600,
+      "category": "abilities"
+    },
+    {
+      "key": "elderGuardianMiningFatigueAmplifier",
+      "type": "integer",
+      "default": 2,
+      "description": "Elder Guardian active ability Mining Fatigue amplifier, zero-based.",
+      "example": 1,
+      "category": "abilities"
+    },
+    {
+      "key": "elderGuardianMiningFatigueCooldownTicks",
+      "type": "integer",
+      "default": 600,
+      "description": "Elder Guardian active ability cooldown in ticks. Set to 0 to use datapack cooldown.",
+      "example": 0,
+      "category": "abilities"
+    },
+    {
+      "key": "shulkerTeleportCooldownTicks",
+      "type": "integer",
+      "default": 80,
+      "description": "Shulker secondary teleport cooldown in ticks.",
+      "example": 40,
+      "category": "abilities"
+    },
+    {
+      "key": "wardenIsBlinded",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Warden morphs have reduced view range under darkness.",
+      "example": false,
+      "category": "abilities"
+    },
+    {
+      "key": "wardenBlindsNearby",
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Warden morphs blind nearby players.",
+      "example": false,
+      "category": "abilities"
+    },
+    {
+      "key": "randomMorphEveryDay",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether each player is morphed into a random unlocked identity once per Minecraft day.",
+      "example": true,
+      "category": "progression"
+    },
+    {
+      "key": "forcedIdentity",
+      "type": "string",
+      "default": null,
+      "description": "Identity id forced on all players.",
+      "example": "minecraft:slime",
+      "category": "progression"
+    },
+    {
+      "key": "extraAquaticEntities",
+      "type": "string-list",
+      "default": [],
+      "description": "Additional entities treated as aquatic even if not tagged.",
+      "example": [
+        "minecraft:dolphin"
+      ],
+      "category": "entity-tags"
+    },
+    {
+      "key": "removedAquaticEntities",
+      "type": "string-list",
+      "default": [],
+      "description": "Entities forcibly excluded from aquatic handling.",
+      "example": [
+        "minecraft:axolotl"
+      ],
+      "category": "entity-tags"
+    },
+    {
+      "key": "removedFlyingEntities",
+      "type": "string-list",
+      "default": [],
+      "description": "Entities forcibly excluded from flying handling.",
+      "example": [
+        "minecraft:bat"
+      ],
+      "category": "entity-tags"
+    },
+    {
+      "key": "extraFlyingEntities",
+      "type": "string-list",
+      "default": [],
+      "description": "Entities forcibly included as flying.",
+      "example": [
+        "minecraft:bee"
+      ],
+      "category": "entity-tags"
+    },
+    {
+      "key": "extraEntityTypeTagAssignments",
+      "type": "string-list",
+      "default": [],
+      "description": "Runtime tag additions in the format namespace:tag=namespace:entity.",
+      "example": [
+        "identity2:slow_falling=yourmod:blue_jay"
+      ],
+      "category": "entity-tags"
+    },
+    {
+      "key": "removedEntityTypeTagAssignments",
+      "type": "string-list",
+      "default": [],
+      "description": "Runtime tag removals in the format namespace:tag=namespace:entity.",
+      "example": [
+        "identity2:can_fly=minecraft:bee"
+      ],
+      "category": "entity-tags"
+    }
+  ]
+}

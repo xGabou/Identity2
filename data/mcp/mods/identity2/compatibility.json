@@ -1,0 +1,56 @@
+{
+  "supportedMinecraftVersions": [
+    "1.21.1"
+  ],
+  "supportedLoaders": [
+    "fabric",
+    "neoforge"
+  ],
+  "requiredDependencies": [
+    {
+      "id": "architectury",
+      "version": "13.0.8+",
+      "loaders": [
+        "fabric",
+        "neoforge"
+      ]
+    },
+    {
+      "id": "gaboulibs",
+      "version": "1.4+",
+      "loaders": [
+        "fabric",
+        "neoforge"
+      ]
+    },
+    {
+      "id": "fabric-api",
+      "version": "*",
+      "loaders": [
+        "fabric"
+      ]
+    },
+    {
+      "id": "fabric-loader",
+      "version": "0.18.4+",
+      "loaders": [
+        "fabric"
+      ]
+    },
+    {
+      "id": "neoforge",
+      "version": "21+",
+      "loaders": [
+        "neoforge"
+      ]
+    }
+  ],
+  "optionalDependencies": [],
+  "confirmedCompatible": [],
+  "confirmedIncompatible": [],
+  "notes": [
+    "This branch ships Fabric and NeoForge metadata only.",
+    "Java 21 is required by the current branch.",
+    "The repository does not provide an official per-mod compatibility list for this branch."
+  ]
+}

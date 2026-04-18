@@ -1,0 +1,38 @@
+{
+  "slug": "identity2",
+  "name": "Identity2",
+  "aliases": [],
+  "latestVersion": "1.3.4",
+  "minecraftVersions": [
+    "1.21.1"
+  ],
+  "loaders": [
+    "fabric",
+    "neoforge"
+  ],
+  "docs": {
+    "overview": "docs/mods/identity2/overview.md",
+    "install": "docs/mods/identity2/install.md",
+    "troubleshooting": "docs/mods/identity2/troubleshooting.md",
+    "faq": "docs/mods/identity2/faq.md"
+  },
+  "data": {
+    "manifest": "data/mcp/mods/identity2/manifest.json",
+    "features": "data/mcp/mods/identity2/features.json",
+    "commands": "data/mcp/mods/identity2/commands.json",
+    "configSchema": "data/mcp/mods/identity2/config-schema.json",
+    "compatibility": "data/mcp/mods/identity2/compatibility.json",
+    "knownIssues": "data/mcp/mods/identity2/known-issues.json",
+    "versions": "data/mcp/mods/identity2/versions.json",
+    "changelog": "data/mcp/mods/identity2/CHANGELOG.md"
+  },
+  "links": {
+    "repository": "https://github.com/xGabou/Identity2",
+    "publicReadme": "docs/public/README.md",
+    "addonGuide": "docs/public/ADDON_DEV_GUIDE.md"
+  },
+  "notes": [
+    "This manifest reflects the current 1.21.1 branch.",
+    "Aliases are not explicitly documented in the repository and need manual confirmation if you want non-empty alias data."
+  ]
+}
