@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.Gabou.identity2.compat.ApolloSkinWalkerCompat;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
@@ -149,5 +150,6 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         identity.setSharedFlagOnFire(source.isOnFire());
+        ApolloSkinWalkerCompat.syncSkinWalkerVisualState(identity, source);
     }
 }

@@ -6,10 +6,12 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import dev.architectury.event.events.client.ClientGuiEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
+import dev.architectury.platform.Platform;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
+import net.Gabou.identity2.compat.ApolloSkinWalkerCompat;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -205,6 +207,10 @@ public final class Identity2Client {
 
         if (platform != null) {
             platform.logClientRegistries();
+        }
+
+        if (Platform.isModLoaded("apolloskinwalker")) {
+            addVisualPatch(ApolloSkinWalkerCompat::syncSkinWalkerVisualState, ResourceLocation.parse("apolloskinwalker:skin_walker"));
         }
 
         NetworkManager.registerReceiver(
