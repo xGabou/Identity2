@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "quality-commands",
+	"version": "${version}",
+	"name": "Quality Commands",
+	"description": "Custom commands+Identity Api",
+	"authors": [
+		"Dark Ember"
+	],
+	"contact": {
+		"homepage": "https://1101-grills-oren.github.io/mods/",
+		"sources": "https://1101-grills-oren.github.io/mods/"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/quality-commands/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"ember.qualitycommands.QualityCommands"
+		],
+		"client": [
+			"ember.qualitycommands.QualityCommandsClient"
+		]
+	},
+	"mixins": [
+		"quality-commands.mixins.json",
+		{
+			"config": "quality-commands.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.10",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
+	}
+}

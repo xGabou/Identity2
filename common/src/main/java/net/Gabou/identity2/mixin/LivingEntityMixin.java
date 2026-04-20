@@ -76,12 +76,11 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         if (entity instanceof Player) {
             return;
         }
-        if ((identity instanceof LivingEntity livingIdentity) && (entity instanceof LivingEntity livingEntity)) {
-            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes());
-            /*Identity2.LOGGER.info("Attributes mangled!");
-            for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)this.attributes).getDefaultAttributes()).getInstances().values()){
-                Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(this.attributes.getValue(attr.getAttribute())));
-            }*/
+        if (identity instanceof LivingEntity livingIdentity) {
+            // Keep the morph entity on its own attribute map so the mob's intended
+            // movement and combat values are preserved. Player-side morph attributes
+            // are handled separately in IdentityProgression.
+            this.attributes = livingIdentity.getAttributes();
         }
 
     }

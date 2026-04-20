@@ -208,19 +208,6 @@ public class PlayerManagerMixin {
             return;
         }
         IdentityProgression.ensureClientUnlockCache(player);
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
-        String unlockedCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        String variantCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-
-        CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-            )
-        );
-        sendToWorldPlayers(player, payload);
-        NetworkManager.sendToPlayer(player, payload);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {

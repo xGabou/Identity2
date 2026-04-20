@@ -22,6 +22,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -511,20 +512,10 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     private Set<String> readUnlockedIdentityIds() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return Set.of();
-        }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
-        String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        if (csv == null || csv.isBlank()) {
-            return Set.of();
-        }
         Set<String> out = new HashSet<>();
-        for (String value : csv.split(",")) {
-            String trimmed = value == null ? "" : value.trim();
-            if (!trimmed.isBlank()) {
-                out.add(trimmed);
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            if (id != null) {
+                out.add(id.toString());
             }
         }
         return out;

@@ -602,65 +602,21 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private static Set<String> readUnlockedIdentities() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return Set.of();
-        }
-
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
-        String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        if (csv == null || csv.isBlank()) {
-            return Set.of();
-        }
-
         Set<String> unlocked = new HashSet<>();
-        for (String value : csv.split(",")) {
-            String trimmed = value.trim();
-            if (!trimmed.isEmpty()) {
-                unlocked.add(trimmed);
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            if (id != null) {
+                unlocked.add(id.toString());
             }
         }
         return unlocked;
     }
 
     private static Map<String, Set<String>> readUnlockedVariantTokens() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return Map.of();
-        }
-
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt();
-        String serialized = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-        if (serialized == null || serialized.isBlank()) {
-            return Map.of();
-        }
-
         Map<String, Set<String>> result = new HashMap<>();
-        for (String entry : serialized.split(",")) {
-            String trimmed = entry == null ? "" : entry.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            int equalsIndex = trimmed.indexOf('=');
-            if (equalsIndex <= 0 || equalsIndex >= trimmed.length() - 1) {
-                continue;
-            }
-
-            String identityId = trimmed.substring(0, equalsIndex).trim();
-            String tokenData = trimmed.substring(equalsIndex + 1).trim();
-            if (identityId.isEmpty() || tokenData.isEmpty()) {
-                continue;
-            }
-
-            Set<String> tokens = new HashSet<>();
-            for (String token : tokenData.split("\\|")) {
-                String normalized = token == null ? "" : token.trim();
-                if (!normalized.isEmpty()) {
-                    tokens.add(normalized);
-                }
-            }
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            Set<String> tokens = Identity2Client.getUnlockedVariantTokens(id);
             if (!tokens.isEmpty()) {
-                result.put(identityId, tokens);
+                result.put(id.toString(), new HashSet<>(tokens));
             }
         }
         return result;

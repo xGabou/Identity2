@@ -8,6 +8,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
@@ -51,6 +52,7 @@ public final class ModPackets {
     public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
     public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
     public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
+    public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "unlock_sync");
     public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
@@ -102,6 +104,7 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(IdentityUnlockSyncS2CPacketPayload.ID, IdentityUnlockSyncS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);

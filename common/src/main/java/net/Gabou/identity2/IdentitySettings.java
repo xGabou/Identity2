@@ -28,10 +28,6 @@ public class IdentitySettings {
             return rule;
         }
 
-        if (allowDisableMorphLossOnDeathWithoutCheats) {
-            return IdentitySettings.DeathMorphRule.NONE;
-        }
-
         boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_SENDCOMMANDFEEDBACK);
         // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
 
@@ -44,9 +40,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
     public static boolean unlockAllVariantsOnFirstUnlock = false;
-    //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
-    public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
-
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
 
@@ -121,12 +114,6 @@ public class IdentitySettings {
 
     public static float flySpeed = 0.05f;
 
-    //@Comment(value = "If true, the player has to kill a certain number of entities before unlocking an Identity.")
-    public static boolean killForIdentity = false;
-
-    //@Comment(value = "Number of kills required to unlock an Identity if killsForIdentity is true.")
-    public static int requiredKillsForIdentity = 50;
-
     //@Comment(value = "If true, killing entities unlocks their identities.")
     public static boolean enableIdentityKillUnlocks = true;
 
@@ -147,9 +134,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
     public static boolean enableMorphChargeSystem = true;
-    //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
-    public static boolean EnableMorphCharges = true;
-
     //@Comment(value = "Default number of charges gained per qualifying kill.")
     public static int defaultChargeGainPerKill = 1;
 
@@ -182,9 +166,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, soul jar storage/protection is enabled.")
     public static boolean enableSoulJarSystem = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulJarSystem.")
-    public static boolean EnableSoulJars = false;
-
     //@Comment(value = "Per-tier soul jar capacities in the format 'tier=value'.")
     public static List<String> soulJarTierCapacities = new ArrayList<>(
         List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
@@ -225,9 +206,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
     public static boolean enablePermanentMorphs = false;
-    //@Comment(value = "Identity 2.0 alias for enablePermanentMorphs.")
-    public static boolean EnablePermanentJarMorphs = false;
-
     //@Comment(value = "Default kills required to permanently bind a stored morph.")
     public static int defaultPermanentKillRequirement = 250;
 
@@ -236,9 +214,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, players can absorb permanent morphs for account-bound permanence.")
     public static boolean enableSoulAbsorption = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulAbsorption.")
-    public static boolean EnableSoulAbsorption = false;
-
     //@Comment(value = "Elder Guardian active ability radius in blocks.")
     public static double elderGuardianMiningFatigueRadius = 50.0D;
 

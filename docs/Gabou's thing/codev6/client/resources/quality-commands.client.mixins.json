@@ -1,0 +1,22 @@
+{
+	"required": true,
+	"package": "ember.qualitycommands.mixin.client",
+	"compatibilityLevel": "JAVA_17",
+	"client": [
+		"ClientWorldMixin",
+		"EntityRendererMixin",
+		"MinecraftClientMixin",
+		"PlayerEntityRendererMixin",
+		"HeldItemRendererMixin",
+		"EnderDragonEntityRendererMixin",
+		"ClientPlayerInteractionManagerMixin",
+		"ClientPlayNetworkHandlerMixin",
+		"EntityTrackerEntryMixin",
+		"WorldRendererMixin",
+		"EntityRenderStateMixin",
+		"LivingEntityRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

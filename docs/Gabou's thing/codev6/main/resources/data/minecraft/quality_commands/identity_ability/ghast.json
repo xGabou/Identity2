@@ -1,0 +1,6 @@
+{
+"icon":"minecraft:fire_charge",
+"cooldown":40,
+"use_duration":20,
+"predef":"minecraft:ghast"
+}

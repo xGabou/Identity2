@@ -24,6 +24,8 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
@@ -75,8 +77,6 @@ public final class IdentityProgression {
     private static final String UNLOCKED_IDENTITIES_KEY = "identity2.unlocked_identities";
     private static final String UNLOCKED_IDENTITY_VARIANTS_KEY = "identity2.unlocked_identity_variants";
     private static final String IDENTITY_KILL_COUNTS_KEY = "identity2.identity_kill_counts";
-    public static final String UNLOCKED_IDENTITIES_CACHE_KEY = "identity2.unlocked_identities_cache";
-    public static final String UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY = "identity2.unlocked_identity_variants_cache";
     public static final String SELECTED_IDENTITY_TYPE_KEY = "identity2.identity_type";
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
     public static final String PREVIOUS_IDENTITY_TYPE_KEY = "identity2.previous_identity_type";
@@ -89,6 +89,7 @@ public final class IdentityProgression {
     private static final Codec<List<String>> STRING_LIST_CODEC = Codec.STRING.listOf();
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
+    private static final int MAX_UNLOCK_SYNC_PACKET_BYTES = 24000;
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int LARGE_MORPH_DAMAGE_GRACE_TICKS = 40;
@@ -106,7 +107,6 @@ public final class IdentityProgression {
     }
 
     public static List<String> getUnlockedIdentities(ServerPlayer player) {
-        ensureClientUnlockCache(player);
         return new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(getCustomData(player), UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
     }
 
@@ -116,7 +116,6 @@ public final class IdentityProgression {
 
     public static boolean shouldEnforceIdentityUnlocksForMorph() {
         return IdentitySettings.requireUnlockedIdentityForMorph
-            || IdentitySettings.killForIdentity
             || IdentitySettings.enableIdentityKillUnlocks;
     }
 
@@ -504,17 +503,7 @@ public final class IdentityProgression {
     }
 
     public static void ensureClientUnlockCache(ServerPlayer player) {
-        CompoundTag customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
-        Map<String, List<String>> variantUnlocks = new HashMap<>(
-            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
-        );
-        if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
-            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
-        }
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
+        syncUnlockState(player, true, null, null, null);
     }
 
     public static boolean grantIdentity(ServerPlayer player, ResourceLocation identityId) {
@@ -599,19 +588,7 @@ public final class IdentityProgression {
         net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, retained);
         net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, retainedVariants);
         net.Gabou.identity2.util.NbtCompat.store(customData, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained));
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
-
-        NetworkManager.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
-                )
-            )
-        );
+        syncUnlockState(player, true, retained, retainedVariants, null);
         return removed;
     }
 
@@ -736,8 +713,13 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-        syncUnlockCaches(player, unlocked, variantUnlocks);
+        boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+        List<ResourceLocation> syncIds = new ArrayList<>();
+        syncIds.add(identityId);
+        if (giantAdded) {
+            syncIds.add(GIANT_EASTER_EGG_ID);
+        }
+        syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
         return true;
     }
 
@@ -762,8 +744,13 @@ public final class IdentityProgression {
         // If this identity is already wildcard-unlocked (legacy/admin), keep it unrestricted.
         if (previouslyUnlocked && !variantUnlocks.containsKey(key)) {
             if (changed) {
-                tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-                syncUnlockCaches(player, unlocked, variantUnlocks);
+                boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+                List<ResourceLocation> syncIds = new ArrayList<>();
+                syncIds.add(identityId);
+                if (giantAdded) {
+                    syncIds.add(GIANT_EASTER_EGG_ID);
+                }
+                syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
             }
             return changed;
         }
@@ -780,8 +767,13 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-        syncUnlockCaches(player, unlocked, variantUnlocks);
+        boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+        List<ResourceLocation> syncIds = new ArrayList<>();
+        syncIds.add(identityId);
+        if (giantAdded) {
+            syncIds.add(GIANT_EASTER_EGG_ID);
+        }
+        syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
         return true;
     }
 
@@ -831,55 +823,154 @@ public final class IdentityProgression {
         return foundRequired;
     }
 
-    private static void syncUnlockCaches(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
+    private static void syncUnlockState(
+        ServerPlayer player,
+        boolean replaceAll,
+        @Nullable List<String> unlocked,
+        @Nullable Map<String, List<String>> variantUnlocks,
+        @Nullable List<ResourceLocation> syncIds
+    ) {
+        if (player == null) {
+            return;
+        }
+
         CompoundTag customData = getCustomData(player);
-        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
-        String unlockedCache = serializeUnlocked(unlocked);
-        String variantCache = serializeUnlockedVariantMap(variantUnlocks);
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache);
-        NetworkManager.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-                )
-            )
-        );
-    }
+        List<String> unlockedCopy = unlocked == null
+            ? new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()))
+            : new ArrayList<>(unlocked);
+        Map<String, List<String>> variantCopy = variantUnlocks == null
+            ? new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of()))
+            : new HashMap<>(variantUnlocks);
 
-    private static String serializeUnlocked(List<String> unlocked) {
-        if (unlocked.isEmpty()) {
-            return "";
+        if (tryUnlockGiantEasterEgg(player, unlockedCopy, variantCopy)) {
+            replaceAll = true;
         }
 
-        List<String> sorted = new ArrayList<>(unlocked);
-        Collections.sort(sorted);
-        return String.join(",", sorted);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlockedCopy);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantCopy);
+
+        List<ResourceLocation> idsToSync;
+        if (replaceAll || syncIds == null) {
+            idsToSync = new ArrayList<>();
+            for (String raw : unlockedCopy) {
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                try {
+                    ResourceLocation id = ResourceLocation.parse(raw);
+                    if (!idsToSync.contains(id)) {
+                        idsToSync.add(id);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        } else {
+            idsToSync = new ArrayList<>(syncIds);
+        }
+
+        List<IdentityUnlockSyncEntry> entries = buildUnlockSyncEntries(idsToSync, variantCopy);
+        sendUnlockSyncPackets(player, replaceAll, entries);
     }
 
-    private static String serializeUnlockedVariantMap(Map<String, List<String>> unlockedVariants) {
-        if (unlockedVariants == null || unlockedVariants.isEmpty()) {
-            return "";
+    private static List<IdentityUnlockSyncEntry> buildUnlockSyncEntries(List<ResourceLocation> ids, Map<String, List<String>> variantUnlocks) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
         }
-        List<String> keys = new ArrayList<>(unlockedVariants.keySet());
-        Collections.sort(keys);
-        List<String> entries = new ArrayList<>();
-        for (String key : keys) {
-            if (key == null || key.isBlank()) {
+
+        List<IdentityUnlockSyncEntry> entries = new ArrayList<>();
+        for (ResourceLocation id : ids) {
+            if (id == null) {
                 continue;
             }
-            List<String> tokens = new ArrayList<>(unlockedVariants.getOrDefault(key, List.of()));
+            List<String> tokens = new ArrayList<>(variantUnlocks.getOrDefault(id.toString(), List.of()));
+            tokens.removeIf(token -> token == null || token.isBlank());
             if (tokens.isEmpty()) {
+                entries.add(new IdentityUnlockSyncEntry(id, true, List.of()));
                 continue;
             }
-            Collections.sort(tokens);
-            entries.add(key + "=" + String.join("|", tokens));
+
+            List<String> chunk = new ArrayList<>();
+            int chunkBytes = unlockEntryBaseBytes(id);
+            boolean firstChunk = true;
+            for (String token : tokens) {
+                int tokenBytes = token.length() + 1;
+                if (!chunk.isEmpty() && chunkBytes + tokenBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                    entries.add(new IdentityUnlockSyncEntry(id, firstChunk, List.copyOf(chunk)));
+                    firstChunk = false;
+                    chunk.clear();
+                    chunkBytes = unlockEntryBaseBytes(id);
+                }
+                chunk.add(token);
+                chunkBytes += tokenBytes;
+            }
+            if (!chunk.isEmpty()) {
+                entries.add(new IdentityUnlockSyncEntry(id, firstChunk, List.copyOf(chunk)));
+            }
         }
-        return String.join(",", entries);
+        return entries;
+    }
+
+    private static void sendUnlockSyncPackets(ServerPlayer player, boolean replaceAll, List<IdentityUnlockSyncEntry> entries) {
+        if (player == null) {
+            return;
+        }
+
+        if (entries == null || entries.isEmpty()) {
+            if (replaceAll) {
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), true, List.of()));
+            }
+            return;
+        }
+
+        List<IdentityUnlockSyncEntry> current = new ArrayList<>();
+        int packetBytes = packetOverheadBytes(replaceAll);
+        boolean packetReplaceAll = replaceAll;
+
+        for (IdentityUnlockSyncEntry entry : entries) {
+            int entryBytes = unlockEntryBytes(entry);
+            if (!current.isEmpty() && packetBytes + entryBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                current.clear();
+                packetBytes = packetOverheadBytes(false);
+                packetReplaceAll = false;
+            }
+            current.add(entry);
+            packetBytes += entryBytes;
+            if (packetBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                current.clear();
+                packetBytes = packetOverheadBytes(false);
+                packetReplaceAll = false;
+            }
+        }
+
+        if (!current.isEmpty()) {
+            NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+        }
+    }
+
+    private static int packetOverheadBytes(boolean replaceAll) {
+        return 8 + (replaceAll ? 1 : 0);
+    }
+
+    private static int unlockEntryBaseBytes(ResourceLocation identityId) {
+        if (identityId == null) {
+            return 0;
+        }
+        return identityId.toString().length() + 8;
+    }
+
+    private static int unlockEntryBytes(IdentityUnlockSyncEntry entry) {
+        if (entry == null || entry.identityId() == null) {
+            return 0;
+        }
+        int size = unlockEntryBaseBytes(entry.identityId());
+        for (String token : entry.variantTokens()) {
+            if (token != null) {
+                size += token.length() + 1;
+            }
+        }
+        return size;
     }
 
     private static CompoundTag resolveRandomUnlockedVariant(CompoundTag customData, ResourceLocation identityId, int seed) {

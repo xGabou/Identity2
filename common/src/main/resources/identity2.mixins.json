@@ -15,6 +15,7 @@
     "PlayerInventoryMixin",
     "EntityEquipmentMixin",
     "PlayerManagerMixin",
+    "ServerPlayerMixin",
     "MinecraftServerMixin",
     "MobGoalSelectorAccessorMixin",
     "NbtComponentMixin",

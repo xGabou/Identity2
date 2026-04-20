@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -34,11 +35,16 @@ import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import net.Gabou.identity2.ModComponents;
 import java.util.EnumMap;
+import net.minecraft.world.level.GameRules;
 @Mixin(LivingEntity.class)
 public class EntityEquipmentMixin{
     @Inject(method = "dropEquipment", at = @At("HEAD"), cancellable = true)
     private void identity2$dropEquipmentNoSoulbound(CallbackInfo ci) {
         LivingEntity self = (LivingEntity)(Object)this;
+        if (self instanceof Player player && player.level() != null && player.level().getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY)) {
+            ci.cancel();
+            return;
+        }
 
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = self.getItemBySlot(slot);

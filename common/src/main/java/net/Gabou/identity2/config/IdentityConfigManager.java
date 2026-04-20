@@ -22,13 +22,6 @@ import net.Gabou.identity2.IdentitySettings;
 public final class IdentityConfigManager {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = Platform.getConfigFolder().resolve(Identity2.MOD_ID + ".json");
-    private static final Set<String> HIDDEN_KEYS = Set.of(
-        "EnableMorphCharges",
-        "EnableSoulJars",
-        "EnablePermanentJarMorphs",
-        "EnableSoulAbsorption",
-        "disableMorphLossOnDeath"
-    );
     private static boolean initialized = false;
 
     private IdentityConfigManager() {
@@ -126,9 +119,6 @@ public final class IdentityConfigManager {
         if (!Modifier.isPublic(modifiers) || !Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
             return false;
         }
-        if (forSave && HIDDEN_KEYS.contains(field.getName())) {
-            return false;
-        }
         Class<?> type = field.getType();
         return type == boolean.class
             || type == int.class
@@ -142,31 +132,9 @@ public final class IdentityConfigManager {
         if (root == null) {
             return;
         }
-        if (!root.has("enableMorphChargeSystem") && root.has("EnableMorphCharges")) {
-            root.add("enableMorphChargeSystem", root.get("EnableMorphCharges"));
-        }
-        if (!root.has("enableSoulJarSystem") && root.has("EnableSoulJars")) {
-            root.add("enableSoulJarSystem", root.get("EnableSoulJars"));
-        }
-        if (!root.has("enablePermanentMorphs") && root.has("EnablePermanentJarMorphs")) {
-            root.add("enablePermanentMorphs", root.get("EnablePermanentJarMorphs"));
-        }
-        if (!root.has("enableSoulAbsorption") && root.has("EnableSoulAbsorption")) {
-            root.add("enableSoulAbsorption", root.get("EnableSoulAbsorption"));
-        }
-        if (!root.has("loseAllMorphsOnDeath") && root.has("disableMorphLossOnDeath")) {
-            JsonElement disable = root.get("disableMorphLossOnDeath");
-            if (disable != null && disable.isJsonPrimitive()) {
-                root.addProperty("loseAllMorphsOnDeath", !disable.getAsBoolean());
-            }
-        }
     }
 
     private static void identity2$normalizeSettings() {
-        IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
-        IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
-        IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
-        IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
     }
 
     private static void identity2$applyFieldValue(Field field, JsonElement value) {

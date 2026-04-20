@@ -1,0 +1,42 @@
+accessWidener v2 named
+accessible class net/minecraft/server/command/ExecuteCommand$Condition
+accessible method net/minecraft/server/command/ExecuteCommand addConditionLogic (Lcom/mojang/brigadier/tree/CommandNode;Lcom/mojang/brigadier/builder/ArgumentBuilder;ZLnet/minecraft/server/command/ExecuteCommand$Condition;)Lcom/mojang/brigadier/builder/ArgumentBuilder;
+accessible method net/minecraft/command/argument/ArgumentTypes register (Lnet/minecraft/registry/Registry;Ljava/lang/String;Ljava/lang/Class;Lnet/minecraft/command/argument/serialize/ArgumentSerializer;)Lnet/minecraft/command/argument/serialize/ArgumentSerializer;
+accessible field net/minecraft/block/AbstractBlock collidable Z
+accessible class net/minecraft/registry/Registries$Initializer
+accessible method net/minecraft/registry/Registries create (Lnet/minecraft/registry/RegistryKey;Lnet/minecraft/registry/Registries$Initializer;)Lnet/minecraft/registry/Registry;
+accessible field net/minecraft/server/MinecraftServer combinedDynamicRegistries Lnet/minecraft/registry/CombinedDynamicRegistries;
+accessible field net/minecraft/registry/SimpleRegistry key Lnet/minecraft/registry/RegistryKey;
+accessible field net/minecraft/registry/SimpleRegistry tags Ljava/util/Map;
+mutable field net/minecraft/registry/SimpleRegistry tags Ljava/util/Map;
+accessible method net/minecraft/registry/Registries bootstrap ()V
+accessible method net/minecraft/registry/Registries init ()V
+accessible method net/minecraft/registry/Registries freezeRegistries ()V
+accessible method net/minecraft/registry/Registries validate (Lnet/minecraft/registry/Registry;)V
+accessible method net/minecraft/registry/Registries resetTagEntries (Lnet/minecraft/registry/Registry;)V
+accessible field net/minecraft/registry/SimpleRegistry frozen Z
+accessible class net/minecraft/block/entity/BlockEntityType$BlockEntityFactory
+accessible class net/minecraft/block/entity/BlockEntityType
+#accessible method net/minecraft/block/entity/BlockEntityType new (Lnet/minecraft/block/entity/BlockEntityType$BlockEntityFactory;Ljava/util/Set;)Lnet/minecraft/block/entity/BlockEntityType;
+accessible field net/minecraft/block/RedstoneWireBlock wiresGivePower Z
+accessible field net/minecraft/entity/Entity customData Lnet/minecraft/component/type/NbtComponent;
+accessible field net/minecraft/component/type/NbtComponent nbt Lnet/minecraft/nbt/NbtCompound;
+
+accessible field net/minecraft/server/MinecraftServer playerManager Lnet/minecraft/server/PlayerManager;
+
+accessible field net/minecraft/server/MinecraftServer commandFunctionManager Lnet/minecraft/server/function/CommandFunctionManager;
+mutable field net/minecraft/server/MinecraftServer commandFunctionManager Lnet/minecraft/server/function/CommandFunctionManager;
+
+accessible method net/minecraft/server/function/CommandFunctionManager executeAll (Ljava/util/Collection;Lnet/minecraft/util/Identifier;)V
+accessible field net/minecraft/client/network/ClientCommonNetworkHandler client Lnet/minecraft/client/MinecraftClient;
+
+accessible field net/minecraft/client/render/entity/EnderDragonEntityRenderer model Lnet/minecraft/client/render/entity/DragonEntityModel;
+accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontLeg Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontLegTip Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/DragonEntityModel rightFrontFoot Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/EnderDragonEntityRenderer TEXTURE Lnet/minecraft/util/Identifier;
+
+
+
+#mutable field net/minecraft/entity/LivingEntity attributes Lnet/minecraft/entity/attributes/AttributeContainer;
+accessible field net/minecraft/registry/Registries ROOT Lnet/minecraft/registry/MutableRegistry;
