@@ -17,6 +17,7 @@ import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
+import net.Gabou.identity2.auth.AuthGuards;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
@@ -158,6 +159,14 @@ public final class ModPackets {
         BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
         if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
             int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
+            if (!AuthGuards.canUseProtectedFeature(player)) {
+                configuredCooldown = AuthGuards.inflateCooldown(configuredCooldown);
+                if (AuthGuards.shouldSabotageFeatureUse(player)) {
+                    ((EntityAccessor) player).setAbilityCooldown(configuredCooldown);
+                    player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for protected abilities."), false);
+                    return;
+                }
+            }
             EntityAccessor accessor = (EntityAccessor) player;
             if (accessor.getAbilityCooldown() > 0) {
                 return;
@@ -180,10 +189,19 @@ public final class ModPackets {
                 return;
             }
             EntityAccessor accessor = (EntityAccessor) player;
+            int configuredCooldown = resolveSecondaryAbilityCooldown(identity, identityAbility);
+            if (!AuthGuards.canUseProtectedFeature(player)) {
+                configuredCooldown = AuthGuards.inflateCooldown(configuredCooldown);
+                if (AuthGuards.shouldSabotageFeatureUse(player)) {
+                    accessor.setSecondaryAbilityCooldown(configuredCooldown);
+                    player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for protected abilities."), false);
+                    return;
+                }
+            }
             if (accessor.getSecondaryAbilityCooldown() > 0) {
                 return;
             }
-            accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
+            accessor.setSecondaryAbilityCooldown(configuredCooldown);
             predefAbility.executeSecondary(player);
             return;
         }
@@ -193,8 +211,14 @@ public final class ModPackets {
         }
 
         if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
+            if (!AuthGuards.canUseProtectedFeature(player)) {
+                return;
+            }
             predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
         } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
+            if (!AuthGuards.canUseProtectedFeature(player)) {
+                return;
+            }
             predefAbility.overrideAttack(player);
         } else {
             predefAbility.tick(player, payload.entityid());
@@ -313,6 +337,11 @@ public final class ModPackets {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity variant not unlocked: " + identityId), false);
                 return;
             }
+        }
+
+        if (!AuthGuards.canUseProtectedFeature(player)) {
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for morphing."), false);
+            return;
         }
 
         boolean success = IdentityProgression.morph(player, identityId, variantNbt);

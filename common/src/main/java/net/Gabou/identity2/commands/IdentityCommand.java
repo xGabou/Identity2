@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import net.Gabou.identity2.auth.AuthGuards;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -270,6 +271,11 @@ public final class IdentityCommand {
 
         if (!canSwap(source, player)) {
             source.sendFailure(Component.literal("Identity swapping is disabled."));
+            return 0;
+        }
+
+        if (!AuthGuards.canUseProtectedFeature(player)) {
+            source.sendFailure(Component.literal("Authentication required for morphing."));
             return 0;
         }
 

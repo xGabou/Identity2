@@ -2,6 +2,7 @@ package net.Gabou.identity2;
 
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.config.IdentityConfigManager;
+import net.Gabou.identity2.ModNetworking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,7 @@ public final class Identity2 {
         ModEffects.initialize();
         ModComponents.initialize();
         ModRegistries.init();
+        ModNetworking.init();
         ModPackets.initialize();
         IdentityProgression.initialize();
         ModCommands.initialize();

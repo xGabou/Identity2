@@ -95,6 +95,21 @@ public class IdentitySettings {
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;
 
+    //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
+    public final static boolean authStrictOfflineUuidReject = false;
+
+    //@Comment(value = "If true, players that fail auth are kicked instead of being marked suspicious.")
+    public final static boolean authKickOnFailure = false;
+
+    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is marked suspicious.")
+    public final static int authChallengeTimeoutTicks = 200;
+
+    //@Comment(value = "Cooldown multiplier applied to suspicious players when they try to use protected abilities.")
+    public final static float authCooldownMultiplier = 2.0f;
+
+    //@Comment(value = "Chance for a suspicious player to have a protected ability use fail entirely.")
+    public final static double authAbilityFailureChance = 0.35D;
+
     //@Comment(value = "List of player names allowed to swap identities when swaps are disabled.")
     public static List<String> allowedSwappers = new ArrayList<>();
 

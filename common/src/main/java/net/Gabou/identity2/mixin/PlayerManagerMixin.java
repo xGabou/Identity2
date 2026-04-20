@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -25,6 +26,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
@@ -42,12 +44,24 @@ public class PlayerManagerMixin {
     private static final Map<UUID, Integer> DELAYED_MORPH_REAPPLY = new HashMap<>();
 
     @Shadow
+    @org.spongepowered.asm.mixin.Final
+    private MinecraftServer server;
+
+    @Shadow
     public ServerPlayer getPlayer(UUID uuid) {
         return null;
     }
 
+    @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
+    private void identity2$authOnLogin(Connection connection, ServerPlayer player, CallbackInfo info) {
+        if (!ServerAuth.onLogin(connection, player)) {
+            info.cancel();
+        }
+    }
+
     @Inject(method = "remove", at = @At("HEAD"))
     private void removeInject(ServerPlayer player, CallbackInfo info) {
+        ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -127,6 +141,7 @@ public class PlayerManagerMixin {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void identity2$delayedMorphReapply(CallbackInfo info) {
+        ServerAuth.onTick(this.server);
         if (DELAYED_MORPH_REAPPLY.isEmpty()) {
             return;
         }

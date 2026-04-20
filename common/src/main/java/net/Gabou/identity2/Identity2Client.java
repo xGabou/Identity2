@@ -11,6 +11,7 @@ import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
+import net.Gabou.identity2.ModNetworking;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -207,6 +208,8 @@ public final class Identity2Client {
         if (platform != null) {
             platform.logClientRegistries();
         }
+
+        ModNetworking.initClient();
 
         NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
