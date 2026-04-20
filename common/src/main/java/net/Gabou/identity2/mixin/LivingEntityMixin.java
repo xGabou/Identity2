@@ -1,30 +1,61 @@
 package net.Gabou.identity2.mixin;
 
+import com.google.common.collect.Lists;
+
 import java.lang.reflect.Method;
-import net.Gabou.identity2.compat.ApotheosisAttributeCompat;
-import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.identity.IdentityTraitTags;
-import net.Gabou.identity2.util.AttributeContainerAccessor;
-import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
-import net.Gabou.identity2.util.EntityAccessor;
+import java.util.List;
+
+import net.minecraft.world.phys.AABB;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.Gabou.identity2.ModEffects;
+
+import java.util.Locale;
+import java.util.Set;
+
+import org.jetbrains.annotations.Nullable;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.context.CommandContext;
+import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.Identity2;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import com.llamalad7.mixinextras.sugar.Local;
+
 import net.Gabou.identity2.util.LivingEntityAccessor;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.jetbrains.annotations.Nullable;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.Gabou.identity2.util.AttributeContainerAccessor;
+import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
+import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.tags.DamageTypeTags;
 
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
@@ -45,38 +76,29 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         if (entity instanceof Player) {
             return;
         }
-        if ((identity instanceof LivingEntity livingIdentity) && (entity instanceof LivingEntity livingEntity)) {
-            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes(), livingIdentity);
-            /*Identity2.LOGGER.info("Attributes mangled!");
-            for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)this.attributes).getDefaultAttributes()).getInstances().values()){
-                Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(this.attributes.getValue(attr.getAttribute())));
-            }*/
+        if (identity instanceof LivingEntity livingIdentity) {
+            // Keep the morph entity on its own attribute map so the mob's intended
+            // movement and combat values are preserved. Player-side morph attributes
+            // are handled separately in IdentityProgression.
+            this.attributes = livingIdentity.getAttributes();
         }
 
     }
 
 
-    public AttributeMap createMangled(AttributeMap a, AttributeMap b, @Nullable LivingEntity owner) {
+    public AttributeMap createMangled(AttributeMap a, AttributeMap b) {
         AttributeSupplier.Builder builder = AttributeSupplier.builder();
         for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) a).getDefaultAttributes()).getInstances().values()) {
             builder.add(attr.getAttribute(), attr.getBaseValue());
-            //Identity2.LOGGER.info("Mangling A: "+attr.getAttribute().toString());
         }
         for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) b).getDefaultAttributes()).getInstances().values()) {
             builder.add(attr.getAttribute(), attr.getBaseValue());
-            //Identity2.LOGGER.info("Mangling B: "+attr.getAttribute().toString());
         }
         AttributeMap newContainer = new AttributeMap(builder.build());
-        ApotheosisAttributeCompat.setOwner(newContainer, owner);
-        ApotheosisAttributeCompat.beginAttributeUpdate(newContainer);
-        try {
-            identity2$assignAllValues(newContainer, a);
-            identity2$assignAllValues(newContainer, b);
-            identity2$assignBaseValues(newContainer, a);
-            identity2$assignBaseValues(newContainer, b);
-        } finally {
-            ApotheosisAttributeCompat.endAttributeUpdate(newContainer);
-        }
+        identity2$assignAllValues(newContainer, a);
+        identity2$assignAllValues(newContainer, b);
+        identity2$assignBaseValues(newContainer, a);
+        identity2$assignBaseValues(newContainer, b);
         /*for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)newContainer).getDefaultAttributes()).getInstances().values()){
             Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(newContainer.getValue(attr.getAttribute())));
         }*/
@@ -97,9 +119,6 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         if (target == null || source == null) {
             return;
         }
-        // 1.21.11 behavior: copy base values explicitly after full value merge.
-        // On older mappings where this method does not exist, all available values
-        // were already copied by assignValues/assignAllValues above.
         identity2$invokeAttributeMapCopy(target, "assignBaseValues", source);
     }
 
@@ -122,6 +141,14 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         return false;
     }
 
+    private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
+        return livingIdentity != null
+            && (
+                livingIdentity.canBreatheUnderwater()
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
+            );
+    }
+
     private static boolean identity2$canUseSlot(LivingEntity livingIdentity, EquipmentSlot slot) {
         if (livingIdentity == null || slot == null) {
             return true;
@@ -133,14 +160,6 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         } catch (Throwable ignored) {
             return true;
         }
-    }
-
-    private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
-        return livingIdentity != null
-            && (
-                livingIdentity.canBreatheUnderwater()
-                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
-            );
     }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
@@ -199,7 +218,6 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             return;
         }
 
-        // Clear stale bubbles immediately after leaving an aquatic morph.
         info.setReturnValue(host.getMaxAirSupply());
     }
 
@@ -278,9 +296,10 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)
     private void tickMovementIdentity(CallbackInfo info) {
-        if ((Entity)(Object)this instanceof Player) {
-            return;
-        }
+        //if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
+        //    return;
+        //}
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
 
@@ -358,7 +377,161 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
 
+    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player player && source != null) {
+            if (player.getAbilities().instabuild || player.isSpectator()) {
+                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                    return;
+                }
+                info.setReturnValue(true);
+                return;
+            }
+            if (
+                    this.currentIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && player.isInWater()
+                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            if (
+                    activeIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
 
+            if (
+                    activeIdentity != null
+                            && identity2$isFallDamage(source)
+                            && (
+                            activeIdentity.getType() == EntityType.CHICKEN
+                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                    )
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
+                info.setReturnValue(true);
+                return;
+            }
+        }
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
+            }
+        }
+    }
+    @Unique
+    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
+        float idHeight = activeIdentity.getBbHeight();
+        if (idHeight >= 1.2f) {
+            return false;
+        }
+
+        if (player.isCrouching() || player.isSwimming()) {
+            return false;
+        }
+
+        AABB box = player.getBoundingBox();
+
+        AABB feet = new AABB(
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.minY + 0.35, box.maxZ
+        );
+
+        double headStart = box.maxY - 0.35;
+        AABB head = new AABB(
+                box.minX, headStart, box.minZ,
+                box.maxX, box.maxY, box.maxZ
+        );
+
+        boolean feetCollide = !player.level().noCollision(player, feet);
+        boolean headCollide = !player.level().noCollision(player, head);
+
+        return headCollide && !feetCollide;
+    }
+    @Unique
+    private static boolean identity2$isFallDamage(DamageSource source) {
+        if (source == null) {
+            return false;
+        }
+        if (source.is(DamageTypes.FALL)) {
+            return true;
+        }
+        if (source.is(DamageTypeTags.IS_FALL)) {
+            return true;
+        }
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("fall");
+    }
+
+    private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+        String msgId = identity2$getDamageMessageId(source);
+        if (msgId == null || msgId.isBlank()) {
+            return false;
+        }
+        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        return normalized.equals("inwall")
+                || normalized.equals("in_wall")
+                || normalized.equals("flyintowall")
+                || normalized.equals("fly_into_wall")
+                || normalized.equals("cramming");
+    }
+
+    private static String identity2$getDamageMessageId(DamageSource source) {
+        if (source == null) {
+            return "";
+        }
+        Object direct = identity2$invokeNoArg(source, "getMsgId");
+        if (direct instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object type = identity2$invokeNoArg(source, "type");
+        Object fromType = identity2$invokeNoArg(type, "msgId");
+        if (fromType instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object holder = identity2$invokeNoArg(source, "typeHolder");
+        Object value = identity2$invokeNoArg(holder, "value");
+        Object fromHolder = identity2$invokeNoArg(value, "msgId");
+        if (fromHolder instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return "";
+    }
+
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return null;
+    }
 
     @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void pushAwayFromIdentity(Entity entity, CallbackInfo info) {
@@ -388,21 +561,29 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
         if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
             info.setReturnValue(false);
-        };
+        }
     }
 
-    @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
-    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
+    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
+            }
+        }
+    }
+
+    @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
+    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {
         if ((Entity)(Object)this instanceof Player) {
             // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
             return;
         }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                cir.setReturnValue(livingIdentity.doHurtTarget(entity));
+                info.setReturnValue(livingIdentity.doHurtTarget(entity));
             }
         }
     }
 //Tons of Redirects - End
 }
-

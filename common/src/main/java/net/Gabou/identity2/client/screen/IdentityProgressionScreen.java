@@ -22,6 +22,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -198,21 +199,21 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollAmount) {
         if (!isWithinList(mouseX, mouseY)) {
-            return super.mouseScrolled(mouseX, mouseY, verticalAmount);
+            return super.mouseScrolled(mouseX, mouseY, scrollAmount);
         }
-        if (verticalAmount > 0.0D && this.scrollOffset > 0) {
+        if (scrollAmount > 0.0D && this.scrollOffset > 0) {
             this.scrollOffset--;
             refreshButtons();
             return true;
         }
-        if (verticalAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
+        if (scrollAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
             this.scrollOffset++;
             refreshButtons();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, scrollAmount);
     }
 
     @Override
@@ -511,20 +512,10 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     private Set<String> readUnlockedIdentityIds() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return Set.of();
-        }
-        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
-        String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        if (csv == null || csv.isBlank()) {
-            return Set.of();
-        }
         Set<String> out = new HashSet<>();
-        for (String value : csv.split(",")) {
-            String trimmed = value == null ? "" : value.trim();
-            if (!trimmed.isBlank()) {
-                out.add(trimmed);
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            if (id != null) {
+                out.add(id.toString());
             }
         }
         return out;
@@ -666,4 +657,3 @@ public final class IdentityProgressionScreen extends Screen {
     private record InventorySlotView(int index, int x, int y) {
     }
 }
-

@@ -20,6 +20,8 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
@@ -57,6 +59,10 @@ import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -129,6 +135,9 @@ public final class Identity2Client {
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
+    private static final ArrayList<IdentityUnlockSyncS2CPacketPayload> pendingUnlockSyncPackets = new ArrayList<>(0);
+    private static final Set<ResourceLocation> clientUnlockedIdentityIds = new LinkedHashSet<>();
+    private static final Map<ResourceLocation, Set<String>> clientUnlockedVariantTokens = new LinkedHashMap<>();
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
     private static long identity2$lastSkinPacketLogMs = 0L;
@@ -139,7 +148,7 @@ public final class Identity2Client {
                 identity2$syncEnderDragonVisualState(dragonIdentity, entity);
             }
             return identity;
-        }, ResourceLocation.tryParse("minecraft:ender_dragon"));
+        }, new ResourceLocation("minecraft", "ender_dragon"));
     }
 
     private static void identity2$syncEnderDragonVisualState(EnderDragon dragonIdentity, Entity source) {
@@ -226,6 +235,11 @@ public final class Identity2Client {
                 CustomEntityBoolDataS2CPacketPayload.ID,
                 CustomEntityBoolDataS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
+        NetworkCompat.registerReceiver(
+                NetworkManager.s2c(),
+                IdentityUnlockSyncS2CPacketPayload.ID,
+                IdentityUnlockSyncS2CPacketPayload::decode,
+                (payload, context) -> context.queue(() -> INSTANCE.onUnlockSyncData(payload)));
         NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 MorphAcquisitionS2CPacketPayload.ID,
@@ -322,6 +336,7 @@ public final class Identity2Client {
 
     private static void onClientTickEnd(Minecraft client) {
         processPendingCustomDataPackets(client);
+        processPendingUnlockSyncPackets(client);
         tickMorphTransitionEffects(client);
         MorphAcquisitionEffectController.tick(client);
 
@@ -478,13 +493,25 @@ public final class Identity2Client {
         }
     }
 
+    private void onUnlockSyncData(IdentityUnlockSyncS2CPacketPayload packet) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+            return;
+        }
+
+        if (!applyUnlockSyncPacket(packet)) {
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+        }
+    }
+
     private static void processPendingCustomDataPackets(Minecraft client) {
         if (client.level == null) {
             return;
         }
 
         if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty()
-                && pendingBoolDataPackets.isEmpty()) {
+                && pendingBoolDataPackets.isEmpty() && pendingUnlockSyncPackets.isEmpty()) {
             pendingPacketProcessTicks = 0;
             return;
         }
@@ -493,12 +520,14 @@ public final class Identity2Client {
         processPendingDoublePackets(client);
         processPendingStringPackets(client);
         processPendingBoolPackets(client);
+        processPendingUnlockSyncPackets(client);
 
         // Avoid an unbounded per-tick scan if some queued packets can never resolve.
         if (pendingPacketProcessTicks > MAX_PENDING_PACKET_PROCESS_TICKS) {
             pendingDoubleDataPackets.clear();
             pendingStringDataPackets.clear();
             pendingBoolDataPackets.clear();
+            pendingUnlockSyncPackets.clear();
             pendingPacketProcessTicks = 0;
         }
     }
@@ -532,6 +561,18 @@ public final class Identity2Client {
         for (int i = 0; i < max;) {
             if (INSTANCE.tryApplyCustomData(client, pendingBoolDataPackets.get(i))) {
                 pendingBoolDataPackets.remove(i);
+                max--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private static void processPendingUnlockSyncPackets(Minecraft client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockSyncPackets.size());
+        for (int i = 0; i < max;) {
+            if (INSTANCE.applyUnlockSyncPacket(pendingUnlockSyncPackets.get(i))) {
+                pendingUnlockSyncPackets.remove(i);
                 max--;
             } else {
                 i++;
@@ -600,6 +641,48 @@ public final class Identity2Client {
         return true;
     }
 
+    private boolean applyUnlockSyncPacket(IdentityUnlockSyncS2CPacketPayload packet) {
+        Minecraft client = Minecraft.getInstance();
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null || client.player == null || entity.getId() != client.player.getId()) {
+            return false;
+        }
+
+        if (packet.replaceAll()) {
+            clientUnlockedIdentityIds.clear();
+            clientUnlockedVariantTokens.clear();
+        }
+
+        for (IdentityUnlockSyncEntry entry : packet.entries()) {
+            ResourceLocation identityId = entry.identityId();
+            if (identityId == null) {
+                continue;
+            }
+            clientUnlockedIdentityIds.add(identityId);
+            if (entry.replaceTokens()) {
+                Set<String> tokens = new LinkedHashSet<>();
+                for (String token : entry.variantTokens()) {
+                    if (token != null && !token.isBlank()) {
+                        tokens.add(token);
+                    }
+                }
+                if (tokens.isEmpty()) {
+                    clientUnlockedVariantTokens.remove(identityId);
+                } else {
+                    clientUnlockedVariantTokens.put(identityId, tokens);
+                }
+            } else {
+                Set<String> tokens = clientUnlockedVariantTokens.computeIfAbsent(identityId, ignored -> new LinkedHashSet<>());
+                for (String token : entry.variantTokens()) {
+                    if (token != null && !token.isBlank()) {
+                        tokens.add(token);
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     private static Entity resolvePacketTarget(Minecraft client, int entityId) {
         if (client.level != null) {
             Entity entity = client.level.getEntity(entityId);
@@ -611,6 +694,21 @@ public final class Identity2Client {
             return client.player;
         }
         return null;
+    }
+
+    public static Set<ResourceLocation> getUnlockedIdentityIds() {
+        return Set.copyOf(clientUnlockedIdentityIds);
+    }
+
+    public static Set<String> getUnlockedVariantTokens(ResourceLocation identityId) {
+        if (identityId == null) {
+            return Set.of();
+        }
+        Set<String> tokens = clientUnlockedVariantTokens.get(identityId);
+        if (tokens == null || tokens.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(tokens);
     }
 
     private static int resolvePrimaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {

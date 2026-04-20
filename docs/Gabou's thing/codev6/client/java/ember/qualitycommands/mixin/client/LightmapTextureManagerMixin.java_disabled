@@ -1,0 +1,48 @@
+package net.minecraft.client.render;
+
+import com.mojang.blaze3d.platform.GlConst;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.effect.StatusEffectInstance.FactorCalculationData;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.dimension.DimensionType;
+import org.joml.Vector3f;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Mutable;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/**
+ * The lightmap texture manager maintains a texture containing the RGBA overlay for each of the 16&times;16 sky and block light combinations.
+ * <p>
+ * Also contains some utilities to pack and unpack lightmap coordinates from sky and block light values,
+ * and some lightmap coordinates constants.
+ */
+@Mixin(LightmapTextureManager.class)
+public class LightmapTextureManagerMixin implements AutoCloseable {
+        
+//xord=4
+        @ModifyVariable(method = "update", at = @At("STORE"), ordinal = 4)
+        private int modifyRed(int red){}
+        @ModifyVariable(method = "update", at = @At("STORE"), ordinal = 5)
+        private int modifyGreen(int green){}
+        @ModifyVariable(method = "update", at = @At("STORE"), ordinal = 6)
+        private int modifyBlue(int blue){}
+        
+}

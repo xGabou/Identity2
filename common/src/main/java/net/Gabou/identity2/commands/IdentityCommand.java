@@ -41,10 +41,6 @@ import net.minecraft.world.entity.npc.WanderingTrader;
 
 public final class IdentityCommand {
     private static final Set<String> HIDDEN_CONFIG_KEYS = Set.of(
-        "EnableMorphCharges",
-        "EnableSoulJars",
-        "EnablePermanentJarMorphs",
-        "EnableSoulAbsorption",
         "disableMorphLossOnDeath"
     );
     private static final Map<String, Field> CONFIG_FIELDS = createConfigFieldMap();
@@ -670,21 +666,6 @@ public final class IdentityCommand {
     }
 
     private static void identity2$normalizeAliasedConfigAfterSet(String key) {
-        if ("enableMorphChargeSystem".equals(key) || "EnableMorphCharges".equals(key)) {
-            IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
-            return;
-        }
-        if ("enableSoulJarSystem".equals(key) || "EnableSoulJars".equals(key)) {
-            IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
-            return;
-        }
-        if ("enablePermanentMorphs".equals(key) || "EnablePermanentJarMorphs".equals(key)) {
-            IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
-            return;
-        }
-        if ("enableSoulAbsorption".equals(key) || "EnableSoulAbsorption".equals(key)) {
-            IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
-        }
     }
 
     private static Object parseScalarConfigValue(Class<?> type, String rawValue) {

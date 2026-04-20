@@ -8,6 +8,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
@@ -16,9 +17,8 @@ import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
-import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
-import net.Gabou.identity2.auth.AuthGuards;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
@@ -42,7 +42,9 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ModPackets {
     public static final ResourceLocation CUSTOM_STRING_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_string");
@@ -51,19 +53,43 @@ public final class ModPackets {
     public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "morph_acquisition");
     public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "entity_ability");
     public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_morph_request");
-    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_villager_trade_request");
-    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "open_progression_screen");
-    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_charge_sync_request");
-    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_select");
-    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_transfer");
-    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_player_charges");
-    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_state");
+    public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "unlock_sync");
+    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "identity_villager_trade_request"
+    );
+    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "open_progression_screen"
+    );
+    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "progression_charge_sync_request"
+    );
+    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "progression_jar_select"
+    );
+    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "progression_jar_transfer"
+    );
+    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "progression_player_charges"
+    );
+    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(
+        Identity2.MOD_ID,
+        "progression_jar_state"
+    );
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
     public static final int ABILITY_ACTION_PASSIVE = -1;
     public static final int ABILITY_ACTION_PASSIVE_USED = -2;
 
+    private static final Set<String> loggedResolvedPredefDebug = ConcurrentHashMap.newKeySet();
+    private static final Set<String> loggedMissingPredefWarnings = ConcurrentHashMap.newKeySet();
     private static boolean initialized = false;
 
     private ModPackets() {
@@ -159,14 +185,6 @@ public final class ModPackets {
         BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
         if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
             int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
-            if (!AuthGuards.canUseProtectedFeature(player)) {
-                configuredCooldown = AuthGuards.inflateCooldown(configuredCooldown);
-                if (AuthGuards.shouldSabotageFeatureUse(player)) {
-                    ((EntityAccessor) player).setAbilityCooldown(configuredCooldown);
-                    player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for protected abilities."), false);
-                    return;
-                }
-            }
             EntityAccessor accessor = (EntityAccessor) player;
             if (accessor.getAbilityCooldown() > 0) {
                 return;
@@ -189,19 +207,10 @@ public final class ModPackets {
                 return;
             }
             EntityAccessor accessor = (EntityAccessor) player;
-            int configuredCooldown = resolveSecondaryAbilityCooldown(identity, identityAbility);
-            if (!AuthGuards.canUseProtectedFeature(player)) {
-                configuredCooldown = AuthGuards.inflateCooldown(configuredCooldown);
-                if (AuthGuards.shouldSabotageFeatureUse(player)) {
-                    accessor.setSecondaryAbilityCooldown(configuredCooldown);
-                    player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for protected abilities."), false);
-                    return;
-                }
-            }
             if (accessor.getSecondaryAbilityCooldown() > 0) {
                 return;
             }
-            accessor.setSecondaryAbilityCooldown(configuredCooldown);
+            accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
             predefAbility.executeSecondary(player);
             return;
         }
@@ -211,14 +220,8 @@ public final class ModPackets {
         }
 
         if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
-            if (!AuthGuards.canUseProtectedFeature(player)) {
-                return;
-            }
             predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
         } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
-            if (!AuthGuards.canUseProtectedFeature(player)) {
-                return;
-            }
             predefAbility.overrideAttack(player);
         } else {
             predefAbility.tick(player, payload.entityid());
@@ -254,23 +257,49 @@ public final class ModPackets {
 
         BuiltinIdentityAbility exact = PredefIdentityAbilities.predef.get(prebuilt);
         if (exact != null) {
+            logResolvedPredef(identityTypeId, prebuilt, prebuilt);
             return exact;
         }
 
         ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
         BuiltinIdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
+            logResolvedPredef(identityTypeId, prebuilt, minecraftAlias);
             return minecraft;
         }
 
-        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
-            new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath())
-        );
+        ResourceLocation identity2AliasId = new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath());
+        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(identity2AliasId);
         if (identity2Alias != null) {
+            logResolvedPredef(identityTypeId, prebuilt, identity2AliasId);
             return identity2Alias;
         }
 
+        logMissingPredef(identityTypeId, prebuilt);
         return PredefIdentityAbilities.resolveFallbackAbility(identityTypeId);
+    }
+
+    private static void logResolvedPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId, ResourceLocation resolvedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId + "->" + resolvedPredefId;
+        if (loggedResolvedPredefDebug.add(key)) {
+            Identity2.LOGGER.debug(
+                "Resolved builtin identity ability for {} using predef {} via {}.",
+                identityTypeId,
+                requestedPredefId,
+                resolvedPredefId
+            );
+        }
+    }
+
+    private static void logMissingPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId;
+        if (loggedMissingPredefWarnings.add(key)) {
+            Identity2.LOGGER.warn(
+                "No builtin identity ability is registered for predef {} while resolving {}. Falling back to the generic identity ability.",
+                requestedPredefId,
+                identityTypeId
+            );
+        }
     }
 
     private static void handleMorphRequestPacket(ServerPlayer player, IdentityMorphRequestC2SPacketPayload payload) {
@@ -309,25 +338,6 @@ public final class ModPackets {
         }
 
         CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
-        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
-            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
-                variantNbt,
-                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
-                ""
-            );
-            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
-                variantNbt,
-                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
-                ""
-            );
-            Identity2.LOGGER.info(
-                "[SkinDiag] C2S morph request player-skin from {} rawVariant='{}' parsedUuid='{}' parsedName='{}'",
-                player.getGameProfile().getName(),
-                payload.variantNbt(),
-                skinUuid,
-                skinName
-            );
-        }
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
@@ -339,19 +349,7 @@ public final class ModPackets {
             }
         }
 
-        if (!AuthGuards.canUseProtectedFeature(player)) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Authentication required for morphing."), false);
-            return;
-        }
-
-        boolean success = IdentityProgression.morph(player, identityId, variantNbt);
-        if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
-            Identity2.LOGGER.info(
-                "[SkinDiag] Server morph(player identity) result={} player={}",
-                success,
-                player.getGameProfile().getName()
-            );
-        }
+        IdentityProgression.morph(player, identityId, variantNbt);
     }
 
     private static void handleVillagerTradeRequestPacket(ServerPlayer requester, IdentityVillagerTradeRequestC2SPacketPayload payload) {

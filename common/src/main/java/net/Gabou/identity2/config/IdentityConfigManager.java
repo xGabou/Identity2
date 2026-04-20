@@ -21,14 +21,7 @@ import net.Gabou.identity2.IdentitySettings;
 
 public final class IdentityConfigManager {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-    private static final String CONFIG_FILE_NAME = Identity2.MOD_ID + ".json";
-    private static final Set<String> HIDDEN_KEYS = Set.of(
-        "EnableMorphCharges",
-        "EnableSoulJars",
-        "EnablePermanentJarMorphs",
-        "EnableSoulAbsorption",
-        "disableMorphLossOnDeath"
-    );
+    private static final Path CONFIG_PATH = Platform.getConfigFolder().resolve(Identity2.MOD_ID + ".json");
     private static boolean initialized = false;
 
     private IdentityConfigManager() {
@@ -44,12 +37,11 @@ public final class IdentityConfigManager {
     }
 
     public static synchronized void load() {
-        Path configPath = identity2$resolveConfigPath();
-        if (!Files.exists(configPath)) {
+        if (!Files.exists(CONFIG_PATH)) {
             return;
         }
         try {
-            String raw = Files.readString(configPath, StandardCharsets.UTF_8);
+            String raw = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
             identity2$applyLegacyAliases(root);
             for (Field field : IdentitySettings.class.getFields()) {
@@ -64,7 +56,7 @@ public final class IdentityConfigManager {
             }
             identity2$normalizeSettings();
         } catch (Throwable throwable) {
-            Identity2.LOGGER.error("Failed to load config from {}", configPath, throwable);
+            Identity2.LOGGER.error("Failed to load config from {}", CONFIG_PATH, throwable);
         }
     }
 
@@ -104,14 +96,13 @@ public final class IdentityConfigManager {
             }
         }
 
-        Path configPath = identity2$resolveConfigPath();
         try {
-            Path parent = configPath.getParent();
+            Path parent = CONFIG_PATH.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
             Files.writeString(
-                configPath,
+                CONFIG_PATH,
                 GSON.toJson(root),
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE,
@@ -119,28 +110,13 @@ public final class IdentityConfigManager {
                 StandardOpenOption.WRITE
             );
         } catch (Throwable throwable) {
-            Identity2.LOGGER.error("Failed to save config to {}", configPath, throwable);
+            Identity2.LOGGER.error("Failed to save config to {}", CONFIG_PATH, throwable);
         }
-    }
-
-    private static Path identity2$resolveConfigPath() {
-        Path configFolder = null;
-        try {
-            configFolder = Platform.getConfigFolder();
-        } catch (Throwable ignored) {
-        }
-        if (configFolder == null) {
-            configFolder = Path.of("config");
-        }
-        return configFolder.resolve(CONFIG_FILE_NAME);
     }
 
     private static boolean identity2$isSupportedConfigField(Field field, boolean forSave) {
         int modifiers = field.getModifiers();
         if (!Modifier.isPublic(modifiers) || !Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
-            return false;
-        }
-        if (forSave && HIDDEN_KEYS.contains(field.getName())) {
             return false;
         }
         Class<?> type = field.getType();
@@ -156,31 +132,9 @@ public final class IdentityConfigManager {
         if (root == null) {
             return;
         }
-        if (!root.has("enableMorphChargeSystem") && root.has("EnableMorphCharges")) {
-            root.add("enableMorphChargeSystem", root.get("EnableMorphCharges"));
-        }
-        if (!root.has("enableSoulJarSystem") && root.has("EnableSoulJars")) {
-            root.add("enableSoulJarSystem", root.get("EnableSoulJars"));
-        }
-        if (!root.has("enablePermanentMorphs") && root.has("EnablePermanentJarMorphs")) {
-            root.add("enablePermanentMorphs", root.get("EnablePermanentJarMorphs"));
-        }
-        if (!root.has("enableSoulAbsorption") && root.has("EnableSoulAbsorption")) {
-            root.add("enableSoulAbsorption", root.get("EnableSoulAbsorption"));
-        }
-        if (!root.has("loseAllMorphsOnDeath") && root.has("disableMorphLossOnDeath")) {
-            JsonElement disable = root.get("disableMorphLossOnDeath");
-            if (disable != null && disable.isJsonPrimitive()) {
-                root.addProperty("loseAllMorphsOnDeath", !disable.getAsBoolean());
-            }
-        }
     }
 
     private static void identity2$normalizeSettings() {
-        IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
-        IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
-        IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
-        IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
     }
 
     private static void identity2$applyFieldValue(Field field, JsonElement value) {

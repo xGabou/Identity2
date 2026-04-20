@@ -19,17 +19,13 @@ public class IdentitySettings {
         WIPE_ALL
     }
 
-    public static DeathMorphRule deathMorphRule = DeathMorphRule.NONE;
+    public static DeathMorphRule deathMorphRule = DeathMorphRule.WIPE_ALL;
 
     public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
         IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
 
         if (rule != IdentitySettings.DeathMorphRule.NONE) {
             return rule;
-        }
-
-        if (allowDisableMorphLossOnDeathWithoutCheats) {
-            return IdentitySettings.DeathMorphRule.NONE;
         }
 
         boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_SENDCOMMANDFEEDBACK);
@@ -41,12 +37,9 @@ public class IdentitySettings {
 
         return IdentitySettings.DeathMorphRule.WIPE_ALL;
     }
+
     //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
     public static boolean unlockAllVariantsOnFirstUnlock = false;
-
-    //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
-    public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
-
     //@Comment(value = "Whether identities equip the items (swords, items, tools) held by the underlying player.")
     public static boolean identitiesEquipItems = true;
 
@@ -96,19 +89,19 @@ public class IdentitySettings {
     public static boolean canTradeWithHimSelf = false;
 
     //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
-    public final static boolean authStrictOfflineUuidReject = false;
+    public static boolean authStrictOfflineUuidReject = false;
 
     //@Comment(value = "If true, players that fail auth are kicked instead of being marked suspicious.")
-    public final static boolean authKickOnFailure = false;
+    public static boolean authKickOnFailure = false;
 
     //@Comment(value = "How many ticks the auth challenge may remain pending before the player is marked suspicious.")
-    public final static int authChallengeTimeoutTicks = 200;
+    public static int authChallengeTimeoutTicks = 200;
 
     //@Comment(value = "Cooldown multiplier applied to suspicious players when they try to use protected abilities.")
-    public final static float authCooldownMultiplier = 2.0f;
+    public static float authCooldownMultiplier = 2.0f;
 
     //@Comment(value = "Chance for a suspicious player to have a protected ability use fail entirely.")
-    public final static double authAbilityFailureChance = 0.35D;
+    public static double authAbilityFailureChance = 0.35D;
 
     //@Comment(value = "List of player names allowed to swap identities when swaps are disabled.")
     public static List<String> allowedSwappers = new ArrayList<>();
@@ -136,12 +129,6 @@ public class IdentitySettings {
 
     public static float flySpeed = 0.05f;
 
-    //@Comment(value = "If true, the player has to kill a certain number of entities before unlocking an Identity.")
-    public static boolean killForIdentity = false;
-
-    //@Comment(value = "Number of kills required to unlock an Identity if killsForIdentity is true.")
-    public static int requiredKillsForIdentity = 50;
-
     //@Comment(value = "If true, killing entities unlocks their identities.")
     public static boolean enableIdentityKillUnlocks = true;
 
@@ -158,13 +145,10 @@ public class IdentitySettings {
     public static int morphAcquisitionAnimationTicks = 26;
 
     //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
-    public static boolean requireUnlockedIdentityForMorph = false;
+    public static boolean requireUnlockedIdentityForMorph = true;
 
     //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
-    public static boolean enableMorphChargeSystem = false;
-    //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
-    public static boolean EnableMorphCharges = false;
-
+    public static boolean enableMorphChargeSystem = true;
     //@Comment(value = "Default number of charges gained per qualifying kill.")
     public static int defaultChargeGainPerKill = 1;
 
@@ -197,9 +181,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, soul jar storage/protection is enabled.")
     public static boolean enableSoulJarSystem = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulJarSystem.")
-    public static boolean EnableSoulJars = false;
-
     //@Comment(value = "Per-tier soul jar capacities in the format 'tier=value'.")
     public static List<String> soulJarTierCapacities = new ArrayList<>(
         List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
@@ -240,9 +221,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
     public static boolean enablePermanentMorphs = false;
-    //@Comment(value = "Identity 2.0 alias for enablePermanentMorphs.")
-    public static boolean EnablePermanentJarMorphs = false;
-
     //@Comment(value = "Default kills required to permanently bind a stored morph.")
     public static int defaultPermanentKillRequirement = 250;
 
@@ -251,9 +229,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, players can absorb permanent morphs for account-bound permanence.")
     public static boolean enableSoulAbsorption = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulAbsorption.")
-    public static boolean EnableSoulAbsorption = false;
-
     //@Comment(value = "Elder Guardian active ability radius in blocks.")
     public static double elderGuardianMiningFatigueRadius = 50.0D;
 

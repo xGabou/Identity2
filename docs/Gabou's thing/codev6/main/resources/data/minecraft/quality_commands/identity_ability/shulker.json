@@ -1,0 +1,8 @@
+{
+"icon":"minecraft:shulker_shell",
+"command":"/attribute @s minecraft:entity_interaction_range base set 100",
+"cooldown":1,
+"use_duration":0,
+"override_attack":true,
+"predef":"minecraft:shulker"
+}

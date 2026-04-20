@@ -1,0 +1,4 @@
+with UUID data entity @s UUID execute as @s at @s anchored eyes run runmulti 1 for d1 0 100 1 execute unless entity @e[tag=raytraceDest] run for d2 0 10 1 execute unless entity @e[tag=raytraceDest] positioned ^ ^ ^@(d1) positioned ^ ^ ^0.@(d2) run runmulti 2 execute unless block ~ ~ ~ minecraft:air unless block ~ ~ ~ minecraft:water run summon marker ~ ~ ~ {Tags:[raytraceDest,raytraceDestBlock]}@<2>execute unless entity @e[tag=raytraceDest] if entity @e[dx=0,dy=0,dz=0,nbt=!{UUID:@(UUID)}] positioned ~-1 ~-1 ~-1 if entity @e[dx=0,dy=0,dz=0,nbt=!{UUID:@(UUID)}] run runmulti 3 summon marker ~1 ~1 ~1 {Tags:[raytraceDest,raytraceDestEntity]}
+$execute at @n[tag=raytraceDest] run $(function)
+$execute unless entity @n[tag=raytraceDest] positioned ^ ^ ^100 run $(function)
+kill @n[tag=raytraceDest]

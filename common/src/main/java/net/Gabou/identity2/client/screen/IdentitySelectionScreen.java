@@ -14,6 +14,7 @@ import net.Gabou.identity2.client.identity.IdentityVariantDiscovery;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -176,18 +177,18 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
-        if (verticalAmount > 0.0D && this.scrollOffset > 0) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollAmount) {
+        if (scrollAmount > 0 && this.scrollOffset > 0) {
             this.scrollOffset--;
             refreshEntries(false);
             return true;
         }
-        if (verticalAmount < 0.0D && this.scrollOffset < maxScrollOffset()) {
+        if (scrollAmount < 0 && this.scrollOffset < maxScrollOffset()) {
             this.scrollOffset++;
             refreshEntries(false);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, scrollAmount);
     }
 
     @Override
@@ -283,7 +284,7 @@ public final class IdentitySelectionScreen extends Screen {
             int iconTop = button.getY() + 1;
             int iconRight = iconLeft + 20;
             int iconBottom = button.getY() + button.getHeight() - 1;
-            int iconMouseX = (iconLeft + iconRight) / 2 + (int) (Mth.sin((tick + i * 5) * 0.08F) * 3.0F);
+            int iconMouseX = (iconLeft + iconRight) / 2 + (int) (Mth.sin((tick + i * 5) * 0.08F) * 5.0F);
             int iconMouseY = (iconTop + iconBottom) / 2;
             IdentityMenuRenderHelper.renderEntityInBox(context, iconLeft, iconTop, iconRight, iconBottom, iconMouseX, iconMouseY, tick, preview);
         }
@@ -601,65 +602,21 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private static Set<String> readUnlockedIdentities() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return Set.of();
-        }
-
-        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
-        String csv = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        if (csv == null || csv.isBlank()) {
-            return Set.of();
-        }
-
         Set<String> unlocked = new HashSet<>();
-        for (String value : csv.split(",")) {
-            String trimmed = value.trim();
-            if (!trimmed.isEmpty()) {
-                unlocked.add(trimmed);
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            if (id != null) {
+                unlocked.add(id.toString());
             }
         }
         return unlocked;
     }
 
     private static Map<String, Set<String>> readUnlockedVariantTokens() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return Map.of();
-        }
-
-        CompoundTag nbt = ((EntityAccessor) client.player).getCustomData();
-        String serialized = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-        if (serialized == null || serialized.isBlank()) {
-            return Map.of();
-        }
-
         Map<String, Set<String>> result = new HashMap<>();
-        for (String entry : serialized.split(",")) {
-            String trimmed = entry == null ? "" : entry.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            int equalsIndex = trimmed.indexOf('=');
-            if (equalsIndex <= 0 || equalsIndex >= trimmed.length() - 1) {
-                continue;
-            }
-
-            String identityId = trimmed.substring(0, equalsIndex).trim();
-            String tokenData = trimmed.substring(equalsIndex + 1).trim();
-            if (identityId.isEmpty() || tokenData.isEmpty()) {
-                continue;
-            }
-
-            Set<String> tokens = new HashSet<>();
-            for (String token : tokenData.split("\\|")) {
-                String normalized = token == null ? "" : token.trim();
-                if (!normalized.isEmpty()) {
-                    tokens.add(normalized);
-                }
-            }
+        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
+            Set<String> tokens = Identity2Client.getUnlockedVariantTokens(id);
             if (!tokens.isEmpty()) {
-                result.put(identityId, tokens);
+                result.put(id.toString(), new HashSet<>(tokens));
             }
         }
         return result;
@@ -744,6 +701,5 @@ public final class IdentitySelectionScreen extends Screen {
     private record IdentityEntry(ResourceLocation id, boolean unlocked, String searchableId, String displayName) {
     }
 }
-
 
 

@@ -1,13 +1,11 @@
 package net.Gabou.identity2.mixin;
 
-import net.Gabou.identity2.util.NetworkCompat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -19,6 +17,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.util.NetworkPayload;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.CommandFunction;
@@ -54,14 +53,14 @@ public class PlayerManagerMixin {
 
     @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
     private void identity2$authOnLogin(Connection connection, ServerPlayer player, CallbackInfo info) {
-        if (!ServerAuth.onLogin(connection, player)) {
+        if (!net.Gabou.identity2.auth.ServerAuth.onLogin(connection, player)) {
             info.cancel();
         }
     }
 
     @Inject(method = "remove", at = @At("HEAD"))
     private void removeInject(ServerPlayer player, CallbackInfo info) {
-        ServerAuth.onLogout(player);
+        net.Gabou.identity2.auth.ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -84,9 +83,7 @@ public class PlayerManagerMixin {
         IdentityProgression.ensureClientUnlockCache(player);
         IdentityProgression.restoreMorphFromSavedData(player);
 
-        CompoundTag customData = ((EntityAccessor) player).getCustomData();
-        CompoundTag nbt = customData;
-
+        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
         for (String key : net.Gabou.identity2.util.NbtCompat.keySet(nbt)) {
             Tag raw = nbt.get(key);
             if (raw == null) {
@@ -141,7 +138,7 @@ public class PlayerManagerMixin {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void identity2$delayedMorphReapply(CallbackInfo info) {
-        ServerAuth.onTick(this.server);
+        net.Gabou.identity2.auth.ServerAuth.onTick(this.server);
         if (DELAYED_MORPH_REAPPLY.isEmpty()) {
             return;
         }
@@ -165,9 +162,10 @@ public class PlayerManagerMixin {
 
     @Inject(method = "respawn", at = @At("RETURN"))
     private void identity2$onRespawn(ServerPlayer player, boolean bl, CallbackInfoReturnable<ServerPlayer> cir) {
-
         ServerPlayer respawned = cir.getReturnValue();
-        if (respawned == null) return;
+        if (respawned == null) {
+            return;
+        }
         identity2$copyCustomData(player, respawned);
         boolean alive = !player.isDeadOrDying();
 
@@ -178,28 +176,23 @@ public class PlayerManagerMixin {
             return;
         }
         IdentitySettings.DeathMorphRule rule =
-                IdentitySettings.getEffectiveDeathMorphRule(respawned.level().getServer());
+            IdentitySettings.getEffectiveDeathMorphRule(respawned.level().getServer());
 
         switch (rule) {
-
             case WIPE_ALL -> {
                 int removed = IdentityProgression.clearUnlockedIdentities(respawned);
                 IdentityProgression.clearMorph(respawned);
 
                 if (removed > 0) {
                     respawned.displayClientMessage(
-                            net.minecraft.network.chat.Component.literal(
-                                    "All unlocked identities were removed on death."
-                            ),
-                            false
+                        net.minecraft.network.chat.Component.literal(
+                            "All unlocked identities were removed on death."
+                        ),
+                        false
                     );
                 }
             }
-
-            case REVOKE_ACTIVE -> {
-                IdentityProgression.clearMorph(respawned);
-            }
-
+            case REVOKE_ACTIVE -> IdentityProgression.clearMorph(respawned);
             case NONE -> {
                 MorphChargeManager.applyDeathPenalty(respawned);
                 IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
@@ -227,19 +220,6 @@ public class PlayerManagerMixin {
             return;
         }
         IdentityProgression.ensureClientUnlockCache(player);
-        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
-        String unlockedCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        String variantCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-
-        CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-            )
-        );
-        sendToWorldPlayers(player, payload);
-        NetworkCompat.sendToPlayer(player, payload);
     }
 
     private static <T extends NetworkPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
@@ -252,8 +232,3 @@ public class PlayerManagerMixin {
         }
     }
 }
-
-
-
-
-

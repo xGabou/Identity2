@@ -1,0 +1,5 @@
+{
+"icon":"minecraft:dirt",
+"command":"execute at @s run setblock ~ ~-1 ~ stone",
+"cooldown":100
+}

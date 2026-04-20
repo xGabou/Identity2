@@ -2,28 +2,43 @@ package net.Gabou.identity2.identity;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.serialization.Codec;
-import com.mojang.authlib.GameProfile;
 import dev.architectury.networking.NetworkManager;
-import net.Gabou.identity2.util.*;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.lang.reflect.Method;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.compat.UntamedWildsCompat;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.EntityNbtIoCompat;
+import net.Gabou.identity2.util.NbtCompat;
+import net.Gabou.identity2.util.AttributeContainerAccessor;
+import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
+import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -35,21 +50,18 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import java.util.UUID;
 
 public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
@@ -57,8 +69,8 @@ public final class IdentityProgression {
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
     private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = new ResourceLocation(Identity2.MOD_ID, "identity_max_health");
     private static final UUID HEALTH_SCALING_MODIFIER_UUID = UUID.fromString("4ebfd16b-953d-46e4-a999-c4ca7fed8b62");
-    private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = Identity2.MOD_ID + ".morph_attribute_base.";
-    private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = Identity2.MOD_ID + ".morph_attribute_modifier.";
+    private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = "morph_attribute_base_";
+    private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = "morph_attribute_modifier_";
     public static final ResourceLocation PLAYER_IDENTITY_ID = new ResourceLocation("minecraft", "player");
     private static final ResourceLocation GIANT_EASTER_EGG_ID = new ResourceLocation("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
@@ -69,8 +81,6 @@ public final class IdentityProgression {
     private static final String UNLOCKED_IDENTITIES_KEY = "identity2.unlocked_identities";
     private static final String UNLOCKED_IDENTITY_VARIANTS_KEY = "identity2.unlocked_identity_variants";
     private static final String IDENTITY_KILL_COUNTS_KEY = "identity2.identity_kill_counts";
-    public static final String UNLOCKED_IDENTITIES_CACHE_KEY = "identity2.unlocked_identities_cache";
-    public static final String UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY = "identity2.unlocked_identity_variants_cache";
     public static final String SELECTED_IDENTITY_TYPE_KEY = "identity2.identity_type";
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
     public static final String PREVIOUS_IDENTITY_TYPE_KEY = "identity2.previous_identity_type";
@@ -83,8 +93,9 @@ public final class IdentityProgression {
     private static final Codec<List<String>> STRING_LIST_CODEC = Codec.STRING.listOf();
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
-    private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
+    private static final int MAX_UNLOCK_SYNC_PACKET_BYTES = 24000;
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
+    private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int LARGE_MORPH_DAMAGE_GRACE_TICKS = 40;
     private static boolean initialized = false;
 
@@ -100,7 +111,6 @@ public final class IdentityProgression {
     }
 
     public static List<String> getUnlockedIdentities(ServerPlayer player) {
-        ensureClientUnlockCache(player);
         return new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(getCustomData(player), UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
     }
 
@@ -110,7 +120,6 @@ public final class IdentityProgression {
 
     public static boolean shouldEnforceIdentityUnlocksForMorph() {
         return IdentitySettings.requireUnlockedIdentityForMorph
-            || IdentitySettings.killForIdentity
             || IdentitySettings.enableIdentityKillUnlocks;
     }
 
@@ -149,33 +158,20 @@ public final class IdentityProgression {
             return false;
         }
         if (
-            entityType == EntityType.PLAYER
-                || entityType == EntityType.IRON_GOLEM
-                || entityType == EntityType.SNOW_GOLEM
-                || entityType == EntityType.VILLAGER
-                || entityType == EntityType.WANDERING_TRADER
+                entityType == EntityType.PLAYER
+                        || entityType == EntityType.IRON_GOLEM
+                        || entityType == EntityType.SNOW_GOLEM
+                        || entityType == EntityType.VILLAGER
+                        || entityType == EntityType.WANDERING_TRADER
         ) {
             return true;
         }
         if (entityType.getCategory() == MobCategory.MISC) {
-            return isMorphableMiscMob(entityType);
+            return false;
         }
+        // 1.21.11 mappings return Entity.class from EntityType#getBaseClass(),
+        // so class-based living checks are unreliable here.
         return true;
-    }
-
-    public static boolean isMorphableMiscMob(EntityType<?> entityType) {
-        if (entityType == null || entityType.getCategory() != MobCategory.MISC) {
-            return false;
-        }
-        if (UntamedWildsCompat.isSupportedIdentityType(entityType)) {
-            return true;
-        }
-        try {
-            Class<? extends Entity> baseClass = entityType.getBaseClass();
-            return baseClass != null && Mob.class.isAssignableFrom(baseClass);
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     public static boolean morph(ServerPlayer player, ResourceLocation identityId) {
@@ -192,27 +188,7 @@ public final class IdentityProgression {
         if (!MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
             return false;
         }
-        if (PLAYER_IDENTITY_ID.equals(identityId)) {
-            if (net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_UUID_VARIANT_KEY, "").isBlank()) {
-                safeVariant.putString(PLAYER_SKIN_UUID_VARIANT_KEY, player.getUUID().toString());
-            }
-            if (net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_NAME_VARIANT_KEY, "").isBlank()) {
-                safeVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, player.getGameProfile().getName());
-            }
-            identity2$storeSkinTextureProperties(player.getGameProfile(), safeVariant);
-        }
         String serializedVariant = serializeVariantNbt(safeVariant);
-        if (PLAYER_IDENTITY_ID.equals(identityId)) {
-            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_UUID_VARIANT_KEY, "");
-            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(safeVariant, PLAYER_SKIN_NAME_VARIANT_KEY, "");
-            Identity2.LOGGER.info(
-                "[SkinDiag] IdentityProgression.morph player identity for {} serializedVariant='{}' uuid='{}' name='{}'",
-                player.getGameProfile().getName(),
-                serializedVariant,
-                skinUuid,
-                skinName
-            );
-        }
         CompoundTag nbt = customData;
         net.minecraft.world.entity.EntityDimensions previousDimensions = player.getDimensions(player.getPose());
         double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width);
@@ -443,12 +419,12 @@ public final class IdentityProgression {
         }
 
         CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant)
-            )
+                player.getId(),
+                List.of(
+                        new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
+                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant)
+                )
         );
 
         NetworkCompat.sendToPlayer(player, payload);
@@ -531,17 +507,7 @@ public final class IdentityProgression {
     }
 
     public static void ensureClientUnlockCache(ServerPlayer player) {
-        CompoundTag customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()));
-        Map<String, List<String>> variantUnlocks = new HashMap<>(
-            net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
-        );
-        if (tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks)) {
-            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-            net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
-        }
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(unlocked));
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(variantUnlocks));
+        syncUnlockState(player, true, null, null, null);
     }
 
     public static boolean grantIdentity(ServerPlayer player, ResourceLocation identityId) {
@@ -567,17 +533,7 @@ public final class IdentityProgression {
             // Legacy or command unlock: no per-variant restriction for this identity.
             return true;
         }
-        String requestedToken = toVariantUnlockToken(normalizeVariantForUnlock(variantNbt));
-        if (tokens.contains(requestedToken)) {
-            return true;
-        }
-
-        for (String storedToken : tokens) {
-            if (matchesStoredVariantToken(variantNbt, storedToken)) {
-                return true;
-            }
-        }
-        return false;
+        return tokens.contains(toVariantUnlockToken(variantNbt));
     }
 
     public static int grantAllMorphableIdentities(ServerPlayer player) {
@@ -636,19 +592,7 @@ public final class IdentityProgression {
         net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, retained);
         net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, retainedVariants);
         net.Gabou.identity2.util.NbtCompat.store(customData, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained));
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants));
-
-        NetworkCompat.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, serializeUnlocked(retained)),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, serializeUnlockedVariantMap(retainedVariants))
-                )
-            )
-        );
+        syncUnlockState(player, true, retained, retainedVariants, null);
         return removed;
     }
 
@@ -731,7 +675,6 @@ public final class IdentityProgression {
             CompoundTag playerSkinVariant = new CompoundTag();
             playerSkinVariant.putString(PLAYER_SKIN_UUID_VARIANT_KEY, killedPlayer.getUUID().toString());
             playerSkinVariant.putString(PLAYER_SKIN_NAME_VARIANT_KEY, killedPlayer.getGameProfile().getName());
-            identity2$storeSkinTextureProperties(killedPlayer.getGameProfile(), playerSkinVariant);
             return new UnlockTarget(PLAYER_IDENTITY_ID, playerSkinVariant);
         }
 
@@ -739,47 +682,7 @@ public final class IdentityProgression {
         if (identityId == null) {
             return null;
         }
-        return new UnlockTarget(identityId, normalizeVariantForUnlock(extractVariantData(killed)));
-    }
-
-    private static void identity2$storeSkinTextureProperties(GameProfile profile, CompoundTag variant) {
-        if (profile == null || variant == null) {
-            return;
-        }
-        try {
-            Collection<?> textures = profile.getProperties().get("textures");
-            if (textures == null || textures.isEmpty()) {
-                return;
-            }
-            Object texture = textures.iterator().next();
-            String value = identity2$readAuthlibString(texture, "value", "getValue");
-            if (value == null || value.isBlank()) {
-                return;
-            }
-            variant.putString(PLAYER_SKIN_TEXTURE_VALUE_VARIANT_KEY, value);
-            String signature = identity2$readAuthlibString(texture, "signature", "getSignature");
-            if (signature != null && !signature.isBlank()) {
-                variant.putString(PLAYER_SKIN_TEXTURE_SIGNATURE_VARIANT_KEY, signature);
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Nullable
-    private static String identity2$readAuthlibString(Object target, String... methodNames) {
-        if (target == null || methodNames == null) {
-            return null;
-        }
-        for (String methodName : methodNames) {
-            if (methodName == null || methodName.isBlank()) {
-                continue;
-            }
-            Object value = invokeNoArg(target, methodName);
-            if (value instanceof String text && !text.isBlank()) {
-                return text;
-            }
-        }
-        return null;
+        return new UnlockTarget(identityId, extractVariantData(killed));
     }
 
     private static int incrementKillCount(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
@@ -814,8 +717,13 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-        syncUnlockCaches(player, unlocked, variantUnlocks);
+        boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+        List<ResourceLocation> syncIds = new ArrayList<>();
+        syncIds.add(identityId);
+        if (giantAdded) {
+            syncIds.add(GIANT_EASTER_EGG_ID);
+        }
+        syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
         return true;
     }
 
@@ -840,8 +748,13 @@ public final class IdentityProgression {
         // If this identity is already wildcard-unlocked (legacy/admin), keep it unrestricted.
         if (previouslyUnlocked && !variantUnlocks.containsKey(key)) {
             if (changed) {
-                tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-                syncUnlockCaches(player, unlocked, variantUnlocks);
+                boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+                List<ResourceLocation> syncIds = new ArrayList<>();
+                syncIds.add(identityId);
+                if (giantAdded) {
+                    syncIds.add(GIANT_EASTER_EGG_ID);
+                }
+                syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
             }
             return changed;
         }
@@ -858,8 +771,13 @@ public final class IdentityProgression {
             return false;
         }
 
-        tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
-        syncUnlockCaches(player, unlocked, variantUnlocks);
+        boolean giantAdded = tryUnlockGiantEasterEgg(player, unlocked, variantUnlocks);
+        List<ResourceLocation> syncIds = new ArrayList<>();
+        syncIds.add(identityId);
+        if (giantAdded) {
+            syncIds.add(GIANT_EASTER_EGG_ID);
+        }
+        syncUnlockState(player, false, unlocked, variantUnlocks, syncIds);
         return true;
     }
 
@@ -909,55 +827,154 @@ public final class IdentityProgression {
         return foundRequired;
     }
 
-    private static void syncUnlockCaches(ServerPlayer player, List<String> unlocked, Map<String, List<String>> variantUnlocks) {
+    private static void syncUnlockState(
+        ServerPlayer player,
+        boolean replaceAll,
+        @Nullable List<String> unlocked,
+        @Nullable Map<String, List<String>> variantUnlocks,
+        @Nullable List<ResourceLocation> syncIds
+    ) {
+        if (player == null) {
+            return;
+        }
+
         CompoundTag customData = getCustomData(player);
-        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlocked);
-        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantUnlocks);
-        String unlockedCache = serializeUnlocked(unlocked);
-        String variantCache = serializeUnlockedVariantMap(variantUnlocks);
-        customData.putString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache);
-        customData.putString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache);
-        NetworkCompat.sendToPlayer(
-            player,
-            new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                    new CustomEntityDataS2CPacket.EntryString(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-                )
-            )
-        );
-    }
+        List<String> unlockedCopy = unlocked == null
+            ? new ArrayList<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of()))
+            : new ArrayList<>(unlocked);
+        Map<String, List<String>> variantCopy = variantUnlocks == null
+            ? new HashMap<>(net.Gabou.identity2.util.NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of()))
+            : new HashMap<>(variantUnlocks);
 
-    private static String serializeUnlocked(List<String> unlocked) {
-        if (unlocked.isEmpty()) {
-            return "";
+        if (tryUnlockGiantEasterEgg(player, unlockedCopy, variantCopy)) {
+            replaceAll = true;
         }
 
-        List<String> sorted = new ArrayList<>(unlocked);
-        Collections.sort(sorted);
-        return String.join(",", sorted);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, unlockedCopy);
+        net.Gabou.identity2.util.NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, variantCopy);
+
+        List<ResourceLocation> idsToSync;
+        if (replaceAll || syncIds == null) {
+            idsToSync = new ArrayList<>();
+            for (String raw : unlockedCopy) {
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                try {
+                    ResourceLocation id = new ResourceLocation(raw);
+                    if (!idsToSync.contains(id)) {
+                        idsToSync.add(id);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        } else {
+            idsToSync = new ArrayList<>(syncIds);
+        }
+
+        List<IdentityUnlockSyncEntry> entries = buildUnlockSyncEntries(idsToSync, variantCopy);
+        sendUnlockSyncPackets(player, replaceAll, entries);
     }
 
-    private static String serializeUnlockedVariantMap(Map<String, List<String>> unlockedVariants) {
-        if (unlockedVariants == null || unlockedVariants.isEmpty()) {
-            return "";
+    private static List<IdentityUnlockSyncEntry> buildUnlockSyncEntries(List<ResourceLocation> ids, Map<String, List<String>> variantUnlocks) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
         }
-        List<String> keys = new ArrayList<>(unlockedVariants.keySet());
-        Collections.sort(keys);
-        List<String> entries = new ArrayList<>();
-        for (String key : keys) {
-            if (key == null || key.isBlank()) {
+
+        List<IdentityUnlockSyncEntry> entries = new ArrayList<>();
+        for (ResourceLocation id : ids) {
+            if (id == null) {
                 continue;
             }
-            List<String> tokens = new ArrayList<>(unlockedVariants.getOrDefault(key, List.of()));
+            List<String> tokens = new ArrayList<>(variantUnlocks.getOrDefault(id.toString(), List.of()));
+            tokens.removeIf(token -> token == null || token.isBlank());
             if (tokens.isEmpty()) {
+                entries.add(new IdentityUnlockSyncEntry(id, true, List.of()));
                 continue;
             }
-            Collections.sort(tokens);
-            entries.add(key + "=" + String.join("|", tokens));
+
+            List<String> chunk = new ArrayList<>();
+            int chunkBytes = unlockEntryBaseBytes(id);
+            boolean firstChunk = true;
+            for (String token : tokens) {
+                int tokenBytes = token.length() + 1;
+                if (!chunk.isEmpty() && chunkBytes + tokenBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                    entries.add(new IdentityUnlockSyncEntry(id, firstChunk, List.copyOf(chunk)));
+                    firstChunk = false;
+                    chunk.clear();
+                    chunkBytes = unlockEntryBaseBytes(id);
+                }
+                chunk.add(token);
+                chunkBytes += tokenBytes;
+            }
+            if (!chunk.isEmpty()) {
+                entries.add(new IdentityUnlockSyncEntry(id, firstChunk, List.copyOf(chunk)));
+            }
         }
-        return String.join(",", entries);
+        return entries;
+    }
+
+    private static void sendUnlockSyncPackets(ServerPlayer player, boolean replaceAll, List<IdentityUnlockSyncEntry> entries) {
+        if (player == null) {
+            return;
+        }
+
+        if (entries == null || entries.isEmpty()) {
+            if (replaceAll) {
+                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), true, List.of()));
+            }
+            return;
+        }
+
+        List<IdentityUnlockSyncEntry> current = new ArrayList<>();
+        int packetBytes = packetOverheadBytes(replaceAll);
+        boolean packetReplaceAll = replaceAll;
+
+        for (IdentityUnlockSyncEntry entry : entries) {
+            int entryBytes = unlockEntryBytes(entry);
+            if (!current.isEmpty() && packetBytes + entryBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                current.clear();
+                packetBytes = packetOverheadBytes(false);
+                packetReplaceAll = false;
+            }
+            current.add(entry);
+            packetBytes += entryBytes;
+            if (packetBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
+                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                current.clear();
+                packetBytes = packetOverheadBytes(false);
+                packetReplaceAll = false;
+            }
+        }
+
+        if (!current.isEmpty()) {
+            NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+        }
+    }
+
+    private static int packetOverheadBytes(boolean replaceAll) {
+        return 8 + (replaceAll ? 1 : 0);
+    }
+
+    private static int unlockEntryBaseBytes(ResourceLocation identityId) {
+        if (identityId == null) {
+            return 0;
+        }
+        return identityId.toString().length() + 8;
+    }
+
+    private static int unlockEntryBytes(IdentityUnlockSyncEntry entry) {
+        if (entry == null || entry.identityId() == null) {
+            return 0;
+        }
+        int size = unlockEntryBaseBytes(entry.identityId());
+        for (String token : entry.variantTokens()) {
+            if (token != null) {
+                size += token.length() + 1;
+            }
+        }
+        return size;
     }
 
     private static CompoundTag resolveRandomUnlockedVariant(CompoundTag customData, ResourceLocation identityId, int seed) {
@@ -1005,19 +1022,6 @@ public final class IdentityProgression {
                 new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, transitionDurationTicks)
             )
         );
-
-        if (PLAYER_IDENTITY_ID.toString().equals(modelOverride)) {
-            CompoundTag parsed = parseVariantNbt(variant);
-            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(parsed, PLAYER_SKIN_UUID_VARIANT_KEY, "");
-            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(parsed, PLAYER_SKIN_NAME_VARIANT_KEY, "");
-            Identity2.LOGGER.info(
-                "[SkinDiag] syncMorphData player identity sender={} variant='{}' uuid='{}' name='{}'",
-                player.getGameProfile().getName(),
-                variant,
-                skinUuid,
-                skinName
-            );
-        }
 
         NetworkCompat.sendToPlayer(player, modelPayload);
         NetworkCompat.sendToPlayer(player, shapePayload);
@@ -1165,8 +1169,7 @@ public final class IdentityProgression {
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {
-        CompoundTag customData = ((EntityAccessor) player).getCustomData();
-        return customData;
+        return ((EntityAccessor) player).getCustomData();
     }
 
     private static void applyMorphAttributes(ServerPlayer player, @Nullable Entity identity) {
@@ -1205,14 +1208,15 @@ public final class IdentityProgression {
                 continue;
             }
 
+            String attributeKey = resolveAttributeKey(attribute);
+            UUID modifierId = morphAttributeModifierUuid(attributeKey);
+            targetInstance.removeModifier(modifierId);
+
             double delta = sourceInstance.getBaseValue() - targetInstance.getBaseValue();
             if (Math.abs(delta) <= 1.0E-4D) {
                 continue;
             }
 
-            String attributeKey = resolveAttributeKey(attribute);
-            UUID modifierId = morphAttributeModifierUuid(attributeKey);
-            targetInstance.removeModifier(modifierId);
             targetInstance.addTransientModifier(
                 new AttributeModifier(
                     modifierId,
@@ -1273,7 +1277,11 @@ public final class IdentityProgression {
 
         Map<Object, AttributeInstance> rebuiltTemplates = new LinkedHashMap<>(targetTemplates);
         rebuiltTemplates.putIfAbsent(attributeKey, template);
-        ((AttributeContainerAccessor) targetAttributes).setDefaultAttributes(new AttributeSupplier((Map) rebuiltTemplates));
+        AttributeSupplier rebuiltSupplier = identity2$createAttributeSupplier(rebuiltTemplates);
+        if (rebuiltSupplier == null) {
+            return null;
+        }
+        ((AttributeContainerAccessor) targetAttributes).setDefaultAttributes(rebuiltSupplier);
         return targetAttributes.getInstance(attribute);
     }
 
@@ -1301,7 +1309,7 @@ public final class IdentityProgression {
         }
     }
 
-    private static Collection<AttributeInstance> getAttributeInstances(@Nullable AttributeMap attributes) {
+    private static List<AttributeInstance> getAttributeInstances(@Nullable AttributeMap attributes) {
         if (attributes == null) {
             return List.of();
         }
@@ -1329,7 +1337,7 @@ public final class IdentityProgression {
         } catch (Throwable ignored) {
         }
 
-        return resolved.values();
+        return new ArrayList<>(resolved.values());
     }
 
     @Nullable
@@ -1393,6 +1401,22 @@ public final class IdentityProgression {
         }
     }
 
+    @Nullable
+    private static AttributeSupplier identity2$createAttributeSupplier(Map<Object, AttributeInstance> templates) {
+        if (templates == null) {
+            return null;
+        }
+        try {
+            java.lang.reflect.Constructor<AttributeSupplier> constructor = AttributeSupplier.class.getDeclaredConstructor(Map.class);
+            if (!constructor.canAccess(null)) {
+                constructor.setAccessible(true);
+            }
+            return constructor.newInstance(templates);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static String resolveAttributeKey(Attribute attribute) {
         if (attribute == null) {
             return "unknown";
@@ -1414,9 +1438,7 @@ public final class IdentityProgression {
 
     private static UUID morphAttributeModifierUuid(String attributeKey, AttributeModifier modifier) {
         String safeKey = attributeKey == null ? "unknown" : attributeKey;
-        String modifierKey = modifier == null
-            ? "unknown"
-            : modifier.getId() + ":" + modifier.getName() + ":" + modifier.getOperation().name();
+        String modifierKey = modifier == null ? "unknown" : modifier.getId() + ":" + modifier.getName() + ":" + modifier.getOperation().name();
         return UUID.nameUUIDFromBytes((MORPH_ATTRIBUTE_MODIFIER_PREFIX + safeKey + ":" + modifierKey).getBytes(StandardCharsets.UTF_8));
     }
 
@@ -1542,7 +1564,7 @@ public final class IdentityProgression {
         } catch (Throwable ignored) {
         }
         CompoundTag adapterVariant = IdentityApi.extractVariantData(entity);
-        if (!adapterVariant.isEmpty()) {
+        if (adapterVariant != null && !adapterVariant.isEmpty()) {
             variant.merge(adapterVariant);
         }
         return normalizeVariantForUnlock(variant);
@@ -1665,6 +1687,7 @@ public final class IdentityProgression {
         }
         return left.equals(right);
     }
+
     private static void copyVariantKey(CompoundTag source, CompoundTag target, String key) {
         if (source == null || target == null || key == null || key.isBlank()) {
             return;
@@ -1806,7 +1829,6 @@ public final class IdentityProgression {
                 variant.putByte("Color", (byte) clamped);
             }
         }
-
 
         Object variantValue = invokeNoArg(entity, "getVariant");
         if (!variant.contains("Variant") && !variant.contains("variant")) {
@@ -2033,10 +2055,5 @@ public final class IdentityProgression {
     private record UnlockTarget(ResourceLocation identityId, CompoundTag variantNbt) {
     }
 }
-
-
-
-
-
 
 
