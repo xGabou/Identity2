@@ -960,25 +960,6 @@ public class EntityMixin implements EntityAccessor {
         return null;
     }
 
-    private static Object identity2$invokeNoArg(Object target, String methodName) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Method method : identity2$getAllMethods(target.getClass())) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                continue;
-            }
-            try {
-                if (!method.canAccess(target)) {
-                    method.setAccessible(true);
-                }
-                Object result = method.invoke(target);
-                return result == null ? target : result;
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
 
     private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
         if (target == null || methodName == null || methodName.isBlank()) {
@@ -1517,13 +1498,32 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         }
     }
 
-    @Inject(
-            method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable<Boolean> info) {
-        if ((Object) this instanceof Player player) {
+
+    @Unique
+    private static boolean identity2$isRavager(Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(entity.getType());
+        return new ResourceLocation("minecraft", "ravager").equals(typeId);
+    }
+
+    @Unique
+    private static boolean identity2$canRideRavager(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(currentIdentity.getType());
+        return identity2$ravagerRiderIds.contains(typeId);
+    }
+
+    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player player && source != null) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;
@@ -1531,7 +1531,6 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1541,9 +1540,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-
             if (
                     activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1564,23 +1561,18 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;
             }
-
-            return;
         }
-
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(source));
             }
         }
     }
-
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
         float idHeight = activeIdentity.getBbHeight();
@@ -1642,6 +1634,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 || normalized.equals("fly_into_wall")
                 || normalized.equals("cramming");
     }
+
     @Unique
     private static String identity2$getDamageMessageId(DamageSource source) {
         if (source == null) {
@@ -1666,25 +1659,25 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 
     @Unique
-    private static boolean identity2$isRavager(Entity entity) {
-        if (entity == null) {
-            return false;
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
         }
-        ResourceLocation typeId = EntityType.getKey(entity.getType());
-        return new ResourceLocation("minecraft", "ravager").equals(typeId);
-    }
-
-    @Unique
-    private static boolean identity2$canRideRavager(Player player) {
-        if (player == null) {
-            return false;
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target);
+                } catch (Throwable ignored) {
+                }
+            }
         }
-        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
-        if (currentIdentity == null) {
-            return false;
-        }
-        ResourceLocation typeId = EntityType.getKey(currentIdentity.getType());
-        return identity2$ravagerRiderIds.contains(typeId);
+        return null;
     }
 //Tons of Redirects - End
 }

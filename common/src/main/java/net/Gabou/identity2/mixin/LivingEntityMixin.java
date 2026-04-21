@@ -377,161 +377,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player player && source != null) {
-            if (player.getAbilities().instabuild || player.isSpectator()) {
-                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-                    return;
-                }
-                info.setReturnValue(true);
-                return;
-            }
-            if (
-                    this.currentIdentity != null
-                            && source.is(DamageTypes.IN_WALL)
-                            && player.isInWater()
-                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-            if (
-                    activeIdentity != null
-                            && source.is(DamageTypes.IN_WALL)
-                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
 
-            if (
-                    activeIdentity != null
-                            && identity2$isFallDamage(source)
-                            && (
-                            activeIdentity.getType() == EntityType.CHICKEN
-                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
-                    )
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
-            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
-                info.setReturnValue(true);
-                return;
-            }
-        }
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
-            }
-        }
-    }
-    @Unique
-    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
-        float idHeight = activeIdentity.getBbHeight();
-        if (idHeight >= 1.2f) {
-            return false;
-        }
-
-        if (player.isCrouching() || player.isSwimming()) {
-            return false;
-        }
-
-        AABB box = player.getBoundingBox();
-
-        AABB feet = new AABB(
-                box.minX, box.minY, box.minZ,
-                box.maxX, box.minY + 0.35, box.maxZ
-        );
-
-        double headStart = box.maxY - 0.35;
-        AABB head = new AABB(
-                box.minX, headStart, box.minZ,
-                box.maxX, box.maxY, box.maxZ
-        );
-
-        boolean feetCollide = !player.level().noCollision(player, feet);
-        boolean headCollide = !player.level().noCollision(player, head);
-
-        return headCollide && !feetCollide;
-    }
-    @Unique
-    private static boolean identity2$isFallDamage(DamageSource source) {
-        if (source == null) {
-            return false;
-        }
-        if (source.is(DamageTypes.FALL)) {
-            return true;
-        }
-        if (source.is(DamageTypeTags.IS_FALL)) {
-            return true;
-        }
-        String msgId = identity2$getDamageMessageId(source);
-        if (msgId == null || msgId.isBlank()) {
-            return false;
-        }
-        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
-        return normalized.equals("fall");
-    }
-
-    private static boolean identity2$isWallCollisionDamage(DamageSource source) {
-        String msgId = identity2$getDamageMessageId(source);
-        if (msgId == null || msgId.isBlank()) {
-            return false;
-        }
-        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
-        return normalized.equals("inwall")
-                || normalized.equals("in_wall")
-                || normalized.equals("flyintowall")
-                || normalized.equals("fly_into_wall")
-                || normalized.equals("cramming");
-    }
-
-    private static String identity2$getDamageMessageId(DamageSource source) {
-        if (source == null) {
-            return "";
-        }
-        Object direct = identity2$invokeNoArg(source, "getMsgId");
-        if (direct instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        Object type = identity2$invokeNoArg(source, "type");
-        Object fromType = identity2$invokeNoArg(type, "msgId");
-        if (fromType instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        Object holder = identity2$invokeNoArg(source, "typeHolder");
-        Object value = identity2$invokeNoArg(holder, "value");
-        Object fromHolder = identity2$invokeNoArg(value, "msgId");
-        if (fromHolder instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        return "";
-    }
-
-    private static Object identity2$invokeNoArg(Object target, String methodName) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                    continue;
-                }
-                try {
-                    if (!method.canAccess(target)) {
-                        method.setAccessible(true);
-                    }
-                    return method.invoke(target);
-                } catch (Throwable ignored) {
-                }
-            }
-        }
-        return null;
-    }
 
     @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void pushAwayFromIdentity(Entity entity, CallbackInfo info) {
@@ -564,14 +410,14 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
-            }
-        }
-    }
+//    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
+//    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
+//        if (this.currentIdentity != null) {
+//            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+//                info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
+//            }
+//        }
+//    }
 
     @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {

@@ -31,9 +31,21 @@ public final class ServerAuth {
             return false;
         }
 
-        PendingAuthManager.PendingAuth pending = PendingAuthManager.begin(player);
-        ModNetworking.sendToPlayer(player, new S2CChallengePacket(pending.nonce()));
+        PendingAuthManager.begin(player);
         return true;
+    }
+
+    public static void sendChallenge(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+
+        PendingAuthManager.PendingAuth pending = PendingAuthManager.get(player.getUUID());
+        if (pending == null) {
+            return;
+        }
+
+        ModNetworking.sendToPlayer(player, new S2CChallengePacket(pending.nonce()));
     }
 
     public static void onTick(MinecraftServer server) {
