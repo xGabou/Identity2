@@ -17,6 +17,7 @@
     "client.EnderDragonEntityRendererMixin",
     "client.ClientPlayerInteractionManagerMixin",
     "client.ClientPlayNetworkHandlerMixin",
+    "client.PlayerNametagMixin",
     "EntityTrackerEntryMixin",
     "client.WorldRendererMixin"
   ],
@@ -47,7 +48,8 @@
     "DefaultAttributeContainerMixin",
     "RegistriesMixin",
     "ShulkerEntityMixin",
-    "ZombieEntityMixin"
+    "ZombieEntityMixin",
+    "net.Gabou.identity2.util.AbilitiesAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
