@@ -3,7 +3,24 @@
   "package": "net.Gabou.identity2.mixin",
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
-  "client": [],
+  "refmap": "identity2-common-refmap.json",
+  "client": [
+    "client.ClientWorldMixin",
+    "client.CreativeModeInventoryScreenMixin",
+    "client.EntityRenderDispatcherMixin",
+    "client.EntityRendererMixin",
+    "client.GameRendererMixin",
+    "client.MinecraftClientMixin",
+    "client.PlayerEntityRendererMixin",
+    "client.HeldItemRendererMixin",
+    "client.InventoryScreenMixin",
+    "client.EnderDragonEntityRendererMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.ClientPlayNetworkHandlerMixin",
+    "client.PlayerNametagMixin",
+    "EntityTrackerEntryMixin",
+    "client.WorldRendererMixin"
+  ],
   "mixins": [
     "FishingBobberEntityMixin",
     "WorldMixin",
@@ -33,7 +50,8 @@
     "RegistriesMixin",
     "RegistryMixin",
     "ShulkerEntityMixin",
-    "ZombieEntityMixin"
+    "ZombieEntityMixin",
+    "net.Gabou.identity2.util.AbilitiesAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
