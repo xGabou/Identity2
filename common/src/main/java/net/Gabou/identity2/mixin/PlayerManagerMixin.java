@@ -84,7 +84,8 @@ public class PlayerManagerMixin {
 
         String launcherReason = ClientLauncherGuards.consumeDetectedReason();
         if (launcherReason != null && player.level() instanceof ServerLevel serverLevel) {
-            TLauncherDetectedHandler.handle(serverLevel, launcherReason);
+            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
+            return;
         }
 
         net.Gabou.identity2.auth.ServerAuth.sendChallenge(player);
