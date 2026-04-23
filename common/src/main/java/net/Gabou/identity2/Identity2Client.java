@@ -10,6 +10,9 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
+import net.Gabou.identity2.auth.ClientAuth;
+import net.Gabou.identity2.auth.ClientLauncherGuards;
+import net.Gabou.identity2.auth.S2CChallengePacket;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -190,6 +193,7 @@ public final class Identity2Client {
             return;
         }
 
+        ClientLauncherGuards.enforce();
         platform = platformImpl;
         initialized = true;
 
@@ -242,6 +246,11 @@ public final class Identity2Client {
                 ProgressionJarStateS2CPacketPayload.ID,
                 ProgressionJarStateS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
+        NetworkCompat.registerReceiver(
+                NetworkManager.s2c(),
+                S2CChallengePacket.ID,
+                S2CChallengePacket::decode,
+                (payload, context) -> context.queue(() -> ClientAuth.handleChallenge(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);

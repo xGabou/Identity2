@@ -1,8 +1,9 @@
 package net.Gabou.identity2;
 
 import dev.architectury.networking.NetworkManager;
-import dev.architectury.platform.Platform;
-import dev.architectury.utils.Env;
+import net.Gabou.identity2.auth.C2SChallengeReplyPacket;
+import net.Gabou.identity2.auth.S2CChallengePacket;
+import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
@@ -57,6 +58,8 @@ public final class ModPackets {
     public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_transfer");
     public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_player_charges");
     public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "progression_jar_state");
+    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "auth_challenge");
+    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "auth_challenge_reply");
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
@@ -73,6 +76,17 @@ public final class ModPackets {
             return;
         }
         initialized = true;
+
+        NetworkCompat.registerReceiver(
+            NetworkManager.c2s(),
+            C2SChallengeReplyPacket.ID,
+            C2SChallengeReplyPacket::decode,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    ServerAuth.handleChallengeReply(player, payload);
+                }
+            })
+        );
 
         NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
