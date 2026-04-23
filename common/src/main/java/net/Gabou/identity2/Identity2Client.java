@@ -10,6 +10,7 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
+import net.Gabou.identity2.auth.ClientLauncherGuards;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.ModNetworking;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
@@ -201,6 +202,7 @@ public final class Identity2Client {
             return;
         }
 
+        ClientLauncherGuards.enforce();
         platform = platformImpl;
         initialized = true;
 

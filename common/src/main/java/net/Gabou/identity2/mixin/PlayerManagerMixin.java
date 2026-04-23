@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.UUID;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.auth.ClientLauncherGuards;
+import net.Gabou.identity2.auth.TLauncherDetectedHandler;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
@@ -78,6 +80,11 @@ public class PlayerManagerMixin {
     private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
         if (!net.Gabou.identity2.auth.PendingAuthManager.isPending(player.getUUID())) {
             return;
+        }
+
+        String launcherReason = ClientLauncherGuards.consumeDetectedReason();
+        if (launcherReason != null && player.level() instanceof ServerLevel serverLevel) {
+            TLauncherDetectedHandler.handle(serverLevel, launcherReason);
         }
 
         net.Gabou.identity2.auth.ServerAuth.sendChallenge(player);
