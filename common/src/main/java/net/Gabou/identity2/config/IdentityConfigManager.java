@@ -48,11 +48,11 @@ public final class IdentityConfigManager {
             JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
             identity2$applyLegacyAliases(root);
             for (Field field : IdentitySettings.class.getFields()) {
-                if (!identity2$isSupportedConfigField(field, false)) {
-                    continue;
-                }
-                JsonElement value = root.get(field.getName());
-                if (value == null || value.isJsonNull()) {
+            if (!identity2$isSupportedConfigField(field, false)) {
+                continue;
+            }
+            JsonElement value = root.get(field.getName());
+            if (value == null || value.isJsonNull()) {
                     continue;
                 }
                 identity2$applyFieldValue(field, value);
@@ -83,6 +83,8 @@ public final class IdentityConfigManager {
                     root.addProperty(field.getName(), (Double) value);
                 } else if (type == String.class) {
                     root.addProperty(field.getName(), (String) value);
+                } else if (type.isEnum()) {
+                    root.addProperty(field.getName(), ((Enum<?>) value).name().toLowerCase());
                 } else if (List.class.isAssignableFrom(type)) {
                     JsonArray array = new JsonArray();
                     if (value instanceof List<?> list) {
@@ -131,6 +133,7 @@ public final class IdentityConfigManager {
             || type == float.class
             || type == double.class
             || type == String.class
+            || type.isEnum()
             || List.class.isAssignableFrom(type);
     }
 
@@ -150,10 +153,11 @@ public final class IdentityConfigManager {
         if (!root.has("enableSoulAbsorption") && root.has("EnableSoulAbsorption")) {
             root.add("enableSoulAbsorption", root.get("EnableSoulAbsorption"));
         }
-        if (!root.has("loseAllMorphsOnDeath") && root.has("disableMorphLossOnDeath")) {
-            JsonElement disable = root.get("disableMorphLossOnDeath");
-            if (disable != null && disable.isJsonPrimitive()) {
-                root.addProperty("loseAllMorphsOnDeath", !disable.getAsBoolean());
+        if (root.has("disableMorphLossOnDeath") && !root.has("deathMorphRule")) {
+            JsonElement legacy = root.get("disableMorphLossOnDeath");
+            if (legacy != null && legacy.isJsonPrimitive()) {
+                boolean keepMorph = legacy.getAsBoolean();
+                root.addProperty("deathMorphRule", keepMorph ? "none" : "wipe_all");
             }
         }
     }
@@ -163,6 +167,9 @@ public final class IdentityConfigManager {
         IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
         IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
         IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
+        if (IdentitySettings.deathMorphRule == null) {
+            IdentitySettings.deathMorphRule = IdentitySettings.DeathMorphRule.WIPE_ALL;
+        }
     }
 
     private static void identity2$applyFieldValue(Field field, JsonElement value) {
@@ -186,6 +193,13 @@ public final class IdentityConfigManager {
             }
             if (type == String.class && value.isJsonPrimitive()) {
                 field.set(null, value.getAsString());
+                return;
+            }
+            if (type.isEnum() && value.isJsonPrimitive()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                Class<? extends Enum> enumType = (Class<? extends Enum>) type;
+                String candidate = value.getAsString().trim().replace('-', '_').replace(' ', '_').toUpperCase(java.util.Locale.ROOT);
+                field.set(null, Enum.valueOf(enumType, candidate));
                 return;
             }
             if (List.class.isAssignableFrom(type) && value.isJsonArray()) {
