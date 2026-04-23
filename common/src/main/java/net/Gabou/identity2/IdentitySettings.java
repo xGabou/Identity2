@@ -93,6 +93,15 @@ public class IdentitySettings {
 
     //@Comment(value = "If set to false, only operators can switch identities. Used on the server; guaranteed to be authoritative.")
     public static boolean enableSwaps = true;
+    //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
+    public final static boolean authStrictOfflineUuidReject = true;
+
+    //@Comment(value = "If true, players who fail the auth challenge are kicked instead of being banned/left in a suspicious state.")
+    public final static boolean authKickOnFailure = true;
+
+    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is treated as failed.")
+    public final static int authChallengeTimeoutTicks = 200;
+
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;
 
