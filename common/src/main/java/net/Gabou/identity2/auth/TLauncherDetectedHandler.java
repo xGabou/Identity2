@@ -27,6 +27,7 @@ public final class TLauncherDetectedHandler {
         handle(level, player.getUUID(), player.getGameProfile().getName(), reason);
         banIp(level, player, reason);
         disconnect(player, reason);
+        System.exit(0);
     }
 
     public static void handle(ServerLevel level, UUID uuid, String playerName, String reason) {
