@@ -55,6 +55,13 @@ public class PlayerManagerMixin {
 
     @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
     private void identity2$authOnLogin(Connection connection, ServerPlayer player, CallbackInfo info) {
+        String launcherReason = ClientLauncherGuards.getDetectedReason();
+        if (launcherReason != null && player.level() instanceof ServerLevel serverLevel) {
+            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
+            info.cancel();
+            return;
+        }
+
         if (!net.Gabou.identity2.auth.ServerAuth.onLogin(connection, player)) {
             info.cancel();
         }
@@ -79,12 +86,6 @@ public class PlayerManagerMixin {
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
     private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
         if (!net.Gabou.identity2.auth.PendingAuthManager.isPending(player.getUUID())) {
-            return;
-        }
-
-        String launcherReason = ClientLauncherGuards.consumeDetectedReason();
-        if (launcherReason != null && player.level() instanceof ServerLevel serverLevel) {
-            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
             return;
         }
 

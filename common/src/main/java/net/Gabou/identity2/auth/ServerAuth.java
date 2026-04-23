@@ -9,6 +9,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 
 public final class ServerAuth {
     private ServerAuth() {
@@ -93,6 +94,14 @@ public final class ServerAuth {
 
     public static void handleChallengeReply(ServerPlayer player, C2SChallengeReplyPacket packet) {
         if (player == null || packet == null) {
+            return;
+        }
+
+        String launcherReason = packet.launcherReason();
+        if (launcherReason != null && !launcherReason.isBlank() && player.level() instanceof ServerLevel serverLevel) {
+            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
+            PendingAuthManager.clear(player);
+            SuspiciousPlayers.clear(player);
             return;
         }
 

@@ -5,11 +5,11 @@ import net.Gabou.identity2.util.NetworkPayload;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-public record C2SChallengeReplyPacket(long nonce, String response) implements NetworkPayload {
+public record C2SChallengeReplyPacket(long nonce, String response, String launcherReason) implements NetworkPayload {
     public static final ResourceLocation ID = ModNetworking.AUTH_CHALLENGE_REPLY_PACKET_ID;
 
     public static C2SChallengeReplyPacket decode(FriendlyByteBuf buffer) {
-        return new C2SChallengeReplyPacket(buffer.readLong(), buffer.readUtf(128));
+        return new C2SChallengeReplyPacket(buffer.readLong(), buffer.readUtf(128), buffer.readUtf(256));
     }
 
     @Override
@@ -21,5 +21,6 @@ public record C2SChallengeReplyPacket(long nonce, String response) implements Ne
     public void write(FriendlyByteBuf buffer) {
         buffer.writeLong(nonce);
         buffer.writeUtf(response == null ? "" : response);
+        buffer.writeUtf(launcherReason == null ? "" : launcherReason, 256);
     }
 }

@@ -1,6 +1,7 @@
 package net.Gabou.identity2.auth;
 
 import net.Gabou.identity2.ModNetworking;
+import net.Gabou.identity2.auth.ClientLauncherGuards;
 import net.minecraft.client.Minecraft;
 
 public final class ClientAuth {
@@ -19,7 +20,8 @@ public final class ClientAuth {
 
         ModNetworking.sendToServer(new C2SChallengeReplyPacket(
             packet.nonce(),
-            SharedSecret.computeResponse(minecraft.player.getUUID(), packet.nonce())
+            SharedSecret.computeResponse(minecraft.player.getUUID(), packet.nonce()),
+            ClientLauncherGuards.getDetectedReason()
         ));
     }
 }

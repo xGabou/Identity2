@@ -20,10 +20,8 @@ public final class ClientLauncherGuards {
         return suspiciousFile == null ? null : "file:" + suspiciousFile;
     }
 
-    public static String consumeDetectedReason() {
-        String reason = detectedReason;
-        detectedReason = null;
-        return reason;
+    public static String getDetectedReason() {
+        return detectedReason;
     }
 
     private static String findSuspiciousFile() {

