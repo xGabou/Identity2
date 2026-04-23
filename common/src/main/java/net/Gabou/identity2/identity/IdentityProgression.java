@@ -635,10 +635,15 @@ public final class IdentityProgression {
             return EventResult.pass();
         }
 
-        if (unlockIdentityVariant(player, unlockTarget.identityId(), unlockTarget.variantNbt())) {
+        boolean unlocked = unlockIdentityVariant(player, unlockTarget.identityId(), unlockTarget.variantNbt());
+        if (unlocked) {
             player.displayClientMessage(Component.literal("Unlocked identity: " + unlockTarget.identityId()), false);
             Identity2.LOGGER.info("Unlocked identity {} for {}", unlockTarget.identityId(), player.getName().getString());
             broadcastAcquisitionAnimation(player, killed, true);
+        }
+
+        if (IdentitySettings.forceChangeAlways || (IdentitySettings.forceChangeNew && unlocked)) {
+            morph(player, unlockTarget.identityId(), unlockTarget.variantNbt());
         }
 
         return EventResult.pass();

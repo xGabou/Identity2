@@ -8,6 +8,8 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.AbilitiesAccessor;
+import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -15,8 +17,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -297,6 +302,8 @@ public class EntityMixin implements EntityAccessor {
                 this.setAirSupply(this.currentIdentity.getAirSupply());
             }
 
+            identity2$applyWardenEffects((Entity) (Object) this);
+
             if (
                     (this.currentIdentity instanceof LivingEntity livingIdentity) &&
                             ((Entity) (Object) this instanceof LivingEntity livingEntity)
@@ -371,6 +378,7 @@ public class EntityMixin implements EntityAccessor {
     public boolean entityCanFlyEvaluated = false;
     public boolean entityCanFlyTickEvaluated = false;
     private boolean identity2$grantedMayfly = false;
+    private float identity2$storedFlyingSpeed = Float.NaN;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
@@ -426,6 +434,14 @@ public class EntityMixin implements EntityAccessor {
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
+            if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
+                this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+            }
+            float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
+            if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+                abilitiesChanged = true;
+            }
             if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
                 player.getAbilities().flying = true;
                 abilitiesChanged = true;
@@ -442,6 +458,12 @@ public class EntityMixin implements EntityAccessor {
             if (player.getAbilities().flying) {
                 player.getAbilities().flying = false;
             }
+            if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
+            } else {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
+            }
+            this.identity2$storedFlyingSpeed = Float.NaN;
             this.identity2$grantedMayfly = false;
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.onUpdateAbilities();
@@ -1092,6 +1114,34 @@ public class EntityMixin implements EntityAccessor {
         CompoundTag nbt = this.getCustomData();
         nbt.putDouble("land_speed_multiplier_override", 0.0D);
         nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
+        this.identity2$storedFlyingSpeed = Float.NaN;
+    }
+
+    @Unique
+    private void identity2$applyWardenEffects(Entity host) {
+        if (!(host instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        if (this.currentIdentity == null || this.currentIdentity.getType() != EntityType.WARDEN) {
+            return;
+        }
+
+        if (IdentitySettings.wardenIsBlinded) {
+            serverPlayer.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
+        }
+
+        if (!IdentitySettings.wardenBlindsNearby || !(serverPlayer.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        AABB nearby = serverPlayer.getBoundingBox().inflate(24.0D);
+        for (ServerPlayer target : serverLevel.getEntitiesOfClass(
+                ServerPlayer.class,
+                nearby,
+                target -> target != serverPlayer && !target.isSpectator()
+        )) {
+            target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
+        }
     }
 
     @Shadow
