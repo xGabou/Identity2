@@ -43,6 +43,8 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.AbilitiesAccessor;
+import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -51,7 +53,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -246,44 +251,6 @@ public class EntityMixin implements EntityAccessor {
         return false;
     }
 
-    @Inject(method = "tick", at = @At("RETURN"))
-    private void identityFix(CallbackInfo info) {
-        if (this.currentIdentity != null) {
-            boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
-
-
-            this.currentIdentity.setPos(this.position());
-            this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
-            this.currentIdentity.setAirSupply(this.getAirSupply());
-            if ((this.currentIdentity instanceof LivingEntity livingIdentity) && ((Entity) (Object) this instanceof LivingEntity livingEntity)) {
-                livingIdentity.setHealth(livingEntity.getHealth());
-            }
-            if (this.currentIdentity.level().isClientSide() == false) {
-                if (this.currentIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(true);
-                }
-                this.currentIdentity.tick();
-                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
-                //if(this.currentIdentity instanceof MobEntity mobIdentity){
-                //    mobIdentity.setAiDisabled(false);
-                //}
-            }
-            this.setPos(this.currentIdentity.position());
-            this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
-            this.setAirSupply(this.currentIdentity.getAirSupply());
-            if (
-                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
-                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
-            ) {
-                // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
-                if (!hostIsPlayer) {
-                    livingEntity.setHealth(livingIdentity.getHealth());
-                }
-            }
-
-
-        }
-    }
     @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
     private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
         if (!state.is(Blocks.COBWEB)) {
@@ -304,6 +271,79 @@ public class EntityMixin implements EntityAccessor {
             ci.cancel();
         }
     }
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void identityFix(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
+
+//            if(((Entity) (Object) this) instanceof Player player)
+//            {
+//                this.currentIdentity.setInvulnerable(player.isInvulnerable());
+//            }
+            this.currentIdentity.setPos(this.position());
+            this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+            this.currentIdentity.setAirSupply(this.getAirSupply());
+            if (
+                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
+                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
+            ) {
+                livingIdentity.setHealth(livingEntity.getHealth());
+            }
+            if (!this.currentIdentity.level().isClientSide()) {
+                if (this.currentIdentity instanceof Mob mobIdentity) {
+                    mobIdentity.setNoAi(true);
+                }
+                IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
+                this.currentIdentity.tick();
+                //if(this.currentIdentity instanceof MobEntity mobIdentity){
+                //    mobIdentity.setAiDisabled(false);
+                //}
+            }
+
+
+            if (hostIsPlayer) {
+                // For players, keep vanilla movement/gravity authoritative.
+                // Some morph AIs (especially flying mobs) can otherwise inject
+                // non-player motion and feel like speed/gravity glitches.
+                this.currentIdentity.setPos(this.position());
+                this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+                this.setAirSupply(this.currentIdentity.getAirSupply());
+                Entity hostEntity = (Entity) (Object) this;
+                if (
+                    !hostEntity.onGround()
+                        && !hostEntity.isInWater()
+                        && this.currentIdentity != null
+                        && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
+                ) {
+                    Vec3 motion = hostEntity.getDeltaMovement();
+                    if (motion.y < -0.08D) {
+                        hostEntity.setDeltaMovement(motion.x, -0.08D, motion.z);
+                    }
+                    hostEntity.resetFallDistance();
+                }
+            } else {
+                this.setPos(this.currentIdentity.position());
+                this.setDeltaMovement(this.currentIdentity.getDeltaMovement());
+                this.setAirSupply(this.currentIdentity.getAirSupply());
+            }
+
+            identity2$applyWardenEffects((Entity) (Object) this);
+
+            if (
+                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
+                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
+            ) {
+                // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
+                if (!hostIsPlayer) {
+                    livingEntity.setHealth(livingIdentity.getHealth());
+                }
+
+            }
+
+
+        }
+    }
+
     @Redirect(method = "move",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
@@ -419,6 +459,7 @@ public class EntityMixin implements EntityAccessor {
     public boolean entityCanFlyEvaluated = false;
     public boolean entityCanFlyTickEvaluated = false;
     private boolean identity2$grantedMayfly = false;
+    private float identity2$storedFlyingSpeed = Float.NaN;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
@@ -467,12 +508,22 @@ public class EntityMixin implements EntityAccessor {
         }
 
         if (identityCanFly) {
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
-            if (!player.getAbilities().flying && !player.onGround()) {
+            if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
+                this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+            }
+            float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
+            if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+                abilitiesChanged = true;
+            }
+            if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
                 player.getAbilities().flying = true;
                 abilitiesChanged = true;
             }
@@ -488,6 +539,12 @@ public class EntityMixin implements EntityAccessor {
             if (player.getAbilities().flying) {
                 player.getAbilities().flying = false;
             }
+            if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
+            } else {
+                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
+            }
+            this.identity2$storedFlyingSpeed = Float.NaN;
             this.identity2$grantedMayfly = false;
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.onUpdateAbilities();
@@ -1280,6 +1337,34 @@ public class EntityMixin implements EntityAccessor {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
         nbt.putDouble("land_speed_multiplier_override", 0.0D);
         nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
+        this.identity2$storedFlyingSpeed = Float.NaN;
+    }
+
+    @Unique
+    private void identity2$applyWardenEffects(Entity host) {
+        if (!(host instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        if (this.currentIdentity == null || this.currentIdentity.getType() != EntityType.WARDEN) {
+            return;
+        }
+
+        if (IdentitySettings.wardenIsBlinded) {
+            serverPlayer.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
+        }
+
+        if (!IdentitySettings.wardenBlindsNearby || !(serverPlayer.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        AABB nearby = serverPlayer.getBoundingBox().inflate(24.0D);
+        for (ServerPlayer target : serverLevel.getEntitiesOfClass(
+                ServerPlayer.class,
+                nearby,
+                target -> target != serverPlayer && !target.isSpectator()
+        )) {
+            target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
+        }
     }
 
     @Shadow

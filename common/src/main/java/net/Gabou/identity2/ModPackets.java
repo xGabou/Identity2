@@ -80,11 +80,11 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+    public static final Identifier AUTH_CHALLENGE_PACKET_ID = Identifier.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "auth_challenge"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+    public static final Identifier AUTH_CHALLENGE_REPLY_PACKET_ID = Identifier.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );

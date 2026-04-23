@@ -621,10 +621,7 @@ public final class Identity2Client {
     }
 
     private static void tickMorphTransitionEffects(Minecraft client) {
-        if (!IdentitySettings.enableMorphTransitionParticles) {
-            return;
-        }
-        if (client.level == null) {
+        if (client.level == null || !IdentitySettings.enableMorphTransitionParticles) {
             return;
         }
 
