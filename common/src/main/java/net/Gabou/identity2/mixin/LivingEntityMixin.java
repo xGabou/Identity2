@@ -37,6 +37,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
@@ -251,6 +252,54 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
         info.setReturnValue(this.horizontalCollision);
     }
+
+@Inject(method = "aiStep()V", at = @At("TAIL"))
+private void identity2$playAmbientSound(CallbackInfo info) {
+    if (!IdentitySettings.playAmbientSounds) {
+        return;
+    }
+    if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+        return;
+    }
+    if (!((Entity) (Object) this instanceof Player hostPlayer) || !(hostPlayer.level() instanceof ServerLevel serverLevel)) {
+        return;
+    }
+
+    Object ambientSoundValue = identity2$invokeNoArg(livingIdentity, "getAmbientSound");
+    if (!(ambientSoundValue instanceof SoundEvent ambientSound)) {
+        return;
+    }
+
+    int interval = 120;
+    Object intervalValue = identity2$invokeNoArg(livingIdentity, "getAmbientSoundInterval");
+    if (intervalValue instanceof Number number) {
+        interval = Math.max(1, number.intValue());
+    }
+    if (serverLevel.getRandom().nextInt(interval) != 0) {
+        return;
+    }
+
+    float volume = 1.0F;
+    Object volumeValue = identity2$invokeNoArg(livingIdentity, "getSoundVolume");
+    if (volumeValue instanceof Number number) {
+        volume = number.floatValue();
+    }
+
+    float pitch = 1.0F;
+    Object pitchValue = identity2$invokeNoArg(livingIdentity, "getSoundPitch");
+    if (pitchValue instanceof Number number) {
+        pitch = number.floatValue();
+    }
+
+    serverLevel.playSound(
+            IdentitySettings.hearSelfAmbient ? null : hostPlayer,
+            hostPlayer.blockPosition(),
+            ambientSound,
+            livingIdentity.getSoundSource(),
+            volume,
+            pitch
+    );
+}
 
 //getNextAir(underwater,onland) should be added
 
@@ -477,21 +526,40 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(slot)) {
-            info.setReturnValue(false);
-        }
-    }
-
-    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canUseSlot(slot));
+@Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
+private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+                info.setReturnValue(Items.AIR.getDefaultInstance());
+                return;
+            }
+            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+                info.setReturnValue(Items.AIR.getDefaultInstance());
+                return;
+            }
+            if(livingIdentity.canUseSlot(slot)==false){
+                info.setReturnValue(Items.AIR.getDefaultInstance());
             }
         }
     }
+}
+@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
+private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+                info.setReturnValue(false);
+                return;
+            }
+            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+                info.setReturnValue(false);
+                return;
+            }
+            info.setReturnValue(livingIdentity.canUseSlot(slot));
+        }
+    }
+}
 
     @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {

@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -42,6 +43,10 @@ public class ClientPlayerInteractionManagerMixin {
         Player player = Minecraft.getInstance().player;
         if (player == null) {
             return false;
+        }
+
+        if (!IdentitySettings.enableFlight) {
+            return;
         }
 
         if (player.isSpectator()) {
