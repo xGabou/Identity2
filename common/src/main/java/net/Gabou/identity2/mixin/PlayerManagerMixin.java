@@ -120,6 +120,7 @@ public class PlayerManagerMixin {
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
         NetworkManager.sendToPlayer(player, boolPayload);
+        IdentityProgression.syncUnlockedIdentities(player);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
         // where dimensions are still being initialized by vanilla/mods.
@@ -165,7 +166,13 @@ public class PlayerManagerMixin {
     @Inject(method = "respawn", at = @At("RETURN"))
     private void identity2$onRespawn(ServerPlayer player, boolean alive, Entity.RemovalReason reason, CallbackInfoReturnable<ServerPlayer> cir) {
         ServerPlayer respawned = cir.getReturnValue();
-        if (respawned == null) {
+        if (respawned == null) return;
+        identity2$copyCustomData(player, respawned);
+
+        if (alive) {
+            IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
+            identity2$syncUnlockedIdentities(respawned);
+            DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
             return;
         }
 
@@ -173,21 +180,39 @@ public class PlayerManagerMixin {
             MorphChargeManager.applyDeathPenalty(respawned);
         }
 
-        boolean shouldLoseMorphsOnDeath = !alive && ProgressionConfig.shouldLoseMorphsOnDeath(respawned.level().getServer());
-        if (shouldLoseMorphsOnDeath) {
-            int removed = IdentityProgression.clearUnlockedIdentities(respawned);
-            IdentityProgression.clearMorph(respawned);
-            if (removed > 0) {
-                respawned.displayClientMessage(net.minecraft.network.chat.Component.literal("All unlocked identities were removed on death."), false);
+            case WIPE_ALL -> {
+                IdentityProgression.clearUnlockedIdentities(respawned);
+                IdentityProgression.clearMorph(respawned);
+            }
+
+            case REVOKE_ACTIVE -> {
+                IdentityProgression.clearMorph(respawned);
+            }
+
+            case NONE -> {
+                MorphChargeManager.applyDeathPenalty(respawned);
+                IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             }
         }
 
-        if (!alive && IdentitySettings.revokeIdentityOnDeath) {
-            IdentityProgression.clearMorph(respawned);
-        }
-
-        IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
+        identity2$syncUnlockedIdentities(respawned);
         DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
+    }
+
+    private static void identity2$copyCustomData(ServerPlayer source, ServerPlayer target) {
+        if (source == null || target == null || source == target) {
+            return;
+        }
+        CompoundTag sourceNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) source).getCustomData()).getNbt();
+        if (sourceNbt == null || sourceNbt.isEmpty()) {
+            return;
+        }
+        CompoundTag targetNbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) target).getCustomData()).getNbt();
+        targetNbt.merge(sourceNbt.copy());
+    }
+
+    private static void identity2$syncUnlockedIdentities(ServerPlayer player) {
+        IdentityProgression.syncUnlockedIdentities(player);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
