@@ -125,6 +125,7 @@ public class PlayerManagerMixin {
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
         NetworkManager.sendToPlayer(player, boolPayload);
+        IdentityProgression.syncUnlockedIdentities(player);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
         // where dimensions are still being initialized by vanilla/mods.
@@ -178,7 +179,7 @@ public class PlayerManagerMixin {
 
         if (alive) {
             IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
-            identity2$syncUnlockCaches(respawned);
+            identity2$syncUnlockedIdentities(respawned);
             DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
             return;
         }
@@ -188,17 +189,8 @@ public class PlayerManagerMixin {
         switch (rule) {
 
             case WIPE_ALL -> {
-                int removed = IdentityProgression.clearUnlockedIdentities(respawned);
+                IdentityProgression.clearUnlockedIdentities(respawned);
                 IdentityProgression.clearMorph(respawned);
-
-                if (removed > 0) {
-                    respawned.displayClientMessage(
-                            net.minecraft.network.chat.Component.literal(
-                                    "All unlocked identities were removed on death."
-                            ),
-                            false
-                    );
-                }
             }
 
             case REVOKE_ACTIVE -> {
@@ -211,7 +203,7 @@ public class PlayerManagerMixin {
             }
         }
 
-        identity2$syncUnlockCaches(respawned);
+        identity2$syncUnlockedIdentities(respawned);
         DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
     }
 
@@ -227,24 +219,8 @@ public class PlayerManagerMixin {
         targetNbt.merge(sourceNbt.copy());
     }
 
-    private static void identity2$syncUnlockCaches(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        IdentityProgression.ensureClientUnlockCache(player);
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
-        String unlockedCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        String variantCache = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-
-        CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, unlockedCache),
-                new CustomEntityDataS2CPacket.EntryString(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, variantCache)
-            )
-        );
-        sendToWorldPlayers(player, payload);
-        NetworkManager.sendToPlayer(player, payload);
+    private static void identity2$syncUnlockedIdentities(ServerPlayer player) {
+        IdentityProgression.syncUnlockedIdentities(player);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
