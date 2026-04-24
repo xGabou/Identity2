@@ -51,6 +51,15 @@ public final class IdentityCommand {
     private IdentityCommand() {
     }
 
+    private static void identity2$sendCommandFeedback(CommandSourceStack source, Component message) {
+        ServerPlayer player = source.getPlayer();
+        if (IdentitySettings.logCommands && player != null) {
+            player.displayClientMessage(message, true);
+            return;
+        }
+        source.sendSystemMessage(message);
+    }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
             Commands.literal("identity")
@@ -281,7 +290,7 @@ public final class IdentityCommand {
         if (!IdentityProgression.morph(player, identityId)) {
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Morphed into " + identityId), false);
+        identity2$sendCommandFeedback(source, Component.literal("Morphed into " + identityId));
         return 1;
     }
 
@@ -298,7 +307,7 @@ public final class IdentityCommand {
         }
 
         IdentityProgression.clearMorph(player);
-        source.sendSuccess(() -> Component.literal("Identity cleared."), false);
+        identity2$sendCommandFeedback(source, Component.literal("Identity cleared."));
         return 1;
     }
 
@@ -313,11 +322,11 @@ public final class IdentityCommand {
             .filter(IdentityCommand::isMorphableIdentityString)
             .toList();
         if (unlocked.isEmpty()) {
-            source.sendSystemMessage(Component.literal("Unlocked identities: none"));
+            identity2$sendCommandFeedback(source, Component.literal("Unlocked identities: none"));
             return 1;
         }
 
-        source.sendSystemMessage(Component.literal("Unlocked identities (" + unlocked.size() + "): " + String.join(", ", unlocked)));
+        identity2$sendCommandFeedback(source, Component.literal("Unlocked identities (" + unlocked.size() + "): " + String.join(", ", unlocked)));
         return 1;
     }
 
@@ -345,15 +354,12 @@ public final class IdentityCommand {
 
         boolean granted = IdentityProgression.grantIdentity(resolvedTarget, identityId);
         if (!granted) {
-            source.sendSystemMessage(Component.literal(resolvedTarget.getName().getString() + " already has " + identityId));
+            identity2$sendCommandFeedback(source, Component.literal(resolvedTarget.getName().getString() + " already has " + identityId));
             return 1;
         }
 
         String targetName = resolvedTarget.getName().getString();
-        source.sendSuccess(
-            () -> Component.literal("Unlocked identity " + identityId + " for " + targetName),
-            true
-        );
+        identity2$sendCommandFeedback(source, Component.literal("Unlocked identity " + identityId + " for " + targetName));
         return 1;
     }
 
@@ -369,19 +375,16 @@ public final class IdentityCommand {
 
         int granted = IdentityProgression.grantAllMorphableIdentities(resolvedTarget);
         String targetName = resolvedTarget.getName().getString();
-        source.sendSuccess(
-            () -> Component.literal("Unlocked " + granted + " identities for " + targetName),
-            true
-        );
+        identity2$sendCommandFeedback(source, Component.literal("Unlocked " + granted + " identities for " + targetName));
         return granted;
     }
 
     private static int listConfig(CommandSourceStack source) {
         if (CONFIG_FIELDS.isEmpty()) {
-            source.sendSystemMessage(Component.literal("No editable config keys found."));
+            identity2$sendCommandFeedback(source, Component.literal("No editable config keys found."));
             return 1;
         }
-        source.sendSystemMessage(Component.literal("Config keys (" + CONFIG_FIELDS.size() + "): " + String.join(", ", CONFIG_FIELDS.keySet())));
+        identity2$sendCommandFeedback(source, Component.literal("Config keys (" + CONFIG_FIELDS.size() + "): " + String.join(", ", CONFIG_FIELDS.keySet())));
         return CONFIG_FIELDS.size();
     }
 
@@ -393,7 +396,7 @@ public final class IdentityCommand {
         }
 
         Object value = getConfigFieldValue(field);
-        source.sendSystemMessage(Component.literal(key + " = " + formatConfigValue(value)));
+        identity2$sendCommandFeedback(source, Component.literal(key + " = " + formatConfigValue(value)));
         return 1;
     }
 
@@ -427,7 +430,7 @@ public final class IdentityCommand {
 
         identity2$normalizeAliasedConfigAfterSet(key);
         IdentityConfigManager.save();
-        source.sendSuccess(() -> Component.literal("Set " + key + " = " + formatConfigValue(parsed)), true);
+        identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"));
         return 1;
     }
 
@@ -445,13 +448,13 @@ public final class IdentityCommand {
 
         List<String> values = getOrCreateConfigStringList(field);
         if (values.contains(value)) {
-            source.sendSystemMessage(Component.literal("Value already present in " + key + ": " + value));
+            identity2$sendCommandFeedback(source, Component.literal("Value already present in " + key + ": " + value));
             return 1;
         }
 
         values.add(value);
         IdentityConfigManager.save();
-        source.sendSuccess(() -> Component.literal("Added \"" + value + "\" to " + key), true);
+        identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"));
         return 1;
     }
 
@@ -469,12 +472,12 @@ public final class IdentityCommand {
 
         List<String> values = getOrCreateConfigStringList(field);
         if (!values.remove(value)) {
-            source.sendSystemMessage(Component.literal("Value not present in " + key + ": " + value));
+            identity2$sendCommandFeedback(source, Component.literal("Value not present in " + key + ": " + value));
             return 1;
         }
 
         IdentityConfigManager.save();
-        source.sendSuccess(() -> Component.literal("Removed \"" + value + "\" from " + key), true);
+        identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"));
         return 1;
     }
 
@@ -494,7 +497,7 @@ public final class IdentityCommand {
         int removed = values.size();
         values.clear();
         IdentityConfigManager.save();
-        source.sendSuccess(() -> Component.literal("Cleared " + key + " (" + removed + " entries)"), true);
+        identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"));
         return removed;
     }
 
@@ -526,17 +529,18 @@ public final class IdentityCommand {
         }
 
         if (lines.isEmpty()) {
-            source.sendSystemMessage(Component.literal("No abilities found for current identity set."));
+            identity2$sendCommandFeedback(source, Component.literal("No abilities found for current identity set."));
             return 1;
         }
 
-        source.sendSystemMessage(
-            Component.literal(
-                "Abilities (" + lines.size() + "): " + builtinCount + " specific, " + fallbackCount + " fallback, " + noneCount + " none"
-            )
+        identity2$sendCommandFeedback(
+                source,
+                Component.literal(
+                        "Abilities (" + lines.size() + "): " + builtinCount + " specific, " + fallbackCount + " fallback, " + noneCount + " none"
+                )
         );
         for (String line : lines) {
-            source.sendSystemMessage(Component.literal(line));
+            identity2$sendCommandFeedback(source, Component.literal(line));
         }
         return lines.size();
     }
@@ -549,11 +553,11 @@ public final class IdentityCommand {
 
         AbilityInfo info = resolveAbilityInfo(identityId);
         if (!info.hasAny()) {
-            source.sendSystemMessage(Component.literal("Ability for " + identityId + ": none"));
+            identity2$sendCommandFeedback(source, Component.literal("Ability for " + identityId + ": none"));
             return 1;
         }
 
-        source.sendSystemMessage(Component.literal("Ability for " + identityId + ": " + info.summary()));
+        identity2$sendCommandFeedback(source, Component.literal("Ability for " + identityId + ": " + info.summary()));
         return 1;
     }
 
@@ -566,13 +570,13 @@ public final class IdentityCommand {
 
         Entity current = ((EntityAccessor) player).getCurrentIdentity();
         if (current == null) {
-            source.sendSystemMessage(Component.literal("Current ability: none (not morphed)."));
+            identity2$sendCommandFeedback(source, Component.literal("Current ability: none (not morphed)."));
             return 1;
         }
 
         ResourceLocation id = EntityType.getKey(current.getType());
         if (id == null) {
-            source.sendSystemMessage(Component.literal("Current ability: none (unknown identity type)."));
+            identity2$sendCommandFeedback(source, Component.literal("Current ability: none (unknown identity type)."));
             return 1;
         }
         return abilityInfo(source, id);

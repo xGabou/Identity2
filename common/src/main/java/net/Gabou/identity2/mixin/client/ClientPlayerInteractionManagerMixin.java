@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -23,6 +24,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
+    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true)
+    private void forceFlyIdentity(CallbackInfoReturnable<Boolean> info) {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+
+        if (!IdentitySettings.enableFlight) {
+            return;
+        }
+
+        if (player.isSpectator()) {
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity != null && ((EntityAccessor) identity).canFly()) {
+            // Keep flight unlocked for fly-capable identities.
+            info.setReturnValue(false);
+        }
+    }
+
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void onAttackEntity(Player player, Entity target, CallbackInfo info) {
         Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
