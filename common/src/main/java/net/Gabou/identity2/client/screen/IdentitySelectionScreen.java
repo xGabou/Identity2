@@ -606,21 +606,9 @@ public final class IdentitySelectionScreen extends Screen {
         if (client.player == null) {
             return Set.of();
         }
-
-        String csv = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.UNLOCKED_IDENTITIES_CACHE_KEY, "");
-        if (csv == null || csv.isBlank()) {
-            return Set.of();
-        }
-
-        Set<String> unlocked = new HashSet<>();
-        for (String value : csv.split(",")) {
-            String trimmed = value.trim();
-            if (!trimmed.isEmpty()) {
-                unlocked.add(trimmed);
-            }
-        }
-        return unlocked;
+        return IdentityProgression.readUnlockedIdentityIdSet(
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+        );
     }
 
     private static Map<String, Set<String>> readUnlockedVariantTokens() {
@@ -628,42 +616,9 @@ public final class IdentitySelectionScreen extends Screen {
         if (client.player == null) {
             return Map.of();
         }
-
-        String serialized = ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-            .getStringOr(IdentityProgression.UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
-        if (serialized == null || serialized.isBlank()) {
-            return Map.of();
-        }
-
-        Map<String, Set<String>> result = new HashMap<>();
-        for (String entry : serialized.split(",")) {
-            String trimmed = entry == null ? "" : entry.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            int equalsIndex = trimmed.indexOf('=');
-            if (equalsIndex <= 0 || equalsIndex >= trimmed.length() - 1) {
-                continue;
-            }
-
-            String identityId = trimmed.substring(0, equalsIndex).trim();
-            String tokenData = trimmed.substring(equalsIndex + 1).trim();
-            if (identityId.isEmpty() || tokenData.isEmpty()) {
-                continue;
-            }
-
-            Set<String> tokens = new HashSet<>();
-            for (String token : tokenData.split("\\|")) {
-                String normalized = token == null ? "" : token.trim();
-                if (!normalized.isEmpty()) {
-                    tokens.add(normalized);
-                }
-            }
-            if (!tokens.isEmpty()) {
-                result.put(identityId, tokens);
-            }
-        }
-        return result;
+        return IdentityProgression.readUnlockedIdentityVariantTokenSet(
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+        );
     }
 
     @Override

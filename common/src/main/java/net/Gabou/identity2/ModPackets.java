@@ -19,6 +19,7 @@ import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
+import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.progression.MorphChargeManager;
@@ -88,6 +89,10 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );
+    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "unlocked_identity_sync"
+    );
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
@@ -113,6 +118,7 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(UnlockedIdentitySyncS2CPacketPayload.ID, UnlockedIdentitySyncS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(S2CChallengePacket.ID, S2CChallengePacket.CODEC);
         }
 
