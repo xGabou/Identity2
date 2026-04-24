@@ -37,6 +37,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
@@ -250,9 +251,313 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 
 
-    @Shadow
-    @Nullable
-    public SoundEvent getHurtSound(DamageSource source) {
+@Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
+private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable info){
+    if(IdentitySettings.useIdentitySounds){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getHurtSound(source));
+        }
+    }
+    }
+}
+@Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
+private void getDeathSoundIdentity(CallbackInfoReturnable info){
+    if(IdentitySettings.useIdentitySounds){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getDeathSound());
+        }
+    }
+    }
+}
+
+
+
+
+
+@Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
+private void tickMovementIdentity(CallbackInfo info){
+    //if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
+    //    return;
+    //}
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+
+            livingIdentity.setPos(this.position());
+            livingIdentity.setDeltaMovement(this.getDeltaMovement());
+            if(livingIdentity instanceof Mob mobIdentity){
+                mobIdentity.setNoAi(false);
+            }
+            livingIdentity.aiStep();
+            this.setPos(livingIdentity.position());
+            this.setDeltaMovement(livingIdentity.getDeltaMovement());
+            //info.cancel();
+        }
+    }
+}
+
+@Inject(method = "aiStep()V", at = @At("TAIL"))
+private void identity2$playAmbientSound(CallbackInfo info) {
+    if (!IdentitySettings.playAmbientSounds) {
+        return;
+    }
+    if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+        return;
+    }
+    if (!((Entity) (Object) this instanceof Player hostPlayer) || !(hostPlayer.level() instanceof ServerLevel serverLevel)) {
+        return;
+    }
+
+    Object ambientSoundValue = identity2$invokeNoArg(livingIdentity, "getAmbientSound");
+    if (!(ambientSoundValue instanceof SoundEvent ambientSound)) {
+        return;
+    }
+
+    int interval = 120;
+    Object intervalValue = identity2$invokeNoArg(livingIdentity, "getAmbientSoundInterval");
+    if (intervalValue instanceof Number number) {
+        interval = Math.max(1, number.intValue());
+    }
+    if (serverLevel.getRandom().nextInt(interval) != 0) {
+        return;
+    }
+
+    float volume = 1.0F;
+    Object volumeValue = identity2$invokeNoArg(livingIdentity, "getSoundVolume");
+    if (volumeValue instanceof Number number) {
+        volume = number.floatValue();
+    }
+
+    float pitch = 1.0F;
+    Object pitchValue = identity2$invokeNoArg(livingIdentity, "getSoundPitch");
+    if (pitchValue instanceof Number number) {
+        pitch = number.floatValue();
+    }
+
+    serverLevel.playSound(
+            IdentitySettings.hearSelfAmbient ? null : hostPlayer,
+            hostPlayer.blockPosition(),
+            ambientSound,
+            livingIdentity.getSoundSource(),
+            volume,
+            pitch
+    );
+}
+
+//getNextAir(underwater,onland) should be added
+@Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
+private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
+    if (this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> identityType = this.currentIdentity.getType();
+    if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
+        return;
+    }
+    if ((Entity)(Object)this instanceof Player player && player.isSpectator()) {
+        info.setReturnValue(false);
+        return;
+    }
+    info.setReturnValue(this.horizontalCollision);
+}
+
+@Inject(method = "canFreeze()Z", at=@At("HEAD"),cancellable=true)
+private void canFreezeIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canFreeze());
+
+    }
+}
+@Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at=@At("HEAD"),cancellable=true)
+private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key,CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.canStandOnFluid(key));
+        }
+    }
+}
+@Inject(method = "isSensitiveToWater()Z", at=@At("HEAD"),cancellable=true)
+private void hurtByWaterIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isSensitiveToWater());
+        }
+    }
+}
+@Inject(method = "isAffectedByPotions()Z", at=@At("HEAD"),cancellable=true)
+private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isAffectedByPotions());
+        }
+    }
+}
+
+@Inject(method = "getLastHurtByPlayerMemoryTime()I", at=@At("HEAD"),cancellable=true)
+private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
+    if(this.identityOf!=null){
+        if(this.identityOf instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
+        }
+    }
+}
+
+
+
+    @Inject(
+            method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if ((Object) this instanceof Player player) {
+            if (player.getAbilities().instabuild || player.isSpectator()) {
+                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                    return;
+                }
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    this.currentIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && player.isInWater()
+                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+
+            if (
+                    activeIdentity != null
+                            && source.is(DamageTypes.IN_WALL)
+                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
+                            && identity2$isFallDamage(source)
+                            && (
+                            activeIdentity.getType() == EntityType.CHICKEN
+                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                    )
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            return;
+        }
+
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(livingIdentity.isInvulnerableTo(world, source));
+            }
+        }
+    }
+
+    @Unique
+    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
+        float idHeight = activeIdentity.getBbHeight();
+        if (idHeight >= 1.2f) {
+            return false;
+        }
+
+        if (player.isCrouching() || player.isSwimming()) {
+            return false;
+        }
+
+        AABB box = player.getBoundingBox();
+
+        AABB feet = new AABB(
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.minY + 0.35, box.maxZ
+        );
+
+        double headStart = box.maxY - 0.35;
+        AABB head = new AABB(
+                box.minX, headStart, box.minZ,
+                box.maxX, box.maxY, box.maxZ
+        );
+
+        boolean feetCollide = !player.level().noCollision(player, feet);
+        boolean headCollide = !player.level().noCollision(player, head);
+
+        return headCollide && !feetCollide;
+    }
+
+@Unique
+private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
+    }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("inwall")
+        || normalized.equals("in_wall")
+        || normalized.equals("flyintowall")
+        || normalized.equals("fly_into_wall")
+        || normalized.equals("cramming");
+}
+
+@Unique
+private static boolean identity2$isFallDamage(DamageSource source) {
+    if (source == null) {
+        return false;
+    }
+    if (source.is(DamageTypes.FALL)) {
+        return true;
+    }
+    if (source.is(DamageTypeTags.IS_FALL)) {
+        return true;
+    }
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
+    }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("fall");
+}
+
+@Unique
+private static String identity2$getDamageMessageId(DamageSource source) {
+    if (source == null) {
+        return "";
+    }
+    Object direct = identity2$invokeNoArg(source, "getMsgId");
+    if (direct instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object type = identity2$invokeNoArg(source, "type");
+    Object fromType = identity2$invokeNoArg(type, "msgId");
+    if (fromType instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object holder = identity2$invokeNoArg(source, "typeHolder");
+    Object value = identity2$invokeNoArg(holder, "value");
+    Object fromHolder = identity2$invokeNoArg(value, "msgId");
+    if (fromHolder instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    return "";
+}
+
+private static Object identity2$invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isBlank()) {
         return null;
     }
 
@@ -284,14 +589,44 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             info.setReturnValue(null);
             return;
         }
-        if (IdentitySettings.useIdentitySounds) {
-            if (this.currentIdentity != null) {
-                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                    info.setReturnValue(((LivingEntityAccessor) this.currentIdentity).getDeathSound());
-                }
+    }
+}
+
+
+@Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
+private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+                info.setReturnValue(Items.AIR.getDefaultInstance());
+                return;
+            }
+            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+                info.setReturnValue(Items.AIR.getDefaultInstance());
+                return;
+            }
+            if(livingIdentity.canUseSlot(slot)==false){
+                info.setReturnValue(Items.AIR.getDefaultInstance());
             }
         }
     }
+}
+@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
+private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+                info.setReturnValue(false);
+                return;
+            }
+            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+                info.setReturnValue(false);
+                return;
+            }
+            info.setReturnValue(livingIdentity.canUseSlot(slot));
+        }
+    }
+}
 
 
     @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)

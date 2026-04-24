@@ -25,6 +25,7 @@ import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
 import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
@@ -61,9 +62,7 @@ import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -136,9 +135,7 @@ public final class Identity2Client {
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
-    private static final ArrayList<IdentityUnlockSyncS2CPacketPayload> pendingUnlockSyncPackets = new ArrayList<>(0);
-    private static final Set<ResourceLocation> clientUnlockedIdentityIds = new LinkedHashSet<>();
-    private static final Map<ResourceLocation, Set<String>> clientUnlockedVariantTokens = new LinkedHashMap<>();
+    private static final ArrayList<UnlockedIdentitySyncS2CPacketPayload> pendingUnlockedIdentityPackets = new ArrayList<>(0);
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
     private static long identity2$lastSkinPacketLogMs = 0L;
@@ -243,6 +240,11 @@ public final class Identity2Client {
                 IdentityUnlockSyncS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> INSTANCE.onUnlockSyncData(payload)));
         NetworkCompat.registerReceiver(
+                NetworkManager.s2c(),
+                UnlockedIdentitySyncS2CPacketPayload.ID,
+                UnlockedIdentitySyncS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> INSTANCE.onUpdateUnlockedIdentities(payload)));
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 MorphAcquisitionS2CPacketPayload.ID,
                 MorphAcquisitionS2CPacketPayload::decode,
@@ -495,15 +497,21 @@ public final class Identity2Client {
         }
     }
 
-    private void onUnlockSyncData(IdentityUnlockSyncS2CPacketPayload packet) {
+    private void onUpdateUnlockedIdentities(UnlockedIdentitySyncS2CPacketPayload packet) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null) {
-            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+        if (client.level == null) {
+            enqueuePendingPacket(pendingUnlockedIdentityPackets, packet);
             return;
         }
 
-        if (!applyUnlockSyncPacket(packet)) {
-            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity != null) {
+            CustomData n = ((EntityAccessor) entity).getCustomData();
+            IdentityProgression.storeUnlockedIdentityData(
+                    ((NbtComponentAccessor) (Object) n).getNbt(),
+                    packet.unlockedIdentityIds(),
+                    toVariantUnlockMap(packet.unlockedVariantEntries())
+            );
         }
     }
 
@@ -513,7 +521,8 @@ public final class Identity2Client {
         }
 
         if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty()
-                && pendingBoolDataPackets.isEmpty() && pendingUnlockSyncPackets.isEmpty()) {
+                && pendingBoolDataPackets.isEmpty()
+                && pendingUnlockedIdentityPackets.isEmpty()) {
             pendingPacketProcessTicks = 0;
             return;
         }
@@ -522,14 +531,14 @@ public final class Identity2Client {
         processPendingDoublePackets(client);
         processPendingStringPackets(client);
         processPendingBoolPackets(client);
-        processPendingUnlockSyncPackets(client);
+        processPendingUnlockedIdentityPackets(client);
 
         // Avoid an unbounded per-tick scan if some queued packets can never resolve.
         if (pendingPacketProcessTicks > MAX_PENDING_PACKET_PROCESS_TICKS) {
             pendingDoubleDataPackets.clear();
             pendingStringDataPackets.clear();
             pendingBoolDataPackets.clear();
-            pendingUnlockSyncPackets.clear();
+            pendingUnlockedIdentityPackets.clear();
             pendingPacketProcessTicks = 0;
         }
     }
@@ -570,16 +579,29 @@ public final class Identity2Client {
         }
     }
 
-    private static void processPendingUnlockSyncPackets(Minecraft client) {
-        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockSyncPackets.size());
+    private static void processPendingUnlockedIdentityPackets(Minecraft client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockedIdentityPackets.size());
         for (int i = 0; i < max;) {
-            if (INSTANCE.applyUnlockSyncPacket(pendingUnlockSyncPackets.get(i))) {
-                pendingUnlockSyncPackets.remove(i);
+            if (INSTANCE.tryApplyUnlockedIdentities(client, pendingUnlockedIdentityPackets.get(i))) {
+                pendingUnlockedIdentityPackets.remove(i);
                 max--;
             } else {
                 i++;
             }
         }
+    }
+
+    private static Map<String, java.util.List<String>> toVariantUnlockMap(
+            java.util.List<UnlockedIdentitySyncS2CPacketPayload.VariantEntry> entries
+    ) {
+        Map<String, java.util.List<String>> result = new LinkedHashMap<>();
+        for (UnlockedIdentitySyncS2CPacketPayload.VariantEntry entry : entries) {
+            if (entry == null || entry.identityId() == null || entry.identityId().isBlank()) {
+                continue;
+            }
+            result.put(entry.identityId(), new ArrayList<>(entry.variantTokens() == null ? java.util.List.of() : entry.variantTokens()));
+        }
+        return result;
     }
 
     private boolean tryApplyCustomData(Minecraft client, CustomEntityDataS2CPacketPayload packet) {
@@ -682,6 +704,21 @@ public final class Identity2Client {
                 }
             }
         }
+        return true;
+    }
+
+    private boolean tryApplyUnlockedIdentities(Minecraft client, UnlockedIdentitySyncS2CPacketPayload packet) {
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null) {
+            return false;
+        }
+
+        CustomData n = ((EntityAccessor) entity).getCustomData();
+        IdentityProgression.storeUnlockedIdentityData(
+                ((NbtComponentAccessor) (Object) n).getNbt(),
+                packet.unlockedIdentityIds(),
+                toVariantUnlockMap(packet.unlockedVariantEntries())
+        );
         return true;
     }
 

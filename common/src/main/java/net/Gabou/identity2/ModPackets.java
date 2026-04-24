@@ -17,6 +17,8 @@ import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
+import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
+import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.progression.MorphChargeManager;
@@ -82,6 +84,18 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
+    public static final Identifier AUTH_CHALLENGE_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "auth_challenge"
+    );
+    public static final Identifier AUTH_CHALLENGE_REPLY_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "auth_challenge_reply"
+    );
+    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "unlocked_identity_sync"
+    );
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
@@ -101,7 +115,30 @@ public final class ModPackets {
         }
         initialized = true;
 
-        NetworkCompat.registerReceiver(
+        if (Platform.getEnvironment() == Env.SERVER) {
+            NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(UnlockedIdentitySyncS2CPacketPayload.ID, UnlockedIdentitySyncS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(S2CChallengePacket.ID, S2CChallengePacket.CODEC);
+        }
+
+        NetworkManager.registerReceiver(
+            NetworkManager.c2s(),
+            C2SChallengeReplyPacket.ID,
+            C2SChallengeReplyPacket.CODEC,
+            (payload, context) -> context.queue(() -> {
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    ServerAuth.handleChallengeReply(player, payload);
+                }
+            })
+        );
+
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             IdentityAbilityPacketPayload.ID,
             IdentityAbilityPacketPayload::decode,

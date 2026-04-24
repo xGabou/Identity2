@@ -3,9 +3,10 @@ package net.Gabou.identity2.fabric;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.ModNetworking;
 import net.Gabou.identity2.ModRegistries;
-import net.Gabou.identity2.fabric.auth.Identity2FabricNetworkingPlatform;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.fabric.platform.Identity2FabricRegistryPlatform;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 
 public final class Identity2Fabric implements ModInitializer {
     @Override
@@ -15,7 +16,7 @@ public final class Identity2Fabric implements ModInitializer {
         // Proceed with mild caution.
 
         ModRegistries.setPlatform(new Identity2FabricRegistryPlatform());
-        ModNetworking.setPlatform(new Identity2FabricNetworkingPlatform());
+        // ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> IdentityProgression.clearMorph(handler.player));
         Identity2.init();
     }
 }

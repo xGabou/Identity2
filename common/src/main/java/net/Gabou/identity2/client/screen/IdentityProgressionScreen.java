@@ -512,13 +512,13 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     private Set<String> readUnlockedIdentityIds() {
-        Set<String> out = new HashSet<>();
-        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
-            if (id != null) {
-                out.add(id.toString());
-            }
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return Set.of();
         }
-        return out;
+        return IdentityProgression.readUnlockedIdentityIdSet(
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+        );
     }
 
     private int rowAt(double mouseX, double mouseY) {

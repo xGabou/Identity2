@@ -602,24 +602,23 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private static Set<String> readUnlockedIdentities() {
-        Set<String> unlocked = new HashSet<>();
-        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
-            if (id != null) {
-                unlocked.add(id.toString());
-            }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return Set.of();
         }
-        return unlocked;
+        return IdentityProgression.readUnlockedIdentityIdSet(
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+        );
     }
 
     private static Map<String, Set<String>> readUnlockedVariantTokens() {
-        Map<String, Set<String>> result = new HashMap<>();
-        for (ResourceLocation id : Identity2Client.getUnlockedIdentityIds()) {
-            Set<String> tokens = Identity2Client.getUnlockedVariantTokens(id);
-            if (!tokens.isEmpty()) {
-                result.put(id.toString(), new HashSet<>(tokens));
-            }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return Map.of();
         }
-        return result;
+        return IdentityProgression.readUnlockedIdentityVariantTokenSet(
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+        );
     }
 
     @Override
