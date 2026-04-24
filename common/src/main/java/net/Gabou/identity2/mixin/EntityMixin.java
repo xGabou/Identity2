@@ -430,7 +430,13 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        if (identityCanFly) {
+        boolean canGrantFlight = identityCanFly
+                && IdentitySettings.enableFlight
+                && (!(player instanceof ServerPlayer serverPlayer) || IdentityProgression.canGrantIdentityFlight(serverPlayer));
+
+        if (canGrantFlight) {
+            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
@@ -612,19 +618,27 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        CompoundTag nbtCompound=null;
-        if(id.contains("{")){
-            try{
-            nbtCompound=net.minecraft.commands.arguments.CompoundTagArgument.compoundTag().parse(new com.mojang.brigadier.StringReader(id.substring(id.indexOf('{'))));
-            id=id.substring(0,id.indexOf('{'));
-            }catch(Exception e){
-            id=id.substring(0,id.indexOf('{'));
+        Identifier forcedIdentity = null;
+        if ((Entity) (Object) this instanceof Player player) {
+            IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
+            forcedIdentity = IdentityProgression.getForcedIdentity();
+            if (forcedIdentity != null) {
+                id = forcedIdentity.toString();
+            }
+        }
+        CompoundTag nbtCompound = null;
+        if (id.contains("{")) {
+            try {
+                nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag().parse(new com.mojang.brigadier.StringReader(id.substring(id.indexOf('{'))));
+                id = id.substring(0, id.indexOf('{'));
+            } catch (Exception e) {
+                id = id.substring(0, id.indexOf('{'));
             }
         }
         if(nbtCompound==null){
             nbtCompound=new CompoundTag().copy();
         }
-        if (nbtCompound.isEmpty()) {
+        if (nbtCompound.isEmpty() && forcedIdentity == null) {
             String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
@@ -704,6 +718,9 @@ public class EntityMixin implements EntityAccessor{
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
             if((Entity)(Object)this instanceof Player player){
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                if (player instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.updateHostileIdentityGrace(serverPlayer, this.currentIdentity);
+                }
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
         }
@@ -1124,6 +1141,9 @@ public class EntityMixin implements EntityAccessor{
         nbt.putDouble(IdentityProgression.TRANSITION_DURATION_TICKS_KEY, 0.0D);
 
         if ((Entity) (Object) this instanceof Player player) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                IdentityProgression.updateHostileIdentityGrace(serverPlayer, null);
+            }
             this.applyIdentityFlightGrant(player, false);
             ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
