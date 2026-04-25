@@ -587,12 +587,12 @@ public final class IdentityCommand {
         }
 
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(context.getSource())) {
-            List<ResourceLocation> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
+            List<ResourceLocation> ResourceLocations = IdentityProgression.getUnlockedIdentities(player).stream()
                 .map(IdentityCommand::parseResourceLocation)
                 .flatMap(Optional::stream)
                 .filter(IdentityProgression::isMorphableIdentity)
                 .toList();
-            return SharedSuggestionProvider.suggestResource(identifiers, builder);
+            return SharedSuggestionProvider.suggestResource(ResourceLocations, builder);
         }
 
         return SharedSuggestionProvider.suggestResource(

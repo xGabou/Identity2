@@ -38,10 +38,10 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.registry.Registries;
 import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.MinecraftClient;
 import ember.qualitycommands.util.MinecraftClientAccessor;
@@ -58,8 +58,8 @@ import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 @Mixin(PlayerEntityRenderer.class)
 public class PlayerEntityRendererMixin implements ember.qualitycommands.util.PlayerEntityRendererAccessor{
     @Shadow
-    private void renderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture,ModelPart arm, boolean sleeveVisible) {}
-    public void callRenderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture,ModelPart arm, boolean sleeveVisible) {
+    private void renderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {}
+    public void callRenderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible) {
     this.renderArm(matrices, queue, light, skinTexture,arm, sleeveVisible);
     }
     /*@Inject(method = "updateRenderState", at = @At("TAIL"))
@@ -67,8 +67,8 @@ public class PlayerEntityRendererMixin implements ember.qualitycommands.util.Pla
 		PlayerEntityRenderState entityRenderState=(PlayerEntityRenderState)playerEntityRenderState;
         if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").isPresent()){
             if(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get().length()!=0){
-                if(Registries.ENTITY_TYPE.containsId(Identifier.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()))){
-                    EntityType<?> newType=Registries.ENTITY_TYPE.get(Identifier.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()));
+                if(Registries.ENTITY_TYPE.containsId(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()))){
+                    EntityType<?> newType=Registries.ENTITY_TYPE.get(ResourceLocation.of(((NbtComponentAccessor)(Object)((EntityAccessor)entity).getCustomData()).getNbt().getString("model_override").get()));
                     playerEntityRenderState.entityType=newType;
                 }
                 

@@ -94,7 +94,7 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );
-    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
     );

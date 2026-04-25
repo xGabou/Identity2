@@ -3,7 +3,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.SimpleRegistry;

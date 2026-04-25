@@ -64,7 +64,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 @Mixin(BlockEntity.class)
 public class BlockEntityMixin implements ember.qualitycommands.util.BlockEntityAccessor{

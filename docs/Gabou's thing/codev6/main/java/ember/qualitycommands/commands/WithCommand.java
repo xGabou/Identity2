@@ -47,7 +47,7 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.command.argument.ResourceLocationArgumentType;
 import net.minecraft.server.command.DataCommand;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.util.math.random.Random;
@@ -96,8 +96,8 @@ public class WithCommand {
 	);
 	public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
 		CommandFunctionManager commandFunctionManager = context.getSource().getServer().getCommandFunctionManager();
-		CommandSource.suggestIdentifiers(commandFunctionManager.getFunctionTags(), builder, "#");
-		return CommandSource.suggestIdentifiers(commandFunctionManager.getAllFunctions(), builder);
+		CommandSource.suggestResourceLocations(commandFunctionManager.getFunctionTags(), builder, "#");
+		return CommandSource.suggestResourceLocations(commandFunctionManager.getAllFunctions(), builder);
 	};
 	private static final DynamicCommandExceptionType ENTITY_FAILED_EXCEPTION = new DynamicCommandExceptionType(
 		name -> Text.stringifiedTranslatable("commands.attribute.failed.entity", name)
@@ -280,7 +280,7 @@ public class WithCommand {
 
 		LiteralArgumentBuilder<ServerCommandSource> bossbarSubCommand = CommandManager.literal("bossbar");
 		bossbarSubCommand.then(
-							CommandManager.argument("id", IdentifierArgumentType.identifier())
+							CommandManager.argument("id", ResourceLocationArgumentType.ResourceLocation())
 								.suggests(SUGGESTION_PROVIDER)
 								.then(CommandManager.literal("value").then(CommandManager.argument("command", StringArgumentType.greedyString()).executes(
 									new WithCommand.Command() {

@@ -45,7 +45,7 @@ import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.registry.Registries;
 import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.MinecraftClient;
 import ember.qualitycommands.util.MinecraftClientAccessor;
@@ -82,27 +82,27 @@ public class HeldItemRendererMixin{
         throw new NoSuchFieldException("Field '" + fieldName + "' not found in class hierarchy.");
     }
     @Redirect(method = "renderArmHoldingItem",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderRightArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/Identifier;Z)V"))
-    private void rahir(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible){
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderRightArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/ResourceLocation;Z)V"))
+    private void rahir(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
         renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
     @Redirect(method = "renderArm",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderRightArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/Identifier;Z)V"))
-    private void rar(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible){
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderRightArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/ResourceLocation;Z)V"))
+    private void rar(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
         renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
     @Redirect(method = "renderArmHoldingItem",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderLeftArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/Identifier;Z)V"))
-    private void rahil(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible){
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderLeftArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/ResourceLocation;Z)V"))
+    private void rahil(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
         renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
     @Redirect(method = "renderArm",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderLeftArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/Identifier;Z)V"))
-    private void ral(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible){
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/PlayerEntityRenderer;renderLeftArm(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;ILnet/minecraft/util/ResourceLocation;Z)V"))
+    private void ral(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible){
         renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
     
-    private void renderRightArmOverride(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible) {
+    private void renderRightArmOverride(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible) {
         
         try{
         EntityAccessor playerEntity=(EntityAccessor)MinecraftClient.getInstance().player;
@@ -142,18 +142,18 @@ public class HeldItemRendererMixin{
             targetPart=eModel.getRootPart().createPartGetter().apply(net.minecraft.client.render.entity.model.EntityModelPartNames.RIGHT_FRONT_LEG);
         }
         
-        Identifier texture=null;
+        ResourceLocation texture=null;
         if(idrenderer instanceof LivingEntityRenderer lidr){
             texture=lidr.getTexture((LivingEntityRenderState)lidr.createRenderState());
         }else{
             try{
-            texture=(Identifier)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
+            texture=(ResourceLocation)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
             }catch(Exception e){
                 int x=0;
             }
         }
         if((targetPart!=null)&&(texture!=null)){
-            Identifier ftexture=texture;
+            ResourceLocation ftexture=texture;
             try {
 
                 float paox=((PlayerEntityModel)renderer.getModel()).rightArm.originX;
@@ -214,7 +214,7 @@ public class HeldItemRendererMixin{
         QualityCommands.LOGGER.info("RenderError!");
     }
     }
-    private void renderLeftArmOverride(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture, boolean sleeveVisible) {
+    private void renderLeftArmOverride(PlayerEntityRenderer renderer, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture, boolean sleeveVisible) {
         
         try{
         EntityAccessor playerEntity=(EntityAccessor)MinecraftClient.getInstance().player;
@@ -254,18 +254,18 @@ public class HeldItemRendererMixin{
             targetPart=eModel.getRootPart().createPartGetter().apply(net.minecraft.client.render.entity.model.EntityModelPartNames.LEFT_FRONT_LEG);
         }
         
-        Identifier texture=null;
+        ResourceLocation texture=null;
         if(idrenderer instanceof LivingEntityRenderer lidr){
             texture=lidr.getTexture((LivingEntityRenderState)lidr.createRenderState());
         }else{
             try{
-            texture=(Identifier)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
+            texture=(ResourceLocation)getFieldFromClassHeirarchy(idrenderer.getClass(),"TEXTURE").get((Object)idrenderer);
             }catch(Exception e){
                 int x=0;
             }
         }
         if((targetPart!=null)&&(texture!=null)){
-            Identifier ftexture=texture;
+            ResourceLocation ftexture=texture;
             try {
 
                 float paox=((PlayerEntityModel)renderer.getModel()).leftArm.originX;

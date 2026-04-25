@@ -29,7 +29,7 @@ public abstract class MorphInfo
 {
     @CapabilityInject(MorphInfo.class)
     public static Capability<MorphInfo> CAPABILITY_INSTANCE;
-    public static final ResourceLocation CAPABILITY_IDENTIFIER = new ResourceLocation("morph", "capability_morph_state");
+    public static final ResourceLocation CAPABILITY_ResourceLocation = new ResourceLocation("morph", "capability_morph_state");
     private static final AtomicInteger NEXT_ENTITY_ID = new AtomicInteger(-70000000);// -70 million. We reduce even further as we use this more, negative ent IDs prevent collision with real entities (with positive IDs starting with 0)
 
     public final PlayerEntity player;
@@ -196,7 +196,7 @@ public abstract class MorphInfo
             else //just started morphing
             {
                 MorphVariant variant = MorphVariant.createPlayerMorph(player.getGameProfile().getId(), true);
-                variant.thisVariant.identifier = MorphVariant.IDENTIFIER_DEFAULT_PLAYER_STATE;
+                variant.thisVariant.ResourceLocation = MorphVariant.ResourceLocation_DEFAULT_PLAYER_STATE;
                 setPrevState(new MorphState(variant, player));
             }
 
@@ -216,7 +216,7 @@ public abstract class MorphInfo
 
     public boolean isCurrentlyThisVariant(@Nonnull MorphVariant.Variant variant)
     {
-        return (nextState != null && nextState.variant.thisVariant.identifier.equals(variant.identifier) || !isMorphed() && variant.identifier.equals(MorphVariant.IDENTIFIER_DEFAULT_PLAYER_STATE));
+        return (nextState != null && nextState.variant.thisVariant.ResourceLocation.equals(variant.ResourceLocation) || !isMorphed() && variant.ResourceLocation.equals(MorphVariant.ResourceLocation_DEFAULT_PLAYER_STATE));
     }
 
     public CompoundNBT write(CompoundNBT tag)

@@ -55,6 +55,15 @@ public class IdentitySettings {
     //@Comment(value = "Whether Villagers will run from Players morphed as identities villagers normally run from (Zombies).")
     public static boolean villagersRunFromIdentities = true;
 
+    //@Comment(value = "Whether wild wolves attack identity prey.")
+    public static boolean wolvesAttackIdentityPrey = true;
+
+    //@Comment(value = "Whether owned wolves attack identity prey.")
+    public static boolean ownedWolvesAttackIdentityPrey = false;
+
+    //@Comment(value = "Whether foxes attack identity prey.")
+    public static boolean foxesAttackIdentityPrey = true;
+
     //@Comment(value = "Whether Identity sounds take priority over Player Sounds (eg. Blaze hurt sound when hit).")
     public static boolean useIdentitySounds = true;
 

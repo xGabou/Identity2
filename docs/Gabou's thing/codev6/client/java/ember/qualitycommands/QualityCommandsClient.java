@@ -62,7 +62,7 @@ import net.minecraft.registry.entry.RegistryEntry;
 import ember.qualitycommands.blocks.RedRedstoneWireBlock;
 import ember.qualitycommands.blocks.GreenRedstoneWireBlock;
 import ember.qualitycommands.blocks.BlueRedstoneWireBlock;*/
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
@@ -173,8 +173,8 @@ public class QualityCommandsClient implements ClientModInitializer{
 		}
 	}
     public static ArrayList<BiFunction<Entity,Entity,Entity>> visualPatchValues=new ArrayList(0);
-    public static ArrayList<Identifier> visualPatchKeys=new ArrayList(0);
-    public static void addVisualPatch(BiFunction<Entity,Entity,Entity> value,Identifier id){
+    public static ArrayList<ResourceLocation> visualPatchKeys=new ArrayList(0);
+    public static void addVisualPatch(BiFunction<Entity,Entity,Entity> value,ResourceLocation id){
         visualPatchKeys.ensureCapacity(visualPatchKeys.size()+1);
         visualPatchValues.ensureCapacity(visualPatchValues.size()+1);
         visualPatchKeys.add(id);
@@ -186,7 +186,7 @@ public class QualityCommandsClient implements ClientModInitializer{
                 dragonIdentity.yawAcceleration+=MathHelper.wrapDegrees(entity.getYaw()-identity.getYaw())*0.1F;
             }
 			return identity;
-	},Identifier.of("minecraft:ender_dragon"));
+	},ResourceLocation.of("minecraft:ender_dragon"));
 	/*
 	
     addVisualPatch((e)->{
@@ -293,7 +293,7 @@ public class QualityCommandsClient implements ClientModInitializer{
 
             return entity;
         },
-        Identifier.of("minecraft:ender_dragon"));*/
+        ResourceLocation.of("minecraft:ender_dragon"));*/
     }
     // In your client-only initializer method
     
@@ -321,7 +321,7 @@ public class QualityCommandsClient implements ClientModInitializer{
         "key.qualitycommands.dashminus",
         InputUtil.Type.KEYSYM,
         InputUtil.GLFW_KEY_V,
-        KeyBinding.Category.create(Identifier.of("category.qualitycommands.test"))
+        KeyBinding.Category.create(ResourceLocation.of("category.qualitycommands.test"))
     ));
     @Override
     public void onInitializeClient(){
@@ -451,7 +451,7 @@ public class QualityCommandsClient implements ClientModInitializer{
 
 
         });
-    net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of(QualityCommands.MOD_ID, "before_chat"), QualityCommandsClient::renderIdentityCooldown);
+    net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, ResourceLocation.of(QualityCommands.MOD_ID, "before_chat"), QualityCommandsClient::renderIdentityCooldown);
     LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, entityRenderer, registrationHelper,context) -> {
         if (entityType ==EntityType.PLAYER) {
                 registrationHelper.register(new ExtraModelFeatureRenderer(entityRenderer));

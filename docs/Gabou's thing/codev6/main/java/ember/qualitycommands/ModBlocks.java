@@ -19,7 +19,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.Registries;
@@ -53,7 +53,7 @@ public class ModBlocks {
 
 		return Registry.register(Registries.BLOCK, blockKey, block);
 	}
-	public static Block register(Identifier name, Function<AbstractBlock.Settings, Block> blockFactory, AbstractBlock.Settings settings, boolean shouldRegisterItem) {
+	public static Block register(ResourceLocation name, Function<AbstractBlock.Settings, Block> blockFactory, AbstractBlock.Settings settings, boolean shouldRegisterItem) {
 		// Create a registry key for the block
 		RegistryKey<Block> blockKey = RegistryKey.of(RegistryKeys.BLOCK, name);
 		// Create the block instance
@@ -87,7 +87,7 @@ public class ModBlocks {
 		// Items need to be registered with a different type of registry key, but the ID
 		// can be the same.
 		RegistryKey<Item> itemKey = keyOfAnyItem(name,id);
-		BlockItem blockItem = new BlockItem(net.minecraft.registry.Registries.BLOCK.get(Identifier.of(id,name)), new Item.Settings().registryKey(itemKey).useBlockPrefixedTranslationKey());
+		BlockItem blockItem = new BlockItem(net.minecraft.registry.Registries.BLOCK.get(ResourceLocation.of(id,name)), new Item.Settings().registryKey(itemKey).useBlockPrefixedTranslationKey());
 		return Registry.register(Registries.ITEM, itemKey, blockItem);
 	}
 	static{
@@ -111,14 +111,14 @@ public class ModBlocks {
 		
 	}
 	public static RegistryKey<Block> keyOfBlock(String name) {
-		return RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(QualityCommands.MOD_ID, name));
+		return RegistryKey.of(RegistryKeys.BLOCK, ResourceLocation.of(QualityCommands.MOD_ID, name));
 	}
 
 	private static RegistryKey<Item> keyOfItem(String name) {
-		return RegistryKey.of(RegistryKeys.ITEM, Identifier.of(QualityCommands.MOD_ID, name));
+		return RegistryKey.of(RegistryKeys.ITEM, ResourceLocation.of(QualityCommands.MOD_ID, name));
 	}
 	private static RegistryKey<Item> keyOfAnyItem(String name,String id) {
-		return RegistryKey.of(RegistryKeys.ITEM, Identifier.of(id, name));
+		return RegistryKey.of(RegistryKeys.ITEM, ResourceLocation.of(id, name));
 	}
 
 	public static final Block MAGIC_BARRIER_BLOCK = register(
@@ -136,7 +136,7 @@ public class ModBlocks {
 		"comparandor", ComparandorBlock::new, AbstractBlock.Settings.create().breakInstantly().sounds(BlockSoundGroup.STONE).pistonBehavior(PistonBehavior.DESTROY),true
 	);
 	public static <T extends BlockEntityType<?>> T build(String path, T blockEntityType) {
-    return Registry.register(Registries.BLOCK_ENTITY_TYPE, Identifier.of("quality_commands", path), blockEntityType);
+    return Registry.register(Registries.BLOCK_ENTITY_TYPE, ResourceLocation.of("quality_commands", path), blockEntityType);
   }
  
   public static final BlockEntityType<ComparandorBlockEntity> COMPARANDORENTITY = build(

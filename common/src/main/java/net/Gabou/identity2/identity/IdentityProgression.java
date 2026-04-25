@@ -26,7 +26,9 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
@@ -97,10 +99,10 @@ public final class IdentityProgression {
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final int MAX_UNLOCK_SYNC_PACKET_BYTES = 24000;
+    private static final int LARGE_MORPH_DAMAGE_GRACE_TICKS = 40;
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
-    private static final Map<Identifier, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -129,14 +131,14 @@ public final class IdentityProgression {
     }
 
     @Nullable
-    public static Identifier getForcedIdentity() {
+    public static ResourceLocation getForcedIdentity() {
         String forced = IdentitySettings.forcedIdentity;
         if (forced == null || forced.isBlank()) {
             return null;
         }
 
         try {
-            Identifier forcedIdentity = Identifier.parse(forced.trim());
+            ResourceLocation forcedIdentity = ResourceLocation.parse(forced.trim());
             return isMorphableIdentity(forcedIdentity) ? forcedIdentity : null;
         } catch (Exception exception) {
             Identity2.LOGGER.warn("Ignoring invalid forced identity config value: {}", forced, exception);
@@ -196,11 +198,11 @@ public final class IdentityProgression {
         }
 
         CompoundTag nbt = getCustomData(player);
-        double endTick = nbt.getDoubleOr(HOSTILE_IDENTITY_GRACE_END_TICK_KEY, 0.0D);
+        double endTick = NbtCompat.getDoubleOr(nbt,HOSTILE_IDENTITY_GRACE_END_TICK_KEY, 0.0D);
         return endTick > 0.0D && player.level().getGameTime() < endTick;
     }
 
-    public static boolean isMorphableIdentity(Identifier identityId) {
+    public static boolean isMorphableIdentity(ResourceLocation identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
         }
@@ -667,7 +669,7 @@ public final class IdentityProgression {
 
         int removed = Math.max(0, unlocked.size() - retained.size());
         storeUnlockedIdentityData(customData, retained, retainedVariants);
-        customData.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
+        NbtCompat.store(customData, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
         if (removed > 0) {
             player.displayClientMessage(
                     Component.literal("All unlocked identities were removed."),
@@ -712,9 +714,6 @@ public final class IdentityProgression {
 
         int kills = incrementKillCount(player, unlockTarget.identityId(), unlockTarget.variantNbt());
         int requiredKills = Math.max(1, IdentitySettings.identityKillsRequired);
-        if (IdentitySettings.killForIdentity) {
-            requiredKills = Math.max(requiredKills, IdentitySettings.requiredKillsForIdentity);
-        }
         if (kills < requiredKills) {
             return EventResult.pass();
         }
@@ -945,7 +944,7 @@ public final class IdentityProgression {
         } catch (RuntimeException exception) {
             Identity2.LOGGER.error(
                     "Failed to serialize unlocked identity payload for player={} uuid={} entityId={} payload={}",
-                    player.getGameProfile().name(),
+                    player.getGameProfile().getName(),
                     player.getUUID(),
                     player.getId(),
                     payload,
@@ -963,7 +962,7 @@ public final class IdentityProgression {
     }
 
     public static void logOversizedIdentityPayload(ServerPlayer player, UnlockedIdentitySyncS2CPacketPayload payload, int serializedSize, String reason) {
-        String playerName = player.getGameProfile().name();
+        String playerName = player.getGameProfile().getName();
         String playerUuid = player.getUUID().toString();
         int identityCount = payload.unlockedIdentityIds() == null ? 0 : payload.unlockedIdentityIds().size();
         int variantCount = payload.unlockedVariantEntries() == null ? 0 : payload.unlockedVariantEntries().size();
@@ -1001,8 +1000,8 @@ public final class IdentityProgression {
 
         List<String> normalizedUnlocked = normalizeUnlockedIdentityIds(unlocked);
         Map<String, List<String>> normalizedVariants = normalizeUnlockedIdentityVariantUnlocks(variantUnlocks);
-        customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, normalizedUnlocked);
-        customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, normalizedVariants);
+        NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, normalizedUnlocked);
+        NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, normalizedVariants);
         customData.remove(UNLOCKED_IDENTITIES_CACHE_KEY);
         customData.remove(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY);
     }
@@ -1036,12 +1035,12 @@ public final class IdentityProgression {
             return List.of();
         }
 
-        List<String> unlocked = customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of());
+        List<String> unlocked = NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of());
         if (!unlocked.isEmpty()) {
             return unlocked;
         }
 
-        String legacy = customData.getStringOr(UNLOCKED_IDENTITIES_CACHE_KEY, "");
+        String legacy = NbtCompat.getStringOr(customData, UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (legacy.isBlank()) {
             return List.of();
         }
@@ -1060,13 +1059,13 @@ public final class IdentityProgression {
         }
 
         Map<String, List<String>> unlockedVariants = new HashMap<>(
-                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         if (!unlockedVariants.isEmpty()) {
             return unlockedVariants;
         }
 
-        String legacy = customData.getStringOr(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
+        String legacy = NbtCompat.getStringOr(customData, UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
         if (legacy.isBlank()) {
             return Map.of();
         }
@@ -2197,8 +2196,8 @@ public final class IdentityProgression {
         if (value == null) {
             return null;
         }
-        if (value instanceof ResourceLocation identifier) {
-            return identifier.toString();
+        if (value instanceof ResourceLocation ResourceLocation) {
+            return ResourceLocation.toString();
         }
         if (value instanceof Enum<?> enumValue) {
             return enumValue.name().toLowerCase(Locale.ROOT);
@@ -2261,9 +2260,9 @@ public final class IdentityProgression {
             return false;
         }
 
-        Identifier advancementIdentifier;
+        ResourceLocation advancementResourceLocation;
         try {
-            advancementIdentifier = Identifier.parse(advancementId.trim());
+            advancementResourceLocation = ResourceLocation.parse(advancementId.trim());
         } catch (Exception ignored) {
             return false;
         }
@@ -2273,7 +2272,7 @@ public final class IdentityProgression {
             return false;
         }
 
-        Object holder = invokeOneArg(advancementManager, "get", advancementIdentifier);
+        Object holder = invokeOneArg(advancementManager, "get", advancementResourceLocation);
         if (holder == null) {
             return false;
         }
@@ -2292,7 +2291,7 @@ public final class IdentityProgression {
         return completed instanceof Boolean done && done;
     }
 
-    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
+    private static ResourceLocation resolveRegistryResourceLocation(String registryField, Object value) {
         if (registryField == null || registryField.isBlank() || value == null) {
             return null;
         }

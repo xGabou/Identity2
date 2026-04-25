@@ -62,7 +62,7 @@ import net.minecraft.registry.Registries;
 import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.EntityRenderStateModifier;
 import ember.qualitycommands.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -130,7 +130,7 @@ public class LivingEntityRendererMixin<T extends LivingEntity,S extends LivingEn
                         //}
                         for(String overlayTextureString:((EntityRenderStateModifier)livingEntityRenderState).getOverlays()){
                             QualityCommands.LOGGER.info(overlayTextureString);
-                            Identifier overlayTexture=Identifier.of(overlayTextureString);
+                            ResourceLocation overlayTexture=ResourceLocation.of(overlayTextureString);
                         if ((overlayTextureString.length()>0)&overlayTexture != null) {
                             RenderLayer renderLayer;
 //                                if (OriginsFursClient.isRenderingInWorld && FabricLoader.getInstance().isModLoaded("iris")) {
@@ -152,7 +152,7 @@ public class LivingEntityRendererMixin<T extends LivingEntity,S extends LivingEn
                         }
                     }
                     for(String overlayTextureString:((EntityRenderStateModifier)livingEntityRenderState).getOverlaysE()){
-                        Identifier emissiveTexture=Identifier.of(overlayTextureString);
+                        ResourceLocation emissiveTexture=ResourceLocation.of(overlayTextureString);
                         if (emissiveTexture != null) {
                             RenderLayer renderLayer = RenderLayer.getEntityTranslucentEmissive(emissiveTexture);
                             renderLayer=this.model.getLayer(emissiveTexture);

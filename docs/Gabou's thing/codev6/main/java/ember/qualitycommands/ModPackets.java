@@ -6,7 +6,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.commands.TpRelCommand;
 //import ember.qualitycommands.commands.SilentFunctionCommand;
 import ember.qualitycommands.commands.AccelerateCommand;
@@ -53,7 +53,7 @@ public class ModPackets{
 		PayloadTypeRegistry.playC2S().register(IdentityAbilityPacketPayload.ID, IdentityAbilityPacketPayload.CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(IdentityAbilityPacketPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
-				Identifier prebuilt=ModRegistries.identityAbilityRegistry.get(EntityType.getId((((EntityAccessor)context.player()).getCurrentIdentity()).getType())).bultinability();
+				ResourceLocation prebuilt=ModRegistries.identityAbilityRegistry.get(EntityType.getId((((EntityAccessor)context.player()).getCurrentIdentity()).getType())).bultinability();
 				
 				if(payload.entityid()==0){
 					String cmd=ModRegistries.identityAbilityRegistry.get(EntityType.getId((((EntityAccessor)context.player()).getCurrentIdentity()).getType())).command();
@@ -85,20 +85,20 @@ public class ModPackets{
 	//public static final PacketType<CustomEntityDataS2CPacket> SET_ENTITY_DOUBLE_DATA = s2c("set_custom_data_double");
 
 	private static <T extends Packet<ClientPlayPacketListener>> PacketType<T> s2c(String id) {
-		return new PacketType<>(NetworkSide.CLIENTBOUND, Identifier.of(QualityCommands.MOD_ID,id));
+		return new PacketType<>(NetworkSide.CLIENTBOUND, ResourceLocation.of(QualityCommands.MOD_ID,id));
 	}
 
 	private static <T extends Packet<ServerPlayPacketListener>> PacketType<T> c2s(String id) {
-		return new PacketType<>(NetworkSide.SERVERBOUND, Identifier.of(QualityCommands.MOD_ID,id));
+		return new PacketType<>(NetworkSide.SERVERBOUND, ResourceLocation.of(QualityCommands.MOD_ID,id));
 	}
 
 	
-	public static final Identifier CUSTOM_STRING_DATA_ID=Identifier.of(QualityCommands.MOD_ID,"set_custom_data_string");
-	public static final Identifier CUSTOM_DOUBLE_DATA_ID=Identifier.of(QualityCommands.MOD_ID,"set_custom_data_double");
-	public static final Identifier CUSTOM_BOOL_DATA_ID=Identifier.of(QualityCommands.MOD_ID,"set_custom_data_bool");
-	public static final Identifier CUSTOM_NBT_DATA_ID=Identifier.of(QualityCommands.MOD_ID,"set_custom_data_nbt");
-	public static final Identifier IDENTITY_ABILITY_PACKET_ID=Identifier.of(QualityCommands.MOD_ID,"entity_ability");
-	public static final Identifier PARTICLE_BVEL_PACKET=Identifier.of(QualityCommands.MOD_ID,"particle_bvel");
+	public static final ResourceLocation CUSTOM_STRING_DATA_ID=ResourceLocation.of(QualityCommands.MOD_ID,"set_custom_data_string");
+	public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID=ResourceLocation.of(QualityCommands.MOD_ID,"set_custom_data_double");
+	public static final ResourceLocation CUSTOM_BOOL_DATA_ID=ResourceLocation.of(QualityCommands.MOD_ID,"set_custom_data_bool");
+	public static final ResourceLocation CUSTOM_NBT_DATA_ID=ResourceLocation.of(QualityCommands.MOD_ID,"set_custom_data_nbt");
+	public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID=ResourceLocation.of(QualityCommands.MOD_ID,"entity_ability");
+	public static final ResourceLocation PARTICLE_BVEL_PACKET=ResourceLocation.of(QualityCommands.MOD_ID,"particle_bvel");
 	
 	
 }

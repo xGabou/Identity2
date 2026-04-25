@@ -55,6 +55,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
@@ -64,6 +65,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -319,7 +321,7 @@ public final class Identity2Client {
 
     private static void onClientTickEnd(Minecraft client) {
         processPendingCustomDataPackets(client);
-        processPendingUnlockSyncPackets(client);
+        processPendingCustomDataPackets(client);
         tickMorphTransitionEffects(client);
         MorphAcquisitionEffectController.tick(client);
 
@@ -649,18 +651,49 @@ public final class Identity2Client {
     }
 
     public static Set<ResourceLocation> getUnlockedIdentityIds() {
-        return Set.copyOf(clientUnlockedIdentityIds);
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return Set.of();
+        }
+
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        Set<ResourceLocation> result = new java.util.LinkedHashSet<>();
+        for (String identityId : IdentityProgression.readUnlockedIdentityIdSet(nbt)) {
+            try {
+                result.add(ResourceLocation.parse(identityId));
+            } catch (Exception ignored) {
+            }
+        }
+        return Set.copyOf(result);
     }
 
     public static Set<String> getUnlockedVariantTokens(ResourceLocation identityId) {
         if (identityId == null) {
             return Set.of();
         }
-        Set<String> tokens = clientUnlockedVariantTokens.get(identityId);
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return Set.of();
+        }
+
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        Map<String, Set<String>> unlockedVariants = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry : IdentityProgression.readUnlockedIdentityVariantTokenSet(nbt).entrySet()) {
+            try {
+                unlockedVariants.put(ResourceLocation.parse(entry.getKey()).toString(), Set.copyOf(entry.getValue()));
+            } catch (Exception ignored) {
+            }
+        }
+
+        Set<String> tokens = unlockedVariants.get(identityId.toString());
         if (tokens == null || tokens.isEmpty()) {
             return Set.of();
         }
         return Set.copyOf(tokens);
+    }
+
+    private static void processPendingUnlockSyncPackets(Minecraft client) {
+        processPendingCustomDataPackets(client);
     }
 
     private static int resolvePrimaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {

@@ -16,7 +16,7 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Pair;
 import ember.qualitycommands.util.CustomPacketListener;
 import ember.qualitycommands.ModPackets;

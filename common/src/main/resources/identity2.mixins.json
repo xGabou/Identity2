@@ -51,8 +51,7 @@
     "RegistriesMixin",
     "RegistryMixin",
     "ShulkerEntityMixin",
-    "ZombieEntityMixin",
-    "net.Gabou.identity2.util.AbilitiesAccessor"
+    "ZombieEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
