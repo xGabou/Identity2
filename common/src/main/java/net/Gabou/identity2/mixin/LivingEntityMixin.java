@@ -331,7 +331,6 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
         }
     }
 }
-
 @Inject(method = "isSensitiveToWater()Z", at=@At("HEAD"),cancellable=true)
 private void hurtByWaterIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
@@ -358,52 +357,13 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
     }
 }
 
-    @Inject(method = "canFreeze()Z", at = @At("HEAD"), cancellable = true)
-    private void canFreezeIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canFreeze());
-
-        }
-    }
-
-    @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at = @At("HEAD"), cancellable = true)
-    private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canStandOnFluid(key));
-            }
-        }
-    }
-
-    @Inject(method = "isSensitiveToWater()Z", at = @At("HEAD"), cancellable = true)
-    private void hurtByWaterIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isSensitiveToWater());
-            }
-        }
-    }
-
-    @Inject(method = "isAffectedByPotions()Z", at = @At("HEAD"), cancellable = true)
-    private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isAffectedByPotions());
-            }
-        }
-    }
-
-    @Inject(method = "getLastHurtByPlayerMemoryTime()I", at = @At("HEAD"), cancellable = true)
-    private void getPlayerHitTimerIdentity(CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            if (this.identityOf instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
-            }
-        }
-    }
 
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
         if ((Object) this instanceof Player player) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
@@ -413,6 +373,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -422,7 +383,9 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+
             if (
                     activeIdentity != null
                             && activeIdentity.getType() == EntityType.ENDER_DRAGON
@@ -462,13 +425,16 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;
             }
+
             return;
         }
+
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(world, source));
@@ -601,18 +567,6 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
         if (this.currentIdentity != null) {
             if (this.currentIdentity == entity) {
                 info.cancel();
-            }
-        }
-    }
-
-
-    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
-    private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                if (livingIdentity.canUseSlot(slot) == false) {
-                    info.setReturnValue(Items.AIR.getDefaultInstance());
-                }
             }
         }
     }
