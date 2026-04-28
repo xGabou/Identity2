@@ -15,6 +15,7 @@
 		"EnderDragonEntityRendererMixin",
 		"ClientPlayerInteractionManagerMixin",
 		"ClientPlayNetworkHandlerMixin",
+		"PlayerMixin",
 		"EntityTrackerEntryMixin",
 		"WorldRendererMixin"
 	],
