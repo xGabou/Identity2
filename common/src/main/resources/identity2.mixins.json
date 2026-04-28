@@ -42,6 +42,7 @@
     "PlayerEntityMixin",
     "PlayerInventoryMixin",
     "PlayerManagerMixin",
+    "AbstractArrowMixin",
     "RegistriesMixin",
     "RegistryMixin",
     "ServerPlayNetworkHandlerMixin",
