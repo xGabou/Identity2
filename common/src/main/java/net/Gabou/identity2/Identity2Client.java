@@ -10,9 +10,8 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.identity2.auth.ClientAuth;
 import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.S2CChallengePacket;
+import net.Gabou.identity2.auth.C2SLauncherReportPacket;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -141,6 +140,7 @@ public final class Identity2Client {
     private static final ArrayList<UnlockedIdentitySyncS2CPacketPayload> pendingUnlockedIdentityPackets = new ArrayList<>(0);
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
+    private static UUID launcherReportSentForPlayer;
 
     static {
         addVisualPatch((identity, entity) -> {
@@ -259,11 +259,6 @@ public final class Identity2Client {
                 ProgressionJarStateS2CPacketPayload.ID,
                 ProgressionJarStateS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                S2CChallengePacket.ID,
-                S2CChallengePacket.CODEC,
-                (payload, context) -> context.queue(() -> ClientAuth.handleChallenge(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -336,8 +331,10 @@ public final class Identity2Client {
 
         LocalPlayer player = client.player;
         if (player == null) {
+            launcherReportSentForPlayer = null;
             return;
         }
+        sendLauncherReportIfNeeded(player);
         syncLocalMorphFlight(player);
         processFavoriteKeybinds(player);
 
@@ -383,6 +380,21 @@ public final class Identity2Client {
             sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
         }
 
+    }
+
+    private static void sendLauncherReportIfNeeded(LocalPlayer player) {
+        if (player == null || player.getUUID() == null || player.getUUID().equals(launcherReportSentForPlayer)) {
+            return;
+        }
+
+        String launcherReason = ClientLauncherGuards.getDetectedReason();
+        if (launcherReason == null || launcherReason.isBlank()) {
+            launcherReportSentForPlayer = player.getUUID();
+            return;
+        }
+
+        NetworkManager.sendToServer(new C2SLauncherReportPacket(launcherReason));
+        launcherReportSentForPlayer = player.getUUID();
     }
 
     private static void syncLocalMorphFlight(LocalPlayer player) {
