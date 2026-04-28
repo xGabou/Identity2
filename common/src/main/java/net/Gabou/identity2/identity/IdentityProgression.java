@@ -1856,12 +1856,21 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
+        if (root && identity2$isBabyVariantToken(source)) {
+            out.putBoolean("IsBaby", true);
+        }
         for (String key : source.keySet()) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
             }
             Tag tag = source.get(key);
             if (tag == null) {
+                continue;
+            }
+            if (root && ("IsBaby".equals(key) || "Baby".equals(key))) {
+                if (source.getBoolean(key).isPresent() && source.getBooleanOr(key, false)) {
+                    out.putBoolean("IsBaby", true);
+                }
                 continue;
             }
             if (tag instanceof CompoundTag nested) {
@@ -1874,6 +1883,19 @@ public final class IdentityProgression {
             out.put(key, tag.copy());
         }
         return out;
+    }
+
+    private static boolean identity2$isBabyVariantToken(CompoundTag source) {
+        if (source == null || source.isEmpty()) {
+            return false;
+        }
+        if (source.getBoolean("IsBaby").isPresent() && source.getBooleanOr("IsBaby", false)) {
+            return true;
+        }
+        if (source.getBoolean("Baby").isPresent() && source.getBooleanOr("Baby", false)) {
+            return true;
+        }
+        return source.getInt("Age").isPresent() && source.getInt("Age").get() < 0;
     }
 
     private static boolean compoundContains(CompoundTag container, CompoundTag subset) {
