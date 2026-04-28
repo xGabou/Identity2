@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
@@ -10,16 +11,23 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.state.AllayRenderState;
+import net.minecraft.client.renderer.entity.state.ChickenRenderState;
+import net.minecraft.client.renderer.entity.state.CreakingRenderState;
+import net.minecraft.client.renderer.entity.state.BeeRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.spongepowered.asm.mixin.Mixin;
@@ -40,6 +48,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
                 identity2$syncIdentityForRender(entity, renderIdentity);
                 EntityRenderState replacement = renderer.createRenderState();
                 renderer.extractRenderState(renderIdentity, replacement, tickProgress);
+                identity2$patchMorphRenderState(entity, renderIdentity, replacement, tickProgress);
                 renderState = replacement;
             }
         }
@@ -58,6 +67,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         ((EntityAccessor) identity).setLastPosition(source.oldPosition());
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
+            identity2$applyBabyVariantState(source, identity);
             if (livingIdentity.isJumping() != livingSource.isJumping()) {
                 livingIdentity.setJumping(livingSource.isJumping());
             }
@@ -123,6 +133,100 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         identity.setSharedFlagOnFire(source.isOnFire());
+    }
+
+    private static void identity2$patchMorphRenderState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {
+        if (renderState instanceof LivingEntityRenderState livingState) {
+            identity2$applyBabyRenderState(source, identity, livingState);
+        }
+
+        if (renderState instanceof AllayRenderState allayState && identity instanceof LivingEntity livingIdentity) {
+            if (!livingIdentity.getItemBySlot(EquipmentSlot.MAINHAND).isEmpty()) {
+                allayState.holdingAnimationProgress = Math.max(allayState.holdingAnimationProgress, 1.0F);
+            }
+        }
+
+        if (renderState instanceof BeeRenderState beeState && source instanceof LivingEntity livingSource) {
+            if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
+                beeState.isAngry = true;
+                beeState.rollAmount = Math.max(beeState.rollAmount, livingSource.attackAnim);
+            }
+        }
+
+        if (renderState instanceof ChickenRenderState chickenState) {
+            Vec3 motion = source.getDeltaMovement();
+            if (!source.onGround() && motion.y < -0.02D) {
+                chickenState.flapSpeed = Math.max(chickenState.flapSpeed, 1.0F);
+                chickenState.flap = source.tickCount + tickProgress;
+            }
+        }
+
+        if (renderState instanceof CreakingRenderState creakingState && identity instanceof Creaking && source instanceof LivingEntity livingSource) {
+            if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
+                creakingState.attackAnimationState.startIfStopped(source.tickCount);
+            } else {
+                creakingState.attackAnimationState.stop();
+            }
+        }
+    }
+
+    private static void identity2$applyBabyVariantState(Entity source, Entity identity) {
+        CompoundTag variant = identity2$getSelectedVariant(source);
+        if (variant == null) {
+            return;
+        }
+        Boolean baby = identity2$resolveBabyVariant(variant);
+        if (baby == null) {
+            return;
+        }
+        identity2$invokeOneArg(identity, "setBaby", baby);
+        identity2$invokeOneArg(identity, "setAge", baby ? -24000 : 0);
+    }
+
+    private static void identity2$applyBabyRenderState(Entity source, Entity identity, LivingEntityRenderState renderState) {
+        CompoundTag variant = identity2$getSelectedVariant(source);
+        if (variant == null) {
+            return;
+        }
+        Boolean baby = identity2$resolveBabyVariant(variant);
+        if (baby == null) {
+            return;
+        }
+        renderState.isBaby = baby;
+        Object scale = identity2$invokeNoArg(identity, "getAgeScale");
+        if (scale instanceof Number number) {
+            renderState.ageScale = number.floatValue();
+        } else if (!baby) {
+            renderState.ageScale = 1.0F;
+        }
+    }
+
+    private static CompoundTag identity2$getSelectedVariant(Entity source) {
+        if (!(source instanceof EntityAccessor accessor)) {
+            return null;
+        }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
+        String raw = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        if (raw.isBlank()) {
+            return null;
+        }
+        return IdentityProgression.parseVariantNbt(raw);
+    }
+
+    private static Boolean identity2$resolveBabyVariant(CompoundTag variant) {
+        if (variant == null || variant.isEmpty()) {
+            return null;
+        }
+        if (variant.getBoolean("IsBaby").isPresent()) {
+            return variant.getBooleanOr("IsBaby", false);
+        }
+        if (variant.getBoolean("Baby").isPresent()) {
+            return variant.getBooleanOr("Baby", false);
+        }
+        if (variant.getInt("Age").isPresent()) {
+            return variant.getInt("Age").get() < 0;
+        }
+        return null;
     }
 
     private static void identity2$forceBatFlightAnimation(Bat bat, int tickCount) {

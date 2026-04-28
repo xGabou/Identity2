@@ -51,6 +51,10 @@ public class TargetPredicateMixin {
         if (!(currentIdentity instanceof LivingEntity identityLiving)) {
             return;
         }
+        if (identityLiving.getType() == EntityType.ALLAY || identityLiving.getType() == EntityType.BAT) {
+            info.setReturnValue(false);
+            return;
+        }
         if (!identity2$isHostileMob(identityLiving.getType())) {
             return;
         }
