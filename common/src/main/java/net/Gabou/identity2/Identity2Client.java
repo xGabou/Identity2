@@ -132,6 +132,8 @@ public final class Identity2Client {
     private static boolean isFading = false;
     private static int fadingProgress = 0;
     private static int pendingPacketProcessTicks = 0;
+    private static boolean clientGrantedMorphMayfly = false;
+    private static float clientStoredMorphFlyingSpeed = Float.NaN;
     private static final ArrayList<CustomEntityDataS2CPacketPayload> pendingDoubleDataPackets = new ArrayList<>(0);
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
@@ -336,6 +338,7 @@ public final class Identity2Client {
         if (player == null) {
             return;
         }
+        syncLocalMorphFlight(player);
         processFavoriteKeybinds(player);
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
@@ -380,6 +383,55 @@ public final class Identity2Client {
             sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
         }
 
+    }
+
+    private static void syncLocalMorphFlight(LocalPlayer player) {
+        if (player == null) {
+            return;
+        }
+
+        if (player.isSpectator() || player.getAbilities().instabuild) {
+            clientGrantedMorphMayfly = false;
+            clientStoredMorphFlyingSpeed = Float.NaN;
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        boolean identityCanFly = IdentitySettings.enableFlight
+                && identity != null
+                && ((EntityAccessor) identity).canFly();
+
+        if (identityCanFly) {
+            if (!player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = true;
+            }
+            if (Float.isNaN(clientStoredMorphFlyingSpeed)) {
+                clientStoredMorphFlyingSpeed = player.getAbilities().getFlyingSpeed();
+            }
+            float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
+            if (player.getAbilities().getFlyingSpeed() != configuredFlyingSpeed) {
+                player.getAbilities().setFlyingSpeed(configuredFlyingSpeed);
+            }
+            if (!player.getAbilities().flying && !player.onGround()) {
+                player.getAbilities().flying = true;
+            }
+            clientGrantedMorphMayfly = true;
+            return;
+        }
+
+        if (clientGrantedMorphMayfly) {
+            player.getAbilities().mayfly = false;
+            if (player.getAbilities().flying) {
+                player.getAbilities().flying = false;
+            }
+            if (!Float.isNaN(clientStoredMorphFlyingSpeed)) {
+                player.getAbilities().setFlyingSpeed(clientStoredMorphFlyingSpeed);
+            } else {
+                player.getAbilities().setFlyingSpeed(0.05F);
+            }
+            clientStoredMorphFlyingSpeed = Float.NaN;
+            clientGrantedMorphMayfly = false;
+        }
     }
 
     private void onUpdateCustomData(CustomEntityDataS2CPacketPayload packet) {
