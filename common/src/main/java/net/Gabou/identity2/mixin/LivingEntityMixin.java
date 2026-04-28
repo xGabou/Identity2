@@ -277,6 +277,28 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     );
 }
 
+@Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
+private void tickMovementIdentity(CallbackInfo info){
+    if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision for player morphs.
+        return;
+    }
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+
+            livingIdentity.setPos(this.position());
+            livingIdentity.setDeltaMovement(this.getDeltaMovement());
+            if(livingIdentity instanceof Mob mobIdentity){
+                mobIdentity.setNoAi(false);
+            }
+            livingIdentity.aiStep();
+            this.setPos(livingIdentity.position());
+            this.setDeltaMovement(livingIdentity.getDeltaMovement());
+            //info.cancel();
+        }
+    }
+}
+
 //getNextAir(underwater,onland) should be added
 @Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
 private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
@@ -308,46 +330,33 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
             info.setReturnValue(livingIdentity.canStandOnFluid(key));
         }
     }
+}
 
-
-    @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)
-    private void tickMovementIdentity(CallbackInfo info) {
-        //if ((Entity)(Object)this instanceof Player) {
-        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
-        //    return;
-        //}
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-
-                livingIdentity.setPos(this.position());
-                livingIdentity.setDeltaMovement(this.getDeltaMovement());
-                if (livingIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(false);
-                }
-                livingIdentity.aiStep();
-                this.setPos(livingIdentity.position());
-                this.setDeltaMovement(livingIdentity.getDeltaMovement());
-                //info.cancel();
-            }
+@Inject(method = "isSensitiveToWater()Z", at=@At("HEAD"),cancellable=true)
+private void hurtByWaterIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isSensitiveToWater());
         }
     }
-
-    //getNextAir(underwater,onland) should be added
-    @Inject(method = "onClimbable()Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity == null) {
-            return;
+}
+@Inject(method = "isAffectedByPotions()Z", at=@At("HEAD"),cancellable=true)
+private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isAffectedByPotions());
         }
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
-            return;
-        }
-        if ((Entity) (Object) this instanceof Player player && player.isSpectator()) {
-            info.setReturnValue(false);
-            return;
-        }
-        info.setReturnValue(this.horizontalCollision);
     }
+}
+
+@Inject(method = "getLastHurtByPlayerMemoryTime()I", at=@At("HEAD"),cancellable=true)
+private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
+    if(this.identityOf!=null){
+        if(this.identityOf instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
+        }
+    }
+}
 
     @Inject(method = "canFreeze()Z", at = @At("HEAD"), cancellable = true)
     private void canFreezeIdentity(CallbackInfoReturnable info) {
