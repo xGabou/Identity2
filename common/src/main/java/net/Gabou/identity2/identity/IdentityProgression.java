@@ -94,7 +94,7 @@ public final class IdentityProgression {
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
-    private static final Map<Identifier, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -124,14 +124,14 @@ public final class IdentityProgression {
     }
 
     @Nullable
-    public static Identifier getForcedIdentity() {
+    public static ResourceLocation getForcedIdentity() {
         String forced = IdentitySettings.forcedIdentity;
         if (forced == null || forced.isBlank()) {
             return null;
         }
 
         try {
-            Identifier forcedIdentity = Identifier.parse(forced.trim());
+            ResourceLocation forcedIdentity = ResourceLocation.parse(forced.trim());
             return isMorphableIdentity(forcedIdentity) ? forcedIdentity : null;
         } catch (Exception exception) {
             Identity2.LOGGER.warn("Ignoring invalid forced identity config value: {}", forced, exception);
@@ -195,7 +195,7 @@ public final class IdentityProgression {
         return endTick > 0.0D && player.level().getGameTime() < endTick;
     }
 
-    public static boolean isMorphableIdentity(Identifier identityId) {
+    public static boolean isMorphableIdentity(ResourceLocation identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
         }
@@ -2127,9 +2127,9 @@ public final class IdentityProgression {
             return false;
         }
 
-        Identifier advancementIdentifier;
+        ResourceLocation advancementIdentifier;
         try {
-            advancementIdentifier = Identifier.parse(advancementId.trim());
+            advancementIdentifier = ResourceLocation.parse(advancementId.trim());
         } catch (Exception ignored) {
             return false;
         }
@@ -2158,7 +2158,7 @@ public final class IdentityProgression {
         return completed instanceof Boolean done && done;
     }
 
-    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
+    private static ResourceLocation resolveRegistryResourceLocation(String registryField, Object value) {
         if (registryField == null || registryField.isBlank() || value == null) {
             return null;
         }

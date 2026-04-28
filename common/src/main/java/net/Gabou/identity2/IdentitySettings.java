@@ -63,6 +63,15 @@ public class IdentitySettings {
     //@Comment(value = "Whether Villagers will run from Players morphed as identities villagers normally run from (Zombies).")
     public static boolean villagersRunFromIdentities = true;
 
+    //@Comment(value = "Whether Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
+    public static boolean wolvesAttackIdentityPrey = true;
+
+    //@Comment(value = "Whether owned Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
+    public static boolean ownedWolvesAttackIdentityPrey = false;
+
+    //@Comment(value = "Whether Foxes will attack Players with an identity that the Fox would normally hunt (Fish, Chicken).")
+    public static boolean foxesAttackIdentityPrey = true;
+
     //@Comment(value = "Whether Identity sounds take priority over Player Sounds (eg. Blaze hurt sound when hit).")
     public static boolean useIdentitySounds = true;
 
@@ -95,12 +104,6 @@ public class IdentitySettings {
     public static boolean enableSwaps = true;
     //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
     public final static boolean authStrictOfflineUuidReject = true;
-
-    //@Comment(value = "If true, players who fail the auth challenge are kicked instead of being banned/left in a suspicious state.")
-    public final static boolean authKickOnFailure = true;
-
-    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is treated as failed.")
-    public final static int authChallengeTimeoutTicks = 200;
 
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;

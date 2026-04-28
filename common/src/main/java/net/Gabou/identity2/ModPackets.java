@@ -3,8 +3,7 @@ package net.Gabou.identity2;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
-import net.Gabou.identity2.auth.C2SChallengeReplyPacket;
-import net.Gabou.identity2.auth.S2CChallengePacket;
+import net.Gabou.identity2.auth.C2SLauncherReportPacket;
 import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -81,15 +80,11 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+    public static final ResourceLocation LAUNCHER_REPORT_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
-        "auth_challenge"
+        "launcher_report"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "auth_challenge_reply"
-    );
-    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
     );
@@ -119,16 +114,15 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(UnlockedIdentitySyncS2CPacketPayload.ID, UnlockedIdentitySyncS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(S2CChallengePacket.ID, S2CChallengePacket.CODEC);
         }
 
         NetworkManager.registerReceiver(
             NetworkManager.c2s(),
-            C2SChallengeReplyPacket.ID,
-            C2SChallengeReplyPacket.CODEC,
+            C2SLauncherReportPacket.ID,
+            C2SLauncherReportPacket.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
-                    ServerAuth.handleChallengeReply(player, payload);
+                    ServerAuth.handleLauncherReport(player, payload);
                 }
             })
         );

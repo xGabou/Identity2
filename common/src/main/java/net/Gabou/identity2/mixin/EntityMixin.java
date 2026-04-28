@@ -501,8 +501,6 @@ public class EntityMixin implements EntityAccessor{
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
-            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
                 this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
             }
@@ -677,7 +675,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        Identifier forcedIdentity = null;
+        ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();

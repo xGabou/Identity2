@@ -273,6 +273,28 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     );
 }
 
+@Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
+private void tickMovementIdentity(CallbackInfo info){
+    if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision for player morphs.
+        return;
+    }
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+
+            livingIdentity.setPos(this.position());
+            livingIdentity.setDeltaMovement(this.getDeltaMovement());
+            if(livingIdentity instanceof Mob mobIdentity){
+                mobIdentity.setNoAi(false);
+            }
+            livingIdentity.aiStep();
+            this.setPos(livingIdentity.position());
+            this.setDeltaMovement(livingIdentity.getDeltaMovement());
+            //info.cancel();
+        }
+    }
+}
+
 //getNextAir(underwater,onland) should be added
 @Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
 private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
@@ -304,93 +326,40 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
             info.setReturnValue(livingIdentity.canStandOnFluid(key));
         }
     }
-
-
-    @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)
-    private void tickMovementIdentity(CallbackInfo info) {
-        //if ((Entity)(Object)this instanceof Player) {
-        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
-        //    return;
-        //}
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-
-                livingIdentity.setPos(this.position());
-                livingIdentity.setDeltaMovement(this.getDeltaMovement());
-                if (livingIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(false);
-                }
-                livingIdentity.aiStep();
-                this.setPos(livingIdentity.position());
-                this.setDeltaMovement(livingIdentity.getDeltaMovement());
-                //info.cancel();
-            }
+}
+@Inject(method = "isSensitiveToWater()Z", at=@At("HEAD"),cancellable=true)
+private void hurtByWaterIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isSensitiveToWater());
         }
     }
-
-    //getNextAir(underwater,onland) should be added
-    @Inject(method = "onClimbable()Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity == null) {
-            return;
-        }
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
-            return;
-        }
-        if ((Entity) (Object) this instanceof Player player && player.isSpectator()) {
-            info.setReturnValue(false);
-            return;
-        }
-        info.setReturnValue(this.horizontalCollision);
-    }
-
-    @Inject(method = "canFreeze()Z", at = @At("HEAD"), cancellable = true)
-    private void canFreezeIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canFreeze());
-
+}
+@Inject(method = "isAffectedByPotions()Z", at=@At("HEAD"),cancellable=true)
+private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isAffectedByPotions());
         }
     }
+}
 
-    @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at = @At("HEAD"), cancellable = true)
-    private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canStandOnFluid(key));
-            }
+@Inject(method = "getLastHurtByPlayerMemoryTime()I", at=@At("HEAD"),cancellable=true)
+private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
+    if(this.identityOf!=null){
+        if(this.identityOf instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
         }
     }
-
-    @Inject(method = "isSensitiveToWater()Z", at = @At("HEAD"), cancellable = true)
-    private void hurtByWaterIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isSensitiveToWater());
-            }
-        }
-    }
-
-    @Inject(method = "isAffectedByPotions()Z", at = @At("HEAD"), cancellable = true)
-    private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isAffectedByPotions());
-            }
-        }
-    }
-
-    @Inject(method = "getLastHurtByPlayerMemoryTime()I", at = @At("HEAD"), cancellable = true)
-    private void getPlayerHitTimerIdentity(CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            if (this.identityOf instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
-            }
-        }
-    }
+}
 
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+
+    @Inject(
+            method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
         if ((Object) this instanceof Player player) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
@@ -400,6 +369,7 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
                 info.setReturnValue(true);
                 return;
             }
+
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -409,7 +379,9 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
                 info.setReturnValue(true);
                 return;
             }
+
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+
             if (
                     activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -430,13 +402,16 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
                 info.setReturnValue(true);
                 return;
             }
+
             boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;
             }
+
             return;
         }
+
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(world, source));
@@ -555,20 +530,6 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
             }
         }
     }
-
-
-    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
-    private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                if (livingIdentity.canUseSlot(slot) == false) {
-                    info.setReturnValue(Items.AIR.getDefaultInstance());
-                }
-            }
-        }
-    }
-
-
 @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
 private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
