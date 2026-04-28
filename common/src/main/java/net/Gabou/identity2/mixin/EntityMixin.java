@@ -35,7 +35,6 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.Gabou.identity2.util.AbilitiesAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -389,20 +388,21 @@ public class EntityMixin implements EntityAccessor{
     
 
 
-    public boolean canFly(){
-        if(!this.entityCanFlyEvaluated){
-            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
+    public boolean canFly() {
+        if (!this.entityCanFlyEvaluated) {
+            Entity flightEntity = identity2$getFlightEvaluationEntity();
+            Boolean taggedFlight = IdentityTraitTags.resolveFlight(flightEntity.getType());
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
             } else {
                 try {
-                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(), FALL_METHOD_NAME);
+                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(flightEntity.getClass(), FALL_METHOD_NAME);
                 } catch (Exception ignored) {
                 }
-                if (!this.shouldTickBlockCollision()) {
+                if (flightEntity.isNoGravity()) {
                     this.entityCanFly = true;
                 }
-                if (this.noPhysics) {
+                if (flightEntity.noPhysics) {
                     this.entityCanFly = true;
                 }
             }
@@ -413,7 +413,16 @@ public class EntityMixin implements EntityAccessor{
         }
         return this.entityCanFly;
     }
-        private static String identity2$resolveFallMethodName() {
+
+    @Unique
+    private Entity identity2$getFlightEvaluationEntity() {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null) {
+            return this.currentIdentity;
+        }
+        return (Entity) (Object) this;
+    }
+
+    private static String identity2$resolveFallMethodName() {
         try {
             return EntityMethodChecks.class
                 .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
@@ -442,14 +451,12 @@ public class EntityMixin implements EntityAccessor{
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
-            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+                this.identity2$storedFlyingSpeed = player.getAbilities().getFlyingSpeed();
             }
             float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
-            if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+            if (player.getAbilities().getFlyingSpeed() != configuredFlyingSpeed) {
+                player.getAbilities().setFlyingSpeed(configuredFlyingSpeed);
                 abilitiesChanged = true;
             }
             if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
@@ -469,9 +476,9 @@ public class EntityMixin implements EntityAccessor{
                 player.getAbilities().flying = false;
             }
             if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
+                player.getAbilities().setFlyingSpeed(this.identity2$storedFlyingSpeed);
             } else {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
+                player.getAbilities().setFlyingSpeed(0.05F);
             }
             this.identity2$storedFlyingSpeed = Float.NaN;
             this.identity2$grantedMayfly = false;

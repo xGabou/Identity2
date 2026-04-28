@@ -8,15 +8,12 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.storage.TagValueInput;
-import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.level.storage.ValueInput;
 import org.jetbrains.annotations.Nullable;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 
 final class IdentityMenuRenderHelper {
     private static final float MAX_MOUSE_COMPONENT = 1.0F;
@@ -49,7 +46,7 @@ final class IdentityMenuRenderHelper {
         }
 
         if (variantNbt != null && !variantNbt.isEmpty()) {
-            applyVariantData(living, world, variantNbt);
+            applyVariantData(living, variantNbt);
         }
 
         return living;
@@ -121,14 +118,9 @@ final class IdentityMenuRenderHelper {
         }
     }
 
-    private static void applyVariantData(Entity entity, ClientLevel world, CompoundTag variantNbt) {
+    private static void applyVariantData(Entity entity, CompoundTag variantNbt) {
         try {
-            TagValueOutput writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, world.registryAccess());
-            entity.saveWithoutId(writeView);
-            CompoundTag fullData = writeView.buildResult();
-            fullData.merge(variantNbt.copy());
-            ValueInput readView = TagValueInput.create(ProblemReporter.DISCARDING, world.registryAccess(), fullData);
-            entity.load(readView);
+            IdentityVariantNbtHelper.applyVariantData(entity, variantNbt);
         } catch (Throwable ignored) {
         }
     }

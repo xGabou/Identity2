@@ -1,5 +1,7 @@
 package net.Gabou.identity2.auth;
 
+import dev.architectury.platform.Platform;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,6 +14,10 @@ public final class ClientLauncherGuards {
     }
 
     public static void enforce() {
+        if (Platform.isDevelopmentEnvironment()) {
+            detectedReason = null;
+            return;
+        }
         detectedReason = detectSuspiciousLauncher();
     }
 

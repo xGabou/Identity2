@@ -21,6 +21,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +34,6 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.spongepowered.asm.mixin.Overwrite;
 @Mixin(Player.class)
 public class PlayerEntityMixin extends LivingEntityMixin{
@@ -70,6 +70,9 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         if (!(identity instanceof LivingEntity livingIdentity)) {
             return;
         }
+        if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
+            return;
+        }
 
         livingIdentity.setPos(player.position());
         livingIdentity.setDeltaMovement(player.getDeltaMovement());
@@ -90,36 +93,16 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         ci.cancel();
     }
 
-//    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-//    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
-//        if (((Entity)(Object)this).level().isClientSide()) {
-//            return;
-//        }
-//        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
-//            return;
-//        }
-//        if (livingTarget.isDeadOrDying()) {
-//            return;
-//        }
-//        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
-//            return;
-//        }
-//
-//        EntityType<?> identityType = this.currentIdentity.getType();
-//        if (identityType == EntityType.CAVE_SPIDER) {
-//            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
-//                case HARD -> 300;
-//                case NORMAL -> 140;
-//                default -> 0;
-//            };
-//            if (poisonDuration > 0) {
-//                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
-//            }
-//            return;
-//        }
-//
-//        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
-//            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
-//        }
-//    }
+    @org.spongepowered.asm.mixin.Unique
+    private static boolean identity2$hasAttackDamageAttribute(LivingEntity entity) {
+        if (entity == null) {
+            return false;
+        }
+        try {
+            entity.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
 }
