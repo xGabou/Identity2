@@ -907,7 +907,7 @@ public final class IdentityVariantDiscovery {
                 }
             }
 
-            String name = baseVariant.displayName() + " Baby";
+            String name = "Baby " + baseVariant.displayName();
             out.add(new IdentityVariant(typeId, name, combined));
         }
 
@@ -961,7 +961,7 @@ public final class IdentityVariantDiscovery {
             return List.of();
         }
 
-        return List.of(new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", variant));
+        return List.of(new IdentityVariant(typeId, "Baby " + capitalize(typeId.getPath().replace('_', ' ')), variant));
     }
 
     private static String buildGenericDisplayName(ResourceLocation typeId, String key, int value) {

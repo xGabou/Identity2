@@ -11,8 +11,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.Gabou.identity2.util.EntityNbtIoCompat;
 import org.jetbrains.annotations.Nullable;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 
 final class IdentityMenuRenderHelper {
     private static final float MAX_MOUSE_COMPONENT = 1.0F;
@@ -45,7 +45,7 @@ final class IdentityMenuRenderHelper {
         }
 
         if (variantNbt != null && !variantNbt.isEmpty()) {
-            applyVariantData(living, world, variantNbt);
+            applyVariantData(living, variantNbt);
         }
 
         return living;
@@ -117,11 +117,9 @@ final class IdentityMenuRenderHelper {
         }
     }
 
-    private static void applyVariantData(Entity entity, ClientLevel world, CompoundTag variantNbt) {
+    private static void applyVariantData(Entity entity, CompoundTag variantNbt) {
         try {
-            CompoundTag fullData = EntityNbtIoCompat.saveWithoutId(entity);
-            fullData.merge(variantNbt.copy());
-            EntityNbtIoCompat.load(entity, fullData, world.registryAccess());
+            IdentityVariantNbtHelper.applyVariantData(entity, variantNbt);
         } catch (Throwable ignored) {
         }
     }
