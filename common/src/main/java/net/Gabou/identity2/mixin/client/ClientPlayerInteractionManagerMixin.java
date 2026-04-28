@@ -1,7 +1,6 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.ModRegistries;
-import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -9,7 +8,6 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
@@ -24,38 +22,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-//    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true, require = 0)
-//    private void forceFlyIdentitySpectator(CallbackInfoReturnable<Boolean> info) {
-//        if (identity2$hasFlyIdentity()) {
-//            // 1.21.11 path: do not treat fly-capable identities as spectator-only behavior.
-//            info.setReturnValue(false);
-//        }
-//    }
-
-    @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true, require = 0)
-    private void forceFlyIdentityAlwaysFlying(CallbackInfoReturnable<Boolean> info) {
-        // Do not force always-flying for morph flight. Keep vanilla toggle behavior
-        // so players can exit flight after changing gamemode or morph state.
-    }
-
-    private static boolean identity2$hasFlyIdentity() {
-        Player player = Minecraft.getInstance().player;
-        if (player == null) {
-            return false;
-        }
-
-        if (!IdentitySettings.enableFlight) {
-            return;
-        }
-
-        if (player.isSpectator()) {
-            return false;
-        }
-
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        return identity != null && ((EntityAccessor) identity).canFly();
-    }
-
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void onAttackEntity(Player player, Entity target, CallbackInfo info) {
         Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
