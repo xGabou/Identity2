@@ -699,7 +699,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        Identifier forcedIdentity = null;
+        ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();
