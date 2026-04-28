@@ -253,7 +253,9 @@ public class EntityMixin implements EntityAccessor{
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
-                this.currentIdentity.tick();
+                if (!(hostIsPlayer && ((EntityAccessor) this.currentIdentity).canFly())) {
+                    this.currentIdentity.tick();
+                }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
