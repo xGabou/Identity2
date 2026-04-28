@@ -46,7 +46,7 @@ public class ClientPlayerInteractionManagerMixin {
         }
 
         if (!IdentitySettings.enableFlight) {
-            return;
+            return false;
         }
 
         if (player.isSpectator()) {

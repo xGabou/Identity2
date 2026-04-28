@@ -953,7 +953,7 @@ public final class IdentityProgression {
         } catch (RuntimeException exception) {
             Identity2.LOGGER.error(
                     "Failed to serialize unlocked identity payload for player={} uuid={} entityId={} payload={}",
-                    player.getGameProfile().name(),
+                    player.getGameProfile().getName(),
                     player.getUUID(),
                     player.getId(),
                     payload,
@@ -971,7 +971,7 @@ public final class IdentityProgression {
     }
 
     public static void logOversizedIdentityPayload(ServerPlayer player, UnlockedIdentitySyncS2CPacketPayload payload, int serializedSize, String reason) {
-        String playerName = player.getGameProfile().name();
+        String playerName = player.getGameProfile().getName();
         String playerUuid = player.getUUID().toString();
         int identityCount = payload.unlockedIdentityIds() == null ? 0 : payload.unlockedIdentityIds().size();
         int variantCount = payload.unlockedVariantEntries() == null ? 0 : payload.unlockedVariantEntries().size();

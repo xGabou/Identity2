@@ -26,7 +26,7 @@ public final class ServerAuth {
         if (Platform.isDevelopmentEnvironment()) {
             Identity2.LOGGER.info(
                     "Skipping launcher/auth checks for {} because the game is running in a development environment.",
-                    player.getGameProfile().name()
+                    player.getGameProfile().getName()
             );
             return true;
         }

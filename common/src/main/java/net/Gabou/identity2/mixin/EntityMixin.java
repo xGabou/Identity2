@@ -1136,6 +1136,33 @@ public class EntityMixin implements EntityAccessor{
         return null;
     }
 
+    private static Object identity2$invokeTwoArgs(Object target, String methodName, Object firstArg, Object secondArg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 2) {
+                continue;
+            }
+            Class<?>[] params = method.getParameterTypes();
+            if (firstArg != null && !identity2$isAssignable(params[0], firstArg.getClass())) {
+                continue;
+            }
+            if (secondArg != null && !identity2$isAssignable(params[1], secondArg.getClass())) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, firstArg, secondArg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
     private static Object identity2$invokeIntArg(Object target, String methodName, int value) {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
