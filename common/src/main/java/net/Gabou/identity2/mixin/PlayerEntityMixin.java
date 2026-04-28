@@ -22,6 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -72,6 +73,9 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         Entity identity = getCurrentIdentity();
         if (identity == null) return;
         if (identity instanceof LivingEntity livingIdentity) {
+            if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
+                return;
+            }
 
             // Optional guard so it only triggers when the player actually hit something
             if (target instanceof LivingEntity livingTarget) {
@@ -88,6 +92,19 @@ public class PlayerEntityMixin extends LivingEntityMixin {
             }
 
             livingIdentity.doHurtTarget(level, target);
+        }
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private static boolean identity2$hasAttackDamageAttribute(LivingEntity entity) {
+        if (entity == null) {
+            return false;
+        }
+        try {
+            entity.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
         }
     }
 }

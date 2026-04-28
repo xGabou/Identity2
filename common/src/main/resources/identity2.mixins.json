@@ -7,7 +7,6 @@
   "client": [
     "client.ClientWorldMixin",
     "client.CreativeModeInventoryScreenMixin",
-    "client.EntityRenderDispatcherMixin",
     "client.EntityRendererMixin",
     "client.GameRendererMixin",
     "client.MinecraftClientMixin",
@@ -49,11 +48,8 @@
     "ShulkerEntityMixin",
     "TargetPredicateMixin",
     "TypeFilterableListMixin",
-    "WorldBorderMixin",
-    "WorldBorderMixin$SettingsMixin",
     "WorldMixin",
-    "ZombieEntityMixin",
-    "net.Gabou.identity2.util.AbilitiesAccessor"
+    "ZombieEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
