@@ -1511,6 +1511,20 @@ private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, 
     }
 }
 
+@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
+private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir){
+    if (!((Entity) (Object) this instanceof Player)) {
+        return;
+    }
+    if (this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> type = this.currentIdentity.getType();
+    if (type == EntityType.CAMEL || type == EntityType.DONKEY) {
+        cir.setReturnValue(false);
+    }
+}
+
 @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
 private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
     if(((Entity)(Object)this) instanceof Player){

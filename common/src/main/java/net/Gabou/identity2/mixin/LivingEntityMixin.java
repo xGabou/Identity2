@@ -428,6 +428,24 @@ private void identity2$playAmbientSound(CallbackInfo info) {
 
             if (
                     activeIdentity != null
+                            && activeIdentity.getType() == EntityType.ENDER_DRAGON
+                            && (source.is(DamageTypes.DRAGON_BREATH) || identity2$isOwnDragonBreathCloud(player, source))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
+                            && identity2$isMorphFireImmune(activeIdentity)
+                            && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
                             && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
             ) {
