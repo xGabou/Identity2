@@ -43,6 +43,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -191,7 +192,10 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         if (!((Entity) (Object) this instanceof Player)) {
             return;
         }
-        if (this.currentIdentity != null && ((EntityAccessor) this.currentIdentity).canFly()) {
+        if (this.currentIdentity != null && (((EntityAccessor) this.currentIdentity).canFly()
+                || this.currentIdentity.getType() == EntityType.CHICKEN
+                || this.currentIdentity.getType() == EntityType.CAT
+                || IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType()))) {
             cir.setReturnValue(false);
         }
     }
@@ -412,6 +416,24 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
             if (
                     activeIdentity != null
+                            && activeIdentity.getType() == EntityType.ENDER_DRAGON
+                            && (source.is(DamageTypes.DRAGON_BREATH) || identity2$isOwnDragonBreathCloud(player, source))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
+                            && identity2$isMorphFireImmune(activeIdentity)
+                            && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
                             && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
             ) {
@@ -424,6 +446,7 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
                             && identity2$isFallDamage(source)
                             && (
                             activeIdentity.getType() == EntityType.CHICKEN
+                                    || activeIdentity.getType() == EntityType.CAT
                                     || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
                     )
             ) {
@@ -489,6 +512,23 @@ private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidStat
         }
         String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
         return normalized.equals("fall");
+    }
+
+    @Unique
+    private static boolean identity2$isMorphFireImmune(Entity activeIdentity) {
+        return activeIdentity != null && activeIdentity.fireImmune();
+    }
+
+    @Unique
+    private static boolean identity2$isOwnDragonBreathCloud(Player player, DamageSource source) {
+        if (player == null || source == null) {
+            return false;
+        }
+        Entity direct = source.getDirectEntity();
+        if (!(direct instanceof AreaEffectCloud cloud)) {
+            return false;
+        }
+        return cloud.getOwner() == player || source.getEntity() == player;
     }
 
     private static boolean identity2$isWallCollisionDamage(DamageSource source) {
