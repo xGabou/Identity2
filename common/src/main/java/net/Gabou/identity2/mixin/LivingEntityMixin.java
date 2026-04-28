@@ -275,10 +275,10 @@ private void identity2$playAmbientSound(CallbackInfo info) {
 
 @Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
 private void tickMovementIdentity(CallbackInfo info){
-    //if ((Entity)(Object)this instanceof Player) {
-        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
-    //    return;
-    //}
+    if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision for player morphs.
+        return;
+    }
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
 
