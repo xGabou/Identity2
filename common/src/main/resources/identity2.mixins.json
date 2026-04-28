@@ -43,6 +43,7 @@
     "EntityTrackingSectionMixin",
     "LivingEntityMixin",
     "TargetPredicateMixin",
+    "AbstractArrowMixin",
     "AttributeContainerMixin",
     "DefaultAttributeContainerMixin",
     "RegistriesMixin",

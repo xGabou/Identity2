@@ -344,6 +344,18 @@ public final class PredefIdentityAbilities {
             }
         });
 
+        map.put(ResourceLocation.parse("armadillo"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+                boolean shellActive = !nbt.getBooleanOr("identity2.armadillo_shell", false);
+                IdentityApi.syncBoolean(serverPlayer, "identity2.armadillo_shell", shellActive);
+            }
+        });
+
         map.put(ResourceLocation.parse("cow"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {

@@ -35,6 +35,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.EnderDragonEntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.IdentitySettings;
@@ -56,11 +57,13 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
@@ -253,13 +256,17 @@ public class EntityMixin implements EntityAccessor{
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
+            identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
+            identity2$applySyncedMorphState(this.currentIdentity);
             if(
                 (this.currentIdentity instanceof LivingEntity livingIdentity)&&
                 ((Entity)(Object)this instanceof LivingEntity livingEntity)
             ){
             livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(!this.currentIdentity.level().isClientSide()){
+            if(this.currentIdentity.level().isClientSide()){
+                this.currentIdentity.tick();
+            } else {
                 if(this.currentIdentity instanceof Mob mobIdentity){
                     mobIdentity.setNoAi(true);
                 }
@@ -295,6 +302,10 @@ public class EntityMixin implements EntityAccessor{
                 this.setAirSupply(this.currentIdentity.getAirSupply());
             }
 
+            if (hostIsPlayer && (Entity) (Object) this instanceof Player playerHost) {
+                identity2$applyMorphSpecificPlayerTraits(playerHost);
+            }
+
             identity2$applyWardenEffects((Entity) (Object) this);
 
             if (
@@ -309,6 +320,68 @@ public class EntityMixin implements EntityAccessor{
 
         }
 	}
+    @Unique
+    private static void identity2$syncIdentityEquipmentFromHost(Entity host, Entity identity) {
+        if (!(host instanceof LivingEntity livingHost) || !(identity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot));
+        }
+    }
+
+    @Unique
+    private void identity2$applySyncedMorphState(Entity identity) {
+        if (identity instanceof Armadillo armadillo) {
+            boolean shellActive = ((NbtComponentAccessor) (Object) this.customData).getNbt().getBooleanOr("identity2.armadillo_shell", false);
+            if (shellActive) {
+                armadillo.rollUp();
+            } else {
+                armadillo.rollOut();
+            }
+        }
+    }
+
+    @Unique
+    private void identity2$applyMorphSpecificPlayerTraits(Player player) {
+        Entity activeIdentity = this.currentIdentity;
+        if (activeIdentity == null || player.level().isClientSide()) {
+            if (this.identity2$morphSunBurning) {
+                player.clearFire();
+                this.identity2$morphSunBurning = false;
+            }
+            return;
+        }
+
+        if (activeIdentity.getType() == EntityType.DOLPHIN && player.isInWater()) {
+            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
+        }
+
+        if (activeIdentity instanceof EnderDragon dragonIdentity && player.level() instanceof ServerLevel serverLevel) {
+            ((EnderDragonEntityAccessor) dragonIdentity).runTickWithEndCrystals();
+            identity2$invokeTwoArgs(dragonIdentity, "checkWalls", serverLevel, dragonIdentity.getBoundingBox());
+            if (dragonIdentity.getHealth() > player.getHealth()) {
+                player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
+            }
+        }
+
+        boolean sunBurnTick = false;
+        Object value = identity2$invokeNoArg(activeIdentity, "isSunBurnTick");
+        if (value instanceof Boolean bool) {
+            sunBurnTick = bool;
+        }
+
+        if (sunBurnTick) {
+            player.igniteForSeconds(8.0F);
+            if (player.tickCount % 20 == 0 && player.level() instanceof ServerLevel serverLevel) {
+                player.hurtServer(serverLevel, player.damageSources().onFire(), 1.0F);
+            }
+            this.identity2$morphSunBurning = true;
+        } else if (this.identity2$morphSunBurning) {
+            player.clearFire();
+            this.identity2$morphSunBurning = false;
+        }
+    }
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
@@ -389,6 +462,7 @@ public class EntityMixin implements EntityAccessor{
     public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
     private float identity2$storedFlyingSpeed = Float.NaN;
+    private boolean identity2$morphSunBurning = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
@@ -762,6 +836,9 @@ public class EntityMixin implements EntityAccessor{
         if (hasBabyFlag) {
             boolean baby = net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "IsBaby", net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "Baby", false));
             identity2$invokeOneArg(identityEntity, "setBaby", baby);
+        } else {
+            identity2$invokeOneArg(identityEntity, "setBaby", false);
+            identity2$invokeIntArg(identityEntity, "setAge", 0);
         }
         if (variantNbt.contains("Age", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
             int age = variantNbt.getInt("Age");
@@ -1416,6 +1493,20 @@ private void identity2$forwardLerpTo(
             } catch (Exception ignored) {}
         }
     }
+
+@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
+private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir){
+    if (!((Entity) (Object) this instanceof Player)) {
+        return;
+    }
+    if (this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> type = this.currentIdentity.getType();
+    if (type == EntityType.CAMEL || type == EntityType.DONKEY) {
+        cir.setReturnValue(false);
+    }
+}
 
 @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
 private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){

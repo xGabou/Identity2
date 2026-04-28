@@ -116,6 +116,4 @@ public class EntityRendererMixin {
         }
         snapshots.clear();
     }
-
-
 }
