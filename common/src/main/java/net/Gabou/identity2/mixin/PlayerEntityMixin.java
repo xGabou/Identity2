@@ -19,6 +19,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -33,7 +34,6 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.spongepowered.asm.mixin.Overwrite;
 @Mixin(Player.class)
 public class PlayerEntityMixin extends LivingEntityMixin{
@@ -70,6 +70,9 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         if (!(identity instanceof LivingEntity livingIdentity)) {
             return;
         }
+        if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
+            return;
+        }
 
         livingIdentity.setPos(player.position());
         livingIdentity.setDeltaMovement(player.getDeltaMovement());
@@ -90,36 +93,17 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         ci.cancel();
     }
 
-//    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-//    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
-//        if (((Entity)(Object)this).level().isClientSide()) {
-//            return;
-//        }
-//        if (!(target instanceof LivingEntity livingTarget)) {
-//            return;
-//        }
-//        if (livingTarget.getLastHurtByMob() != player) {
-//            return;
-//        }
-//        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-//        if (identity == null) {
-//            return;
-//        }
-//        if (identity.getType() == EntityType.CAVE_SPIDER) {
-//            int duration = 0;
-//            if (player.level().getDifficulty() == Difficulty.NORMAL) {
-//                duration = 140;
-//            } else if (player.level().getDifficulty() == Difficulty.HARD) {
-//                duration = 300;
-//            }
-//            if (duration > 0) {
-//                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, duration, 0), player);
-//            }
-//            return;
-//        }
-//        if (identity.getType() == EntityType.WITHER_SKELETON && player.level().getDifficulty() != Difficulty.PEACEFUL) {
-//            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200, 0), player);
-//        }
-//    }
+    @org.spongepowered.asm.mixin.Unique
+    private static boolean identity2$hasAttackDamageAttribute(LivingEntity entity) {
+        if (entity == null) {
+            return false;
+        }
+        try {
+            entity.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
 }
 

@@ -143,8 +143,25 @@ public final class IdentityVariantNbtHelper {
             return;
         }
         CompoundTag merged = current.copy();
-        merged.merge(variantNbt.copy());
+        CompoundTag safeVariant = variantNbt.copy();
+        if (identity2$isBabyVariant(safeVariant) && !safeVariant.contains("Age")) {
+            safeVariant.putInt("Age", -24000);
+        }
+        merged.merge(safeVariant);
         loadEntityData(entity, merged);
+    }
+
+    private static boolean identity2$isBabyVariant(CompoundTag variantNbt) {
+        if (variantNbt == null || variantNbt.isEmpty()) {
+            return false;
+        }
+        if (variantNbt.getBoolean("IsBaby").isPresent() && variantNbt.getBooleanOr("IsBaby", false)) {
+            return true;
+        }
+        if (variantNbt.getBoolean("Baby").isPresent() && variantNbt.getBooleanOr("Baby", false)) {
+            return true;
+        }
+        return variantNbt.getInt("Age").isPresent() && variantNbt.getInt("Age").get() < 0;
     }
 
     private static boolean isIgnoredRootKey(String key) {
