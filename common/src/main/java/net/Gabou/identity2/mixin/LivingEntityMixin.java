@@ -198,7 +198,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "causeFallDamage(FFLnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true, require = 0)
     private void identity2$disableFallDamageForFlyingMorphs(float distance, float damageMultiplier, DamageSource source, CallbackInfoReturnable<Boolean> cir) {
         if (!((Entity) (Object) this instanceof Player)) {
             return;
@@ -349,7 +349,7 @@ private void identity2$playAmbientSound(CallbackInfo info) {
         }
     }
 
-    @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at = @At("HEAD"), cancellable = true, require = 0)
     private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key, CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
@@ -376,7 +376,7 @@ private void identity2$playAmbientSound(CallbackInfo info) {
         }
     }
 
-    @Inject(method = "getLastHurtByMobTimestamp", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getLastHurtByMobTimestamp()I", at = @At("HEAD"), cancellable = true, require = 0)
     private void identity2$getLastHurtTimestamp(CallbackInfoReturnable<Integer> cir) {
         if (this.identityOf instanceof LivingEntity livingIdentity) {
             cir.setReturnValue(livingIdentity.getLastHurtByMobTimestamp());
@@ -564,24 +564,24 @@ private void identity2$playAmbientSound(CallbackInfo info) {
         }
     }
 
-@Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
-private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-                return;
-            }
-            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-                return;
-            }
-            if(livingIdentity.canUseSlot(slot)==false){
-                info.setReturnValue(Items.AIR.getDefaultInstance());
+    @Unique
+    protected void identity2$filterEquippedStack(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> info) {
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+                    info.setReturnValue(Items.AIR.getDefaultInstance());
+                    return;
+                }
+                if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+                    info.setReturnValue(Items.AIR.getDefaultInstance());
+                    return;
+                }
+                if (!livingIdentity.canUseSlot(slot)) {
+                    info.setReturnValue(Items.AIR.getDefaultInstance());
+                }
             }
         }
     }
-}
 @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
 private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
     if(this.currentIdentity!=null){

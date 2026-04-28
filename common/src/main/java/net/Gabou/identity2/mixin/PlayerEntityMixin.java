@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -23,6 +24,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.item.ItemStack;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.tree.CommandNode;
@@ -36,6 +38,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.spongepowered.asm.mixin.Overwrite;
 @Mixin(Player.class)
 public class PlayerEntityMixin extends LivingEntityMixin{
+    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
+    private void identity2$getItemBySlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> info) {
+        identity2$filterEquippedStack(slot, info);
+    }
+
     @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
     private static double TDIOA(double x){
         return Identity2.maxWorldSize-1;
@@ -57,7 +64,9 @@ public class PlayerEntityMixin extends LivingEntityMixin{
 	}
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void identity2$attackAsIdentityWhenUnarmed(Entity target, CallbackInfo ci) {
-        Player player = (Player) (Object) this;
+        if (!((Object) this instanceof Player player)) {
+            return;
+        }
         if (player.level().isClientSide()) {
             return;
         }

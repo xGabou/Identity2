@@ -148,7 +148,6 @@ public class EntityMixin implements EntityAccessor{
                 //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
                     this.canFly();
                 }
-            this.identityOf.noPhysics=this.noPhysics;
         }
     }
     @Inject(method = "isInWall", at=@At("HEAD"),cancellable = true)
@@ -262,7 +261,7 @@ public class EntityMixin implements EntityAccessor{
             }
             if(!this.currentIdentity.level().isClientSide()){
                 if(this.currentIdentity instanceof Mob mobIdentity){
-                    mobIdentity.setNoAi(true);
+                    mobIdentity.setNoAi(false);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();

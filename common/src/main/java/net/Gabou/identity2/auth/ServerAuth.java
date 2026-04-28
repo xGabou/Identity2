@@ -3,6 +3,7 @@ package net.Gabou.identity2.auth;
 import java.util.Map;
 import java.util.UUID;
 import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.network.Connection;
@@ -21,6 +22,14 @@ public final class ServerAuth {
         }
 
         PendingAuthManager.clear(player);
+
+        if (Platform.isDevelopmentEnvironment()) {
+            Identity2.LOGGER.info(
+                "Skipping launcher/auth checks for {} because the game is running in a development environment.",
+                player.getGameProfile().getName()
+            );
+            return true;
+        }
 
         if (player.getUUID() != null && player.getUUID().version() == 3 && IdentitySettings.authStrictOfflineUuidReject) {
             Identity2.LOGGER.warn(
@@ -86,6 +95,11 @@ public final class ServerAuth {
 
     public static void handleChallengeReply(ServerPlayer player, C2SChallengeReplyPacket packet) {
         if (player == null || packet == null) {
+            return;
+        }
+
+        if (Platform.isDevelopmentEnvironment()) {
+            PendingAuthManager.clear(player);
             return;
         }
 

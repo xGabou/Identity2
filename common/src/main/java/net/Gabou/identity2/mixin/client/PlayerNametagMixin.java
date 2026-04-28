@@ -14,7 +14,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PlayerNametagMixin {
     @Inject(method = "shouldShowName()Z", at = @At("HEAD"), cancellable = true, require = 0)
     private void identity2$hideIdentityNametag(CallbackInfoReturnable<Boolean> cir) {
-        Player player = (Player) (Object) this;
+        if (!((Object) this instanceof Player player)) {
+            return;
+        }
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity == null) {
             return;
