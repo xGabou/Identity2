@@ -14,7 +14,6 @@
 		"EnderDragonEntityRendererMixin",
 		"ClientPlayerInteractionManagerMixin",
 		"ClientPlayNetworkHandlerMixin",
-		"PlayerMixin",
 		"YggdrasilAuthenticationServiceMixin",
 		"EntityTrackerEntryMixin",
 		"WorldRendererMixin"

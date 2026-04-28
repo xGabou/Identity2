@@ -16,7 +16,6 @@
     "client.EnderDragonEntityRendererMixin",
     "client.ClientPlayerInteractionManagerMixin",
     "client.ClientPlayNetworkHandlerMixin",
-    "client.PlayerMixin",
     "client.PlayerNametagMixin",
     "EntityTrackerEntryMixin",
     "client.WorldRendererMixin"
