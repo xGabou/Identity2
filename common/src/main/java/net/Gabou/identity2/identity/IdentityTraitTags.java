@@ -17,6 +17,11 @@ public final class IdentityTraitTags {
         ResourceLocation.fromNamespaceAndPath("identity2", "can_fly")
     );
 
+    public static final TagKey<EntityType<?>> CANNOT_FLY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "cannot_fly")
+    );
+
     public static final TagKey<EntityType<?>> VANILLA_CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
         ResourceLocation.fromNamespaceAndPath("minecraft", "can_fly")
@@ -37,6 +42,46 @@ public final class IdentityTraitTags {
         ResourceLocation.fromNamespaceAndPath("identity2", "slow_falling")
     );
 
+    public static final TagKey<EntityType<?>> HOSTILE_IGNORE_TARGETING = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "hostile_ignore_targeting")
+    );
+
+    public static final TagKey<EntityType<?>> INVALID_MORPH_MOUNT = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "invalid_morph_mount")
+    );
+
+    public static final TagKey<EntityType<?>> HIGH_JUMP_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "high_jump_ability")
+    );
+
+    public static final TagKey<EntityType<?>> SECONDARY_HIGH_JUMP_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "secondary_high_jump_ability")
+    );
+
+    public static final TagKey<EntityType<?>> RAM_ATTACK_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "ram_attack_ability")
+    );
+
+    public static final TagKey<EntityType<?>> ROLL_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "roll_ability")
+    );
+
+    public static final TagKey<EntityType<?>> DEFENSIVE_PUFF_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "defensive_puff_ability")
+    );
+
+    public static final TagKey<EntityType<?>> MELEE_IGNITES_TARGET = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "melee_ignites_target")
+    );
+
     private IdentityTraitTags() {
     }
 
@@ -51,9 +96,13 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_FLY), tagId(VANILLA_CAN_FLY));
+        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CANNOT_FLY), tagId(CAN_FLY), tagId(VANILLA_CAN_FLY));
         if (assignmentOverride != null) {
             return assignmentOverride;
+        }
+
+        if (type.is(CANNOT_FLY)) {
+            return Boolean.FALSE;
         }
 
         if (containsTypeId(nullToEmpty(IdentitySettings.removedFlyingEntities), typeId)) {
@@ -98,19 +147,19 @@ public final class IdentityTraitTags {
         return type.is(CAN_BREATHE_UNDERWATER) || type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
     }
 
-//    public static boolean burnsInDaylight(EntityType<?> type) {
-//        if (type == null) {
-//            return false;
-//        }
-//        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-//        if (typeId != null) {
-//            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
-//            if (assignmentOverride != null) {
-//                return assignmentOverride;
-//            }
-//        }
-//        return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
-//    }
+    public static boolean burnsInDaylight(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (typeId != null) {
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT));
+            if (assignmentOverride != null) {
+                return assignmentOverride;
+            }
+        }
+        return type.is(BURNS_IN_DAYLIGHT);
+    }
 
     public static boolean hasSlowFalling(EntityType<?> type) {
         if (type == null) {
@@ -124,6 +173,44 @@ public final class IdentityTraitTags {
             }
         }
         return type.is(SLOW_FALLING);
+    }
+
+    public static boolean hostileIgnoresTargeting(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        return type.is(HOSTILE_IGNORE_TARGETING);
+    }
+
+    public static boolean preventsInvalidMorphMounting(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        return type.is(INVALID_MORPH_MOUNT);
+    }
+
+    public static boolean hasHighJumpAbility(EntityType<?> type) {
+        return type != null && type.is(HIGH_JUMP_ABILITY);
+    }
+
+    public static boolean hasSecondaryHighJumpAbility(EntityType<?> type) {
+        return type != null && type.is(SECONDARY_HIGH_JUMP_ABILITY);
+    }
+
+    public static boolean hasRamAttackAbility(EntityType<?> type) {
+        return type != null && type.is(RAM_ATTACK_ABILITY);
+    }
+
+    public static boolean hasRollAbility(EntityType<?> type) {
+        return type != null && type.is(ROLL_ABILITY);
+    }
+
+    public static boolean hasDefensivePuffAbility(EntityType<?> type) {
+        return type != null && type.is(DEFENSIVE_PUFF_ABILITY);
+    }
+
+    public static boolean ignitesTargetsOnMelee(EntityType<?> type) {
+        return type != null && type.is(MELEE_IGNITES_TARGET);
     }
 
     @Nullable
