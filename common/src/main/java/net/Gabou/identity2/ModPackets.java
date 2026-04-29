@@ -47,49 +47,49 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class ModPackets {
-    public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
-    public static final Identifier CUSTOM_DOUBLE_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_double");
-    public static final Identifier CUSTOM_BOOL_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_bool");
-    public static final Identifier MORPH_ACQUISITION_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
-    public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
-    public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
-    public static final Identifier IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation CUSTOM_STRING_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_string");
+    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_double");
+    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_bool");
+    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "morph_acquisition");
+    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "entity_ability");
+    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_morph_request");
+    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
     );
-    public static final Identifier OPEN_PROGRESSION_SCREEN_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "open_progression_screen"
     );
-    public static final Identifier PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_charge_sync_request"
     );
-    public static final Identifier PROGRESSION_JAR_SELECT_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_select"
     );
-    public static final Identifier PROGRESSION_JAR_TRANSFER_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_transfer"
     );
-    public static final Identifier PROGRESSION_PLAYER_CHARGES_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_player_charges"
     );
-    public static final Identifier PROGRESSION_JAR_STATE_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final Identifier AUTH_CHALLENGE_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "auth_challenge"
     );
-    public static final Identifier AUTH_CHALLENGE_REPLY_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );
-    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
     );

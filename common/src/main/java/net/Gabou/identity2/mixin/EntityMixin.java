@@ -666,7 +666,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        Identifier forcedIdentity = null;
+        ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();
@@ -687,7 +687,8 @@ public class EntityMixin implements EntityAccessor {
             nbtCompound = new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty() && forcedIdentity == null) {
-            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            CompoundTag hostData = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+            String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(hostData, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
