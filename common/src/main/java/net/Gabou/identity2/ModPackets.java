@@ -1,6 +1,8 @@
 package net.Gabou.identity2;
 
 import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.Gabou.identity2.auth.C2SChallengeReplyPacket;
 import net.Gabou.identity2.auth.S2CChallengePacket;
 import net.Gabou.identity2.auth.ServerAuth;
@@ -9,6 +11,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
@@ -17,9 +20,9 @@ import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
 import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
-import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
@@ -43,52 +46,55 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ModPackets {
-    public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
-    public static final Identifier CUSTOM_DOUBLE_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_double");
-    public static final Identifier CUSTOM_BOOL_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_bool");
-    public static final Identifier MORPH_ACQUISITION_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
-    public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
-    public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
-    public static final Identifier IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation CUSTOM_STRING_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_string");
+    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_double");
+    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_bool");
+    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "morph_acquisition");
+    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "entity_ability");
+    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_morph_request");
+    public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "unlock_sync");
+    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
     );
-    public static final Identifier OPEN_PROGRESSION_SCREEN_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "open_progression_screen"
     );
-    public static final Identifier PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_charge_sync_request"
     );
-    public static final Identifier PROGRESSION_JAR_SELECT_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_select"
     );
-    public static final Identifier PROGRESSION_JAR_TRANSFER_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_transfer"
     );
-    public static final Identifier PROGRESSION_PLAYER_CHARGES_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_player_charges"
     );
-    public static final Identifier PROGRESSION_JAR_STATE_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final Identifier AUTH_CHALLENGE_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "auth_challenge"
     );
-    public static final Identifier AUTH_CHALLENGE_REPLY_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );
-    public static final Identifier UNLOCKED_IDENTITY_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(
+    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
     );
@@ -98,6 +104,8 @@ public final class ModPackets {
     public static final int ABILITY_ACTION_PASSIVE = -1;
     public static final int ABILITY_ACTION_PASSIVE_USED = -2;
 
+    private static final Set<String> loggedResolvedPredefDebug = ConcurrentHashMap.newKeySet();
+    private static final Set<String> loggedMissingPredefWarnings = ConcurrentHashMap.newKeySet();
     private static boolean initialized = false;
 
     private ModPackets() {
@@ -110,18 +118,9 @@ public final class ModPackets {
         initialized = true;
 
         if (Platform.getEnvironment() == Env.SERVER) {
-            NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(UnlockedIdentitySyncS2CPacketPayload.ID, UnlockedIdentitySyncS2CPacketPayload.CODEC);
-            NetworkManager.registerS2CPayloadType(S2CChallengePacket.ID, S2CChallengePacket.CODEC);
         }
 
-        NetworkManager.registerReceiver(
+        NetworkCompat.registerReceiver(
             NetworkManager.c2s(),
             C2SChallengeReplyPacket.ID,
             C2SChallengeReplyPacket::decode,
@@ -288,23 +287,49 @@ public final class ModPackets {
 
         BuiltinIdentityAbility exact = PredefIdentityAbilities.predef.get(prebuilt);
         if (exact != null) {
+            logResolvedPredef(identityTypeId, prebuilt, prebuilt);
             return exact;
         }
 
         ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
         BuiltinIdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
+            logResolvedPredef(identityTypeId, prebuilt, minecraftAlias);
             return minecraft;
         }
 
-        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(
-            new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath())
-        );
+        ResourceLocation identity2AliasId = new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath());
+        BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(identity2AliasId);
         if (identity2Alias != null) {
+            logResolvedPredef(identityTypeId, prebuilt, identity2AliasId);
             return identity2Alias;
         }
 
+        logMissingPredef(identityTypeId, prebuilt);
         return PredefIdentityAbilities.resolveFallbackAbility(identityTypeId);
+    }
+
+    private static void logResolvedPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId, ResourceLocation resolvedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId + "->" + resolvedPredefId;
+        if (loggedResolvedPredefDebug.add(key)) {
+            Identity2.LOGGER.debug(
+                "Resolved builtin identity ability for {} using predef {} via {}.",
+                identityTypeId,
+                requestedPredefId,
+                resolvedPredefId
+            );
+        }
+    }
+
+    private static void logMissingPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId) {
+        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId;
+        if (loggedMissingPredefWarnings.add(key)) {
+            Identity2.LOGGER.warn(
+                "No builtin identity ability is registered for predef {} while resolving {}. Falling back to the generic identity ability.",
+                requestedPredefId,
+                identityTypeId
+            );
+        }
     }
 
     private static void handleMorphRequestPacket(ServerPlayer player, IdentityMorphRequestC2SPacketPayload payload) {

@@ -10,10 +10,9 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.identity2.auth.ClientAuth;
 import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.S2CChallengePacket;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
+import net.Gabou.identity2.ModNetworking;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -22,9 +21,10 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
-import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
@@ -60,8 +60,10 @@ import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -134,9 +136,12 @@ public final class Identity2Client {
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
-    private static final ArrayList<UnlockedIdentitySyncS2CPacketPayload> pendingUnlockedIdentityPackets = new ArrayList<>(0);
+    private static final ArrayList<IdentityUnlockSyncS2CPacketPayload> pendingUnlockSyncPackets = new ArrayList<>(0);
+    private static final Set<ResourceLocation> clientUnlockedIdentityIds = new LinkedHashSet<>();
+    private static final Map<ResourceLocation, Set<String>> clientUnlockedVariantTokens = new LinkedHashMap<>();
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
+    private static long identity2$lastSkinPacketLogMs = 0L;
 
     static {
         addVisualPatch((identity, entity) -> {
@@ -144,7 +149,7 @@ public final class Identity2Client {
                 identity2$syncEnderDragonVisualState(dragonIdentity, entity);
             }
             return identity;
-        }, ResourceLocation.tryParse("minecraft:ender_dragon"));
+        }, new ResourceLocation("minecraft", "ender_dragon"));
     }
 
     private static void identity2$syncEnderDragonVisualState(EnderDragon dragonIdentity, Entity source) {
@@ -215,6 +220,8 @@ public final class Identity2Client {
             platform.logClientRegistries();
         }
 
+        ModNetworking.initClient();
+
         NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityDataS2CPacketPayload.ID,
@@ -232,10 +239,10 @@ public final class Identity2Client {
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
         NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
-                UnlockedIdentitySyncS2CPacketPayload.ID,
-                UnlockedIdentitySyncS2CPacketPayload.CODEC,
-                (payload, context) -> context.queue(() -> INSTANCE.onUpdateUnlockedIdentities(payload)));
-        NetworkManager.registerReceiver(
+                IdentityUnlockSyncS2CPacketPayload.ID,
+                IdentityUnlockSyncS2CPacketPayload::decode,
+                (payload, context) -> context.queue(() -> INSTANCE.onUnlockSyncData(payload)));
+        NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
                 MorphAcquisitionS2CPacketPayload.ID,
                 MorphAcquisitionS2CPacketPayload::decode,
@@ -255,11 +262,6 @@ public final class Identity2Client {
                 ProgressionJarStateS2CPacketPayload.ID,
                 ProgressionJarStateS2CPacketPayload::decode,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
-        NetworkCompat.registerReceiver(
-                NetworkManager.s2c(),
-                S2CChallengePacket.ID,
-                S2CChallengePacket::decode,
-                (payload, context) -> context.queue(() -> ClientAuth.handleChallenge(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -274,6 +276,25 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
+        if (IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(identityId)) {
+            CompoundTag parsed = IdentityProgression.parseVariantNbt(variantNbt);
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                ""
+            );
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                ""
+            );
+            Identity2.LOGGER.info(
+                "[SkinDiag] Client sendMorphRequest player identity rawVariant='{}' uuid='{}' name='{}'",
+                variantNbt,
+                skinUuid,
+                skinName
+            );
+        }
         NetworkCompat.sendToServer(
                 new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
@@ -317,6 +338,7 @@ public final class Identity2Client {
 
     private static void onClientTickEnd(Minecraft client) {
         processPendingCustomDataPackets(client);
+        processPendingUnlockSyncPackets(client);
         tickMorphTransitionEffects(client);
         MorphAcquisitionEffectController.tick(client);
 
@@ -419,6 +441,30 @@ public final class Identity2Client {
             boolean identityDataChanged = false;
             for (CustomEntityDataS2CPacket.EntryString entry : packet.entries()) {
                 n.putString(entry.key(), entry.value());
+                if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key())) {
+                    long now = System.currentTimeMillis();
+                    if (now - identity2$lastSkinPacketLogMs > 800L) {
+                        CompoundTag parsed = IdentityProgression.parseVariantNbt(entry.value());
+                        String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                            parsed,
+                            IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                            ""
+                        );
+                        String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                            parsed,
+                            IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                            ""
+                        );
+                        Identity2.LOGGER.info(
+                            "[SkinDiag] Client received variant packet entityId={} rawVariant='{}' uuid='{}' name='{}'",
+                            packet.entityid(),
+                            entry.value(),
+                            skinUuid,
+                            skinName
+                        );
+                        identity2$lastSkinPacketLogMs = now;
+                    }
+                }
                 if ("model_override".equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_TYPE_KEY.equals(entry.key()) ||
                         IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(entry.key()) ||
@@ -449,21 +495,14 @@ public final class Identity2Client {
         }
     }
 
-    private void onUpdateUnlockedIdentities(UnlockedIdentitySyncS2CPacketPayload packet) {
+    private void onUnlockSyncData(IdentityUnlockSyncS2CPacketPayload packet) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
-            enqueuePendingPacket(pendingUnlockedIdentityPackets, packet);
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
             return;
         }
-
-        Entity entity = resolvePacketTarget(client, packet.entityid());
-        if (entity != null) {
-            CustomData n = ((EntityAccessor) entity).getCustomData();
-            IdentityProgression.storeUnlockedIdentityData(
-                    ((NbtComponentAccessor) (Object) n).getNbt(),
-                    packet.unlockedIdentityIds(),
-                    toVariantUnlockMap(packet.unlockedVariantEntries())
-            );
+        if (!applyUnlockSyncPacket(packet)) {
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
         }
     }
 
@@ -474,7 +513,7 @@ public final class Identity2Client {
 
         if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty()
                 && pendingBoolDataPackets.isEmpty()
-                && pendingUnlockedIdentityPackets.isEmpty()) {
+                && pendingUnlockSyncPackets.isEmpty()) {
             pendingPacketProcessTicks = 0;
             return;
         }
@@ -483,14 +522,14 @@ public final class Identity2Client {
         processPendingDoublePackets(client);
         processPendingStringPackets(client);
         processPendingBoolPackets(client);
-        processPendingUnlockedIdentityPackets(client);
+        processPendingUnlockSyncPackets(client);
 
         // Avoid an unbounded per-tick scan if some queued packets can never resolve.
         if (pendingPacketProcessTicks > MAX_PENDING_PACKET_PROCESS_TICKS) {
             pendingDoubleDataPackets.clear();
             pendingStringDataPackets.clear();
             pendingBoolDataPackets.clear();
-            pendingUnlockedIdentityPackets.clear();
+            pendingUnlockSyncPackets.clear();
             pendingPacketProcessTicks = 0;
         }
     }
@@ -531,29 +570,16 @@ public final class Identity2Client {
         }
     }
 
-    private static void processPendingUnlockedIdentityPackets(Minecraft client) {
-        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockedIdentityPackets.size());
+    private static void processPendingUnlockSyncPackets(Minecraft client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockSyncPackets.size());
         for (int i = 0; i < max;) {
-            if (INSTANCE.tryApplyUnlockedIdentities(client, pendingUnlockedIdentityPackets.get(i))) {
-                pendingUnlockedIdentityPackets.remove(i);
+            if (INSTANCE.applyUnlockSyncPacket(pendingUnlockSyncPackets.get(i))) {
+                pendingUnlockSyncPackets.remove(i);
                 max--;
             } else {
                 i++;
             }
         }
-    }
-
-    private static Map<String, java.util.List<String>> toVariantUnlockMap(
-            java.util.List<UnlockedIdentitySyncS2CPacketPayload.VariantEntry> entries
-    ) {
-        Map<String, java.util.List<String>> result = new LinkedHashMap<>();
-        for (UnlockedIdentitySyncS2CPacketPayload.VariantEntry entry : entries) {
-            if (entry == null || entry.identityId() == null || entry.identityId().isBlank()) {
-                continue;
-            }
-            result.put(entry.identityId(), new ArrayList<>(entry.variantTokens() == null ? java.util.List.of() : entry.variantTokens()));
-        }
-        return result;
     }
 
     private boolean tryApplyCustomData(Minecraft client, CustomEntityDataS2CPacketPayload packet) {
@@ -617,18 +643,45 @@ public final class Identity2Client {
         return true;
     }
 
-    private boolean tryApplyUnlockedIdentities(Minecraft client, UnlockedIdentitySyncS2CPacketPayload packet) {
+    private boolean applyUnlockSyncPacket(IdentityUnlockSyncS2CPacketPayload packet) {
+        Minecraft client = Minecraft.getInstance();
         Entity entity = resolvePacketTarget(client, packet.entityid());
-        if (entity == null) {
+        if (entity == null || client.player == null || entity.getId() != client.player.getId()) {
             return false;
         }
 
-        CustomData n = ((EntityAccessor) entity).getCustomData();
-        IdentityProgression.storeUnlockedIdentityData(
-                ((NbtComponentAccessor) (Object) n).getNbt(),
-                packet.unlockedIdentityIds(),
-                toVariantUnlockMap(packet.unlockedVariantEntries())
-        );
+        if (packet.replaceAll()) {
+            clientUnlockedIdentityIds.clear();
+            clientUnlockedVariantTokens.clear();
+        }
+
+        for (IdentityUnlockSyncEntry entry : packet.entries()) {
+            ResourceLocation identityId = entry.identityId();
+            if (identityId == null) {
+                continue;
+            }
+            clientUnlockedIdentityIds.add(identityId);
+            if (entry.replaceTokens()) {
+                Set<String> tokens = new LinkedHashSet<>();
+                for (String token : entry.variantTokens()) {
+                    if (token != null && !token.isBlank()) {
+                        tokens.add(token);
+                    }
+                }
+                if (tokens.isEmpty()) {
+                    clientUnlockedVariantTokens.remove(identityId);
+                } else {
+                    clientUnlockedVariantTokens.put(identityId, tokens);
+                }
+            } else {
+                Set<String> tokens = clientUnlockedVariantTokens.computeIfAbsent(identityId, ignored -> new LinkedHashSet<>());
+                for (String token : entry.variantTokens()) {
+                    if (token != null && !token.isBlank()) {
+                        tokens.add(token);
+                    }
+                }
+            }
+        }
         return true;
     }
 
@@ -643,6 +696,21 @@ public final class Identity2Client {
             return client.player;
         }
         return null;
+    }
+
+    public static Set<ResourceLocation> getUnlockedIdentityIds() {
+        return Set.copyOf(clientUnlockedIdentityIds);
+    }
+
+    public static Set<String> getUnlockedVariantTokens(ResourceLocation identityId) {
+        if (identityId == null) {
+            return Set.of();
+        }
+        Set<String> tokens = clientUnlockedVariantTokens.get(identityId);
+        if (tokens == null || tokens.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(tokens);
     }
 
     private static int resolvePrimaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
@@ -825,6 +893,27 @@ public final class Identity2Client {
             return;
         }
         String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        if (IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(type)) {
+            CompoundTag parsed = IdentityProgression.parseVariantNbt(variantRaw);
+            String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY,
+                ""
+            );
+            String skinName = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                parsed,
+                IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY,
+                ""
+            );
+            Identity2.LOGGER.info(
+                "[SkinDiag] applyIdentityFromCustomData entity={} type={} rawVariant='{}' uuid='{}' name='{}'",
+                entity.getId(),
+                type,
+                variantRaw,
+                skinUuid,
+                skinName
+            );
+        }
         ((EntityAccessor) entity).setCurrentIdentity(type, IdentityProgression.parseVariantNbt(variantRaw));
     }
 

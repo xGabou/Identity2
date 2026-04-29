@@ -1,37 +1,72 @@
 package net.Gabou.identity2.mixin;
 
+import com.google.common.collect.Lists;
+
 import java.lang.reflect.Method;
-import net.Gabou.identity2.compat.ApotheosisAttributeCompat;
-import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.identity.IdentityTraitTags;
-import net.Gabou.identity2.util.AttributeContainerAccessor;
-import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
-import net.Gabou.identity2.util.EntityAccessor;
+import java.util.List;
+
+import net.minecraft.world.phys.AABB;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.Gabou.identity2.ModEffects;
+
+import java.util.Locale;
+import java.util.Set;
+
+import org.jetbrains.annotations.Nullable;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.context.CommandContext;
+import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.Identity2;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import com.llamalad7.mixinextras.sugar.Local;
+
 import net.Gabou.identity2.util.LivingEntityAccessor;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.jetbrains.annotations.Nullable;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.Gabou.identity2.util.AttributeContainerAccessor;
+import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
+import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.minecraft.tags.DamageTypeTags;
 
 @Mixin(LivingEntity.class)
-public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
+public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
 
     @Shadow
     protected boolean jumping;
+
+    @Shadow
+    @Nullable
+    public abstract SoundEvent getDeathSound();
 
     @Override
     public boolean identity2$isJumping() {
@@ -46,12 +81,11 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         if (entity instanceof Player) {
             return;
         }
-        if ((identity instanceof LivingEntity livingIdentity) && (entity instanceof LivingEntity livingEntity)) {
-            this.attributes = createMangled(livingEntity.getAttributes(), livingIdentity.getAttributes());
-            /*Identity2.LOGGER.info("Attributes mangled!");
-            for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)this.attributes).getDefaultAttributes()).getInstances().values()){
-                Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(this.attributes.getValue(attr.getAttribute())));
-            }*/
+        if (identity instanceof LivingEntity livingIdentity) {
+            // Keep the morph entity on its own attribute map so the mob's intended
+            // movement and combat values are preserved. Player-side morph attributes
+            // are handled separately in IdentityProgression.
+            this.attributes = livingIdentity.getAttributes();
         }
 
     }
@@ -61,19 +95,63 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         AttributeSupplier.Builder builder = AttributeSupplier.builder();
         for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) a).getDefaultAttributes()).getInstances().values()) {
             builder.add(attr.getAttribute(), attr.getBaseValue());
-            //Identity2.LOGGER.info("Mangling A: "+attr.getAttribute().toString());
         }
         for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) b).getDefaultAttributes()).getInstances().values()) {
             builder.add(attr.getAttribute(), attr.getBaseValue());
-            //Identity2.LOGGER.info("Mangling B: "+attr.getAttribute().toString());
         }
         AttributeMap newContainer = new AttributeMap(builder.build());
-        newContainer.assignValues(a);
-        newContainer.assignValues(b);
+        identity2$assignAllValues(newContainer, a);
+        identity2$assignAllValues(newContainer, b);
+        identity2$assignBaseValues(newContainer, a);
+        identity2$assignBaseValues(newContainer, b);
         /*for(EntityAttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)newContainer).getDefaultAttributes()).getInstances().values()){
             Identity2.LOGGER.info("Mangled "+attr.getAttribute().getIdAsString()+" : "+String.valueOf(newContainer.getValue(attr.getAttribute())));
         }*/
         return newContainer;
+    }
+
+    private static void identity2$assignAllValues(AttributeMap target, AttributeMap source) {
+        if (target == null || source == null) {
+            return;
+        }
+        if (identity2$invokeAttributeMapCopy(target, "assignAllValues", source)) {
+            return;
+        }
+        identity2$invokeAttributeMapCopy(target, "assignValues", source);
+    }
+
+    private static void identity2$assignBaseValues(AttributeMap target, AttributeMap source) {
+        if (target == null || source == null) {
+            return;
+        }
+        identity2$invokeAttributeMapCopy(target, "assignBaseValues", source);
+    }
+
+    private static boolean identity2$invokeAttributeMapCopy(AttributeMap target, String methodName, AttributeMap source) {
+        for (Method method : AttributeMap.class.getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> param = method.getParameterTypes()[0];
+            if (!param.isAssignableFrom(AttributeMap.class) && !AttributeMap.class.isAssignableFrom(param)) {
+                continue;
+            }
+            try {
+                method.invoke(target, source);
+                return true;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
+        return livingIdentity != null
+            && (
+                livingIdentity.canBreatheUnderwater()
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
+            );
     }
 
     private static boolean identity2$canUseSlot(LivingEntity livingIdentity, EquipmentSlot slot) {
@@ -114,10 +192,13 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "decreaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirUnderwaterIdentity(int air, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(air);
-            }
+        if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+
+        LivingEntity host = (LivingEntity) (Object) this;
+        if (host.isInWaterOrBubble() && identity2$isAquaticMorph(livingIdentity)) {
+            info.setReturnValue(host.getMaxAirSupply());
         }
     }
 
@@ -128,7 +209,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
 
         LivingEntity host = (LivingEntity) (Object) this;
-        if (host.isInWater()) {
+        if (host.isInWaterOrBubble()) {
             return;
         }
 
@@ -145,26 +226,26 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         info.setReturnValue(host.getMaxAirSupply());
     }
 
-@Inject(method = "isInvertedHealAndHarm()Z", at=@At("HEAD"),cancellable=true)
-private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(livingIdentity.isInvertedHealAndHarm());
+    @Inject(method = "isInvertedHealAndHarm()Z", at = @At("HEAD"), cancellable = true)
+    private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(livingIdentity.isInvertedHealAndHarm());
+            }
         }
     }
-}
 
-@Inject(method = "canBreatheUnderwater()Z", at=@At("HEAD"),cancellable=true)
-private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
+    @Inject(method = "canBreatheUnderwater()Z", at = @At("HEAD"), cancellable = true)
+    private void canBreatheInWaterIdentity(CallbackInfoReturnable<Boolean> info) {
+        if (this.currentIdentity != null) {
+            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
+            }
         }
     }
-}
 
     @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
-    private void identity2$disableFallDamageForFlyingMorphs(double d, float f, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
+    private void identity2$disableFallDamageForFlyingMorphs(float distance, float damageMultiplier, DamageSource source, CallbackInfoReturnable<Boolean> cir) {
         if (!((Entity) (Object) this instanceof Player)) {
             return;
         }
@@ -173,12 +254,6 @@ private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
         }
     }
 
-@Shadow
-@Nullable
-public SoundEvent getHurtSound(DamageSource source){return null;}
-@Shadow
-@Nullable
-public SoundEvent getDeathSound(){return null;}
 
 @Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable info){
@@ -328,7 +403,7 @@ private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
 private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
     if(this.identityOf!=null){
         if(this.identityOf instanceof LivingEntity livingIdentity){
-            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
+            info.setReturnValue(livingIdentity.getLastHurtByMobTimestamp());
         }
     }
 }
@@ -394,66 +469,113 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(air);
+                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
             }
         }
     }
 
-    @Inject(method = "isInvertedHealAndHarm()Z", at = @At("HEAD"), cancellable = true)
-    private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvertedHealAndHarm());
-            }
+    @Unique
+    private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
+        float idHeight = activeIdentity.getBbHeight();
+        if (idHeight >= 1.2f) {
+            return false;
         }
+
+        if (player.isCrouching() || player.isSwimming()) {
+            return false;
+        }
+
+        AABB box = player.getBoundingBox();
+
+        AABB feet = new AABB(
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.minY + 0.35, box.maxZ
+        );
+
+        double headStart = box.maxY - 0.35;
+        AABB head = new AABB(
+                box.minX, headStart, box.minZ,
+                box.maxX, box.maxY, box.maxZ
+        );
+
+        boolean feetCollide = !player.level().noCollision(player, feet);
+        boolean headCollide = !player.level().noCollision(player, head);
+
+        return headCollide && !feetCollide;
     }
 
-    @Inject(method = "canBreatheUnderwater()Z", at = @At("HEAD"), cancellable = true)
-    private void canBreatheInWaterIdentity(CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canBreatheUnderwater());
-            }
-        }
+@Unique
+private static boolean identity2$isWallCollisionDamage(DamageSource source) {
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
     }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("inwall")
+        || normalized.equals("in_wall")
+        || normalized.equals("flyintowall")
+        || normalized.equals("fly_into_wall")
+        || normalized.equals("cramming");
+}
 
+@Unique
+private static boolean identity2$isFallDamage(DamageSource source) {
+    if (source == null) {
+        return false;
+    }
+    if (source.is(DamageTypes.FALL)) {
+        return true;
+    }
+    if (source.is(DamageTypeTags.IS_FALL)) {
+        return true;
+    }
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
+    }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("fall");
+}
 
-    @Shadow
-    @Nullable
-    public SoundEvent getHurtSound(DamageSource source) {
+@Unique
+private static String identity2$getDamageMessageId(DamageSource source) {
+    if (source == null) {
+        return "";
+    }
+    Object direct = identity2$invokeNoArg(source, "getMsgId");
+    if (direct instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object type = identity2$invokeNoArg(source, "type");
+    Object fromType = identity2$invokeNoArg(type, "msgId");
+    if (fromType instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object holder = identity2$invokeNoArg(source, "typeHolder");
+    Object value = identity2$invokeNoArg(holder, "value");
+    Object fromHolder = identity2$invokeNoArg(value, "msgId");
+    if (fromHolder instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    return "";
+}
+
+@Unique
+private static Object identity2$invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isBlank()) {
         return null;
     }
-
-    @Shadow
-    @Nullable
-    public SoundEvent getDeathSound() {
+    try {
+        Method method = target.getClass().getMethod(methodName);
+        if (!method.canAccess(target)) {
+            method.setAccessible(true);
+        }
+        return method.invoke(target);
+    } catch (Throwable ignored) {
         return null;
-    }
-
-
-    @Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at = @At("HEAD"), cancellable = true)
-    private void getHurtSoundIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            info.setReturnValue(null);
-            return;
-        }
-        if (IdentitySettings.useIdentitySounds) {
-            if (this.currentIdentity != null) {
-                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                    info.setReturnValue(((LivingEntityAccessor) this.currentIdentity).getHurtSound(source));
-                }
-            }
-        }
-    }
-
-    @Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at = @At("HEAD"), cancellable = true)
-    private void getDeathSoundIdentity(CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            info.setReturnValue(null);
-            return;
-        }
     }
 }
+
 
 
 @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
@@ -468,7 +590,7 @@ private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable
                 info.setReturnValue(Items.AIR.getDefaultInstance());
                 return;
             }
-            if(livingIdentity.canUseSlot(slot)==false){
+            if(!identity2$canUseSlot(livingIdentity, slot)){
                 info.setReturnValue(Items.AIR.getDefaultInstance());
             }
         }
@@ -486,85 +608,10 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
                 info.setReturnValue(false);
                 return;
             }
-            info.setReturnValue(livingIdentity.canUseSlot(slot));
+            info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
         }
     }
 }
-
-
-    @Inject(method = "aiStep()V", at = @At("HEAD"), cancellable = true)
-    private void tickMovementIdentity(CallbackInfo info) {
-        if ((Entity)(Object)this instanceof Player) {
-            return;
-        }
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-
-                livingIdentity.setPos(this.position());
-                livingIdentity.setDeltaMovement(this.getDeltaMovement());
-                if (livingIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(false);
-                }
-                livingIdentity.aiStep();
-                this.setPos(livingIdentity.position());
-                this.setDeltaMovement(livingIdentity.getDeltaMovement());
-                //info.cancel();
-            }
-        }
-    }
-
-    @Inject(method = "onClimbable()Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity == null) {
-            return;
-        }
-        EntityType<?> identityType = this.currentIdentity.getType();
-        if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
-            return;
-        }
-        if ((Entity) (Object) this instanceof Player player && player.isSpectator()) {
-            info.setReturnValue(false);
-            return;
-        }
-        info.setReturnValue(this.horizontalCollision);
-    }
-
-//getNextAir(underwater,onland) should be added
-
-    @Inject(method = "canFreeze()Z", at = @At("HEAD"), cancellable = true)
-    private void canFreezeIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.canFreeze());
-
-        }
-    }
-
-    @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at = @At("HEAD"), cancellable = true)
-    private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key, CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.canStandOnFluid(key));
-            }
-        }
-    }
-
-    @Inject(method = "isSensitiveToWater()Z", at = @At("HEAD"), cancellable = true)
-    private void hurtByWaterIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isSensitiveToWater());
-            }
-        }
-    }
-
-    @Inject(method = "isAffectedByPotions()Z", at = @At("HEAD"), cancellable = true)
-    private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isAffectedByPotions());
-            }
-        }
-    }
 
     @Inject(method = "getLastHurtByMobTimestamp", at = @At("HEAD"), cancellable = true)
     private void identity2$getLastHurtTimestamp(CallbackInfoReturnable<Integer> cir) {
@@ -604,21 +651,29 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
     private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
         if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
             info.setReturnValue(false);
-        };
+        }
     }
 
-    @Inject(method = "doHurtTarget", at = @At("HEAD"), cancellable = true)
-    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+//    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
+//    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
+//        if (this.currentIdentity != null) {
+//            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+//                info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
+//            }
+//        }
+//    }
+
+    @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
+    private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {
         if ((Entity)(Object)this instanceof Player) {
             // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
             return;
         }
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                cir.setReturnValue(livingIdentity.doHurtTarget(entity));
+                info.setReturnValue(livingIdentity.doHurtTarget(entity));
             }
         }
     }
 //Tons of Redirects - End
 }
-

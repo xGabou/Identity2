@@ -37,7 +37,7 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.util.EntityAccessor;
 import org.spongepowered.asm.mixin.Overwrite;
 @Mixin(Player.class)
-public class PlayerEntityMixin extends LivingEntityMixin{
+public abstract class PlayerEntityMixin extends LivingEntityMixin{
     @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
     private static double TDIOA(double x){
         return Identity2.maxWorldSize-1;

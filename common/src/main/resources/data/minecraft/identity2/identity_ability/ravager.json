@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:saddle",
+  "cooldown": 120,
+  "predef": "minecraft:ravager"
+}

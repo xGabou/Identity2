@@ -1,47 +1,13 @@
 package net.Gabou.identity2.mixin;
 
 import com.google.common.collect.Lists;
-
-import java.util.List;
-
-import net.Gabou.identity2.api.IdentityApi;
-import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
-import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.world.damagesource.DamageTypes;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-
-import java.util.Locale;
-import java.util.Set;
-
-import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.context.CommandContext;
-import net.Gabou.identity2.ModComponents;
-import net.Gabou.identity2.PredefIdentityAbilities;
-import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.api.IdentityApi;
+import net.Gabou.identity2.checkonly.EntityMethodChecks;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
-import org.spongepowered.asm.mixin.injection.Redirect;
-
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.AbilitiesAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
@@ -52,26 +18,17 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -79,14 +36,32 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.Gabou.identity2.identity.IdentityProgression;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor {
+    @Unique
+    private static final Set<ResourceLocation> identity2$ravagerRiderIds = Set.of(
+            new ResourceLocation("minecraft", "pillager"),
+            new ResourceLocation("minecraft", "vindicator"),
+            new ResourceLocation("minecraft", "evoker"),
+            new ResourceLocation("minecraft", "illusioner"),
+            new ResourceLocation("minecraft", "witch")
+    );
 
     @Nullable
     private CompoundTag persistentData;
@@ -142,16 +117,16 @@ public class EntityMixin implements EntityAccessor {
 //    private static double TDIOB(double x){
 //        return -Identity2.maxWorldSize;
 //    }
-    @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
-    private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
+    @Inject(method = "move", at = @At("TAIL"))
+    private void moveOnEntityLandOverride(MoverType moverType, Vec3 movementInput, CallbackInfo ci) {
         CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
         if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
-            entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
-            return;
+            Entity entity = (Entity) (Object) this;
+            if (entity.onGround()) {
+                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
+            }
         }
-        block.updateEntityAfterFallOn(view, entity);
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
@@ -634,7 +609,7 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        Identifier forcedIdentity = null;
+        ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();
@@ -655,7 +630,7 @@ public class EntityMixin implements EntityAccessor {
             nbtCompound = new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty() && forcedIdentity == null) {
-            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(this.getCustomData(), IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
@@ -1021,25 +996,6 @@ public class EntityMixin implements EntityAccessor {
         return null;
     }
 
-    private static Object identity2$invokeNoArg(Object target, String methodName) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Method method : identity2$getAllMethods(target.getClass())) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                continue;
-            }
-            try {
-                if (!method.canAccess(target)) {
-                    method.setAccessible(true);
-                }
-                Object result = method.invoke(target);
-                return result == null ? target : result;
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
 
     private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
         if (target == null || methodName == null || methodName.isBlank()) {
@@ -1367,7 +1323,7 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
-    @Inject(method = "lerpTo(DDDFFI)V", at = @At("HEAD"))
+    @Inject(method = "lerpTo(DDDFFIZ)V", at = @At("HEAD"))
     private void identity2$forwardLerpTo(
             double x,
             double y,
@@ -1375,6 +1331,7 @@ public class EntityMixin implements EntityAccessor {
             float yRot,
             float xRot,
             int interpolationSteps,
+            boolean interpolate,
             CallbackInfo info
     ) {
         if (this.currentIdentity != null) {
@@ -1463,12 +1420,35 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
     private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info) {
+        Entity self = (Entity) (Object) this;
+        if (hand == InteractionHand.MAIN_HAND
+                && identity2$isRavager(self)
+                && identity2$canRideRavager(player)
+                && !player.isPassenger()) {
+            if (player.level().isClientSide()) {
+                info.setReturnValue(InteractionResult.SUCCESS);
+                return;
+            }
+            if (player.startRiding(self)) {
+                info.setReturnValue(InteractionResult.CONSUME);
+                return;
+            }
+        }
         if (this.currentIdentity != null) {
             InteractionResult actionResult = this.currentIdentity.interact(player, hand);
             if (actionResult != InteractionResult.PASS) {
                 info.setReturnValue(actionResult);
             }
         }
+    }
+
+    @Inject(method = "canAddPassenger", at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$canAddIllagerMorphPassenger(Entity passenger, CallbackInfoReturnable<Boolean> cir) {
+        Entity self = (Entity) (Object) this;
+        if (!identity2$isRavager(self) || !(passenger instanceof Player player) || !identity2$canRideRavager(player)) {
+            return;
+        }
+        cir.setReturnValue(self.getPassengers().isEmpty());
     }
 
     @Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
@@ -1585,13 +1565,32 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         }
     }
 
-    @Inject(
-            method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable<Boolean> info) {
-        if ((Object) this instanceof Player player) {
+
+    @Unique
+    private static boolean identity2$isRavager(Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(entity.getType());
+        return new ResourceLocation("minecraft", "ravager").equals(typeId);
+    }
+
+    @Unique
+    private static boolean identity2$canRideRavager(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity == null) {
+            return false;
+        }
+        ResourceLocation typeId = EntityType.getKey(currentIdentity.getType());
+        return identity2$ravagerRiderIds.contains(typeId);
+    }
+
+    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player player && source != null) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;
@@ -1599,7 +1598,6 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1609,9 +1607,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-
             if (
                     activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1632,23 +1628,18 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
-
             boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;
             }
-
-            return;
         }
-
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(source));
             }
         }
     }
-
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
         float idHeight = activeIdentity.getBbHeight();
@@ -1710,6 +1701,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 || normalized.equals("fly_into_wall")
                 || normalized.equals("cramming");
     }
+
     @Unique
     private static String identity2$getDamageMessageId(DamageSource source) {
         if (source == null) {
@@ -1731,6 +1723,28 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
             return text;
         }
         return "";
+    }
+
+    @Unique
+    private static Object identity2$invokeNoArg(Object target, String methodName) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return null;
     }
 //Tons of Redirects - End
 }

@@ -11,7 +11,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import org.jetbrains.annotations.Nullable;
@@ -128,13 +128,13 @@ public class TargetPredicateMixin {
         if (testerType == EntityType.WOLF) {
             boolean tamed = Boolean.TRUE.equals(identity2$invokeNoArg(tester, "isTame"));
             if (tamed) {
-                return IdentitySettings.ownedWolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
+                return identity2$isWolfPrey(identityType);
             }
-            return IdentitySettings.wolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
+            return identity2$isWolfPrey(identityType);
         }
 
         if (testerType == EntityType.FOX) {
-            return IdentitySettings.foxesAttackIdentityPrey && identity2$isFoxPrey(identityType);
+            return identity2$isFoxPrey(identityType);
         }
 
         if (testerType == EntityType.VILLAGER || testerType == EntityType.WANDERING_TRADER) {
