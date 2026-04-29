@@ -8,8 +8,17 @@ import dev.architectury.event.events.common.EntityEvent;
 
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.lang.reflect.Method;
 
 import net.Gabou.identity2.api.IdentityApi;
@@ -25,7 +34,6 @@ import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
-import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
@@ -42,7 +50,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -68,10 +76,10 @@ public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
     // Keep this tunable to match in-game feel.
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
-    private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
+    private static final Identifier HEALTH_SCALING_MODIFIER_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
     private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = "morph_attribute_base_";
     private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = "morph_attribute_modifier_";
-    public static final ResourceLocation PLAYER_IDENTITY_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "player");
+    public static final Identifier PLAYER_IDENTITY_ID = Identifier.fromNamespaceAndPath("minecraft", "player");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
 
@@ -95,7 +103,7 @@ public final class IdentityProgression {
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
-    private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
+    private static final Map<Identifier, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -114,7 +122,7 @@ public final class IdentityProgression {
         return new ArrayList<>(readUnlockedIdentityIds(getCustomData(player)));
     }
 
-    public static boolean isUnlocked(ServerPlayer player, ResourceLocation identityId) {
+    public static boolean isUnlocked(ServerPlayer player, Identifier identityId) {
         return getUnlockedIdentities(player).contains(identityId.toString());
     }
 
@@ -125,14 +133,14 @@ public final class IdentityProgression {
     }
 
     @Nullable
-    public static ResourceLocation getForcedIdentity() {
+    public static Identifier getForcedIdentity() {
         String forced = IdentitySettings.forcedIdentity;
         if (forced == null || forced.isBlank()) {
             return null;
         }
 
         try {
-            ResourceLocation forcedIdentity = ResourceLocation.parse(forced.trim());
+            Identifier forcedIdentity = Identifier.parse(forced.trim());
             return isMorphableIdentity(forcedIdentity) ? forcedIdentity : null;
         } catch (Exception exception) {
             Identity2.LOGGER.warn("Ignoring invalid forced identity config value: {}", forced, exception);
@@ -196,7 +204,7 @@ public final class IdentityProgression {
         return endTick > 0.0D && player.level().getGameTime() < endTick;
     }
 
-    public static boolean isMorphableIdentity(ResourceLocation identityId) {
+    public static boolean isMorphableIdentity(Identifier identityId) {
         if (identityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityId)) {
             return false;
         }
@@ -206,18 +214,18 @@ public final class IdentityProgression {
         return isMorphableType(BuiltInRegistries.ENTITY_TYPE.getValue(identityId));
     }
 
-    public static boolean isIdentityTemporarilyDisabled(ResourceLocation identityId) {
+    public static boolean isIdentityTemporarilyDisabled(Identifier identityId) {
         return identityId != null && DISABLED_IDENTITIES.containsKey(identityId);
     }
 
-    public static String getDisabledIdentityReason(ResourceLocation identityId) {
+    public static String getDisabledIdentityReason(Identifier identityId) {
         if (identityId == null) {
             return "";
         }
         return DISABLED_IDENTITIES.getOrDefault(identityId, "");
     }
 
-    public static void disableIdentity(ResourceLocation identityId, String reason) {
+    public static void disableIdentity(Identifier identityId, String reason) {
         if (identityId == null) {
             return;
         }
@@ -257,11 +265,11 @@ public final class IdentityProgression {
         return true;
     }
 
-    public static boolean morph(ServerPlayer player, ResourceLocation identityId) {
+    public static boolean morph(ServerPlayer player, Identifier identityId) {
         return morph(player, identityId, new CompoundTag());
     }
 
-    public static boolean morph(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+    public static boolean morph(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null) {
             return false;
         }
@@ -547,13 +555,13 @@ public final class IdentityProgression {
         }
         nbt.putDouble(DAILY_RANDOM_MORPH_LAST_DAY_KEY, day);
 
-        List<ResourceLocation> unlocked = new ArrayList<>();
+        List<Identifier> unlocked = new ArrayList<>();
         for (String raw : getUnlockedIdentities(player)) {
             if (raw == null || raw.isBlank()) {
                 continue;
             }
             try {
-                ResourceLocation id = ResourceLocation.parse(raw);
+                Identifier id = Identifier.parse(raw);
                 if (isMorphableIdentity(id)) {
                     unlocked.add(id);
                 }
@@ -577,7 +585,7 @@ public final class IdentityProgression {
             return;
         }
 
-        ResourceLocation nextIdentity = unlocked.get(player.getRandom().nextInt(unlocked.size()));
+        Identifier nextIdentity = unlocked.get(player.getRandom().nextInt(unlocked.size()));
         CompoundTag nextVariant = resolveRandomUnlockedVariant(nbt, nextIdentity, player.getRandom().nextInt());
         morph(player, nextIdentity, nextVariant);
     }
@@ -586,14 +594,14 @@ public final class IdentityProgression {
         ensureUnlockedIdentityStorage(player);
     }
 
-    public static boolean grantIdentity(ServerPlayer player, ResourceLocation identityId) {
+    public static boolean grantIdentity(ServerPlayer player, Identifier identityId) {
         if (player == null || !isMorphableIdentity(identityId)) {
             return false;
         }
         return unlockIdentity(player, identityId);
     }
 
-    public static boolean isVariantUnlocked(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+    public static boolean isVariantUnlocked(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
         if (player == null || identityId == null || !isUnlocked(player, identityId)) {
             return false;
         }
@@ -627,7 +635,7 @@ public final class IdentityProgression {
             return 0;
         }
         int granted = 0;
-        for (ResourceLocation identityId : BuiltInRegistries.ENTITY_TYPE.keySet()) {
+        for (Identifier identityId : BuiltInRegistries.ENTITY_TYPE.keySet()) {
             if (!isMorphableIdentity(identityId)) {
                 continue;
             }
@@ -752,7 +760,7 @@ public final class IdentityProgression {
             CompoundTag killedCustomData = getCustomData(killedPlayer);
             CompoundTag selectedVariant = parseVariantNbt(killedCustomData.getStringOr(SELECTED_IDENTITY_VARIANT_KEY, ""));
             if (activeIdentity != null) {
-                ResourceLocation morphedIdentityId = BuiltInRegistries.ENTITY_TYPE.getKey(activeIdentity.getType());
+                Identifier morphedIdentityId = BuiltInRegistries.ENTITY_TYPE.getKey(activeIdentity.getType());
                 if (morphedIdentityId != null && isMorphableIdentity(morphedIdentityId)) {
                     return new UnlockTarget(morphedIdentityId, selectedVariant);
                 }
@@ -765,7 +773,7 @@ public final class IdentityProgression {
             }
             if (!selectedType.isBlank()) {
                 try {
-                    ResourceLocation selectedId = ResourceLocation.parse(selectedType);
+                    Identifier selectedId = Identifier.parse(selectedType);
                     if (isMorphableIdentity(selectedId)) {
                         return new UnlockTarget(selectedId, selectedVariant);
                     }
@@ -779,14 +787,14 @@ public final class IdentityProgression {
             return new UnlockTarget(PLAYER_IDENTITY_ID, playerSkinVariant);
         }
 
-        ResourceLocation identityId = BuiltInRegistries.ENTITY_TYPE.getKey(killed.getType());
+        Identifier identityId = BuiltInRegistries.ENTITY_TYPE.getKey(killed.getType());
         if (identityId == null) {
             return null;
         }
         return new UnlockTarget(identityId, normalizeVariantForUnlock(extractVariantData(killed)));
     }
 
-    private static int incrementKillCount(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+    private static int incrementKillCount(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
         CompoundTag nbt = getCustomData(player);
         Map<String, Integer> killMap = new HashMap<>(nbt.read(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC).orElse(Map.of()));
         String key = identityId + "|" + toVariantUnlockToken(normalizeVariantForUnlock(variantNbt));
@@ -796,7 +804,7 @@ public final class IdentityProgression {
         return kills;
     }
 
-    private static boolean unlockIdentity(ServerPlayer player, ResourceLocation identityId) {
+    private static boolean unlockIdentity(ServerPlayer player, Identifier identityId) {
         List<String> unlocked = getUnlockedIdentities(player);
         String key = identityId.toString();
         boolean changed = false;
@@ -823,7 +831,7 @@ public final class IdentityProgression {
         return true;
     }
 
-    private static boolean unlockIdentityVariant(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+    private static boolean unlockIdentityVariant(ServerPlayer player, Identifier identityId, CompoundTag variantNbt) {
         if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
             return unlockIdentity(player, identityId);
         }
@@ -1177,7 +1185,7 @@ public final class IdentityProgression {
         return normalized;
     }
 
-    private static CompoundTag resolveRandomUnlockedVariant(CompoundTag customData, ResourceLocation identityId, int seed) {
+    private static CompoundTag resolveRandomUnlockedVariant(CompoundTag customData, Identifier identityId, int seed) {
         if (customData == null || identityId == null) {
             return new CompoundTag();
         }
@@ -1392,15 +1400,7 @@ public final class IdentityProgression {
                 continue;
             }
 
-            if (attribute.equals(Attributes.MOVEMENT_SPEED) && !MorphEntityTraits.hasHighJumpAbility(identity)) {
-                continue;
-            }
-
-            if (attribute.equals(Attributes.JUMP_STRENGTH)
-                && (MorphEntityTraits.hasHighJumpAbility(identity)
-                    || identity.getType() == EntityType.HORSE
-                    || identity.getType() == EntityType.SKELETON_HORSE)
-                && identity.getType() != EntityType.RABBIT) {
+            if (attribute.equals(Attributes.MOVEMENT_SPEED)) {
                 continue;
             }
 
@@ -1410,7 +1410,7 @@ public final class IdentityProgression {
             }
 
             String attributeKey = resolveAttributeKey(attribute);
-            ResourceLocation baseModifierId = morphAttributeBaseModifierId(attributeKey);
+            Identifier baseModifierId = morphAttributeBaseModifierId(attributeKey);
             targetInstance.removeModifier(baseModifierId);
 
             double delta = sourceInstance.getBaseValue() - targetInstance.getBaseValue();
@@ -1430,7 +1430,7 @@ public final class IdentityProgression {
                     continue;
                 }
 
-                ResourceLocation copiedModifierId = morphAttributeModifierId(attributeKey, sourceModifier);
+                Identifier copiedModifierId = morphAttributeModifierId(attributeKey, sourceModifier);
                 targetInstance.removeModifier(copiedModifierId);
                 targetInstance.addOrUpdateTransientModifier(
                     new AttributeModifier(copiedModifierId, identity2$getModifierAmount(sourceModifier), operation)
@@ -1491,14 +1491,14 @@ public final class IdentityProgression {
             }
 
             instance.removeModifier(morphAttributeBaseModifierId(resolveAttributeKey(attribute)));
-            List<ResourceLocation> morphModifierIds = new ArrayList<>();
+            List<Identifier> morphModifierIds = new ArrayList<>();
             for (AttributeModifier modifier : instance.getModifiers()) {
-                ResourceLocation modifierId = identity2$getModifierId(modifier);
+                Identifier modifierId = identity2$getModifierId(modifier);
                 if (identity2$isMorphAttributeModifier(modifierId)) {
                     morphModifierIds.add(modifierId);
                 }
             }
-            for (ResourceLocation modifierId : morphModifierIds) {
+            for (Identifier modifierId : morphModifierIds) {
                 instance.removeModifier(modifierId);
             }
         }
@@ -1620,7 +1620,7 @@ public final class IdentityProgression {
             return "unknown";
         }
         try {
-            ResourceLocation attributeId = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value());
+            Identifier attributeId = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value());
             if (attributeId != null) {
                 return attributeId.toString();
             }
@@ -1629,11 +1629,11 @@ public final class IdentityProgression {
         return attribute.toString();
     }
 
-    private static ResourceLocation morphAttributeBaseModifierId(String attributeKey) {
+    private static Identifier morphAttributeBaseModifierId(String attributeKey) {
         return identity2$morphModifierId(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX, attributeKey);
     }
 
-    private static ResourceLocation morphAttributeModifierId(String attributeKey, AttributeModifier modifier) {
+    private static Identifier morphAttributeModifierId(String attributeKey, AttributeModifier modifier) {
         String token = String.valueOf(identity2$getModifierId(modifier));
         if ("null".equals(token)) {
             token = identity2$getModifierAmount(modifier) + "|" + String.valueOf(identity2$getModifierOperation(modifier));
@@ -1641,12 +1641,12 @@ public final class IdentityProgression {
         return identity2$morphModifierId(MORPH_ATTRIBUTE_MODIFIER_PREFIX, attributeKey + "|" + token);
     }
 
-    private static ResourceLocation identity2$morphModifierId(String prefix, String token) {
+    private static Identifier identity2$morphModifierId(String prefix, String token) {
         String hash = java.util.UUID.nameUUIDFromBytes((prefix + token).getBytes(StandardCharsets.UTF_8)).toString().replace('-', '_');
-        return ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prefix + hash);
+        return Identifier.fromNamespaceAndPath(Identity2.MOD_ID, prefix + hash);
     }
 
-    private static boolean identity2$isMorphAttributeModifier(@Nullable ResourceLocation modifierId) {
+    private static boolean identity2$isMorphAttributeModifier(@Nullable Identifier modifierId) {
         if (modifierId == null || !Identity2.MOD_ID.equals(modifierId.getNamespace())) {
             return false;
         }
@@ -1662,12 +1662,12 @@ public final class IdentityProgression {
     }
 
     @Nullable
-    private static ResourceLocation identity2$getModifierId(@Nullable AttributeModifier modifier) {
+    private static Identifier identity2$getModifierId(@Nullable AttributeModifier modifier) {
         Object value = invokeNoArg(modifier, "id");
-        if (!(value instanceof ResourceLocation)) {
+        if (!(value instanceof Identifier)) {
             value = invokeNoArg(modifier, "getId");
         }
-        return value instanceof ResourceLocation id ? id : null;
+        return value instanceof Identifier id ? id : null;
     }
 
     private static double identity2$getModifierAmount(@Nullable AttributeModifier modifier) {
@@ -1698,19 +1698,22 @@ public final class IdentityProgression {
 
         maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_ID);
 
+        if (!IdentitySettings.scalingHealth) {
+            float newMaxHealth = player.getMaxHealth();
+            float scaled = Mth.clamp(healthRatio * newMaxHealth, 1.0F, newMaxHealth);
+            player.setHealth(scaled);
+            return;
+        }
         if (identity instanceof LivingEntity livingIdentity) {
-            double base = maxHealthAttr.getBaseValue();
-            double desired = resolveIdentityMaxHealth(player, livingIdentity);
-            if (IdentitySettings.scalingHealth) {
-                desired = Math.min(desired, Math.max(1, IdentitySettings.maxHealth));
-            }
-            desired = Math.max(1.0D, desired);
-            double delta = desired - base;
-            if (Math.abs(delta) > 1.0E-4D) {
-                maxHealthAttr.addOrUpdateTransientModifier(
-                        new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
-                );
-            }
+        double base = maxHealthAttr.getBaseValue();
+        double desired = resolveIdentityMaxHealth(player, livingIdentity);
+        desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
+        double delta = desired - base;
+        if (Math.abs(delta) > 1.0E-4D) {
+            maxHealthAttr.addOrUpdateTransientModifier(
+                    new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
+            );
+        }
         }
 
         float newMaxHealth = player.getMaxHealth();
@@ -1719,7 +1722,17 @@ public final class IdentityProgression {
     }
 
     private static double resolveIdentityMaxHealth(ServerPlayer player, LivingEntity livingIdentity) {
-        return MorphEntityTraits.resolveNaturalMaxHealth(player != null && player.level() instanceof ServerLevel serverLevel ? serverLevel : null, livingIdentity);
+        if (player == null || player.level() == null) {
+            return livingIdentity.getMaxHealth();
+        }
+        try {
+            Entity probe = livingIdentity.getType().create(player.level(), EntitySpawnReason.COMMAND);
+            if (probe instanceof LivingEntity probeLiving) {
+                return probeLiving.getMaxHealth();
+            }
+        } catch (Throwable ignored) {
+        }
+        return livingIdentity.getMaxHealth();
     }
 
     public static String toVariantUnlockToken(CompoundTag variantNbt) {
@@ -1852,21 +1865,12 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
-        if (root && identity2$isBabyVariantToken(source)) {
-            out.putBoolean("IsBaby", true);
-        }
         for (String key : source.keySet()) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
             }
             Tag tag = source.get(key);
             if (tag == null) {
-                continue;
-            }
-            if (root && ("IsBaby".equals(key) || "Baby".equals(key))) {
-                if (source.getBoolean(key).isPresent() && source.getBooleanOr(key, false)) {
-                    out.putBoolean("IsBaby", true);
-                }
                 continue;
             }
             if (tag instanceof CompoundTag nested) {
@@ -1879,19 +1883,6 @@ public final class IdentityProgression {
             out.put(key, tag.copy());
         }
         return out;
-    }
-
-    private static boolean identity2$isBabyVariantToken(CompoundTag source) {
-        if (source == null || source.isEmpty()) {
-            return false;
-        }
-        if (source.getBoolean("IsBaby").isPresent() && source.getBooleanOr("IsBaby", false)) {
-            return true;
-        }
-        if (source.getBoolean("Baby").isPresent() && source.getBooleanOr("Baby", false)) {
-            return true;
-        }
-        return source.getInt("Age").isPresent() && source.getInt("Age").get() < 0;
     }
 
     private static boolean compoundContains(CompoundTag container, CompoundTag subset) {
@@ -1972,13 +1963,13 @@ public final class IdentityProgression {
         }
 
         Object profession = invokeNoArg(villagerData, "getProfession");
-        ResourceLocation professionId = resolveRegistryResourceLocation("VILLAGER_PROFESSION", profession);
+        Identifier professionId = resolveRegistryIdentifier("VILLAGER_PROFESSION", profession);
         if (professionId != null) {
             variant.putString("VillagerProfession", professionId.toString());
         }
 
         Object villagerType = invokeNoArg(villagerData, "getType");
-        ResourceLocation typeId = resolveRegistryResourceLocation("VILLAGER_TYPE", villagerType);
+        Identifier typeId = resolveRegistryIdentifier("VILLAGER_TYPE", villagerType);
         if (typeId != null) {
             variant.putString("VillagerType", typeId.toString());
         }
@@ -2016,42 +2007,19 @@ public final class IdentityProgression {
                 }
             }
         }
-        ResourceLocation catVariantId = resolveRegistryResourceLocation("CAT_VARIANT", variantValue);
+        Identifier catVariantId = resolveRegistryIdentifier("CAT_VARIANT", variantValue);
         if (catVariantId != null) {
             variant.putString("CatVariant", catVariantId.toString());
         }
 
-        ResourceLocation wolfVariantId = resolveRegistryResourceLocation("WOLF_VARIANT", variantValue);
+        Identifier wolfVariantId = resolveRegistryIdentifier("WOLF_VARIANT", variantValue);
         if (wolfVariantId != null) {
             variant.putString("WolfVariant", wolfVariantId.toString());
         }
 
-        ResourceLocation frogVariantId = resolveRegistryResourceLocation("FROG_VARIANT", variantValue);
+        Identifier frogVariantId = resolveRegistryIdentifier("FROG_VARIANT", variantValue);
         if (frogVariantId != null) {
             variant.putString("FrogVariant", frogVariantId.toString());
-        }
-
-        if (entity instanceof net.minecraft.world.entity.monster.Slime && !variant.contains("Size")) {
-            Object size = invokeNoArg(entity, "getSize");
-            if (size instanceof Number number) {
-                variant.putInt("Size", Math.max(0, number.intValue()));
-            }
-        }
-
-        if (!variant.contains("MainGene")) {
-            Object mainGene = invokeNoArg(entity, "getMainGene");
-            String geneName = resolveVariantStringValue(mainGene);
-            if (geneName != null && !geneName.isBlank()) {
-                variant.putString("MainGene", geneName);
-            }
-        }
-
-        if (!variant.contains("HiddenGene")) {
-            Object hiddenGene = invokeNoArg(entity, "getHiddenGene");
-            String geneName = resolveVariantStringValue(hiddenGene);
-            if (geneName != null && !geneName.isBlank()) {
-                variant.putString("HiddenGene", geneName);
-            }
         }
 
         Object collarColor = invokeNoArg(entity, "getCollarColor");
@@ -2059,6 +2027,24 @@ public final class IdentityProgression {
         if (collarColorId != null) {
             variant.putInt("CollarColor", Math.max(0, collarColorId));
         }
+    }
+
+    private static Integer resolveDyeColorId(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        Object id = invokeNoArg(value, "getId");
+        if (id instanceof Number number) {
+            return number.intValue();
+        }
+        Object ordinal = invokeNoArg(value, "ordinal");
+        if (ordinal instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
     }
 
     private static Integer resolveNumericVariantValue(Object value) {
@@ -2086,7 +2072,7 @@ public final class IdentityProgression {
         if (value == null) {
             return null;
         }
-        if (value instanceof ResourceLocation identifier) {
+        if (value instanceof Identifier identifier) {
             return identifier.toString();
         }
         if (value instanceof Enum<?> enumValue) {
@@ -2099,24 +2085,6 @@ public final class IdentityProgression {
         Object asString = invokeNoArg(value, "asString");
         if (asString instanceof String string && !string.isBlank()) {
             return string;
-        }
-        return null;
-    }
-
-    private static Integer resolveDyeColorId(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        Object id = invokeNoArg(value, "getId");
-        if (id instanceof Number number) {
-            return number.intValue();
-        }
-        Object ordinal = invokeNoArg(value, "ordinal");
-        if (ordinal instanceof Number number) {
-            return number.intValue();
         }
         return null;
     }
@@ -2168,9 +2136,9 @@ public final class IdentityProgression {
             return false;
         }
 
-        ResourceLocation advancementIdentifier;
+        Identifier advancementIdentifier;
         try {
-            advancementIdentifier = ResourceLocation.parse(advancementId.trim());
+            advancementIdentifier = Identifier.parse(advancementId.trim());
         } catch (Exception ignored) {
             return false;
         }
@@ -2199,7 +2167,7 @@ public final class IdentityProgression {
         return completed instanceof Boolean done && done;
     }
 
-    private static ResourceLocation resolveRegistryResourceLocation(String registryField, Object value) {
+    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
         if (registryField == null || registryField.isBlank() || value == null) {
             return null;
         }
@@ -2207,7 +2175,7 @@ public final class IdentityProgression {
         if (registry == null) {
             return null;
         }
-        ResourceLocation direct = getRegistryKey(registry, value);
+        Identifier direct = getRegistryKey(registry, value);
         if (direct != null) {
             return direct;
         }
@@ -2232,17 +2200,17 @@ public final class IdentityProgression {
         try {
             Object key = Registries.class.getField(fieldName).get(null);
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                ResourceLocation location = null;
+                Identifier location = null;
                 Object byLocation = invokeNoArg(resourceKey, "location");
-                if (byLocation instanceof ResourceLocation id) {
+                if (byLocation instanceof Identifier id) {
                     location = id;
                 } else {
-                    Object byResourceLocation = invokeNoArg(resourceKey, "ResourceLocation");
-                    if (byResourceLocation instanceof ResourceLocation id) {
+                    Object byIdentifier = invokeNoArg(resourceKey, "identifier");
+                    if (byIdentifier instanceof Identifier id) {
                         location = id;
                     } else {
                         Object byRegistry = invokeNoArg(resourceKey, "registry");
-                        if (byRegistry instanceof ResourceLocation id2) {
+                        if (byRegistry instanceof Identifier id2) {
                             location = id2;
                         }
                     }
@@ -2260,7 +2228,7 @@ public final class IdentityProgression {
     }
 
     @SuppressWarnings("unchecked")
-    private static ResourceLocation getRegistryKey(Registry<?> registry, Object value) {
+    private static Identifier getRegistryKey(Registry<?> registry, Object value) {
         if (registry == null || value == null) {
             return null;
         }
@@ -2346,6 +2314,6 @@ public final class IdentityProgression {
         }
     }
 
-    private record UnlockTarget(ResourceLocation identityId, CompoundTag variantNbt) {
+    private record UnlockTarget(Identifier identityId, CompoundTag variantNbt) {
     }
 }

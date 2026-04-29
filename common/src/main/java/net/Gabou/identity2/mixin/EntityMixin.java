@@ -1,14 +1,17 @@
 package net.Gabou.identity2.mixin;
+
 import com.google.common.collect.Lists;
+
 import java.util.List;
 
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.api.IdentityApi;
-import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.minecraft.world.level.block.Blocks;
-import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -16,7 +19,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
+
 import java.util.Set;
+
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -28,8 +33,10 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.Identity2;
-import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -43,7 +50,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.DamageTypeTags;
@@ -60,11 +67,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.fish.WaterAnimal;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-import net.minecraft.world.entity.boss.EnderDragonPart;
-import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
@@ -79,82 +85,108 @@ import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.Gabou.identity2.identity.IdentityProgression;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+
 @Mixin(Entity.class)
-public class EntityMixin implements EntityAccessor{
+public class EntityMixin implements EntityAccessor {
     @Shadow
     private CustomData customData;
     @Shadow
     private int id;
+
     @Shadow
-    public void setId(int id){
-        this.id=id;
+    public void setId(int id) {
+        this.id = id;
     }
+
     @Shadow
-    public int getId(){
+    public int getId() {
         return id;
     }
 
     @Shadow
-    public Vec3 getDeltaMovement(){return null;}
+    public Vec3 getDeltaMovement() {
+        return null;
+    }
+
     @Shadow
-    public int getAirSupply(){return 0;}
+    public int getAirSupply() {
+        return 0;
+    }
+
     @Shadow
-    public void setAirSupply(int air){return;}
+    public void setAirSupply(int air) {
+        return;
+    }
+
     @Shadow
-    public Vec3 position(){return null;}
+    public Vec3 position() {
+        return null;
+    }
+
     @Shadow
-    public final void setPos(Vec3 v){return;}
+    public final void setPos(Vec3 v) {
+        return;
+    }
+
     @Shadow
-    public void setDeltaMovement(Vec3 v){return;}
-    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOA(double x){
+    public void setDeltaMovement(Vec3 v) {
+        return;
+    }
+
+    @ModifyConstant(constant = @Constant(doubleValue = 3.0E7), method = "absSnapTo(DDD)V")
+    private static double TDIOA(double x) {
         return Identity2.maxWorldSize;
     }
-    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOB(double x){
+
+    @ModifyConstant(constant = @Constant(doubleValue = -3.0E7), method = "absSnapTo(DDD)V")
+    private static double TDIOB(double x) {
         return -Identity2.maxWorldSize;
     }
+
     @Redirect(method = "move",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
-    private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
-        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get()!=0.0){
-                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
-            }else{
-                block.updateEntityMovementAfterFallOn(view,entity);
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
+    private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
+        if (this.currentIdentity != null && ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()) {
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get() != 0.0) {
+                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
+            } else {
+                block.updateEntityMovementAfterFallOn(view, entity);
             }
-        }else{
-                block.updateEntityMovementAfterFallOn(view,entity);
-            }
+        } else {
+            block.updateEntityMovementAfterFallOn(view, entity);
+        }
     }
-	@Inject(method = "tick", at=@At("HEAD"))
-	private void identityFixCanFlyCheck(CallbackInfo info) {
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void identityFixCanFlyCheck(CallbackInfo info) {
 //        if(this.currentIdentity!=null){
 //            this.currentIdentity.tick();
 //
 //        }
         //this.identity2$applyShulkerOpenVisualState();
-        if(this.identityOf!=null){
-            if(this.entityCanFlyTickEvaluated==false){
-                this.entityCanFlyTickEvaluated=true;
-                this.entityCanFlyEvaluated=false;
+        if (this.identityOf != null) {
+            if (this.entityCanFlyTickEvaluated == false) {
+                this.entityCanFlyTickEvaluated = true;
+                this.entityCanFlyEvaluated = false;
             }
-            if(this.entityCanFlyEvaluated==false){
+            if (this.entityCanFlyEvaluated == false) {
                 //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
-                    this.canFly();
-                }
-            this.identityOf.noPhysics=this.noPhysics;
+                this.canFly();
+            }
+            this.identityOf.noPhysics = this.noPhysics;
         }
     }
-    @Inject(method = "isInWall", at=@At("HEAD"),cancellable = true)
+
+    @Inject(method = "isInWall", at = @At("HEAD"), cancellable = true)
     protected void disableNoClipSuffocate(CallbackInfoReturnable info) {
-		if(this.noPhysics){
+        if (this.noPhysics) {
             info.setReturnValue(false);
             return;
         }
-        if ((Entity)(Object)this instanceof Player player) {
+        if ((Entity) (Object) this instanceof Player player) {
             Entity identity = ((EntityAccessor) player).getCurrentIdentity();
             if (identity != null && !identity2$hasMorphSuffocatingCollision(player)) {
                 info.setReturnValue(false);
@@ -170,7 +202,7 @@ public class EntityMixin implements EntityAccessor{
                 return;
             }
             if (
-                    (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
+                    (!((Entity) (Object) this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
                             || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
@@ -221,6 +253,7 @@ public class EntityMixin implements EntityAccessor{
 
         return false;
     }
+
     @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
     private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
         if (!state.is(Blocks.COBWEB)) {
@@ -241,55 +274,47 @@ public class EntityMixin implements EntityAccessor{
             ci.cancel();
         }
     }
-	@Inject(method = "tick", at=@At("RETURN"))
-	private void identityFix(CallbackInfo info) {
-		if(this.currentIdentity!=null){
-            boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
-            
-             
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void identityFix(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
+
+//            if(((Entity) (Object) this) instanceof Player player)
+//            {
+//                this.currentIdentity.setInvulnerable(player.isInvulnerable());
+//            }
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
-            if (hostIsPlayer) {
-                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
-            }
-            ((EntityAccessor) this.currentIdentity).setTouchingWater(((Entity) (Object) this).isInWater());
-            this.currentIdentity.setSwimming(((Entity) (Object) this).isSwimming());
             identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
             identity2$applySyncedMorphState(this.currentIdentity);
-            if(
-                (this.currentIdentity instanceof LivingEntity livingIdentity)&&
-                ((Entity)(Object)this instanceof LivingEntity livingEntity)
-            ){
-            livingIdentity.setHealth(livingEntity.getHealth());
+            if (
+                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
+                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
+            ) {
+                livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(this.currentIdentity.level().isClientSide()){
-                if (this.currentIdentity instanceof net.minecraft.world.entity.animal.Squid) {
-                    return;
-                }
+            if (this.currentIdentity.level().isClientSide()) {
                 this.currentIdentity.tick();
             } else {
-                boolean allowFullServerTick = !MorphEntityTraits.shouldSkipFullServerMorphTick((Entity) (Object) this, this.currentIdentity);
-                if(this.currentIdentity instanceof Mob mobIdentity && !allowFullServerTick){
+                if (this.currentIdentity instanceof Mob mobIdentity) {
                     mobIdentity.setNoAi(true);
                 }
-                if (allowFullServerTick) {
-                    this.currentIdentity.tick();
-                }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
+                this.currentIdentity.tick();
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
             }
+
+
             if (hostIsPlayer) {
-                if (this.currentIdentity instanceof EnderDragon dragonIdentity) {
-                    identity2$syncDragonMultipartPosition(dragonIdentity, this.position());
-                } else {
-                    this.currentIdentity.setPos(this.position());
-                    this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
-                    this.currentIdentity.setAirSupply(this.getAirSupply());
-                }
-                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
+                // For players, keep vanilla movement/gravity authoritative.
+                // Some morph AIs (especially flying mobs) can otherwise inject
+                // non-player motion and feel like speed/gravity glitches.
+                this.currentIdentity.setPos(this.position());
+                this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+                this.setAirSupply(this.currentIdentity.getAirSupply());
                 Entity hostEntity = (Entity) (Object) this;
                 if (
                     !hostEntity.onGround()
@@ -323,10 +348,13 @@ public class EntityMixin implements EntityAccessor{
                 if (!hostIsPlayer) {
                     livingEntity.setHealth(livingIdentity.getHealth());
                 }
+
             }
 
+
         }
-	}
+    }
+
     @Unique
     private static void identity2$syncIdentityEquipmentFromHost(Entity host, Entity identity) {
         if (!(host instanceof LivingEntity livingHost) || !(identity instanceof LivingEntity livingIdentity)) {
@@ -364,183 +392,57 @@ public class EntityMixin implements EntityAccessor{
             player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
         }
 
-        if (activeIdentity.getType() == EntityType.RABBIT) {
-            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 40, 1, true, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 40, 1, true, false, true));
-        }
-
-        if (MorphEntityTraits.canBreatheUnderwater(activeIdentity)) {
-            BlockPos exposurePos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
-            if (player.isInWater() || player.level().isRainingAt(exposurePos)) {
-                player.setAirSupply(player.getMaxAirSupply());
-            } else {
-                int nextAir = player.getAirSupply() - 1;
-                if (nextAir <= -20) {
-                    nextAir = 0;
-                    player.hurt(player.damageSources().dryOut(), 2.0F);
-                }
-                player.setAirSupply(nextAir);
-            }
-        } else if (player.getAirSupply() < player.getMaxAirSupply()) {
-            player.setAirSupply(player.getMaxAirSupply());
-        }
-
-        if (MorphEntityTraits.isFireImmune(activeIdentity)) {
-            player.clearFire();
-            activeIdentity.clearFire();
-            this.identity2$morphSunBurning = false;
-        }
-
-        if (activeIdentity instanceof EnderDragon dragonIdentity) {
+        if (activeIdentity instanceof EnderDragon dragonIdentity && player.level() instanceof ServerLevel serverLevel) {
+            ((EnderDragonEntityAccessor) dragonIdentity).runTickWithEndCrystals();
+            identity2$invokeTwoArgs(dragonIdentity, "checkWalls", serverLevel, dragonIdentity.getBoundingBox());
             if (dragonIdentity.getHealth() > player.getHealth()) {
                 player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
             }
         }
 
-        boolean sunBurnTick = MorphEntityTraits.tickSunBurnLikeVanilla(player, activeIdentity);
+        boolean sunBurnTick = false;
+        Object value = identity2$invokeNoArg(activeIdentity, "isSunBurnTick");
+        if (value instanceof Boolean bool) {
+            sunBurnTick = bool;
+        }
 
         if (sunBurnTick) {
+            player.igniteForSeconds(8.0F);
+            if (player.tickCount % 20 == 0 && player.level() instanceof ServerLevel serverLevel) {
+                player.hurtServer(serverLevel, player.damageSources().onFire(), 1.0F);
+            }
             this.identity2$morphSunBurning = true;
-        }
-
-        if (activeIdentity instanceof AbstractPiglin piglinIdentity && player instanceof ServerPlayer serverPlayer) {
-            identity2$tickPiglinConversion(serverPlayer, piglinIdentity);
-        }
-    }
-    @Unique
-    private static void identity2$syncDragonMultipartPosition(EnderDragon dragonIdentity, Vec3 targetPos) {
-        if (dragonIdentity == null || targetPos == null) {
-            return;
-        }
-        Vec3 previous = dragonIdentity.position();
-        Vec3 delta = targetPos.subtract(previous);
-        dragonIdentity.setPos(targetPos);
-        if (delta.lengthSqr() <= 1.0E-8D) {
-            return;
-        }
-        for (Entity part : dragonIdentity.getSubEntities()) {
-            if (part == null) {
-                continue;
-            }
-            Vec3 shifted = part.position().add(delta);
-            part.setPos(shifted);
-        }
-    }
-    @Unique
-    private static void identity2$clearEntityImpulseFlags(Entity entity) {
-        if (entity == null) {
-            return;
-        }
-        identity2$setBooleanField(entity, "hurtMarked", false);
-        identity2$setBooleanField(entity, "hasImpulse", false);
-    }
-
-    @Unique
-    private static void identity2$setBooleanField(Object target, String fieldName, boolean value) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                java.lang.reflect.Field field = current.getDeclaredField(fieldName);
-                if (!(field.getType() == boolean.class || field.getType() == Boolean.class)) {
-                    return;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                field.setBoolean(target, value);
-                return;
-            } catch (NoSuchFieldException ignored) {
-            } catch (Throwable ignored) {
-                return;
-            }
-        }
-    }
-    @Unique
-    private static void identity2$syncIdentityRotationFromHost(Entity host, Entity identity) {
-        if (host == null || identity == null) {
-            return;
-        }
-        float yawOffset = identity instanceof EnderDragon ? 180.0F : 0.0F;
-        float targetYaw = host.getYRot() + yawOffset;
-        identity.setYRot(targetYaw);
-        identity.yRotO = host.yRotO + yawOffset;
-        identity.setXRot(host.getXRot());
-        identity.xRotO = host.xRotO;
-        if (identity instanceof LivingEntity livingIdentity && host instanceof LivingEntity livingHost) {
-            if (identity.getType() == EntityType.GOAT) {
-                livingIdentity.yHeadRot = targetYaw;
-                livingIdentity.yHeadRotO = targetYaw;
-                livingIdentity.yBodyRot = targetYaw;
-                livingIdentity.yBodyRotO = targetYaw;
-            } else {
-                livingIdentity.yHeadRot = livingHost.yHeadRot + yawOffset;
-                livingIdentity.yHeadRotO = livingHost.yHeadRotO + yawOffset;
-                livingIdentity.yBodyRot = livingHost.yBodyRot + yawOffset;
-                livingIdentity.yBodyRotO = livingHost.yBodyRotO + yawOffset;
-            }
-        }
-        if (identity instanceof EnderDragon dragonIdentity) {
-            dragonIdentity.yRotA += Mth.wrapDegrees(targetYaw - dragonIdentity.yRotA) * 0.1F;
+        } else if (this.identity2$morphSunBurning) {
+            player.clearFire();
+            this.identity2$morphSunBurning = false;
         }
     }
 
-    @Unique
-    private void identity2$tickPiglinConversion(ServerPlayer player, AbstractPiglin piglinIdentity) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
-        boolean shouldConvert = !player.level().dimensionType().piglinSafe();
-        if (Boolean.TRUE.equals(identity2$invokeNoArg(piglinIdentity, "isImmuneToZombification"))) {
-            shouldConvert = false;
-        }
-        if (!shouldConvert) {
-            nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
-            return;
-        }
-
-        int conversionTicks = Math.max(0, nbt.getIntOr(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0));
-        conversionTicks++;
-        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, conversionTicks);
-        if (conversionTicks < 300) {
-            return;
-        }
-
-        String zombifiedPiglinId = EntityType.getKey(EntityType.ZOMBIFIED_PIGLIN).toString();
-        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
-        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, zombifiedPiglinId);
-        nbt.putString("model_override", zombifiedPiglinId);
-        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
-        IdentityProgression.restoreMorphFromSavedDataAndSync(player);
-    }
     @Redirect(method = "move",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
-    private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
-        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()){
-            double d=((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
-            if(d!=0.0){
-                entity.setDeltaMovement(bl ? vec3d4.x*d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z*d : vec3d4.z);
-            }else{
-                entity.setDeltaMovement(x,y,z);
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
+    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
+        if (this.currentIdentity != null && ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()) {
+            double d = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
+            if (d != 0.0) {
+                entity.setDeltaMovement(bl ? vec3d4.x * d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * d : vec3d4.z);
+            } else {
+                entity.setDeltaMovement(x, y, z);
             }
-        }else{
-                entity.setDeltaMovement(x,y,z);
-            }
+        } else {
+            entity.setDeltaMovement(x, y, z);
+        }
     }
 
 
+    public int abilityCooldown = 0;
+    public int secondaryAbilityCooldown = 0;
 
-
-
-
-
-    public int abilityCooldown=0;
-    public int secondaryAbilityCooldown=0;
-
-    public int getAbilityCooldown(){
+    public int getAbilityCooldown() {
         return this.abilityCooldown;
     }
-    public void setAbilityCooldown(int cooldown){
-        this.abilityCooldown=cooldown;
+
+    public void setAbilityCooldown(int cooldown) {
+        this.abilityCooldown = cooldown;
     }
 
     public int getSecondaryAbilityCooldown() {
@@ -552,116 +454,90 @@ public class EntityMixin implements EntityAccessor{
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    @Inject(method="onRemoval",at=@At("HEAD"),cancellable=true)
-    private void commandOnRemoved(Entity.RemovalReason reason,CallbackInfo info){
-        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
-            PredefIdentityAbilities.cleanupIdentitySideEffects(serverPlayer, this.currentIdentity);
-        }
-        if(reason.shouldDestroy()){
-            String reasonType="";
-            if(reason==Entity.RemovalReason.KILLED){
-                reasonType="killed";
-            }else if(reason==Entity.RemovalReason.DISCARDED){
-                reasonType="discarded";
-            }else if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK){
-                reasonType="unloaded_chunk";
-            }else if(reason==Entity.RemovalReason.UNLOADED_WITH_PLAYER){
-                reasonType="unloaded_player";
-            }else if(reason==Entity.RemovalReason.CHANGED_DIMENSION){
-                reasonType="dimension_change";
+    @Inject(method = "onRemoval", at = @At("HEAD"), cancellable = true)
+    private void commandOnRemoved(Entity.RemovalReason reason, CallbackInfo info) {
+        if (reason.shouldDestroy()) {
+            String reasonType = "";
+            if (reason == Entity.RemovalReason.KILLED) {
+                reasonType = "killed";
+            } else if (reason == Entity.RemovalReason.DISCARDED) {
+                reasonType = "discarded";
+            } else if (reason == Entity.RemovalReason.UNLOADED_TO_CHUNK) {
+                reasonType = "unloaded_chunk";
+            } else if (reason == Entity.RemovalReason.UNLOADED_WITH_PLAYER) {
+                reasonType = "unloaded_player";
+            } else if (reason == Entity.RemovalReason.CHANGED_DIMENSION) {
+                reasonType = "dimension_change";
             }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_removed").isPresent()) {
+                String command = ((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_removed").get();
+                if (((Entity) (Object) this).level().getServer() != null) {
+                    if (command != "") {
+
+                        ((Entity) (Object) this).level().getServer().getCommands().performPrefixedCommand(((Entity) (Object) this).level().getServer().createCommandSourceStack().withEntity((Entity) (Object) this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                                command
                         );
-                        
+
                     }
                 }
             }
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_removed_" + reasonType).isPresent()) {
+                String command = ((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_removed_" + reasonType).get();
+                if (((Entity) (Object) this).level().getServer() != null) {
+                    if (command != "") {
+
+                        ((Entity) (Object) this).level().getServer().getCommands().performPrefixedCommand(((Entity) (Object) this).level().getServer().createCommandSourceStack().withEntity((Entity) (Object) this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                                command
                         );
-                        
+
                     }
                 }
             }
         }
     }
-    
 
 
-
-
-    @Inject(method="baseTick",at=@At("HEAD"),cancellable=true)
-    private void commandOnTick(CallbackInfo info){
-        if(this.abilityCooldown>0){
-            this.abilityCooldown-=1;
+    @Inject(method = "baseTick", at = @At("HEAD"), cancellable = true)
+    private void commandOnTick(CallbackInfo info) {
+        if (this.abilityCooldown > 0) {
+            this.abilityCooldown -= 1;
         }
-        if(this.secondaryAbilityCooldown>0){
-            this.secondaryAbilityCooldown-=1;
+        if (this.secondaryAbilityCooldown > 0) {
+            this.secondaryAbilityCooldown -= 1;
         }
-        if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").get();
-                if(((Entity)(Object)this).level().getServer()!=null){
-                    if(command!=""){
-                    
-                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
-                        command
-                        );
-                        
-                    }
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_tick").isPresent()) {
+            String command = ((NbtComponentAccessor) (Object) this.customData).getNbt().getString("on_tick").get();
+            if (((Entity) (Object) this).level().getServer() != null) {
+                if (command != "") {
+
+                    ((Entity) (Object) this).level().getServer().getCommands().performPrefixedCommand(((Entity) (Object) this).level().getServer().createCommandSourceStack().withEntity((Entity) (Object) this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                            command
+                    );
+
                 }
             }
-            
-        
-    }
-    
+        }
 
+
+    }
 
 
     @Shadow
-    public boolean noPhysics=false;
+    public boolean noPhysics = false;
     @Shadow
     public boolean horizontalCollision;
-    public boolean entityCanFly=false;
-    public boolean entityCanFlyEvaluated=false;
-    public boolean entityCanFlyTickEvaluated=false;
+    public boolean entityCanFly = false;
+    public boolean entityCanFlyEvaluated = false;
+    public boolean entityCanFlyTickEvaluated = false;
     private boolean identity2$grantedMayfly = false;
     private float identity2$storedFlyingSpeed = Float.NaN;
     private boolean identity2$morphSunBurning = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
-    private static final String IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY = "identity2.piglin_conversion_ticks";
 
 
     public boolean canFly() {
@@ -671,7 +547,10 @@ public class EntityMixin implements EntityAccessor{
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
             } else {
-                this.entityCanFly = false;
+                try {
+                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(flightEntity.getClass(), FALL_METHOD_NAME);
+                } catch (Exception ignored) {
+                }
                 if (flightEntity.isNoGravity()) {
                     this.entityCanFly = true;
                 }
@@ -681,7 +560,7 @@ public class EntityMixin implements EntityAccessor{
             }
             this.entityCanFlyEvaluated = true;
             if (this.identityOf instanceof Player player) {
-                ((EntityMixin)(Object)player).applyIdentityFlightGrant(player, this.entityCanFly);
+                ((EntityMixin) (Object) player).applyIdentityFlightGrant(player, this.entityCanFly);
             }
         }
         return this.entityCanFly;
@@ -698,8 +577,8 @@ public class EntityMixin implements EntityAccessor{
     private static String identity2$resolveFallMethodName() {
         try {
             return EntityMethodChecks.class
-                .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
-                .getName();
+                    .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
+                    .getName();
         } catch (NoSuchMethodException ignored) {
             return "checkFallDamage";
         }
@@ -762,29 +641,26 @@ public class EntityMixin implements EntityAccessor{
     }
 
 
-
-
-
-
-    @Inject(method="isClientAuthoritative",at=@At("HEAD"),cancellable=true)
-    private void isControlledByPlayerOverride(CallbackInfoReturnable info){
-        if(this.identityOf!=null){
-            info.setReturnValue(((Entity)this.identityOf).isClientAuthoritative());
+    @Inject(method = "isClientAuthoritative", at = @At("HEAD"), cancellable = true)
+    private void isControlledByPlayerOverride(CallbackInfoReturnable info) {
+        if (this.identityOf != null) {
+            info.setReturnValue(((Entity) this.identityOf).isClientAuthoritative());
         }
     }
-    
-    @Inject(method="getBbWidth",at=@At("HEAD"),cancellable=true)
-    private void getWidthOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
-                info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()
+
+    @Inject(method = "getBbWidth", at = @At("HEAD"), cancellable = true)
+    private void getWidthOverride(CallbackInfoReturnable info) {
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get() > 0.0) {
+                info.setReturnValue((Float) (float) (double)
+                        ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get()
                 );
             }
         }
     }
-    @Inject(method="getDimensions",at=@At("RETURN"),cancellable=true)
-    private void getDimensionsModification(CallbackInfoReturnable info){
+
+    @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true)
+    private void getDimensionsModification(CallbackInfoReturnable info) {
         EntityDimensions dimensions = (EntityDimensions) info.getReturnValue();
         float oldWidth = dimensions.width();
         float oldHeight = dimensions.height();
@@ -808,98 +684,111 @@ public class EntityMixin implements EntityAccessor{
         float heightScale = oldHeight > 0.0F ? heightOverride / oldHeight : 1.0F;
         info.setReturnValue(dimensions.scale(widthScale, heightScale));
     }
-    @Inject(method="getBbHeight",at=@At("HEAD"),cancellable=true)
-    private void getHeightOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
-                info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()
+
+    @Inject(method = "getBbHeight", at = @At("HEAD"), cancellable = true)
+    private void getHeightOverride(CallbackInfoReturnable info) {
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get() > 0.0) {
+                info.setReturnValue((Float) (float) (double)
+                        ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get()
                 );
             }
         }
     }
+
     @Shadow
     private AABB bb;
-    @Inject(method="setBoundingBox",at=@At("TAIL"))
-    private void getBoundingBoxModification(CallbackInfo info){
-        AABB box=((AABB)this.bb);
-        double old_width=box.maxX-box.minX;
-        double old_height=box.maxY-box.minY;
-        double center_x=(box.maxX+box.minX)/2;
-        double center_z=(box.maxZ+box.minZ)/2;
-        double center_y=box.minY;
-        double new_width=old_width;
-        double new_height=old_height;
-        boolean hasOverride=false;
 
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
-                new_width=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get();
-                hasOverride=true;
+    @Inject(method = "setBoundingBox", at = @At("TAIL"))
+    private void getBoundingBoxModification(CallbackInfo info) {
+        AABB box = ((AABB) this.bb);
+        double old_width = box.maxX - box.minX;
+        double old_height = box.maxY - box.minY;
+        double center_x = (box.maxX + box.minX) / 2;
+        double center_z = (box.maxZ + box.minZ) / 2;
+        double center_y = box.minY;
+        double new_width = old_width;
+        double new_height = old_height;
+        boolean hasOverride = false;
+
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get() > 0.0) {
+                new_width = (double)
+                        ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get();
+                hasOverride = true;
             }
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
-                new_height=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get();
-                hasOverride=true;
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
+            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get() > 0.0) {
+                new_height = (double)
+                        ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get();
+                hasOverride = true;
             }
         }
-        if(!hasOverride){
+        if (!hasOverride) {
             return;
         }
-        box=box.setMaxX(center_x+new_width/2);
-        box=box.setMinX(center_x-new_width/2);
-        box=box.setMaxZ(center_z+new_width/2);
-        box=box.setMinZ(center_z-new_width/2);
-        box=box.setMaxY(center_y+new_height);
-        this.bb=box;
+        box = box.setMaxX(center_x + new_width / 2);
+        box = box.setMinX(center_x - new_width / 2);
+        box = box.setMaxZ(center_z + new_width / 2);
+        box = box.setMinZ(center_z - new_width / 2);
+        box = box.setMaxY(center_y + new_height);
+        this.bb = box;
         //info.setReturnValue(box);
     }
+
     @Override
-    public CustomData getCustomData(){
-        if(this.customData==CustomData.EMPTY){
-        this.customData= CustomData.of(((NbtComponentAccessor)(Object)this.customData).getNbt().copy());
-        //Identity2.LOGGER.info("Default Custom Data detected.");
+    public CustomData getCustomData() {
+        if (this.customData == CustomData.EMPTY) {
+            this.customData = CustomData.of(((NbtComponentAccessor) (Object) this.customData).getNbt().copy());
+            //Identity2.LOGGER.info("Default Custom Data detected.");
         }
         return this.customData;
-    };
-    
+    }
+
+    ;
+
     @Nullable
-    public Entity currentIdentity=null;
+    public Entity currentIdentity = null;
     @Nullable
-    public Entity identityOf=null;
+    public Entity identityOf = null;
+
     @Nullable
-    public Entity getCurrentIdentity(){
+    public Entity getCurrentIdentity() {
         return this.currentIdentity;
     }
+
     @Nullable
-    public Entity getIdentityOwner(){
+    public Entity getIdentityOwner() {
         return this.identityOf;
     }
-    public void setCurrentIdentity(Entity e){
-        this.currentIdentity=e;
+
+    public void setCurrentIdentity(Entity e) {
+        this.currentIdentity = e;
     }
-    public void setIdentityOf(Entity e){
-        this.identityOf=e;
+
+    public void setIdentityOf(Entity e) {
+        this.identityOf = e;
     }
-    public void setCurrentIdentity(String id, CompoundTag data){
+
+    public void setCurrentIdentity(String id, CompoundTag data) {
         if (data != null && !data.isEmpty()) {
             this.setCurrentIdentity(id + data.toString());
             return;
         }
         this.setCurrentIdentity(id);
     }
-    public void fixAttributes(Entity entity, Entity identity){}
-    public void setCurrentIdentity(String id){
-        Entity previousIdentity = this.currentIdentity;
-        this.noPhysics=false;
+
+    public void fixAttributes(Entity entity, Entity identity) {
+    }
+
+    public void setCurrentIdentity(String id) {
+        this.noPhysics = false;
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        ResourceLocation forcedIdentity = null;
+        Identifier forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();
@@ -916,45 +805,43 @@ public class EntityMixin implements EntityAccessor{
                 id = id.substring(0, id.indexOf('{'));
             }
         }
-        if(nbtCompound==null){
-            nbtCompound=new CompoundTag().copy();
+        if (nbtCompound == null) {
+            nbtCompound = new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty() && forcedIdentity == null) {
             String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
-                        .parse(new com.mojang.brigadier.StringReader(variantRaw));
+                            .parse(new com.mojang.brigadier.StringReader(variantRaw));
                 } catch (Exception ignored) {
                     nbtCompound = new CompoundTag().copy();
                 }
             }
         }
-        if(id.length()==0){
-            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
-            this.currentIdentity=null;
+        if (id.length() == 0) {
+            this.currentIdentity = null;
             this.entityCanFly = false;
-            ((Entity)(Object)this).refreshDimensions();
-            this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
-            if((Entity)(Object)this instanceof Player player){
+            ((Entity) (Object) this).refreshDimensions();
+            this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
+            if ((Entity) (Object) this instanceof Player player) {
                 this.applyIdentityFlightGrant(player, false);
             }
             return;
         }
-        ResourceLocation identityId;
+        Identifier identityId;
         try {
-            identityId = ResourceLocation.parse(id);
+            identityId = Identifier.parse(id);
         } catch (Exception e) {
             this.deactivateIdentityAfterFailure(null, "invalid id");
             return;
         }
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
-            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             this.currentIdentity = null;
             this.entityCanFly = false;
-            ((Entity)(Object)this).refreshDimensions();
-            this.setStandingEyeHeight(((Entity)(Object)this).getEyeHeight());
-            if((Entity)(Object)this instanceof Player player){
+            ((Entity) (Object) this).refreshDimensions();
+            this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
+            if ((Entity) (Object) this instanceof Player player) {
                 this.applyIdentityFlightGrant(player, false);
             }
             return;
@@ -969,9 +856,9 @@ public class EntityMixin implements EntityAccessor{
         }
 
         nbtCompound.putString("id", identityId.toString());
-        Vec3 pos=new Vec3(0,0,0);
+        Vec3 pos = new Vec3(0, 0, 0);
         try {
-            Level serverWorld = (Level)((Entity)(Object)this).level();
+            Level serverWorld = (Level) ((Entity) (Object) this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
                 entityx.snapTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
@@ -981,9 +868,9 @@ public class EntityMixin implements EntityAccessor{
             }
             entity.setId(-this.getId());
             this.identity2$applyIdentityVariantState(entity, nbtCompound);
-            ((EntityAccessor)entity).fixAttributes((Entity)(Object)this, entity);
-            this.currentIdentity=entity;
-            ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
+            ((EntityAccessor) entity).fixAttributes((Entity) (Object) this, entity);
+            this.currentIdentity = entity;
+            ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
         } catch (Throwable throwable) {
             String reason = throwable.getClass().getSimpleName();
             IdentityProgression.disableIdentity(identityId, reason);
@@ -991,28 +878,23 @@ public class EntityMixin implements EntityAccessor{
             this.deactivateIdentityAfterFailure(identityId, reason);
             return;
         }
-        
-        if(this.currentIdentity!=null){
-            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
-            ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
+
+        if (this.currentIdentity != null) {
+            ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
             //if(((Entity)(Object)this).getEntityWorld().isClient()){
-            ((EntityAccessor)(this.currentIdentity)).setId(((EntityAccessor)(this.currentIdentity)).getId()*-1);
+            ((EntityAccessor) (this.currentIdentity)).setId(((EntityAccessor) (this.currentIdentity)).getId() * -1);
             //}
-            ((Entity)(Object)this).refreshDimensions();
+            ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
-            if((Entity)(Object)this instanceof Player player){
+            if ((Entity) (Object) this instanceof Player player) {
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 if (player instanceof ServerPlayer serverPlayer) {
                     IdentityProgression.updateHostileIdentityGrace(serverPlayer, this.currentIdentity);
                 }
-                if (MorphEntityTraits.isFireImmune(this.currentIdentity)) {
-                    player.clearFire();
-                    this.currentIdentity.clearFire();
-                }
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
         }
-        
+
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
@@ -1058,7 +940,6 @@ public class EntityMixin implements EntityAccessor{
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
-        identity2$applyNamedEnumVariant(identityEntity, variantNbt, "Variant", "variant", "Type", "type");
 
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "CatVariant", "CAT_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
@@ -1095,8 +976,8 @@ public class EntityMixin implements EntityAccessor{
             typeRaw = villagerDataTag.getStringOr("type", "");
         }
 
-        ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
-        ResourceLocation typeId = identity2$parseResourceLocation(typeRaw);
+        Identifier professionId = identity2$parseIdentifier(professionRaw);
+        Identifier typeId = identity2$parseIdentifier(typeRaw);
 
         if (professionId != null) {
             Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
@@ -1164,21 +1045,21 @@ public class EntityMixin implements EntityAccessor{
     }
 
     @Nullable
-    private static ResourceLocation identity2$parseResourceLocation(String raw) {
+    private static Identifier identity2$parseIdentifier(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             if (raw.contains(":")) {
-                return ResourceLocation.parse(raw);
+                return Identifier.parse(raw);
             }
-            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
+            return Identifier.fromNamespaceAndPath("minecraft", raw);
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private static Object identity2$resolveRegistryValue(String registryField, @Nullable ResourceLocation id) {
+    private static Object identity2$resolveRegistryValue(String registryField, @Nullable Identifier id) {
         if (id == null) {
             return null;
         }
@@ -1203,7 +1084,7 @@ public class EntityMixin implements EntityAccessor{
         try {
             Object key = Registries.class.getField(fieldName).get(null);
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                ResourceLocation location = identity2$getResourceKeyLocation(resourceKey);
+                Identifier location = identity2$getResourceKeyLocation(resourceKey);
                 if (location != null) {
                     Object value = BuiltInRegistries.REGISTRY.getValue(location);
                     if (value instanceof net.minecraft.core.Registry<?> registry) {
@@ -1218,7 +1099,7 @@ public class EntityMixin implements EntityAccessor{
 
     private static void identity2$applyRegistryBackedVariant(Entity identityEntity, CompoundTag variantNbt, String nbtKey, String registryField) {
         String raw = identity2$readVariantString(variantNbt, nbtKey, "variant", "Variant");
-        ResourceLocation variantId = identity2$parseResourceLocation(raw);
+        Identifier variantId = identity2$parseIdentifier(raw);
         if (variantId == null) {
             return;
         }
@@ -1239,80 +1120,6 @@ public class EntityMixin implements EntityAccessor{
         }
     }
 
-    private static void identity2$applyNamedEnumVariant(Entity identityEntity, CompoundTag variantNbt, String... keys) {
-        if (identityEntity == null || variantNbt == null || keys == null || keys.length == 0) {
-            return;
-        }
-        String raw = identity2$readVariantString(variantNbt, keys);
-        if (raw == null || raw.isBlank()) {
-            return;
-        }
-        if (identity2$applyNamedEnumVariant(identityEntity, "setVariant", raw)) {
-            return;
-        }
-        identity2$applyNamedEnumVariant(identityEntity, "setType", raw);
-    }
-
-    private static boolean identity2$applyNamedEnumVariant(Entity identityEntity, String methodName, String raw) {
-        if (identityEntity == null || methodName == null || methodName.isBlank() || raw == null || raw.isBlank()) {
-            return false;
-        }
-        for (Method method : identity2$getAllMethods(identityEntity.getClass())) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            Class<?> paramType = method.getParameterTypes()[0];
-            if (!paramType.isEnum()) {
-                continue;
-            }
-            Object enumValue = identity2$resolveEnumVariant(paramType, raw);
-            if (enumValue == null) {
-                continue;
-            }
-            try {
-                if (!method.canAccess(identityEntity)) {
-                    method.setAccessible(true);
-                }
-                method.invoke(identityEntity, enumValue);
-                return true;
-            } catch (Throwable ignored) {
-            }
-        }
-        return false;
-    }
-
-    @Nullable
-    private static Object identity2$resolveEnumVariant(Class<?> enumType, String raw) {
-        if (enumType == null || raw == null || raw.isBlank() || !enumType.isEnum()) {
-            return null;
-        }
-        String normalized = raw.trim().toLowerCase(java.util.Locale.ROOT);
-        if (normalized.contains(":")) {
-            normalized = normalized.substring(normalized.indexOf(':') + 1);
-        }
-        Object[] constants = enumType.getEnumConstants();
-        if (constants == null) {
-            return null;
-        }
-        for (Object constant : constants) {
-            if (!(constant instanceof Enum<?> enumValue)) {
-                continue;
-            }
-            if (enumValue.name().equalsIgnoreCase(normalized)) {
-                return constant;
-            }
-            Object serialized = identity2$invokeNoArg(constant, "getSerializedName");
-            if (serialized instanceof String text && text.equalsIgnoreCase(normalized)) {
-                return constant;
-            }
-            Object asString = identity2$invokeNoArg(constant, "asString");
-            if (asString instanceof String text && text.equalsIgnoreCase(normalized)) {
-                return constant;
-            }
-        }
-        return null;
-    }
-
     @Nullable
     private static Object identity2$getBuiltInRegistryObject(String fieldName) {
         if (fieldName == null || fieldName.isBlank()) {
@@ -1325,7 +1132,7 @@ public class EntityMixin implements EntityAccessor{
             }
             Object key = Registries.class.getField(fieldName).get(null);
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                ResourceLocation location = identity2$getResourceKeyLocation(resourceKey);
+                Identifier location = identity2$getResourceKeyLocation(resourceKey);
                 if (location != null) {
                     return BuiltInRegistries.REGISTRY.getValue(location);
                 }
@@ -1349,16 +1156,16 @@ public class EntityMixin implements EntityAccessor{
     }
 
     @Nullable
-    private static ResourceLocation identity2$getResourceKeyLocation(Object resourceKey) {
+    private static Identifier identity2$getResourceKeyLocation(Object resourceKey) {
         if (resourceKey == null) {
             return null;
         }
         Object byLocation = identity2$invokeNoArg(resourceKey, "location");
-        if (byLocation instanceof ResourceLocation id) {
+        if (byLocation instanceof Identifier id) {
             return id;
         }
         Object byRegistry = identity2$invokeNoArg(resourceKey, "registry");
-        if (byRegistry instanceof ResourceLocation id) {
+        if (byRegistry instanceof Identifier id) {
             return id;
         }
         return null;
@@ -1593,7 +1400,7 @@ public class EntityMixin implements EntityAccessor{
         return false;
     }
 
-    private void deactivateIdentityAfterFailure(@Nullable ResourceLocation identityId, String reason) {
+    private void deactivateIdentityAfterFailure(@Nullable Identifier identityId, String reason) {
         this.currentIdentity = null;
         this.entityCanFly = false;
         this.entityCanFlyEvaluated = false;
@@ -1621,14 +1428,15 @@ public class EntityMixin implements EntityAccessor{
             this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
             if (player instanceof ServerPlayer serverPlayer && identityId != null) {
                 serverPlayer.displayClientMessage(
-                    Component.literal(
-                        "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
-                    ),
-                    false
+                        Component.literal(
+                                "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
+                        ),
+                        false
                 );
             }
         }
     }
+
     @Unique
     private void identity2$clearTransientMovementOverrides() {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
@@ -1663,341 +1471,343 @@ public class EntityMixin implements EntityAccessor{
             target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
         }
     }
+
     @Shadow
     protected boolean wasTouchingWater;
     @Shadow
-    @Nullable private Entity vehicle;
-    public void setVehicle(Entity vehicle){
-        this.vehicle=vehicle;
+    @Nullable
+    private Entity vehicle;
+
+    public void setVehicle(Entity vehicle) {
+        this.vehicle = vehicle;
     }
-	public void setTouchingWater(boolean isTouchingWater){
-        this.wasTouchingWater=isTouchingWater;
+
+    public void setTouchingWater(boolean isTouchingWater) {
+        this.wasTouchingWater = isTouchingWater;
     }
+
     @Shadow
-	public double xo;
+    public double xo;
     @Shadow
-	public double yo;
+    public double yo;
     @Shadow
-	public double zo;
+    public double zo;
     @Shadow
-	public double xOld;
+    public double xOld;
     @Shadow
-	public double yOld;
+    public double yOld;
     @Shadow
-	public double zOld;
+    public double zOld;
+
     @Overwrite
-    public void setOldPos(Vec3 pos){
-		this.xo = this.xOld = pos.x;
-		this.yo = this.yOld = pos.y;
-		this.zo = this.zOld = pos.z;
-    };
+    public void setOldPos(Vec3 pos) {
+        this.xo = this.xOld = pos.x;
+        this.yo = this.yOld = pos.y;
+        this.zo = this.zOld = pos.z;
+    }
+
+    ;
+
     @Override
     public void setLastPosition(Vec3 pos) {
         this.setOldPos(pos);
     }
+
     @Shadow
-    public void processFlappingMovement(){};
-    public void runAddAirTravelEffects(){
+    public void processFlappingMovement() {
+    }
+
+    ;
+
+    public void runAddAirTravelEffects() {
         this.processFlappingMovement();
     }
+
     @Shadow
     EntityDimensions dimensions;
     @Shadow
     float eyeHeight;
-	public EntityDimensions getEntityDimensions(){
+
+    public EntityDimensions getEntityDimensions() {
         return this.dimensions;
-    };
-	public void setEntityDimensions(EntityDimensions dimensions){
-        this.dimensions=dimensions;
-        ((Entity)(Object)this).refreshDimensions();
-    };
+    }
+
+    ;
+
+    public void setEntityDimensions(EntityDimensions dimensions) {
+        this.dimensions = dimensions;
+        ((Entity) (Object) this).refreshDimensions();
+    }
+
+    ;
 
     @Shadow
-	public float getEyeHeight(){
+    public float getEyeHeight() {
         return this.eyeHeight;
-    };
+    }
+
+    ;
+
     @Override
     public float getStandingEyeHeight() {
         return this.getEyeHeight();
     }
-	public void setStandingEyeHeight(float standingEyeHeight){
-        this.eyeHeight=standingEyeHeight;
-    };
 
+    public void setStandingEyeHeight(float standingEyeHeight) {
+        this.eyeHeight = standingEyeHeight;
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    ;
 
 
     //Tons of Redirects - Begin!
-@Shadow
-public Entity.MovementEmission getMovementEmission(){return null;}
-@Override
-public Entity.MovementEmission getMoveEffect() {
-    return this.getMovementEmission();
-}
-@Inject(method = "getMovementEmission()Lnet/minecraft/world/entity/Entity$MovementEmission;", at=@At("HEAD"),cancellable=true)
-private void getMoveEffectIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(((EntityAccessor)this.currentIdentity).getMoveEffect());
+    @Shadow
+    public Entity.MovementEmission getMovementEmission() {
+        return null;
     }
-}
 
-
-@Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at=@At("HEAD"),cancellable=true)
-private void onDamagedActual(DamageSource source,CallbackInfo info){
-    if(this.currentIdentity!=null){
-        this.currentIdentity.handleDamageEvent(source);
+    @Override
+    public Entity.MovementEmission getMoveEffect() {
+        return this.getMovementEmission();
     }
-}
-@Inject(method = "isRemoved()Z", at=@At("HEAD"),cancellable=true)
-private void isRemovedActual(CallbackInfoReturnable info){
-    if(this.identityOf!=null){
-        info.setReturnValue(false);
+
+    @Inject(method = "getMovementEmission()Lnet/minecraft/world/entity/Entity$MovementEmission;", at = @At("HEAD"), cancellable = true)
+    private void getMoveEffectIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(((EntityAccessor) this.currentIdentity).getMoveEffect());
+        }
     }
-}
 
 
-
-
-
-
-
-
-
-
-
-@Shadow
-public boolean isFlapping(){return false;}
-@Override
-public boolean isFlappingWings() {
-    return this.isFlapping();
-}
-@Inject(method = "isFlapping()Z", at=@At("HEAD"),cancellable=true)
-private void isFlappingWingsIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(((EntityAccessor)this.currentIdentity).isFlappingWings());
+    @Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+    private void onDamagedActual(DamageSource source, CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.currentIdentity.handleDamageEvent(source);
+        }
     }
-}
 
-@Shadow
-public boolean isAffectedByBlocks(){return false;}
-@Override
-public boolean shouldTickBlockCollision() {
-    return this.isAffectedByBlocks();
-}
-@Inject(method = "isAffectedByBlocks()Z", at=@At("HEAD"),cancellable=true)
-private void shouldTickBlockCollisionIdentity(CallbackInfoReturnable info){
-    if(((Entity)(Object)this) instanceof Player){
-        return;
+    @Inject(method = "isRemoved()Z", at = @At("HEAD"), cancellable = true)
+    private void isRemovedActual(CallbackInfoReturnable info) {
+        if (this.identityOf != null) {
+            info.setReturnValue(false);
+        }
     }
-    if(this.currentIdentity!=null){
-        info.setReturnValue(((EntityAccessor)this.currentIdentity).shouldTickBlockCollision());
+
+
+    @Shadow
+    public boolean isFlapping() {
+        return false;
     }
-}
 
-
-@Shadow
-public double getDefaultGravity(){return 0;}
-@Override
-public double getIdentityGravity() {
-    return this.getDefaultGravity();
-}
-@Inject(method = "getDefaultGravity()D", at=@At("HEAD"),cancellable=true)
-private void getGravityIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(((EntityAccessor)this.currentIdentity).getIdentityGravity());
+    @Override
+    public boolean isFlappingWings() {
+        return this.isFlapping();
     }
-}
 
-
-@Inject(method = "getSoundSource()Lnet/minecraft/sounds/SoundSource;", at=@At("HEAD"),cancellable=true)
-private void getSoundCategoryIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getSoundSource());
+    @Inject(method = "isFlapping()Z", at = @At("HEAD"), cancellable = true)
+    private void isFlappingWingsIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(((EntityAccessor) this.currentIdentity).isFlappingWings());
+        }
     }
-}
 
-@Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at=@At("HEAD"),cancellable=true)
-private void getInterpolatorIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getInterpolation());
+    @Shadow
+    public boolean isAffectedByBlocks() {
+        return false;
     }
-}
 
-@Inject(method = "canBeCollidedWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
-private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnable info){
-    try{
-        if(entity!=null){
-            if(((EntityAccessor)entity).getIdentityOwner()!=null){
-                info.setReturnValue(false);
-                return;
+    @Override
+    public boolean shouldTickBlockCollision() {
+        return this.isAffectedByBlocks();
+    }
+
+    @Inject(method = "isAffectedByBlocks()Z", at = @At("HEAD"), cancellable = true)
+    private void shouldTickBlockCollisionIdentity(CallbackInfoReturnable info) {
+        if (((Entity) (Object) this) instanceof Player) {
+            return;
+        }
+        if (this.currentIdentity != null) {
+            info.setReturnValue(((EntityAccessor) this.currentIdentity).shouldTickBlockCollision());
+        }
+    }
+
+
+    @Shadow
+    public double getDefaultGravity() {
+        return 0;
+    }
+
+    @Override
+    public double getIdentityGravity() {
+        return this.getDefaultGravity();
+    }
+
+    @Inject(method = "getDefaultGravity()D", at = @At("HEAD"), cancellable = true)
+    private void getGravityIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(((EntityAccessor) this.currentIdentity).getIdentityGravity());
+        }
+    }
+
+
+    @Inject(method = "getSoundSource()Lnet/minecraft/sounds/SoundSource;", at = @At("HEAD"), cancellable = true)
+    private void getSoundCategoryIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getSoundSource());
+        }
+    }
+
+    @Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at = @At("HEAD"), cancellable = true)
+    private void getInterpolatorIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getInterpolation());
+        }
+    }
+
+    @Inject(method = "canBeCollidedWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
+    private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnable info) {
+        try {
+            if (entity != null) {
+                if (((EntityAccessor) entity).getIdentityOwner() != null) {
+                    info.setReturnValue(false);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            int x = 0;
+        }
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.canBeCollidedWith(entity));
+        }
+    }
+
+    @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at = @At("HEAD"), cancellable = true)
+    private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info) {
+        if (((Entity) (Object) this) instanceof Player) {
+            return;
+        }
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isColliding(pos, state));
+        }
+    }
+
+    @Inject(method = "canSpawnSprintParticle()Z", at = @At("HEAD"), cancellable = true)
+    private void shouldSpawnSprintingParticlesIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.canSpawnSprintParticle());
+        }
+    }
+
+    @Inject(method = "canBeHitByProjectile()Z", at = @At("HEAD"), cancellable = true)
+    private void canBeHitByProjectileIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.canBeHitByProjectile());
+        }
+    }
+
+    @Inject(method = "isPickable()Z", at = @At("HEAD"), cancellable = true)
+    private void canHitIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isPickable());
+        }
+    }
+
+    @Inject(method = "isPushable()Z", at = @At("HEAD"), cancellable = true)
+    private void isPushableIdentity(CallbackInfoReturnable info) {
+
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isPushable());
+        }
+    }
+
+    @Inject(method = "isPushedByFluid()Z", at = @At("HEAD"), cancellable = true)
+    private void isPushedByFluidsIdentity(CallbackInfoReturnable info) {
+
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isPushedByFluid());
+        }
+    }
+
+    @Inject(method = "isInWall()Z", at = @At("HEAD"), cancellable = true)
+    private void isInsideWallIdentity(CallbackInfoReturnable info) {
+        if (((Entity) (Object) this) instanceof Player) {
+            return;
+        }
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isInWall());
+        }
+    }
+
+
+    @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
+    private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            InteractionResult actionResult = this.currentIdentity.interact(player, hand);
+            if (actionResult != InteractionResult.PASS) {
+                info.setReturnValue(actionResult);
             }
         }
-    }catch(Exception e){int x=0;}
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canBeCollidedWith(entity));
     }
-}
 
-@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
-private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir){
-    if (!((Entity) (Object) this instanceof Player)) {
-        return;
-    }
-    if (this.currentIdentity == null) {
-        return;
-    }
-    if (MorphEntityTraits.canIdentityRide(this.currentIdentity, vehicle)) {
-        return;
-    }
-    if (MorphEntityTraits.preventsInvalidMorphMounting(this.currentIdentity)) {
-        cir.setReturnValue(false);
-    }
-}
-
-@Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
-private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
-    if(((Entity)(Object)this) instanceof Player){
-        return;
-    }
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isColliding(pos, state));
-    }
-}
-
-@Inject(method = "canSpawnSprintParticle()Z", at=@At("HEAD"),cancellable=true)
-private void shouldSpawnSprintingParticlesIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canSpawnSprintParticle());
-    }
-}
-
-@Inject(method = "canBeHitByProjectile()Z", at=@At("HEAD"),cancellable=true)
-private void canBeHitByProjectileIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canBeHitByProjectile());
-    }
-}
-
-@Inject(method = "isPickable()Z", at=@At("HEAD"),cancellable=true)
-private void canHitIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isPickable());
-    }
-}
-
-@Inject(method = "isPushable()Z", at=@At("HEAD"),cancellable=true)
-private void isPushableIdentity(CallbackInfoReturnable info){
-
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isPushable());
-    }
-}
-@Inject(method = "isPushedByFluid()Z", at=@At("HEAD"),cancellable=true)
-private void isPushedByFluidsIdentity(CallbackInfoReturnable info){
-
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isPushedByFluid());
-    }
-}
-
-@Inject(method = "isInWall()Z", at=@At("HEAD"),cancellable=true)
-private void isInsideWallIdentity(CallbackInfoReturnable info){
-    if(((Entity)(Object)this) instanceof Player){
-        return;
-    }
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isInWall());
-    }
-}
-
-
-
-
-@Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at=@At("HEAD"),cancellable=true)
-private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        InteractionResult actionResult = this.currentIdentity.interact(player, hand);
-        if (actionResult != InteractionResult.PASS) {
-            info.setReturnValue(actionResult);
+    @Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir) {
+        if (!((Entity) (Object) this instanceof Player)) {
+            return;
+        }
+        if (this.currentIdentity == null) {
+            return;
+        }
+        EntityType<?> type = this.currentIdentity.getType();
+        if (type == EntityType.CAMEL || type == EntityType.DONKEY) {
+            cir.setReturnValue(false);
         }
     }
-}
 
-@Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
-private void collidesWithIdentity(Entity other, CallbackInfoReturnable info){
-    if(((EntityAccessor)other).getIdentityOwner()!=null){
-        info.setReturnValue(false);
-        return;
+    @Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
+    private void collidesWithIdentity(Entity other, CallbackInfoReturnable info) {
+        if (((EntityAccessor) other).getIdentityOwner() != null) {
+            info.setReturnValue(false);
+            return;
+        }
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.canCollideWith(other));
+        }
     }
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canCollideWith(other));
-    }
-}
 
-@Inject(method = "getMaxAirSupply()I", at=@At("HEAD"),cancellable=true)
-private void getMaxAirIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getMaxAirSupply());
+    @Inject(method = "getMaxAirSupply()I", at = @At("HEAD"), cancellable = true)
+    private void getMaxAirIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getMaxAirSupply());
+        }
     }
-}
 
-@Inject(method = "getPercentFrozen()F", at=@At("HEAD"),cancellable=true)
-private void getFreezingScaleIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getPercentFrozen());
+    @Inject(method = "getPercentFrozen()F", at = @At("HEAD"), cancellable = true)
+    private void getFreezingScaleIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getPercentFrozen());
+        }
     }
-}
 
-@Inject(method = "isAttackable()Z", at=@At("HEAD"),cancellable=true)
-private void isAttackableIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isAttackable());
+    @Inject(method = "isAttackable()Z", at = @At("HEAD"), cancellable = true)
+    private void isAttackableIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isAttackable());
+        }
     }
-}
 
-@Inject(method = "isInvulnerable()Z", at=@At("HEAD"),cancellable=true)
-private void isInvulnerableIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isInvulnerable());
+    @Inject(method = "isInvulnerable()Z", at = @At("HEAD"), cancellable = true)
+    private void isInvulnerableIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isInvulnerable());
+        }
     }
-}
 
-@Inject(method = "isCustomNameVisible()Z", at=@At("HEAD"),cancellable=true)
-private void isCustomNameVisibleIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.isCustomNameVisible());
+    @Inject(method = "isCustomNameVisible()Z", at = @At("HEAD"), cancellable = true)
+    private void isCustomNameVisibleIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.isCustomNameVisible());
+        }
     }
-}
 
 /*@Inject(method = "getEyeHeight(Lnet/minecraft/entity/Entity;)F", at=@At("HEAD"),cancellable=true)
 private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
@@ -2006,59 +1816,59 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 }*/
 
-public boolean saving=false;
+    public boolean saving = false;
 
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("HEAD"),cancellable=true)
-public void writeDataLabelSaving(ValueOutput view,CallbackInfo info) {
-    this.saving=true;
-}
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("TAIL"),cancellable=true)
-public void writeDataLabelDoneSaving(ValueOutput view,CallbackInfo info) {
-    this.saving=false;
-}
-
-
-
-@Inject(method = "getEyeHeight()F", at=@At("HEAD"),cancellable=true)
-private void getStandingEyeHeightIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getEyeHeight());
+    @Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at = @At("HEAD"), cancellable = true)
+    public void writeDataLabelSaving(ValueOutput view, CallbackInfo info) {
+        this.saving = true;
     }
-}
 
-@Inject(method = "getPistonPushReaction()Lnet/minecraft/world/level/material/PushReaction;", at=@At("HEAD"),cancellable=true)
-private void getPistonBehaviorIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getPistonPushReaction());
+    @Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at = @At("TAIL"), cancellable = true)
+    public void writeDataLabelDoneSaving(ValueOutput view, CallbackInfo info) {
+        this.saving = false;
     }
-}
 
-@Inject(method = "canSprint()Z", at=@At("HEAD"),cancellable=true)
-private void canSprintAsVehicleIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canSprint());
-    }
-}
 
-@Inject(method = "maxUpStep()F", at=@At("HEAD"),cancellable=true)
-private void getStepHeightIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.maxUpStep());
+    @Inject(method = "getEyeHeight()F", at = @At("HEAD"), cancellable = true)
+    private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getEyeHeight());
+        }
     }
-}
 
-@Inject(method = "resetFallDistance()V", at=@At("HEAD"))
-private void onLandingIdentity(CallbackInfo info){
-    if(this.currentIdentity!=null){
-       this.currentIdentity.resetFallDistance();
+    @Inject(method = "getPistonPushReaction()Lnet/minecraft/world/level/material/PushReaction;", at = @At("HEAD"), cancellable = true)
+    private void getPistonBehaviorIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getPistonPushReaction());
+        }
     }
-}
 
-@Inject(method = "setCustomNameVisible(Z)V", at=@At("HEAD"))
-private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
-    if(this.currentIdentity!=null){
-       this.currentIdentity.setCustomNameVisible(visible);
+    @Inject(method = "canSprint()Z", at = @At("HEAD"), cancellable = true)
+    private void canSprintAsVehicleIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.canSprint());
+        }
     }
-}
+
+    @Inject(method = "maxUpStep()F", at = @At("HEAD"), cancellable = true)
+    private void getStepHeightIdentity(CallbackInfoReturnable info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.maxUpStep());
+        }
+    }
+
+    @Inject(method = "resetFallDistance()V", at = @At("HEAD"))
+    private void onLandingIdentity(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.currentIdentity.resetFallDistance();
+        }
+    }
+
+    @Inject(method = "setCustomNameVisible(Z)V", at = @At("HEAD"))
+    private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.currentIdentity.setCustomNameVisible(visible);
+        }
+    }
 //Tons of Redirects - End
 }

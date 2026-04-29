@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:arrow",
+  "cooldown": 20,
+  "predef": "minecraft:bogged"
+}

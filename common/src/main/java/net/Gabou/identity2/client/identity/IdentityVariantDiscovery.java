@@ -18,7 +18,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -27,57 +27,50 @@ import net.minecraft.world.item.DyeColor;
 
 public final class IdentityVariantDiscovery {
     private static final List<String> CANDIDATE_KEYS = List.of(
-            "Color",
-            "Variant",
-            "variant",
-            "Type",
-            "type",
-            "Size",
-            "MushroomType",
-            "MainGene",
-            "HiddenGene",
-            "Skin",
-            "skin",
-            "Form",
-            "form",
-            "IsBaby",
-            "Baby",
-            "VillagerLevel"
+        "Color",
+        "Variant",
+        "variant",
+        "Type",
+        "type",
+        "Skin",
+        "skin",
+        "Form",
+        "form",
+        "IsBaby",
+        "Baby",
+        "VillagerLevel"
     );
     private static final Set<String> VARIANT_NAME_HINTS = Set.of(
-            "variant",
-            "type",
-            "color",
-            "skin",
-            "form",
-            "pattern",
-            "phase",
-            "breed",
-            "style",
-            "coat",
-            "mark",
-            "gene",
-            "mushroom",
-            "size"
+        "variant",
+        "type",
+        "color",
+        "skin",
+        "form",
+        "pattern",
+        "phase",
+        "breed",
+        "style",
+        "coat",
+        "mark"
     );
     private static final Set<String> AXIS_NAME_EXCLUDE = Set.of(
-            "id",
-            "uuid",
-            "position",
-            "x",
-            "y",
-            "z",
-            "health",
-            "maxhealth",
-            "air",
-            "team",
-            "name",
-            "customname",
-            "target",
-            "owner",
-            "soundvariant",
-            "age",
-            "pose"
+        "id",
+        "uuid",
+        "position",
+        "x",
+        "y",
+        "z",
+        "health",
+        "maxhealth",
+        "air",
+        "team",
+        "name",
+        "customname",
+        "target",
+        "owner",
+        "soundvariant",
+        "age",
+        "pose"
     );
     private static final int MAX_NUMERIC_VARIANT_VALUE = 31;
     private static final int MAX_REFLECTIVE_VARIANTS = 256;
@@ -85,62 +78,62 @@ public final class IdentityVariantDiscovery {
     private static final int MAX_DYNAMIC_REGISTRY_VALUES = 128;
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final Set<String> BLACKLISTED_VARIANT_EXACT = Set.of(
-            "block_activate",
-            "block_attach",
-            "block_change",
-            "block_close",
-            "block_deactivate",
-            "block_destroy",
-            "block_detach",
-            "block_open",
-            "block_place",
-            "container_close",
-            "container_open",
-            "drink",
-            "eat",
-            "elytra_glide",
-            "entity_action",
-            "entity_damage",
-            "entity_die",
-            "entity_dismount",
-            "entity_interact",
-            "entity_mount",
-            "entity_place",
-            "equip",
-            "explode",
-            "flap",
-            "fluid_pickup",
-            "fluid_place",
-            "hit_ground",
-            "instrument_play",
-            "item_interact_finish",
-            "item_interact_start",
-            "jukebox_play",
-            "jukebox_stop_play",
-            "lightning_strike",
-            "note_block_play",
-            "prime_fuse",
-            "projectile_land",
-            "projectile_shoot",
-            "sculk_sensor_tendrils_clicking",
-            "shear",
-            "shriek",
-            "splash",
-            "swim",
-            "teleport",
-            "unequip"
+        "block_activate",
+        "block_attach",
+        "block_change",
+        "block_close",
+        "block_deactivate",
+        "block_destroy",
+        "block_detach",
+        "block_open",
+        "block_place",
+        "container_close",
+        "container_open",
+        "drink",
+        "eat",
+        "elytra_glide",
+        "entity_action",
+        "entity_damage",
+        "entity_die",
+        "entity_dismount",
+        "entity_interact",
+        "entity_mount",
+        "entity_place",
+        "equip",
+        "explode",
+        "flap",
+        "fluid_pickup",
+        "fluid_place",
+        "hit_ground",
+        "instrument_play",
+        "item_interact_finish",
+        "item_interact_start",
+        "jukebox_play",
+        "jukebox_stop_play",
+        "lightning_strike",
+        "note_block_play",
+        "prime_fuse",
+        "projectile_land",
+        "projectile_shoot",
+        "sculk_sensor_tendrils_clicking",
+        "shear",
+        "shriek",
+        "splash",
+        "swim",
+        "teleport",
+        "unequip"
     );
     private static final Set<String> BLACKLISTED_VARIANT_PREFIXES = Set.of(
-            "resonate_",
-            "block_",
-            "entity_",
-            "projectile_",
-            "item_interact_",
-            "container_",
-            "fluid_",
-            "jukebox_",
-            "note_block_",
-            "sculk_"
+        "resonate_",
+        "block_",
+        "entity_",
+        "projectile_",
+        "item_interact_",
+        "container_",
+        "fluid_",
+        "jukebox_",
+        "note_block_",
+        "sculk_"
     );
 
     private IdentityVariantDiscovery() {
@@ -152,7 +145,7 @@ public final class IdentityVariantDiscovery {
         }
 
         try {
-            ResourceLocation typeId = EntityType.getKey(type);
+            Identifier typeId = EntityType.getKey(type);
             if (typeId == null) {
                 return List.of(defaultVariant(type));
             }
@@ -217,7 +210,7 @@ public final class IdentityVariantDiscovery {
         out.putIfAbsent(token, normalized);
     }
 
-    private static void ensureDefaultVariantWhenBabyPresent(ResourceLocation typeId, Map<String, IdentityVariant> out) {
+    private static void ensureDefaultVariantWhenBabyPresent(Identifier typeId, Map<String, IdentityVariant> out) {
         if (typeId == null || out == null || out.isEmpty()) {
             return;
         }
@@ -242,23 +235,33 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId) {
-        if (type == EntityType.MOOSHROOM) {
-            CompoundTag brown = new CompoundTag();
-            brown.putString("Type", "brown");
-            brown.putString("MushroomType", "brown");
-            return List.of(new IdentityVariant(typeId, "Brown Mooshroom", brown));
-        }
-        if (type == EntityType.PANDA) {
-            CompoundTag brown = new CompoundTag();
-            brown.putString("MainGene", "brown");
-            brown.putString("HiddenGene", "brown");
-            return List.of(new IdentityVariant(typeId, "Brown Panda", brown));
-        }
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId) {
+//        if (type == EntityType.SHEEP) {
+//            List<IdentityVariant> variants = new ArrayList<>(16);
+//            for (int i = 0; i < 16; i++) {
+//                CompoundTag nbt = new CompoundTag();
+//                nbt.putByte("Color", (byte) i);
+//                DyeColor color = DyeColor.byId(i);
+//                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
+//            }
+//            return variants;
+//        }
+//
+//        if (type == EntityType.AXOLOTL) {
+//            List<IdentityVariant> variants = new ArrayList<>(5);
+//            String[] names = {"Lucy", "Wild", "Gold", "Cyan", "Blue"};
+//            for (int i = 0; i < names.length; i++) {
+//                CompoundTag nbt = new CompoundTag();
+//                nbt.putInt("Variant", i);
+//                variants.add(new IdentityVariant(typeId, "Axolotl " + names[i], nbt));
+//            }
+//            return variants;
+//        }
+//
         return List.of();
     }
 
-    private static List<IdentityVariant> discoverDataDrivenRegistryVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverDataDrivenRegistryVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
             return List.of();
@@ -299,7 +302,7 @@ public final class IdentityVariantDiscovery {
             ResourceKey<? extends Registry<?>> registryKey = valueKey.registryKey();
             net.minecraft.core.Registry<?> registry = world.registryAccess().lookupOrThrow(registryKey);
             List<net.minecraft.resources.ResourceKey<?>> keys = new ArrayList<>(registry.registryKeySet());
-            keys.sort(Comparator.comparing(k -> k.location().toString(), String.CASE_INSENSITIVE_ORDER));
+            keys.sort(Comparator.comparing(k -> k.identifier().toString(), String.CASE_INSENSITIVE_ORDER));
             Object baselineValue = unwrapHolderValue(rawBaseline);
             VariantAxis axis = new VariantAxis(suffix, getter, setter, baselineValue, registry);
             int count = 0;
@@ -307,7 +310,7 @@ public final class IdentityVariantDiscovery {
                 if (count >= MAX_DYNAMIC_REGISTRY_VALUES) {
                     break;
                 }
-                ResourceLocation key = tp.location();
+                Identifier key = tp.identifier();
                 Object candidate = getRegistryValue(registry, key);
                 if (candidate == null) {
                     continue;
@@ -340,19 +343,19 @@ public final class IdentityVariantDiscovery {
     }
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(
-            ResourceLocation typeId,
-            String registryField,
-            String variantKey,
-            String labelPrefix
+        Identifier typeId,
+        String registryField,
+        String variantKey,
+        String labelPrefix
     ) {
         Registry<?> registry = resolveRegistry(registryField);
         if (registry == null || registry.keySet().isEmpty()) {
             return List.of();
         }
-        List<ResourceLocation> keys = new ArrayList<>(registry.keySet());
+        List<Identifier> keys = new ArrayList<>(registry.keySet());
         keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
         List<IdentityVariant> variants = new ArrayList<>(keys.size());
-        for (ResourceLocation variantId : keys) {
+        for (Identifier variantId : keys) {
             if (variantId == null) {
                 continue;
             }
@@ -377,7 +380,7 @@ public final class IdentityVariantDiscovery {
         try {
             Object key = Registries.class.getField(fieldName).get(null);
             if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                ResourceLocation location = resolveResourceKeyLocation(resourceKey);
+                Identifier location = resolveResourceKeyLocation(resourceKey);
                 if (location != null) {
                     Object value = BuiltInRegistries.REGISTRY.getValue(location);
                     if (value instanceof Registry<?> registry) {
@@ -390,23 +393,23 @@ public final class IdentityVariantDiscovery {
         return null;
     }
 
-    private static ResourceLocation resolveResourceKeyLocation(Object resourceKey) {
+    private static Identifier resolveResourceKeyLocation(Object resourceKey) {
         Object direct = invokeNoArg(resourceKey, "location");
-        if (direct instanceof ResourceLocation id) {
+        if (direct instanceof Identifier id) {
             return id;
         }
-        Object byResourceLocation = invokeNoArg(resourceKey, "identifier");
-        if (byResourceLocation instanceof ResourceLocation id) {
+        Object byIdentifier = invokeNoArg(resourceKey, "identifier");
+        if (byIdentifier instanceof Identifier id) {
             return id;
         }
         Object byRegistry = invokeNoArg(resourceKey, "registry");
-        if (byRegistry instanceof ResourceLocation id) {
+        if (byRegistry instanceof Identifier id) {
             return id;
         }
         return null;
     }
 
-    private static List<IdentityVariant> discoverReflectiveVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverReflectiveVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
             return List.of();
@@ -470,9 +473,6 @@ public final class IdentityVariantDiscovery {
             if (AXIS_NAME_EXCLUDE.contains(lowered)) {
                 continue;
             }
-            if (lowered.equals("size") && typeRequiresExplicitSizeVariants(entity) == false) {
-                continue;
-            }
             boolean likelyByName = isLikelyVariantName(lowered);
             boolean likelyByType = getter.getReturnType().isEnum();
             if (!likelyByName && !likelyByType) {
@@ -499,10 +499,6 @@ public final class IdentityVariantDiscovery {
             }
         }
         return axes;
-    }
-
-    private static boolean typeRequiresExplicitSizeVariants(Entity entity) {
-        return entity instanceof net.minecraft.world.entity.monster.Slime;
     }
 
     private static boolean isSupportedAxisType(Class<?> setterParam, Object baseline, Registry<?> registry) {
@@ -557,10 +553,10 @@ public final class IdentityVariantDiscovery {
             return out;
         }
         if (axis.registry() != null) {
-            List<ResourceLocation> keys = new ArrayList<>(axis.registry().keySet());
+            List<Identifier> keys = new ArrayList<>(axis.registry().keySet());
             keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
             int count = 0;
-            for (ResourceLocation key : keys) {
+            for (Identifier key : keys) {
                 if (count >= MAX_DYNAMIC_REGISTRY_VALUES) {
                     break;
                 }
@@ -705,7 +701,7 @@ public final class IdentityVariantDiscovery {
         return null;
     }
 
-    private static String buildAxisLabel(ResourceLocation typeId, VariantAxis axis, Object candidate) {
+    private static String buildAxisLabel(Identifier typeId, VariantAxis axis, Object candidate) {
         String entityName = capitalize(typeId.getPath().replace('_', ' '));
         String axisName = capitalize(splitCamel(axis.suffix()));
         String valueName = formatCandidateName(candidate, axis.registry());
@@ -725,14 +721,14 @@ public final class IdentityVariantDiscovery {
         if (candidate instanceof String text) {
             return capitalize(text.replace('_', ' '));
         }
-        ResourceLocation id = registry == null ? null : getRegistryKey(registry, candidate);
+        Identifier id = registry == null ? null : getRegistryKey(registry, candidate);
         if (id != null) {
             return capitalize(id.getPath().replace('_', ' '));
         }
         return capitalize(candidate.toString().replace('_', ' '));
     }
 
-    private static List<IdentityVariant> discoverSampledVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverSampledVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
             return List.of();
@@ -770,7 +766,7 @@ public final class IdentityVariantDiscovery {
         return new ArrayList<>(out.values());
     }
 
-    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverGenericVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baseEntity = createEntity(type, world);
         if (baseEntity == null) {
             return List.of();
@@ -817,7 +813,7 @@ public final class IdentityVariantDiscovery {
 
     private static List<IdentityVariant> discoverBabyVariantsFromExisting(
             EntityType<?> type,
-            ResourceLocation typeId,
+            Identifier typeId,
             ClientLevel world,
             List<IdentityVariant> existing
     ) {
@@ -904,7 +900,7 @@ public final class IdentityVariantDiscovery {
         return out;
     }
 
-    private static List<IdentityVariant> discoverBabyVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+    private static List<IdentityVariant> discoverBabyVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
             return List.of();
@@ -954,7 +950,7 @@ public final class IdentityVariantDiscovery {
         return List.of(new IdentityVariant(typeId, "Baby " + capitalize(typeId.getPath().replace('_', ' ')), variant));
     }
 
-    private static String buildGenericDisplayName(ResourceLocation typeId, String key, int value) {
+    private static String buildGenericDisplayName(Identifier typeId, String key, int value) {
         String entityName = capitalize(typeId.getPath().replace('_', ' '));
         if ("Color".equals(key) && typeId.equals(EntityType.getKey(EntityType.SHEEP))) {
             DyeColor color = DyeColor.byId(value % 16);
@@ -1153,8 +1149,8 @@ public final class IdentityVariantDiscovery {
         if (a instanceof Number na && b instanceof Number nb) {
             return Double.compare(na.doubleValue(), nb.doubleValue()) == 0;
         }
-        ResourceLocation aId = registry == null ? null : getRegistryKey(registry, a);
-        ResourceLocation bId = registry == null ? null : getRegistryKey(registry, b);
+        Identifier aId = registry == null ? null : getRegistryKey(registry, a);
+        Identifier bId = registry == null ? null : getRegistryKey(registry, b);
         if (aId != null || bId != null) {
             return aId != null && aId.equals(bId);
         }
@@ -1184,9 +1180,9 @@ public final class IdentityVariantDiscovery {
             return null;
         }
         Object resourceKey = optional.get();
-        ResourceLocation registryLocation = null;
+        Identifier registryLocation = null;
         Object registryLocationObject = invokeNoArg(resourceKey, "registry");
-        if (registryLocationObject instanceof ResourceLocation id) {
+        if (registryLocationObject instanceof Identifier id) {
             registryLocation = id;
         } else {
             Object registryKey = invokeNoArg(resourceKey, "registryKey");
@@ -1268,8 +1264,8 @@ public final class IdentityVariantDiscovery {
             if (rawType instanceof Class<?> rawClass) {
                 String rawName = rawClass.getName();
                 if (rawName.equals("net.minecraft.core.Holder")
-                        || rawName.equals("net.minecraft.core.Holder$Reference")
-                        || rawName.equals("net.minecraft.core.Holder$Direct")) {
+                    || rawName.equals("net.minecraft.core.Holder$Reference")
+                    || rawName.equals("net.minecraft.core.Holder$Direct")) {
                     Type[] args = parameterizedType.getActualTypeArguments();
                     if (args.length == 1) {
                         return extractValueType(args[0]);
@@ -1301,8 +1297,8 @@ public final class IdentityVariantDiscovery {
         }
         String name = clazz.getName();
         return name.equals("net.minecraft.core.Holder")
-                || name.equals("net.minecraft.core.Holder$Reference")
-                || name.equals("net.minecraft.core.Holder$Direct");
+            || name.equals("net.minecraft.core.Holder$Reference")
+            || name.equals("net.minecraft.core.Holder$Direct");
     }
 
     private static Registry<?> findRegistryByValueType(Class<?> valueType) {
@@ -1310,7 +1306,7 @@ public final class IdentityVariantDiscovery {
             return null;
         }
         try {
-            for (ResourceLocation registryId : BuiltInRegistries.REGISTRY.keySet()) {
+            for (Identifier registryId : BuiltInRegistries.REGISTRY.keySet()) {
                 Object value = BuiltInRegistries.REGISTRY.getValue(registryId);
                 if (!(value instanceof Registry<?> registry) || registry.keySet().isEmpty()) {
                     continue;
@@ -1329,7 +1325,7 @@ public final class IdentityVariantDiscovery {
             return false;
         }
         int inspected = 0;
-        for (ResourceLocation key : registry.keySet()) {
+        for (Identifier key : registry.keySet()) {
             if (inspected++ >= 16) {
                 break;
             }
@@ -1382,7 +1378,7 @@ public final class IdentityVariantDiscovery {
     }
 
     @SuppressWarnings("unchecked")
-    private static ResourceLocation getRegistryKey(Registry<?> registry, Object value) {
+    private static Identifier getRegistryKey(Registry<?> registry, Object value) {
         if (registry == null || value == null) {
             return null;
         }
@@ -1402,7 +1398,7 @@ public final class IdentityVariantDiscovery {
     }
 
     @SuppressWarnings("unchecked")
-    private static Object getRegistryValue(Registry<?> registry, ResourceLocation id) {
+    private static Object getRegistryValue(Registry<?> registry, Identifier id) {
         if (registry == null || id == null) {
             return null;
         }
@@ -1470,21 +1466,12 @@ public final class IdentityVariantDiscovery {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
-        if (root && identity2$isBabyVariantToken(source)) {
-            out.putBoolean("IsBaby", true);
-        }
         for (String key : source.keySet()) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
             }
             Tag tag = source.get(key);
             if (tag == null) {
-                continue;
-            }
-            if (root && ("IsBaby".equals(key) || "Baby".equals(key))) {
-                if (source.getBoolean(key).isPresent() && source.getBooleanOr(key, false)) {
-                    out.putBoolean("IsBaby", true);
-                }
                 continue;
             }
             if (tag instanceof CompoundTag compoundTag) {
@@ -1500,19 +1487,6 @@ public final class IdentityVariantDiscovery {
             out.put(key, tag.copy());
         }
         return out;
-    }
-
-    private static boolean identity2$isBabyVariantToken(CompoundTag source) {
-        if (source == null || source.isEmpty()) {
-            return false;
-        }
-        if (source.getBoolean("IsBaby").isPresent() && source.getBooleanOr("IsBaby", false)) {
-            return true;
-        }
-        if (source.getBoolean("Baby").isPresent() && source.getBooleanOr("Baby", false)) {
-            return true;
-        }
-        return source.getInt("Age").isPresent() && source.getInt("Age").get() < 0;
     }
 
     private static boolean isBlacklistedStringTag(CompoundTag source, String key) {
@@ -1603,11 +1577,11 @@ public final class IdentityVariantDiscovery {
     }
 
     private static IdentityVariant defaultVariant(EntityType<?> type) {
-        ResourceLocation typeId = type == null ? ResourceLocation.parse("minecraft:pig") : EntityType.getKey(type);
+        Identifier typeId = type == null ? Identifier.parse("minecraft:pig") : EntityType.getKey(type);
         return defaultVariant(typeId);
     }
 
-    private static IdentityVariant defaultVariant(ResourceLocation typeId) {
+    private static IdentityVariant defaultVariant(Identifier typeId) {
         return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')), new CompoundTag());
     }
 
