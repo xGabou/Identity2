@@ -8,7 +8,9 @@ import net.Gabou.identity2.client.render.MorphRenderStateHelper;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
+import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.ParrotModel;
@@ -24,6 +26,7 @@ import net.minecraft.client.renderer.entity.state.GoatRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.entity.state.ParrotRenderState;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.Entity;
@@ -82,8 +85,9 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
             identity2$applyBabyVariantState(source, identity);
-            if (livingIdentity.isJumping() != livingSource.isJumping()) {
-                livingIdentity.setJumping(livingSource.isJumping());
+            boolean sourceJumping = ((LivingEntityAccessor) livingSource).identity2$isJumping();
+            if (((LivingEntityAccessor) livingIdentity).identity2$isJumping() != sourceJumping) {
+                livingIdentity.setJumping(sourceJumping);
             }
 
             LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.walkAnimation;
@@ -260,7 +264,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             return null;
         }
         CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
-        String raw = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        String raw = NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
         if (raw.isBlank()) {
             return null;
         }
@@ -271,14 +275,14 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         if (variant == null || variant.isEmpty()) {
             return null;
         }
-        if (variant.getBoolean("IsBaby").isPresent()) {
-            return variant.getBooleanOr("IsBaby", false);
+        if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
+            return variant.getBoolean("IsBaby");
         }
-        if (variant.getBoolean("Baby").isPresent()) {
-            return variant.getBooleanOr("Baby", false);
+        if (variant.contains("Baby", Tag.TAG_BYTE)) {
+            return variant.getBoolean("Baby");
         }
-        if (variant.getInt("Age").isPresent()) {
-            return variant.getInt("Age").get() < 0;
+        if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+            return variant.getInt("Age") < 0;
         }
         return null;
     }

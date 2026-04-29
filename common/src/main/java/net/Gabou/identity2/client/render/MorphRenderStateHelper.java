@@ -9,12 +9,14 @@ import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -46,13 +48,13 @@ public final class MorphRenderStateHelper {
         resetModelParts(model.root());
 
         CompoundTag nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
-        for (String key : nbt.keySet()) {
+        for (String key : NbtCompat.keySet(nbt)) {
             if (!key.startsWith("hidden_parts.")) {
                 continue;
             }
-            ModelPart part = model.root().createPartLookup().apply(key.substring(13));
+            ModelPart part = findModelPart(model.root(), key.substring(13));
             if (part != null) {
-                part.skipDraw = nbt.getBooleanOr(key, false);
+                part.skipDraw = NbtCompat.getBooleanOr(nbt, key, false);
             }
         }
 
@@ -199,7 +201,7 @@ public final class MorphRenderStateHelper {
             return null;
         }
         CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
-        String raw = nbt.getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        String raw = NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
         if (raw.isBlank()) {
             return null;
         }
@@ -210,14 +212,14 @@ public final class MorphRenderStateHelper {
         if (variant == null || variant.isEmpty()) {
             return null;
         }
-        if (variant.getBoolean("IsBaby").isPresent()) {
-            return variant.getBooleanOr("IsBaby", false);
+        if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
+            return variant.getBoolean("IsBaby");
         }
-        if (variant.getBoolean("Baby").isPresent()) {
-            return variant.getBooleanOr("Baby", false);
+        if (variant.contains("Baby", Tag.TAG_BYTE)) {
+            return variant.getBoolean("Baby");
         }
-        if (variant.getInt("Age").isPresent()) {
-            return variant.getInt("Age").get() < 0;
+        if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+            return variant.getInt("Age") < 0;
         }
         return null;
     }
@@ -238,6 +240,19 @@ public final class MorphRenderStateHelper {
         Set<ModelPart> parts = new LinkedHashSet<>();
         collectModelParts(root, parts);
         return parts;
+    }
+
+    private static ModelPart findModelPart(ModelPart root, String name) {
+        if (root == null || name == null || name.isBlank()) {
+            return null;
+        }
+        for (ModelPart part : collectModelParts(root)) {
+            String partName = getModelPartName(part);
+            if (name.equals(partName)) {
+                return part;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -263,6 +278,26 @@ public final class MorphRenderStateHelper {
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    private static String getModelPartName(ModelPart part) {
+        if (part == null) {
+            return null;
+        }
+        for (Class<?> current = part.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField("name");
+                if (!field.canAccess(part)) {
+                    field.setAccessible(true);
+                }
+                Object value = field.get(part);
+                if (value instanceof String name && !name.isBlank()) {
+                    return name;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     private static void startAnimationStates(Object renderState, int tickCount, Set<String> names) {

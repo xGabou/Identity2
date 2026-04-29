@@ -113,13 +113,13 @@ public class TargetPredicateMixin {
         if (testerType == EntityType.WOLF) {
             boolean tamed = Boolean.TRUE.equals(identity2$invokeNoArg(tester, "isTame"));
             if (tamed) {
-                return IdentitySettings.ownedWolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
+                return false;
             }
-            return IdentitySettings.wolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
+            return false;
         }
 
         if (testerType == EntityType.FOX) {
-            return IdentitySettings.foxesAttackIdentityPrey && identity2$isFoxPrey(identityType);
+            return false;
         }
 
         if (testerType == EntityType.VILLAGER || testerType == EntityType.WANDERING_TRADER) {

@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import dev.architectury.networking.NetworkManager;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -1700,7 +1701,7 @@ public final class PredefIdentityAbilities {
             arrow.addEffect(new MobEffectInstance(MobEffects.POISON, 100));
             ((NbtComponentAccessor) (Object) ((EntityAccessor) arrow).getCustomData()).getNbt().putBoolean("identity2.bogged_poison_arrow", true);
         } else if (arrowType == SkeletonArrowType.SLOWNESS) {
-            arrow.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 600));
+            arrow.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 600));
             ((NbtComponentAccessor) (Object) ((EntityAccessor) arrow).getCustomData()).getNbt().putBoolean("identity2.stray_slowness_arrow", true);
         }
         arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
@@ -1814,7 +1815,7 @@ public final class PredefIdentityAbilities {
             return 0.0D;
         }
         CustomData customData = ((EntityAccessor) player).getCustomData();
-        return ((NbtComponentAccessor) (Object) customData).getNbt().getDoubleOr(key, 0.0D);
+        return net.Gabou.identity2.util.NbtCompat.getDoubleOr(((NbtComponentAccessor) (Object) customData).getNbt(), key, 0.0D);
     }
 
     private static float resolveGenericDamage(Entity player) {

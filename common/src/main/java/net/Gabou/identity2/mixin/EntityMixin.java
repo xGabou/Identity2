@@ -37,11 +37,13 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -72,7 +74,6 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -119,9 +120,9 @@ public class EntityMixin implements EntityAccessor{
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
-        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get()!=0.0){
-                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
+        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().contains("land_speed_multiplier_override", Tag.TAG_ANY_NUMERIC)){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override")!=0.0){
+                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override"), 1.0));
             }else{
                 block.updateEntityMovementAfterFallOn(view,entity);
             }
@@ -340,7 +341,7 @@ public class EntityMixin implements EntityAccessor{
     @Unique
     private void identity2$applySyncedMorphState(Entity identity) {
         if (identity instanceof Armadillo armadillo) {
-            boolean shellActive = ((NbtComponentAccessor) (Object) this.customData).getNbt().getBooleanOr("identity2.armadillo_shell", false);
+            boolean shellActive = NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) this.customData).getNbt(), "identity2.armadillo_shell", false);
             if (shellActive) {
                 armadillo.rollUp();
             } else {
@@ -365,8 +366,8 @@ public class EntityMixin implements EntityAccessor{
         }
 
         if (activeIdentity.getType() == EntityType.RABBIT) {
-            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 40, 1, true, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 40, 1, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 1, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.JUMP, 40, 1, true, false, true));
         }
 
         if (MorphEntityTraits.canBreatheUnderwater(activeIdentity)) {
@@ -498,7 +499,7 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        int conversionTicks = Math.max(0, nbt.getIntOr(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0));
+        int conversionTicks = Math.max(0, NbtCompat.getIntOr(nbt, IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0));
         conversionTicks++;
         nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, conversionTicks);
         if (conversionTicks < 300) {
@@ -515,8 +516,8 @@ public class EntityMixin implements EntityAccessor{
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
-        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()){
-            double d=((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
+        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().contains("horizontal_collision_speed_multiplier_override", Tag.TAG_ANY_NUMERIC)){
+            double d=((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override");
             if(d!=0.0){
                 entity.setDeltaMovement(bl ? vec3d4.x*d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z*d : vec3d4.z);
             }else{
@@ -532,6 +533,8 @@ public class EntityMixin implements EntityAccessor{
 
 
 
+
+    public boolean saving=false;
 
     public int abilityCooldown=0;
     public int secondaryAbilityCooldown=0;
@@ -587,8 +590,8 @@ public class EntityMixin implements EntityAccessor{
             }else if(reason==Entity.RemovalReason.CHANGED_DIMENSION){
                 reasonType="dimension_change";
             }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").get();
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("on_removed", Tag.TAG_STRING)){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed");
                 if(((Entity)(Object)this).level().getServer()!=null){
                     if(command!=""){
                     
@@ -599,8 +602,8 @@ public class EntityMixin implements EntityAccessor{
                     }
                 }
             }
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).get();
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("on_removed_"+reasonType, Tag.TAG_STRING)){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType);
                 if(((Entity)(Object)this).level().getServer()!=null){
                     if(command!=""){
                     
@@ -629,8 +632,8 @@ public class EntityMixin implements EntityAccessor{
         if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").isPresent()){
-            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").get();
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("on_tick", Tag.TAG_STRING)){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick");
                 if(((Entity)(Object)this).level().getServer()!=null){
                     if(command!=""){
                     
@@ -769,16 +772,16 @@ public class EntityMixin implements EntityAccessor{
     @Inject(method="isClientAuthoritative",at=@At("HEAD"),cancellable=true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info){
         if(this.identityOf!=null){
-            info.setReturnValue(((Entity)this.identityOf).isClientAuthoritative());
+            info.setReturnValue(false);
         }
     }
     
     @Inject(method="getBbWidth",at=@At("HEAD"),cancellable=true)
     private void getWidthOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("width_override", Tag.TAG_ANY_NUMERIC)){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override")>0.0){
                 info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override")
                 );
             }
         }
@@ -791,14 +794,14 @@ public class EntityMixin implements EntityAccessor{
         float widthOverride = oldWidth;
         float heightOverride = oldHeight;
 
-        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
-            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get();
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().contains("width_override", Tag.TAG_ANY_NUMERIC)) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override");
             if (value > 0.0) {
                 widthOverride = (float) value;
             }
         }
-        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
-            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get();
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().contains("height_override", Tag.TAG_ANY_NUMERIC)) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override");
             if (value > 0.0) {
                 heightOverride = (float) value;
             }
@@ -810,10 +813,10 @@ public class EntityMixin implements EntityAccessor{
     }
     @Inject(method="getBbHeight",at=@At("HEAD"),cancellable=true)
     private void getHeightOverride(CallbackInfoReturnable info){
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("height_override", Tag.TAG_ANY_NUMERIC)){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override")>0.0){
                 info.setReturnValue((Float)(float)(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override")
                 );
             }
         }
@@ -832,17 +835,17 @@ public class EntityMixin implements EntityAccessor{
         double new_height=old_height;
         boolean hasOverride=false;
 
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("width_override", Tag.TAG_ANY_NUMERIC)){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override")>0.0){
                 new_width=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get();
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override");
                 hasOverride=true;
             }
         }
-        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
-            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("height_override", Tag.TAG_ANY_NUMERIC)){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override")>0.0){
                 new_height=(double)
-                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get();
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override");
                 hasOverride=true;
             }
         }
@@ -920,7 +923,7 @@ public class EntityMixin implements EntityAccessor{
             nbtCompound=new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty() && forcedIdentity == null) {
-            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            String variantRaw = NbtCompat.getStringOr(((NbtComponentAccessor) (Object) this.customData).getNbt(), IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()
@@ -973,7 +976,7 @@ public class EntityMixin implements EntityAccessor{
         try {
             Level serverWorld = (Level)((Entity)(Object)this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
-                entityx.snapTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
+                entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
             });
             if (entity == null) {
@@ -1021,39 +1024,39 @@ public class EntityMixin implements EntityAccessor{
         }
         IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
 
-        boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
+        boolean hasBabyFlag = variantNbt.contains("IsBaby", Tag.TAG_BYTE) || variantNbt.contains("Baby", Tag.TAG_BYTE);
         if (hasBabyFlag) {
-            boolean baby = variantNbt.getBooleanOr("IsBaby", variantNbt.getBooleanOr("Baby", false));
+            boolean baby = NbtCompat.getBooleanOr(variantNbt, "IsBaby", NbtCompat.getBooleanOr(variantNbt, "Baby", false));
             identity2$invokeOneArg(identityEntity, "setBaby", baby);
         } else {
             identity2$invokeOneArg(identityEntity, "setBaby", false);
             identity2$invokeIntArg(identityEntity, "setAge", 0);
         }
-        if (variantNbt.getInt("Age").isPresent()) {
-            int age = variantNbt.getInt("Age").get();
+        if (variantNbt.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+            int age = variantNbt.getInt("Age");
             identity2$invokeIntArg(identityEntity, "setAge", age);
             if (age < 0) {
                 identity2$invokeOneArg(identityEntity, "setBaby", true);
             }
         }
-        if (variantNbt.getBoolean("AgeLocked").isPresent()) {
-            identity2$invokeOneArg(identityEntity, "setAgeLocked", variantNbt.getBooleanOr("AgeLocked", false));
+        if (variantNbt.contains("AgeLocked", Tag.TAG_BYTE)) {
+            identity2$invokeOneArg(identityEntity, "setAgeLocked", NbtCompat.getBooleanOr(variantNbt, "AgeLocked", false));
         }
 
-        if (variantNbt.getInt("Variant").isPresent()) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant").get());
+        if (variantNbt.contains("Variant", Tag.TAG_ANY_NUMERIC)) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant"));
         }
-        if (variantNbt.getInt("variant").isPresent()) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant").get());
+        if (variantNbt.contains("variant", Tag.TAG_ANY_NUMERIC)) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant"));
         }
-        if (variantNbt.getInt("Type").isPresent()) {
-            int type = variantNbt.getInt("Type").get();
+        if (variantNbt.contains("Type", Tag.TAG_ANY_NUMERIC)) {
+            int type = variantNbt.getInt("Type");
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
-        if (variantNbt.getInt("type").isPresent()) {
-            int type = variantNbt.getInt("type").get();
+        if (variantNbt.contains("type", Tag.TAG_ANY_NUMERIC)) {
+            int type = variantNbt.getInt("type");
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
@@ -1064,8 +1067,8 @@ public class EntityMixin implements EntityAccessor{
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "FrogVariant", "FROG_VARIANT");
 
-        if (variantNbt.getInt("CollarColor").isPresent()) {
-            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor").get());
+        if (variantNbt.contains("CollarColor", Tag.TAG_ANY_NUMERIC)) {
+            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor"));
             if (dyeColor != null) {
                 identity2$invokeOneArg(identityEntity, "setCollarColor", dyeColor);
             }
@@ -1085,14 +1088,14 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        CompoundTag villagerDataTag = variantNbt.getCompound("VillagerData").orElse(null);
+        CompoundTag villagerDataTag = NbtCompat.getCompoundOrNull(variantNbt, "VillagerData");
         String professionRaw = identity2$readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
         if ((professionRaw == null || professionRaw.isBlank()) && villagerDataTag != null) {
-            professionRaw = villagerDataTag.getStringOr("profession", "");
+            professionRaw = NbtCompat.getStringOr(villagerDataTag, "profession", "");
         }
         String typeRaw = identity2$readVariantString(variantNbt, "VillagerType", "Type", "type");
         if ((typeRaw == null || typeRaw.isBlank()) && villagerDataTag != null) {
-            typeRaw = villagerDataTag.getStringOr("type", "");
+            typeRaw = NbtCompat.getStringOr(villagerDataTag, "type", "");
         }
 
         ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
@@ -1131,10 +1134,10 @@ public class EntityMixin implements EntityAccessor{
         }
 
         int level = 0;
-        if (variantNbt.getInt("VillagerLevel").isPresent()) {
-            level = variantNbt.getInt("VillagerLevel").get();
-        } else if (villagerDataTag != null && villagerDataTag.getInt("level").isPresent()) {
-            level = villagerDataTag.getInt("level").get();
+        if (variantNbt.contains("VillagerLevel", Tag.TAG_ANY_NUMERIC)) {
+            level = variantNbt.getInt("VillagerLevel");
+        } else if (villagerDataTag != null && villagerDataTag.contains("level", Tag.TAG_ANY_NUMERIC)) {
+            level = villagerDataTag.getInt("level");
         }
         if (level > 0) {
             Object updatedVillagerData = identity2$invokeIntArg(villagerData, "setLevel", Math.max(1, level));
@@ -1372,10 +1375,10 @@ public class EntityMixin implements EntityAccessor{
             if (key == null || key.isBlank()) {
                 continue;
             }
-            if (!variantNbt.getString(key).isPresent()) {
+            if (!variantNbt.contains(key, Tag.TAG_STRING)) {
                 continue;
             }
-            String value = variantNbt.getStringOr(key, "").trim();
+            String value = NbtCompat.getStringOr(variantNbt, key, "").trim();
             if (!value.isBlank()) {
                 return value;
             }
@@ -1849,7 +1852,7 @@ private void getSoundCategoryIdentity(CallbackInfoReturnable info){
 @Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at=@At("HEAD"),cancellable=true)
 private void getInterpolatorIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.getInterpolation());
+        info.cancel();
     }
 }
 
@@ -1864,7 +1867,7 @@ private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnabl
         }
     }catch(Exception e){int x=0;}
     if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canBeCollidedWith(entity));
+        info.setReturnValue(this.currentIdentity.canBeCollidedWith());
     }
 }
 
@@ -2006,19 +2009,6 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     }
 }*/
 
-public boolean saving=false;
-
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("HEAD"),cancellable=true)
-public void writeDataLabelSaving(ValueOutput view,CallbackInfo info) {
-    this.saving=true;
-}
-@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("TAIL"),cancellable=true)
-public void writeDataLabelDoneSaving(ValueOutput view,CallbackInfo info) {
-    this.saving=false;
-}
-
-
-
 @Inject(method = "getEyeHeight()F", at=@At("HEAD"),cancellable=true)
 private void getStandingEyeHeightIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
@@ -2062,3 +2052,6 @@ private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
 }
 //Tons of Redirects - End
 }
+
+
+

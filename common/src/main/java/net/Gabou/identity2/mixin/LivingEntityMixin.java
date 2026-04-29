@@ -66,6 +66,14 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
     @Shadow
     private AttributeMap attributes;
 
+    @Shadow
+    protected boolean jumping;
+
+    @Override
+    public boolean identity2$isJumping() {
+        return this.jumping;
+    }
+
     public void fixAttributes(Entity entity, Entity identity) {
         if (entity instanceof Player) {
             return;
@@ -423,7 +431,7 @@ private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
 private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
     if(this.identityOf!=null){
         if(this.identityOf instanceof LivingEntity livingIdentity){
-            info.setReturnValue(livingIdentity.getLastHurtByPlayerMemoryTime());
+            info.cancel();
         }
     }
 }

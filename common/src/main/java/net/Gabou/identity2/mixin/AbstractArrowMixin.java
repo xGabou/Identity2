@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin;
 
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -39,7 +40,7 @@ public class AbstractArrowMixin {
 
         CustomData customData = ((EntityAccessor) arrow).getCustomData();
         if (identity.getType() == EntityType.BOGGED) {
-            if (((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr("identity2.bogged_poison_arrow", false)) {
+            if (NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) customData).getNbt(), "identity2.bogged_poison_arrow", false)) {
                 return;
             }
             tippedArrow.addEffect(new MobEffectInstance(MobEffects.POISON, 100));
@@ -48,10 +49,10 @@ public class AbstractArrowMixin {
         }
 
         if (identity.getType() == EntityType.STRAY) {
-            if (((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr("identity2.stray_slowness_arrow", false)) {
+            if (NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) customData).getNbt(), "identity2.stray_slowness_arrow", false)) {
                 return;
             }
-            tippedArrow.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 600));
+            tippedArrow.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 600));
             ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean("identity2.stray_slowness_arrow", true);
         }
     }
