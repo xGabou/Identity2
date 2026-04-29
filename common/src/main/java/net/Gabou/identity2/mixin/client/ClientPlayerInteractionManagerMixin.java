@@ -9,6 +9,7 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.Registry;
