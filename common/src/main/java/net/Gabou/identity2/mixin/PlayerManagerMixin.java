@@ -1,5 +1,6 @@
 package net.Gabou.identity2.mixin;
 
+import dev.architectury.networking.NetworkManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -126,7 +127,7 @@ public class PlayerManagerMixin {
 
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
-        NetworkManager.sendToPlayer(player, boolPayload);
+        NetworkCompat.sendToPlayer(player, boolPayload);
         IdentityProgression.syncUnlockedIdentities(player);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
