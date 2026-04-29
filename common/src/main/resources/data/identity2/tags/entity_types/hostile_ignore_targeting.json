@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:allay",
+    "minecraft:bat",
+    "minecraft:drowned",
+    "minecraft:phantom"
+  ]
+}

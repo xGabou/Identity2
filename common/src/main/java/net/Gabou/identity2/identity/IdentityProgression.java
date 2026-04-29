@@ -25,6 +25,7 @@ import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
@@ -1391,7 +1392,15 @@ public final class IdentityProgression {
                 continue;
             }
 
-            if (attribute.equals(Attributes.MOVEMENT_SPEED)) {
+            if (attribute.equals(Attributes.MOVEMENT_SPEED) && !MorphEntityTraits.hasHighJumpAbility(identity)) {
+                continue;
+            }
+
+            if (attribute.equals(Attributes.JUMP_STRENGTH)
+                && (MorphEntityTraits.hasHighJumpAbility(identity)
+                    || identity.getType() == EntityType.HORSE
+                    || identity.getType() == EntityType.SKELETON_HORSE)
+                && identity.getType() != EntityType.RABBIT) {
                 continue;
             }
 
@@ -1689,16 +1698,13 @@ public final class IdentityProgression {
 
         maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_ID);
 
-        if (!IdentitySettings.scalingHealth) {
-            float newMaxHealth = player.getMaxHealth();
-            float scaled = Mth.clamp(healthRatio * newMaxHealth, 1.0F, newMaxHealth);
-            player.setHealth(scaled);
-            return;
-        }
         if (identity instanceof LivingEntity livingIdentity) {
             double base = maxHealthAttr.getBaseValue();
             double desired = resolveIdentityMaxHealth(player, livingIdentity);
-            desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
+            if (IdentitySettings.scalingHealth) {
+                desired = Math.min(desired, Math.max(1, IdentitySettings.maxHealth));
+            }
+            desired = Math.max(1.0D, desired);
             double delta = desired - base;
             if (Math.abs(delta) > 1.0E-4D) {
                 maxHealthAttr.addOrUpdateTransientModifier(
@@ -1713,17 +1719,7 @@ public final class IdentityProgression {
     }
 
     private static double resolveIdentityMaxHealth(ServerPlayer player, LivingEntity livingIdentity) {
-        if (player == null || player.level() == null) {
-            return livingIdentity.getMaxHealth();
-        }
-        try {
-            Entity probe = livingIdentity.getType().create(player.level(), EntitySpawnReason.COMMAND);
-            if (probe instanceof LivingEntity probeLiving) {
-                return probeLiving.getMaxHealth();
-            }
-        } catch (Throwable ignored) {
-        }
-        return livingIdentity.getMaxHealth();
+        return MorphEntityTraits.resolveNaturalMaxHealth(player != null && player.level() instanceof ServerLevel serverLevel ? serverLevel : null, livingIdentity);
     }
 
     public static String toVariantUnlockToken(CompoundTag variantNbt) {
@@ -2033,6 +2029,29 @@ public final class IdentityProgression {
         ResourceLocation frogVariantId = resolveRegistryResourceLocation("FROG_VARIANT", variantValue);
         if (frogVariantId != null) {
             variant.putString("FrogVariant", frogVariantId.toString());
+        }
+
+        if (entity instanceof net.minecraft.world.entity.monster.Slime && !variant.contains("Size")) {
+            Object size = invokeNoArg(entity, "getSize");
+            if (size instanceof Number number) {
+                variant.putInt("Size", Math.max(0, number.intValue()));
+            }
+        }
+
+        if (!variant.contains("MainGene")) {
+            Object mainGene = invokeNoArg(entity, "getMainGene");
+            String geneName = resolveVariantStringValue(mainGene);
+            if (geneName != null && !geneName.isBlank()) {
+                variant.putString("MainGene", geneName);
+            }
+        }
+
+        if (!variant.contains("HiddenGene")) {
+            Object hiddenGene = invokeNoArg(entity, "getHiddenGene");
+            String geneName = resolveVariantStringValue(hiddenGene);
+            if (geneName != null && !geneName.isBlank()) {
+                variant.putString("HiddenGene", geneName);
+            }
         }
 
         Object collarColor = invokeNoArg(entity, "getCollarColor");

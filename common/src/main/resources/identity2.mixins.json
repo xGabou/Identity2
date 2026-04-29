@@ -32,6 +32,7 @@
     "PlayerManagerMixin",
     "MinecraftServerMixin",
     "MobGoalSelectorAccessorMixin",
+    "MobMixin",
     "NbtComponentMixin",
     "LimbAnimatorMixin",
     "GiantEntityMixin",

@@ -15,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
@@ -23,6 +25,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.phys.Vec3;
 import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -33,6 +36,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.util.EntityAccessor;
 import org.spongepowered.asm.mixin.Overwrite;
 @Mixin(Player.class)
@@ -56,6 +61,21 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             info.setReturnValue(true);
         }
 	}
+    @Inject(method = "interactOn(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
+    private void identity2$rideAsIdentity(Entity target, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+        Player player = (Player) (Object) this;
+        if (player.level().isClientSide() || player.isSpectator() || player.isPassenger()) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (!MorphEntityTraits.canIdentityRide(identity, target)) {
+            return;
+        }
+        if (player.startRiding(target, true, false)) {
+            cir.setReturnValue(InteractionResult.SUCCESS);
+        }
+    }
+
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void identity2$attackAsIdentityWhenUnarmed(Entity target, CallbackInfo ci) {
         Player player = (Player) (Object) this;
@@ -88,6 +108,8 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         }
 
         if (attacked) {
+            identity2$applyAttackExtras(player, livingIdentity, target);
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 12);
             player.resetAttackStrengthTicker();
         }
         ci.cancel();
@@ -103,6 +125,29 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             return true;
         } catch (IllegalArgumentException ignored) {
             return false;
+        }
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private static void identity2$applyAttackExtras(Player player, LivingEntity identity, Entity target) {
+        if (player == null || identity == null || target == null) {
+            return;
+        }
+        double knockback = 0.0D;
+        try {
+            knockback = identity.getAttributeValue(Attributes.ATTACK_KNOCKBACK);
+        } catch (IllegalArgumentException ignored) {
+        }
+        if (knockback > 0.0D && target instanceof LivingEntity livingTarget) {
+            Vec3 look = player.getViewVector(1.0F);
+            Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+            if (horizontal.lengthSqr() > 1.0E-6D) {
+                horizontal = horizontal.normalize();
+                livingTarget.push(horizontal.x * (0.5D + knockback), 0.1D + Math.min(0.4D, knockback * 0.1D), horizontal.z * (0.5D + knockback));
+            }
+        }
+        if (MorphEntityTraits.ignitesTargetsOnMelee(identity)) {
+            target.igniteForSeconds(4.0F);
         }
     }
 }
