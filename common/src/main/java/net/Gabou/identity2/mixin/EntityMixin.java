@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
 
+import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.minecraft.world.level.block.Blocks;
@@ -26,16 +27,16 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.PredefIdentityAbilities;
-import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.EnderDragonEntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.Gabou.identity2.util.AbilitiesAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -56,11 +57,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.boss.EnderDragonPart;
+import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
@@ -68,27 +72,19 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.Gabou.identity2.identity.IdentityProgression;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor{
-    @Nullable
-    @Unique
-    private CustomData identity2$customDataView;
-
-    @Nullable
-    @Unique
-    private static Constructor<CustomData> identity2$customDataCtor;
-
-    @Nullable
-    private CompoundTag persistentData;
+    @Shadow
+    private CustomData customData;
     @Shadow
     private int id;
     @Shadow
@@ -99,9 +95,6 @@ public class EntityMixin implements EntityAccessor{
     public int getId(){
         return id;
     }
-
-
-
 
     @Shadow
     public Vec3 getDeltaMovement(){return null;}
@@ -115,30 +108,34 @@ public class EntityMixin implements EntityAccessor{
     public final void setPos(Vec3 v){return;}
     @Shadow
     public void setDeltaMovement(Vec3 v){return;}
-//    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
-//    private static double TDIOA(double x){
-//        return Identity2.maxWorldSize;
-//    }
-//    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
-//    private static double TDIOB(double x){
-//        return -Identity2.maxWorldSize;
-//    }
+    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
+    private static double TDIOA(double x){
+        return Identity2.maxWorldSize;
+    }
+    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
+    private static double TDIOB(double x){
+        return -Identity2.maxWorldSize;
+    }
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
-
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
-        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
-            entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, multiplier, 1.0));
-            return;
-        }
-        block.updateEntityMovementAfterFallOn(view,entity);
+        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get()!=0.0){
+                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
+            }else{
+                block.updateEntityMovementAfterFallOn(view,entity);
+            }
+        }else{
+                block.updateEntityMovementAfterFallOn(view,entity);
+            }
     }
 	@Inject(method = "tick", at=@At("HEAD"))
 	private void identityFixCanFlyCheck(CallbackInfo info) {
+//        if(this.currentIdentity!=null){
+//            this.currentIdentity.tick();
+//
+//        }
         //this.identity2$applyShulkerOpenVisualState();
-        //this.identity2$applyMorphPassiveTraits();
         if(this.identityOf!=null){
             if(this.entityCanFlyTickEvaluated==false){
                 this.entityCanFlyTickEvaluated=true;
@@ -173,8 +170,8 @@ public class EntityMixin implements EntityAccessor{
                 return;
             }
             if (
-                (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
-                    || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
+                    (!((Entity)(Object)this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
+                            || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
             }
@@ -248,35 +245,51 @@ public class EntityMixin implements EntityAccessor{
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
             boolean hostIsPlayer = ((Entity)(Object)this) instanceof Player;
+            
              
-              
-            //this.currentIdentity.setInvulnerable(hostIsPlayer);
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
+            if (hostIsPlayer) {
+                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
+            }
+            ((EntityAccessor) this.currentIdentity).setTouchingWater(((Entity) (Object) this).isInWater());
+            this.currentIdentity.setSwimming(((Entity) (Object) this).isSwimming());
+            identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
+            identity2$applySyncedMorphState(this.currentIdentity);
             if(
                 (this.currentIdentity instanceof LivingEntity livingIdentity)&&
                 ((Entity)(Object)this instanceof LivingEntity livingEntity)
             ){
             livingIdentity.setHealth(livingEntity.getHealth());
             }
-            if(!this.currentIdentity.level().isClientSide()){
-                if(this.currentIdentity instanceof Mob mobIdentity){
-                    mobIdentity.setNoAi(true);
+            if(this.currentIdentity.level().isClientSide()){
+                if (this.currentIdentity instanceof net.minecraft.world.entity.animal.Squid) {
+                    return;
                 }
                 this.currentIdentity.tick();
+            } else {
+                boolean allowFullServerTick = !MorphEntityTraits.shouldSkipFullServerMorphTick((Entity) (Object) this, this.currentIdentity);
+                if(this.currentIdentity instanceof Mob mobIdentity && !allowFullServerTick){
+                    mobIdentity.setNoAi(true);
+                }
+                if (allowFullServerTick) {
+                    this.currentIdentity.tick();
+                }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
             }
             if (hostIsPlayer) {
-                // For players, keep vanilla movement/gravity authoritative.
-                // Some morph AIs (especially flying mobs) can otherwise inject
-                // non-player motion and feel like speed/gravity glitches.
-                this.currentIdentity.setPos(this.position());
-                this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
-                this.setAirSupply(this.currentIdentity.getAirSupply());
+                if (this.currentIdentity instanceof EnderDragon dragonIdentity) {
+                    identity2$syncDragonMultipartPosition(dragonIdentity, this.position());
+                } else {
+                    this.currentIdentity.setPos(this.position());
+                    this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+                    this.currentIdentity.setAirSupply(this.getAirSupply());
+                }
+                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
                 Entity hostEntity = (Entity) (Object) this;
                 if (
                     !hostEntity.onGround()
@@ -296,6 +309,10 @@ public class EntityMixin implements EntityAccessor{
                 this.setAirSupply(this.currentIdentity.getAirSupply());
             }
 
+            if (hostIsPlayer && (Entity) (Object) this instanceof Player playerHost) {
+                identity2$applyMorphSpecificPlayerTraits(playerHost);
+            }
+
             identity2$applyWardenEffects((Entity) (Object) this);
 
             if (
@@ -310,16 +327,204 @@ public class EntityMixin implements EntityAccessor{
 
         }
 	}
+    @Unique
+    private static void identity2$syncIdentityEquipmentFromHost(Entity host, Entity identity) {
+        if (!(host instanceof LivingEntity livingHost) || !(identity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot));
+        }
+    }
+
+    @Unique
+    private void identity2$applySyncedMorphState(Entity identity) {
+        if (identity instanceof Armadillo armadillo) {
+            boolean shellActive = ((NbtComponentAccessor) (Object) this.customData).getNbt().getBooleanOr("identity2.armadillo_shell", false);
+            if (shellActive) {
+                armadillo.rollUp();
+            } else {
+                armadillo.rollOut();
+            }
+        }
+    }
+
+    @Unique
+    private void identity2$applyMorphSpecificPlayerTraits(Player player) {
+        Entity activeIdentity = this.currentIdentity;
+        if (activeIdentity == null || player.level().isClientSide()) {
+            if (this.identity2$morphSunBurning) {
+                player.clearFire();
+                this.identity2$morphSunBurning = false;
+            }
+            return;
+        }
+
+        if (activeIdentity.getType() == EntityType.DOLPHIN && player.isInWater()) {
+            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
+        }
+
+        if (activeIdentity.getType() == EntityType.RABBIT) {
+            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 40, 1, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 40, 1, true, false, true));
+        }
+
+        if (MorphEntityTraits.canBreatheUnderwater(activeIdentity)) {
+            BlockPos exposurePos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
+            if (player.isInWater() || player.level().isRainingAt(exposurePos)) {
+                player.setAirSupply(player.getMaxAirSupply());
+            } else {
+                int nextAir = player.getAirSupply() - 1;
+                if (nextAir <= -20) {
+                    nextAir = 0;
+                    player.hurt(player.damageSources().dryOut(), 2.0F);
+                }
+                player.setAirSupply(nextAir);
+            }
+        } else if (player.getAirSupply() < player.getMaxAirSupply()) {
+            player.setAirSupply(player.getMaxAirSupply());
+        }
+
+        if (MorphEntityTraits.isFireImmune(activeIdentity)) {
+            player.clearFire();
+            activeIdentity.clearFire();
+            this.identity2$morphSunBurning = false;
+        }
+
+        if (activeIdentity instanceof EnderDragon dragonIdentity) {
+            if (dragonIdentity.getHealth() > player.getHealth()) {
+                player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
+            }
+        }
+
+        boolean sunBurnTick = MorphEntityTraits.tickSunBurnLikeVanilla(player, activeIdentity);
+
+        if (sunBurnTick) {
+            this.identity2$morphSunBurning = true;
+        }
+
+        if (activeIdentity instanceof AbstractPiglin piglinIdentity && player instanceof ServerPlayer serverPlayer) {
+            identity2$tickPiglinConversion(serverPlayer, piglinIdentity);
+        }
+    }
+    @Unique
+    private static void identity2$syncDragonMultipartPosition(EnderDragon dragonIdentity, Vec3 targetPos) {
+        if (dragonIdentity == null || targetPos == null) {
+            return;
+        }
+        Vec3 previous = dragonIdentity.position();
+        Vec3 delta = targetPos.subtract(previous);
+        dragonIdentity.setPos(targetPos);
+        if (delta.lengthSqr() <= 1.0E-8D) {
+            return;
+        }
+        for (Entity part : dragonIdentity.getSubEntities()) {
+            if (part == null) {
+                continue;
+            }
+            Vec3 shifted = part.position().add(delta);
+            part.setPos(shifted);
+        }
+    }
+    @Unique
+    private static void identity2$clearEntityImpulseFlags(Entity entity) {
+        if (entity == null) {
+            return;
+        }
+        identity2$setBooleanField(entity, "hurtMarked", false);
+        identity2$setBooleanField(entity, "hasImpulse", false);
+    }
+
+    @Unique
+    private static void identity2$setBooleanField(Object target, String fieldName, boolean value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                java.lang.reflect.Field field = current.getDeclaredField(fieldName);
+                if (!(field.getType() == boolean.class || field.getType() == Boolean.class)) {
+                    return;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setBoolean(target, value);
+                return;
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+                return;
+            }
+        }
+    }
+    @Unique
+    private static void identity2$syncIdentityRotationFromHost(Entity host, Entity identity) {
+        if (host == null || identity == null) {
+            return;
+        }
+        float yawOffset = identity instanceof EnderDragon ? 180.0F : 0.0F;
+        float targetYaw = host.getYRot() + yawOffset;
+        identity.setYRot(targetYaw);
+        identity.yRotO = host.yRotO + yawOffset;
+        identity.setXRot(host.getXRot());
+        identity.xRotO = host.xRotO;
+        if (identity instanceof LivingEntity livingIdentity && host instanceof LivingEntity livingHost) {
+            if (identity.getType() == EntityType.GOAT) {
+                livingIdentity.yHeadRot = targetYaw;
+                livingIdentity.yHeadRotO = targetYaw;
+                livingIdentity.yBodyRot = targetYaw;
+                livingIdentity.yBodyRotO = targetYaw;
+            } else {
+                livingIdentity.yHeadRot = livingHost.yHeadRot + yawOffset;
+                livingIdentity.yHeadRotO = livingHost.yHeadRotO + yawOffset;
+                livingIdentity.yBodyRot = livingHost.yBodyRot + yawOffset;
+                livingIdentity.yBodyRotO = livingHost.yBodyRotO + yawOffset;
+            }
+        }
+        if (identity instanceof EnderDragon dragonIdentity) {
+            dragonIdentity.yRotA += Mth.wrapDegrees(targetYaw - dragonIdentity.yRotA) * 0.1F;
+        }
+    }
+
+    @Unique
+    private void identity2$tickPiglinConversion(ServerPlayer player, AbstractPiglin piglinIdentity) {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
+        boolean shouldConvert = !player.level().dimensionType().piglinSafe();
+        if (Boolean.TRUE.equals(identity2$invokeNoArg(piglinIdentity, "isImmuneToZombification"))) {
+            shouldConvert = false;
+        }
+        if (!shouldConvert) {
+            nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
+            return;
+        }
+
+        int conversionTicks = Math.max(0, nbt.getIntOr(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0));
+        conversionTicks++;
+        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, conversionTicks);
+        if (conversionTicks < 300) {
+            return;
+        }
+
+        String zombifiedPiglinId = EntityType.getKey(EntityType.ZOMBIFIED_PIGLIN).toString();
+        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, zombifiedPiglinId);
+        nbt.putString("model_override", zombifiedPiglinId);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        IdentityProgression.restoreMorphFromSavedDataAndSync(player);
+    }
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
-        if (this.currentIdentity != null && !Double.isNaN(multiplier) && multiplier != 0.0D) {
-            entity.setDeltaMovement(bl ? vec3d4.x * multiplier : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * multiplier : vec3d4.z);
-            return;
-        }
-        entity.setDeltaMovement(x,y,z);
+        if(this.currentIdentity != null &&((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()){
+            double d=((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
+            if(d!=0.0){
+                entity.setDeltaMovement(bl ? vec3d4.x*d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z*d : vec3d4.z);
+            }else{
+                entity.setDeltaMovement(x,y,z);
+            }
+        }else{
+                entity.setDeltaMovement(x,y,z);
+            }
     }
 
 
@@ -364,8 +569,57 @@ public class EntityMixin implements EntityAccessor{
 
 
 
+    @Inject(method="onRemoval",at=@At("HEAD"),cancellable=true)
+    private void commandOnRemoved(Entity.RemovalReason reason,CallbackInfo info){
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+            PredefIdentityAbilities.cleanupIdentitySideEffects(serverPlayer, this.currentIdentity);
+        }
+        if(reason.shouldDestroy()){
+            String reasonType="";
+            if(reason==Entity.RemovalReason.KILLED){
+                reasonType="killed";
+            }else if(reason==Entity.RemovalReason.DISCARDED){
+                reasonType="discarded";
+            }else if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK){
+                reasonType="unloaded_chunk";
+            }else if(reason==Entity.RemovalReason.UNLOADED_WITH_PLAYER){
+                reasonType="unloaded_player";
+            }else if(reason==Entity.RemovalReason.CHANGED_DIMENSION){
+                reasonType="dimension_change";
+            }
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").isPresent()){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").get();
+                if(((Entity)(Object)this).level().getServer()!=null){
+                    if(command!=""){
+                    
+                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                        command
+                        );
+                        
+                    }
+                }
+            }
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).isPresent()){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).get();
+                if(((Entity)(Object)this).level().getServer()!=null){
+                    if(command!=""){
+                    
+                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                        command
+                        );
+                        
+                    }
+                }
+            }
+        }
+    }
+    
+
+
+
+
     @Inject(method="baseTick",at=@At("HEAD"),cancellable=true)
-    private void identity2$baseTick(CallbackInfo info){
+    private void commandOnTick(CallbackInfo info){
         if(this.abilityCooldown>0){
             this.abilityCooldown-=1;
         }
@@ -375,6 +629,20 @@ public class EntityMixin implements EntityAccessor{
         if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").isPresent()){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_tick").get();
+                if(((Entity)(Object)this).level().getServer()!=null){
+                    if(command!=""){
+                    
+                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                        command
+                        );
+                        
+                    }
+                }
+            }
+            
+        
     }
     
 
@@ -384,32 +652,30 @@ public class EntityMixin implements EntityAccessor{
     public boolean noPhysics=false;
     @Shadow
     public boolean horizontalCollision;
-    
     public boolean entityCanFly=false;
     public boolean entityCanFlyEvaluated=false;
     public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
     private float identity2$storedFlyingSpeed = Float.NaN;
+    private boolean identity2$morphSunBurning = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
-    
+    private static final String IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY = "identity2.piglin_conversion_ticks";
 
 
-    public boolean canFly(){
-        if(!this.entityCanFlyEvaluated){
-            Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity)(Object)this).getType());
+    public boolean canFly() {
+        if (!this.entityCanFlyEvaluated) {
+            Entity flightEntity = identity2$getFlightEvaluationEntity();
+            Boolean taggedFlight = IdentityTraitTags.resolveFlight(flightEntity.getType());
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
             } else {
-                try {
-                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(((Object)this).getClass(), FALL_METHOD_NAME);
-                } catch (Exception ignored) {
-                }
-                if (!this.shouldTickBlockCollision()) {
+                this.entityCanFly = false;
+                if (flightEntity.isNoGravity()) {
                     this.entityCanFly = true;
                 }
-                if (this.noPhysics) {
+                if (flightEntity.noPhysics) {
                     this.entityCanFly = true;
                 }
             }
@@ -420,7 +686,16 @@ public class EntityMixin implements EntityAccessor{
         }
         return this.entityCanFly;
     }
-        private static String identity2$resolveFallMethodName() {
+
+    @Unique
+    private Entity identity2$getFlightEvaluationEntity() {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null) {
+            return this.currentIdentity;
+        }
+        return (Entity) (Object) this;
+    }
+
+    private static String identity2$resolveFallMethodName() {
         try {
             return EntityMethodChecks.class
                 .getDeclaredMethod("checkFallDamage", double.class, boolean.class, BlockState.class, BlockPos.class)
@@ -450,11 +725,11 @@ public class EntityMixin implements EntityAccessor{
                 abilitiesChanged = true;
             }
             if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+                this.identity2$storedFlyingSpeed = player.getAbilities().getFlyingSpeed();
             }
             float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
-            if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+            if (player.getAbilities().getFlyingSpeed() != configuredFlyingSpeed) {
+                player.getAbilities().setFlyingSpeed(configuredFlyingSpeed);
                 abilitiesChanged = true;
             }
             if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
@@ -474,9 +749,9 @@ public class EntityMixin implements EntityAccessor{
                 player.getAbilities().flying = false;
             }
             if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
+                player.getAbilities().setFlyingSpeed(this.identity2$storedFlyingSpeed);
             } else {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
+                player.getAbilities().setFlyingSpeed(0.05F);
             }
             this.identity2$storedFlyingSpeed = Float.NaN;
             this.identity2$grantedMayfly = false;
@@ -491,19 +766,21 @@ public class EntityMixin implements EntityAccessor{
 
 
 
-    @Inject(method="isControlledByClient",at=@At("HEAD"),cancellable=true)
+    @Inject(method="isClientAuthoritative",at=@At("HEAD"),cancellable=true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info){
         if(this.identityOf!=null){
-            info.setReturnValue(((Entity)this.identityOf).isControlledByClient());
+            info.setReturnValue(((Entity)this.identityOf).isClientAuthoritative());
         }
     }
     
     @Inject(method="getBbWidth",at=@At("HEAD"),cancellable=true)
     private void getWidthOverride(CallbackInfoReturnable info){
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
-        if (override > 0.0D) {
-            info.setReturnValue((float) override);
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
+                info.setReturnValue((Float)(float)(double)
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()
+                );
+            }
         }
     }
     @Inject(method="getDimensions",at=@At("RETURN"),cancellable=true)
@@ -514,14 +791,17 @@ public class EntityMixin implements EntityAccessor{
         float widthOverride = oldWidth;
         float heightOverride = oldHeight;
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double widthValue = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
-        if (widthValue > 0.0D) {
-            widthOverride = (float) widthValue;
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").isPresent()) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("width_override").get();
+            if (value > 0.0) {
+                widthOverride = (float) value;
+            }
         }
-        double heightValue = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
-        if (heightValue > 0.0D) {
-            heightOverride = (float) heightValue;
+        if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").isPresent()) {
+            double value = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("height_override").get();
+            if (value > 0.0) {
+                heightOverride = (float) value;
+            }
         }
 
         float widthScale = oldWidth > 0.0F ? widthOverride / oldWidth : 1.0F;
@@ -530,10 +810,12 @@ public class EntityMixin implements EntityAccessor{
     }
     @Inject(method="getBbHeight",at=@At("HEAD"),cancellable=true)
     private void getHeightOverride(CallbackInfoReturnable info){
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double override = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
-        if (override > 0.0D) {
-            info.setReturnValue((float) override);
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
+                info.setReturnValue((Float)(float)(double)
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()
+                );
+            }
         }
     }
     @Shadow
@@ -550,16 +832,19 @@ public class EntityMixin implements EntityAccessor{
         double new_height=old_height;
         boolean hasOverride=false;
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
-        double widthOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", 0.0D);
-        if (widthOverride > 0.0D) {
-            new_width = widthOverride;
-            hasOverride = true;
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get()>0.0){
+                new_width=(double)
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("width_override").get();
+                hasOverride=true;
+            }
         }
-        double heightOverride = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", 0.0D);
-        if (heightOverride > 0.0D) {
-            new_height = heightOverride;
-            hasOverride = true;
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").isPresent()){
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get()>0.0){
+                new_height=(double)
+                ((NbtComponentAccessor)(Object)this.customData).getNbt().getDouble("height_override").get();
+                hasOverride=true;
+            }
         }
         if(!hasOverride){
             return;
@@ -574,38 +859,13 @@ public class EntityMixin implements EntityAccessor{
     }
     @Override
     public CustomData getCustomData(){
-        if (this.persistentData == null) {
-            this.persistentData = new CompoundTag();
+        if(this.customData==CustomData.EMPTY){
+        this.customData= CustomData.of(((NbtComponentAccessor)(Object)this.customData).getNbt().copy());
+        //Identity2.LOGGER.info("Default Custom Data detected.");
         }
-        CompoundTag persistentTag = this.persistentData;
-        if (
-            this.identity2$customDataView == null
-                || ((NbtComponentAccessor) (Object) this.identity2$customDataView).getNbt() != persistentTag
-        ) {
-            this.identity2$customDataView = identity2$wrapTagReference(persistentTag);
-        }
-        return this.identity2$customDataView;
+        return this.customData;
     };
-
-    @Unique
-    private static CustomData identity2$wrapTagReference(CompoundTag tag) {
-        Constructor<CustomData> ctor = identity2$customDataCtor;
-        if (ctor == null) {
-            try {
-                ctor = CustomData.class.getDeclaredConstructor(CompoundTag.class);
-                ctor.setAccessible(true);
-                identity2$customDataCtor = ctor;
-            } catch (Throwable ignored) {
-                return CustomData.of(tag);
-            }
-        }
-        try {
-            return ctor.newInstance(tag);
-        } catch (Throwable ignored) {
-            return CustomData.of(tag);
-        }
-    }
-
+    
     @Nullable
     public Entity currentIdentity=null;
     @Nullable
@@ -633,12 +893,13 @@ public class EntityMixin implements EntityAccessor{
     }
     public void fixAttributes(Entity entity, Entity identity){}
     public void setCurrentIdentity(String id){
+        Entity previousIdentity = this.currentIdentity;
         this.noPhysics=false;
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        Identifier forcedIdentity = null;
+        ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
             forcedIdentity = IdentityProgression.getForcedIdentity();
@@ -670,6 +931,7 @@ public class EntityMixin implements EntityAccessor{
             }
         }
         if(id.length()==0){
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             this.currentIdentity=null;
             this.entityCanFly = false;
             ((Entity)(Object)this).refreshDimensions();
@@ -687,6 +949,7 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             this.currentIdentity = null;
             this.entityCanFly = false;
             ((Entity)(Object)this).refreshDimensions();
@@ -710,7 +973,7 @@ public class EntityMixin implements EntityAccessor{
         try {
             Level serverWorld = (Level)((Entity)(Object)this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
-                entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
+                entityx.snapTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
             });
             if (entity == null) {
@@ -730,6 +993,7 @@ public class EntityMixin implements EntityAccessor{
         }
         
         if(this.currentIdentity!=null){
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
             //if(((Entity)(Object)this).getEntityWorld().isClient()){
             ((EntityAccessor)(this.currentIdentity)).setId(((EntityAccessor)(this.currentIdentity)).getId()*-1);
@@ -740,6 +1004,10 @@ public class EntityMixin implements EntityAccessor{
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 if (player instanceof ServerPlayer serverPlayer) {
                     IdentityProgression.updateHostileIdentityGrace(serverPlayer, this.currentIdentity);
+                }
+                if (MorphEntityTraits.isFireImmune(this.currentIdentity)) {
+                    player.clearFire();
+                    this.currentIdentity.clearFire();
                 }
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
@@ -753,47 +1021,51 @@ public class EntityMixin implements EntityAccessor{
         }
         IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
 
-        boolean hasBabyFlag = variantNbt.contains("IsBaby", net.minecraft.nbt.Tag.TAG_BYTE) || variantNbt.contains("Baby", net.minecraft.nbt.Tag.TAG_BYTE);
+        boolean hasBabyFlag = variantNbt.getBoolean("IsBaby").isPresent() || variantNbt.getBoolean("Baby").isPresent();
         if (hasBabyFlag) {
-            boolean baby = net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "IsBaby", net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "Baby", false));
+            boolean baby = variantNbt.getBooleanOr("IsBaby", variantNbt.getBooleanOr("Baby", false));
             identity2$invokeOneArg(identityEntity, "setBaby", baby);
+        } else {
+            identity2$invokeOneArg(identityEntity, "setBaby", false);
+            identity2$invokeIntArg(identityEntity, "setAge", 0);
         }
-        if (variantNbt.contains("Age", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            int age = variantNbt.getInt("Age");
+        if (variantNbt.getInt("Age").isPresent()) {
+            int age = variantNbt.getInt("Age").get();
             identity2$invokeIntArg(identityEntity, "setAge", age);
             if (age < 0) {
                 identity2$invokeOneArg(identityEntity, "setBaby", true);
             }
         }
-        if (variantNbt.contains("AgeLocked", net.minecraft.nbt.Tag.TAG_BYTE)) {
-            identity2$invokeOneArg(identityEntity, "setAgeLocked", net.Gabou.identity2.util.NbtCompat.getBooleanOr(variantNbt, "AgeLocked", false));
+        if (variantNbt.getBoolean("AgeLocked").isPresent()) {
+            identity2$invokeOneArg(identityEntity, "setAgeLocked", variantNbt.getBooleanOr("AgeLocked", false));
         }
 
-        if (variantNbt.contains("Variant", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant"));
+        if (variantNbt.getInt("Variant").isPresent()) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("Variant").get());
         }
-        if (variantNbt.contains("variant", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant"));
+        if (variantNbt.getInt("variant").isPresent()) {
+            identity2$invokeIntArg(identityEntity, "setVariant", variantNbt.getInt("variant").get());
         }
-        if (variantNbt.contains("Type", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            int type = variantNbt.getInt("Type");
+        if (variantNbt.getInt("Type").isPresent()) {
+            int type = variantNbt.getInt("Type").get();
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
-        if (variantNbt.contains("type", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            int type = variantNbt.getInt("type");
+        if (variantNbt.getInt("type").isPresent()) {
+            int type = variantNbt.getInt("type").get();
             if (identity2$invokeIntArg(identityEntity, "setType", type) == null) {
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
+        identity2$applyNamedEnumVariant(identityEntity, variantNbt, "Variant", "variant", "Type", "type");
 
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "CatVariant", "CAT_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "FrogVariant", "FROG_VARIANT");
 
-        if (variantNbt.contains("CollarColor", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor"));
+        if (variantNbt.getInt("CollarColor").isPresent()) {
+            Object dyeColor = identity2$resolveDyeColorById(variantNbt.getInt("CollarColor").get());
             if (dyeColor != null) {
                 identity2$invokeOneArg(identityEntity, "setCollarColor", dyeColor);
             }
@@ -813,14 +1085,14 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
 
-        CompoundTag villagerDataTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(variantNbt, "VillagerData");
+        CompoundTag villagerDataTag = variantNbt.getCompound("VillagerData").orElse(null);
         String professionRaw = identity2$readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
         if ((professionRaw == null || professionRaw.isBlank()) && villagerDataTag != null) {
-            professionRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "profession", "");
+            professionRaw = villagerDataTag.getStringOr("profession", "");
         }
         String typeRaw = identity2$readVariantString(variantNbt, "VillagerType", "Type", "type");
         if ((typeRaw == null || typeRaw.isBlank()) && villagerDataTag != null) {
-            typeRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "type", "");
+            typeRaw = villagerDataTag.getStringOr("type", "");
         }
 
         ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
@@ -859,10 +1131,10 @@ public class EntityMixin implements EntityAccessor{
         }
 
         int level = 0;
-        if (variantNbt.contains("VillagerLevel", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            level = variantNbt.getInt("VillagerLevel");
-        } else if (villagerDataTag != null && villagerDataTag.contains("level", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            level = villagerDataTag.getInt("level");
+        if (variantNbt.getInt("VillagerLevel").isPresent()) {
+            level = variantNbt.getInt("VillagerLevel").get();
+        } else if (villagerDataTag != null && villagerDataTag.getInt("level").isPresent()) {
+            level = villagerDataTag.getInt("level").get();
         }
         if (level > 0) {
             Object updatedVillagerData = identity2$invokeIntArg(villagerData, "setLevel", Math.max(1, level));
@@ -910,11 +1182,36 @@ public class EntityMixin implements EntityAccessor{
         if (id == null) {
             return null;
         }
-        Object registry = identity2$getBuiltInRegistryObject(registryField);
-        if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
-            @SuppressWarnings("unchecked")
-            net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
-            return cast.getValue(id);
+        net.minecraft.core.Registry<?> registry = identity2$resolveRegistry(registryField);
+        if (registry == null) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) registry;
+        return cast.getValue(id);
+    }
+
+    @Nullable
+    private static net.minecraft.core.Registry<?> identity2$resolveRegistry(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        Object direct = identity2$getDirectBuiltInRegistryObject(fieldName);
+        if (direct instanceof net.minecraft.core.Registry<?> registry) {
+            return registry;
+        }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                ResourceLocation location = identity2$getResourceKeyLocation(resourceKey);
+                if (location != null) {
+                    Object value = BuiltInRegistries.REGISTRY.getValue(location);
+                    if (value instanceof net.minecraft.core.Registry<?> registry) {
+                        return registry;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
         }
         return null;
     }
@@ -942,29 +1239,127 @@ public class EntityMixin implements EntityAccessor{
         }
     }
 
+    private static void identity2$applyNamedEnumVariant(Entity identityEntity, CompoundTag variantNbt, String... keys) {
+        if (identityEntity == null || variantNbt == null || keys == null || keys.length == 0) {
+            return;
+        }
+        String raw = identity2$readVariantString(variantNbt, keys);
+        if (raw == null || raw.isBlank()) {
+            return;
+        }
+        if (identity2$applyNamedEnumVariant(identityEntity, "setVariant", raw)) {
+            return;
+        }
+        identity2$applyNamedEnumVariant(identityEntity, "setType", raw);
+    }
+
+    private static boolean identity2$applyNamedEnumVariant(Entity identityEntity, String methodName, String raw) {
+        if (identityEntity == null || methodName == null || methodName.isBlank() || raw == null || raw.isBlank()) {
+            return false;
+        }
+        for (Method method : identity2$getAllMethods(identityEntity.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (!paramType.isEnum()) {
+                continue;
+            }
+            Object enumValue = identity2$resolveEnumVariant(paramType, raw);
+            if (enumValue == null) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(identityEntity)) {
+                    method.setAccessible(true);
+                }
+                method.invoke(identityEntity, enumValue);
+                return true;
+            } catch (Throwable ignored) {
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    private static Object identity2$resolveEnumVariant(Class<?> enumType, String raw) {
+        if (enumType == null || raw == null || raw.isBlank() || !enumType.isEnum()) {
+            return null;
+        }
+        String normalized = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains(":")) {
+            normalized = normalized.substring(normalized.indexOf(':') + 1);
+        }
+        Object[] constants = enumType.getEnumConstants();
+        if (constants == null) {
+            return null;
+        }
+        for (Object constant : constants) {
+            if (!(constant instanceof Enum<?> enumValue)) {
+                continue;
+            }
+            if (enumValue.name().equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+            Object serialized = identity2$invokeNoArg(constant, "getSerializedName");
+            if (serialized instanceof String text && text.equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+            Object asString = identity2$invokeNoArg(constant, "asString");
+            if (asString instanceof String text && text.equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+        }
+        return null;
+    }
+
     @Nullable
     private static Object identity2$getBuiltInRegistryObject(String fieldName) {
         if (fieldName == null || fieldName.isBlank()) {
             return null;
         }
         try {
+            Object direct = identity2$getDirectBuiltInRegistryObject(fieldName);
+            if (direct != null) {
+                return direct;
+            }
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                ResourceLocation location = identity2$getResourceKeyLocation(resourceKey);
+                if (location != null) {
+                    return BuiltInRegistries.REGISTRY.getValue(location);
+                }
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Object identity2$getDirectBuiltInRegistryObject(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        try {
             return BuiltInRegistries.class.getField(fieldName).get(null);
         } catch (Throwable ignored) {
+            return null;
         }
+    }
 
-        // 1.21.8: some registries (cat/wolf/frog variants) are exposed as keys in Registries
-        // rather than direct BuiltInRegistries fields.
-        try {
-            Object registryKeyObj = Registries.class.getField(fieldName).get(null);
-            if (!(registryKeyObj instanceof net.minecraft.resources.ResourceKey<?> registryKey)) {
-                return null;
-            }
-            ResourceLocation location = registryKey.location();
-            if (location == null || BuiltInRegistries.REGISTRY == null) {
-                return null;
-            }
-            return BuiltInRegistries.REGISTRY.getValue(location);
-        } catch (Throwable ignored) {
+    @Nullable
+    private static ResourceLocation identity2$getResourceKeyLocation(Object resourceKey) {
+        if (resourceKey == null) {
+            return null;
+        }
+        Object byLocation = identity2$invokeNoArg(resourceKey, "location");
+        if (byLocation instanceof ResourceLocation id) {
+            return id;
+        }
+        Object byRegistry = identity2$invokeNoArg(resourceKey, "registry");
+        if (byRegistry instanceof ResourceLocation id) {
+            return id;
         }
         return null;
     }
@@ -977,10 +1372,10 @@ public class EntityMixin implements EntityAccessor{
             if (key == null || key.isBlank()) {
                 continue;
             }
-            if (!variantNbt.contains(key, net.minecraft.nbt.Tag.TAG_STRING)) {
+            if (!variantNbt.getString(key).isPresent()) {
                 continue;
             }
-            String value = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, key, "").trim();
+            String value = variantNbt.getStringOr(key, "").trim();
             if (!value.isBlank()) {
                 return value;
             }
@@ -1072,6 +1467,63 @@ public class EntityMixin implements EntityAccessor{
         return null;
     }
 
+    private static Object identity2$invokeTwoArgs(Object target, String methodName, Object firstArg, Object secondArg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 2) {
+                continue;
+            }
+            Class<?>[] params = method.getParameterTypes();
+            if (firstArg != null && !identity2$isAssignable(params[0], firstArg.getClass())) {
+                continue;
+            }
+            if (secondArg != null && !identity2$isAssignable(params[1], secondArg.getClass())) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, firstArg, secondArg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeThreeArgs(Object target, String methodName, Object firstArg, Object secondArg, Object thirdArg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 3) {
+                continue;
+            }
+            Class<?>[] params = method.getParameterTypes();
+            if (firstArg != null && !identity2$isAssignable(params[0], firstArg.getClass())) {
+                continue;
+            }
+            if (secondArg != null && !identity2$isAssignable(params[1], secondArg.getClass())) {
+                continue;
+            }
+            if (thirdArg != null && !identity2$isAssignable(params[2], thirdArg.getClass())) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, firstArg, secondArg, thirdArg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
     private static Object identity2$invokeIntArg(Object target, String methodName, int value) {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
@@ -1148,7 +1600,7 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
         nbt.putString("model_override", "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
@@ -1179,7 +1631,7 @@ public class EntityMixin implements EntityAccessor{
     }
     @Unique
     private void identity2$clearTransientMovementOverrides() {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
         nbt.putDouble("land_speed_multiplier_override", 0.0D);
         nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
         this.identity2$storedFlyingSpeed = Float.NaN;
@@ -1322,7 +1774,7 @@ private void getMoveEffectIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V", at=@At("HEAD"),cancellable=true)
 private void onDamagedActual(DamageSource source,CallbackInfo info){
-    if(this.currentIdentity!=null && !(((Entity)(Object)this) instanceof Player) && !this.currentIdentity.isRemoved()){
+    if(this.currentIdentity!=null){
         this.currentIdentity.handleDamageEvent(source);
     }
 }
@@ -1394,44 +1846,43 @@ private void getSoundCategoryIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "lerpTo(DDDFFI)V", at=@At("HEAD"))
-private void identity2$forwardLerpTo(
-    double x,
-    double y,
-    double z,
-    float yRot,
-    float xRot,
-    int interpolationSteps,
-    CallbackInfo info
-){
-    if (this.currentIdentity != null) {
-        this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
+@Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at=@At("HEAD"),cancellable=true)
+private void getInterpolatorIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.getInterpolation());
     }
 }
 
-@Inject(method = "cancelLerp()V", at=@At("HEAD"))
-private void identity2$forwardCancelLerp(CallbackInfo info){
-    if (this.currentIdentity != null) {
-        this.currentIdentity.cancelLerp();
+@Inject(method = "canBeCollidedWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
+private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnable info){
+    try{
+        if(entity!=null){
+            if(((EntityAccessor)entity).getIdentityOwner()!=null){
+                info.setReturnValue(false);
+                return;
+            }
+        }
+    }catch(Exception e){int x=0;}
+    if(this.currentIdentity!=null){
+        info.setReturnValue(this.currentIdentity.canBeCollidedWith(entity));
     }
 }
 
-    @Inject(method = "canBeCollidedWith", at = @At("HEAD"), cancellable = true)
-    private void identity2$canBeCollidedWith(CallbackInfoReturnable<Boolean> cir) {
-
-        if (this.currentIdentity != null) {
-            cir.setReturnValue(this.currentIdentity.canBeCollidedWith());
-            return;
-        }
-
-        if ((Object)this instanceof Entity self) {
-            try {
-                if (((EntityAccessor) self).getIdentityOwner() != null) {
-                    cir.setReturnValue(false);
-                }
-            } catch (Exception ignored) {}
-        }
+@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
+private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir){
+    if (!((Entity) (Object) this instanceof Player)) {
+        return;
     }
+    if (this.currentIdentity == null) {
+        return;
+    }
+    if (MorphEntityTraits.canIdentityRide(this.currentIdentity, vehicle)) {
+        return;
+    }
+    if (MorphEntityTraits.preventsInvalidMorphMounting(this.currentIdentity)) {
+        cir.setReturnValue(false);
+    }
+}
 
 @Inject(method = "isColliding(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z", at=@At("HEAD"),cancellable=true)
 private void collidesWithStateAtPosIdentity(BlockPos pos, BlockState state, CallbackInfoReturnable info){
@@ -1557,12 +2008,12 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
 
 public boolean saving=false;
 
-@Inject(method = "saveWithoutId", at=@At("HEAD"),cancellable=true, require = 0)
-public void writeDataLabelSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
+@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("HEAD"),cancellable=true)
+public void writeDataLabelSaving(ValueOutput view,CallbackInfo info) {
     this.saving=true;
 }
-@Inject(method = "saveWithoutId", at=@At("TAIL"),cancellable=true, require = 0)
-public void writeDataLabelDoneSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
+@Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at=@At("TAIL"),cancellable=true)
+public void writeDataLabelDoneSaving(ValueOutput view,CallbackInfo info) {
     this.saving=false;
 }
 
@@ -1611,6 +2062,3 @@ private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
 }
 //Tons of Redirects - End
 }
-
-
-

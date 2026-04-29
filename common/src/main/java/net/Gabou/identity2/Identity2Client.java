@@ -138,15 +138,6 @@ public final class Identity2Client {
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
 
-    static {
-        addVisualPatch((identity, entity) -> {
-            if (identity instanceof EnderDragon dragonIdentity) {
-                dragonIdentity.yRotA += Mth.wrapDegrees(entity.getYRot() - identity.getYRot()) * 0.1F;
-            }
-            return identity;
-        }, ResourceLocation.parse("minecraft:ender_dragon"));
-    }
-
     private Identity2Client() {
     }
 

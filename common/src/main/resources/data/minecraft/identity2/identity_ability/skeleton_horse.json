@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:saddle",
+  "cooldown": 20,
+  "predef": "identity2:high_jump"
+}

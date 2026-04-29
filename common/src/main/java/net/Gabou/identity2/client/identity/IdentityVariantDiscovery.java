@@ -33,6 +33,10 @@ public final class IdentityVariantDiscovery {
             "variant",
             "Type",
             "type",
+            "Size",
+            "MushroomType",
+            "MainGene",
+            "HiddenGene",
             "Skin",
             "skin",
             "Form",
@@ -52,7 +56,10 @@ public final class IdentityVariantDiscovery {
             "breed",
             "style",
             "coat",
-            "mark"
+            "mark",
+            "gene",
+            "mushroom",
+            "size"
     );
     private static final Set<String> AXIS_NAME_EXCLUDE = Set.of(
             "id",
@@ -237,28 +244,18 @@ public final class IdentityVariantDiscovery {
     }
 
     private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId) {
-//        if (type == EntityType.SHEEP) {
-//            List<IdentityVariant> variants = new ArrayList<>(16);
-//            for (int i = 0; i < 16; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putByte("Color", (byte) i);
-//                DyeColor color = DyeColor.byId(i);
-//                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
-//            }
-//            return variants;
-//        }
-//
-//        if (type == EntityType.AXOLOTL) {
-//            List<IdentityVariant> variants = new ArrayList<>(5);
-//            String[] names = {"Lucy", "Wild", "Gold", "Cyan", "Blue"};
-//            for (int i = 0; i < names.length; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putInt("Variant", i);
-//                variants.add(new IdentityVariant(typeId, "Axolotl " + names[i], nbt));
-//            }
-//            return variants;
-//        }
-//
+        if (type == EntityType.MOOSHROOM) {
+            CompoundTag brown = new CompoundTag();
+            brown.putString("Type", "brown");
+            brown.putString("MushroomType", "brown");
+            return List.of(new IdentityVariant(typeId, "Brown Mooshroom", brown));
+        }
+        if (type == EntityType.PANDA) {
+            CompoundTag brown = new CompoundTag();
+            brown.putString("MainGene", "brown");
+            brown.putString("HiddenGene", "brown");
+            return List.of(new IdentityVariant(typeId, "Brown Panda", brown));
+        }
         return List.of();
     }
 
@@ -474,6 +471,9 @@ public final class IdentityVariantDiscovery {
             if (AXIS_NAME_EXCLUDE.contains(lowered)) {
                 continue;
             }
+            if (lowered.equals("size") && typeRequiresExplicitSizeVariants(entity) == false) {
+                continue;
+            }
             boolean likelyByName = isLikelyVariantName(lowered);
             boolean likelyByType = getter.getReturnType().isEnum();
             if (!likelyByName && !likelyByType) {
@@ -500,6 +500,10 @@ public final class IdentityVariantDiscovery {
             }
         }
         return axes;
+    }
+
+    private static boolean typeRequiresExplicitSizeVariants(Entity entity) {
+        return entity instanceof net.minecraft.world.entity.monster.Slime;
     }
 
     private static boolean isSupportedAxisType(Class<?> setterParam, Object baseline, Registry<?> registry) {
