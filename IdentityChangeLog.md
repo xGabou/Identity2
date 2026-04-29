@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-29
+
+### Porting and Build Work
+
+- Finished the `1.20.1`, `1.20.4`, `1.20.5`, and `1.20.6` branches so they now share the same compiled behavior set.
+- Ported the missing `1.21.10` fixes and the current uncommitted `1.21.10` changes into the `1.21.1` compatibility line.
+- Created the `26.1.2` migration branch and updated the Gradle/Loom setup for the Architectury `26.1` no-remap workflow.
+
+### Notes
+
+- The `1.20.x` branches were repaired and pushed after compile verification.
+- The `1.21.1` port now follows the tested `1.21.10` reference behavior as closely as possible on that version line.
+- The `26.1.2` migration is a build-system update and still needs final dependency and toolchain cleanup before it can be treated as a release.
+
+---
+
 ## 2026-03-02
 
 ### Highlights
@@ -71,3 +87,4 @@ Other versions will be re released shortly.
 - More mobs should correctly display their different forms in the morph UI.
 - Modded mobs with multiple forms are now far more likely to work without custom integration.
 - Existing vanilla variants such as sheep colors and other known forms continue to function properly.
+
