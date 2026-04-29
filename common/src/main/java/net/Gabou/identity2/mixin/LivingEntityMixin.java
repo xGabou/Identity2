@@ -47,12 +47,17 @@ import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.MorphEntityTraits;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
@@ -102,12 +107,57 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         return false;
     }
 
+    @Inject(method = "getRiddenInput", at = @At("HEAD"), cancellable = true)
+    private void identity2$getIdentityRiddenInput(Player player, Vec3 travelVector, CallbackInfoReturnable<Vec3> cir) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
+            float strafe = player.xxa * 0.5F;
+            float forward = player.zza;
+            if (forward <= 0.0F) {
+                forward *= 0.25F;
+            }
+            cir.setReturnValue(new Vec3((double) strafe, 0.0D, (double) forward));
+        }
+    }
+
+    @Inject(method = "tickRidden", at = @At("HEAD"))
+    private void identity2$tickIdentityRidden(Player player, Vec3 travelVector, CallbackInfo ci) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (!MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
+            return;
+        }
+        LivingEntity vehicle = (LivingEntity) (Object) this;
+        vehicle.setYRot(player.getYRot());
+        vehicle.yRotO = vehicle.getYRot();
+        vehicle.yBodyRot = vehicle.getYRot();
+        vehicle.yHeadRot = vehicle.yBodyRot;
+        vehicle.setXRot(player.getXRot() * 0.5F);
+        vehicle.xxa = player.xxa * 0.5F;
+        vehicle.yya = player.yya;
+        vehicle.zza = player.zza <= 0.0F ? player.zza * 0.25F : player.zza;
+        AttributeInstance movementSpeed = vehicle.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (movementSpeed != null) {
+            vehicle.setSpeed((float) movementSpeed.getValue());
+        }
+    }
+
+    @Inject(method = "getRiddenSpeed", at = @At("HEAD"), cancellable = true)
+    private void identity2$getIdentityRiddenSpeed(Player player, CallbackInfoReturnable<Float> cir) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (!MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
+            return;
+        }
+        LivingEntity vehicle = (LivingEntity) (Object) this;
+        AttributeInstance movementSpeed = vehicle.getAttribute(Attributes.MOVEMENT_SPEED);
+        float speed = movementSpeed != null ? (float) movementSpeed.getValue() : vehicle.getSpeed();
+        if (vehicle.getType() == EntityType.CHICKEN) {
+            speed = Math.max(speed, 0.25F);
+        }
+        cir.setReturnValue(speed);
+    }
+
     private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
-        return livingIdentity != null
-            && (
-                livingIdentity.canBreatheUnderwater()
-                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
-            );
+        return MorphEntityTraits.canBreatheUnderwater(livingIdentity);
     }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
@@ -135,6 +185,9 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "decreaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirUnderwaterIdentity(int air, CallbackInfoReturnable info) {
+        if ((Object) this instanceof Player) {
+            return;
+        }
         if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
             return;
         }
@@ -147,6 +200,9 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "increaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirOnLandIdentity(int air, CallbackInfoReturnable info) {
+        if ((Object) this instanceof Player) {
+            return;
+        }
         if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
             return;
         }
@@ -195,7 +251,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         if (this.currentIdentity != null && (((EntityAccessor) this.currentIdentity).canFly()
                 || this.currentIdentity.getType() == EntityType.CHICKEN
                 || this.currentIdentity.getType() == EntityType.CAT
-                || IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType()))) {
+                || MorphEntityTraits.hasSlowFalling(this.currentIdentity))) {
             cir.setReturnValue(false);
         }
     }
@@ -299,6 +355,21 @@ private void tickMovementIdentity(CallbackInfo info){
     }
 }
 
+@Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"), cancellable = true)
+private void identity2$lockShulkerMovement(Vec3 input, CallbackInfo ci) {
+    if (!((Entity) (Object) this instanceof Player player)) {
+        return;
+    }
+    if (this.currentIdentity == null || this.currentIdentity.getType() != EntityType.SHULKER) {
+        return;
+    }
+    if (!PredefIdentityAbilities.isShulkerOpen(player)) {
+        return;
+    }
+    player.setDeltaMovement(Vec3.ZERO);
+    ci.cancel();
+}
+
 //getNextAir(underwater,onland) should be added
 @Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
 private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
@@ -365,6 +436,12 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             cancellable = true
     )
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if (this.identityOf instanceof Player) {
+            if (source == null || !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                info.setReturnValue(true);
+                return;
+            }
+        }
         if ((Object) this instanceof Player player) {
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
@@ -378,7 +455,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
                             && player.isInWater()
-                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
+                            && MorphEntityTraits.canBreatheUnderwater(this.currentIdentity)
             ) {
                 info.setReturnValue(true);
                 return;
@@ -390,6 +467,14 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                     activeIdentity != null
                             && activeIdentity.getType() == EntityType.ENDER_DRAGON
                             && (source.is(DamageTypes.DRAGON_BREATH) || identity2$isOwnDragonBreathCloud(player, source))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity instanceof EnderDragon
+                            && identity2$isPlayerOwnedDragonMobAttack(activeIdentity, source)
             ) {
                 info.setReturnValue(true);
                 return;
@@ -419,7 +504,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                             && (
                             activeIdentity.getType() == EntityType.CHICKEN
                                     || activeIdentity.getType() == EntityType.CAT
-                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                                    || MorphEntityTraits.hasSlowFalling(activeIdentity)
                     )
             ) {
                 info.setReturnValue(true);
@@ -491,7 +576,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
     @Unique
     private static boolean identity2$isMorphFireImmune(Entity activeIdentity) {
-        return activeIdentity != null && activeIdentity.fireImmune();
+        return MorphEntityTraits.isFireImmune(activeIdentity);
     }
 
     @Unique
@@ -504,6 +589,16 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             return false;
         }
         return cloud.getOwner() == player || source.getEntity() == player;
+    }
+
+    private static boolean identity2$isPlayerOwnedDragonMobAttack(Entity activeIdentity, DamageSource source) {
+        if (activeIdentity == null || source == null) {
+            return false;
+        }
+        if (!source.is(DamageTypes.MOB_ATTACK)) {
+            return false;
+        }
+        return source.getDirectEntity() == activeIdentity && source.getEntity() == activeIdentity;
     }
 
     private static boolean identity2$isWallCollisionDamage(DamageSource source) {

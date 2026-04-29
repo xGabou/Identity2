@@ -28,6 +28,7 @@ import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -63,6 +64,8 @@ import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.boss.EnderDragonPart;
+import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
@@ -246,6 +249,11 @@ public class EntityMixin implements EntityAccessor{
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
+            if (hostIsPlayer) {
+                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
+            }
+            ((EntityAccessor) this.currentIdentity).setTouchingWater(((Entity) (Object) this).isInWater());
+            this.currentIdentity.setSwimming(((Entity) (Object) this).isSwimming());
             identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
             identity2$applySyncedMorphState(this.currentIdentity);
             if(
@@ -255,24 +263,32 @@ public class EntityMixin implements EntityAccessor{
             livingIdentity.setHealth(livingEntity.getHealth());
             }
             if(this.currentIdentity.level().isClientSide()){
-                this.currentIdentity.tick();
-            } else {
-                if(this.currentIdentity instanceof Mob mobIdentity){
-                    mobIdentity.setNoAi(true);
+                if (this.currentIdentity instanceof net.minecraft.world.entity.animal.Squid) {
+                    return;
                 }
                 this.currentIdentity.tick();
+            } else {
+                boolean allowFullServerTick = !MorphEntityTraits.shouldSkipFullServerMorphTick((Entity) (Object) this, this.currentIdentity);
+                if(this.currentIdentity instanceof Mob mobIdentity && !allowFullServerTick){
+                    mobIdentity.setNoAi(true);
+                }
+                if (allowFullServerTick) {
+                    this.currentIdentity.tick();
+                }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}
             }
             if (hostIsPlayer) {
-                // For players, keep vanilla movement/gravity authoritative.
-                // Some morph AIs (especially flying mobs) can otherwise inject
-                // non-player motion and feel like speed/gravity glitches.
-                this.currentIdentity.setPos(this.position());
-                this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
-                this.setAirSupply(this.currentIdentity.getAirSupply());
+                if (this.currentIdentity instanceof EnderDragon dragonIdentity) {
+                    identity2$syncDragonMultipartPosition(dragonIdentity, this.position());
+                } else {
+                    this.currentIdentity.setPos(this.position());
+                    this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
+                    this.currentIdentity.setAirSupply(this.getAirSupply());
+                }
+                identity2$syncIdentityRotationFromHost((Entity) (Object) this, this.currentIdentity);
                 Entity hostEntity = (Entity) (Object) this;
                 if (
                     !hostEntity.onGround()
@@ -347,30 +363,153 @@ public class EntityMixin implements EntityAccessor{
             player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
         }
 
-        if (activeIdentity instanceof EnderDragon dragonIdentity && player.level() instanceof ServerLevel serverLevel) {
-            ((EnderDragonEntityAccessor) dragonIdentity).runTickWithEndCrystals();
-            identity2$invokeTwoArgs(dragonIdentity, "checkWalls", serverLevel, dragonIdentity.getBoundingBox());
+        if (activeIdentity.getType() == EntityType.RABBIT) {
+            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 40, 1, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 40, 1, true, false, true));
+        }
+
+        if (MorphEntityTraits.canBreatheUnderwater(activeIdentity)) {
+            BlockPos exposurePos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
+            if (player.isInWater() || player.level().isRainingAt(exposurePos)) {
+                player.setAirSupply(player.getMaxAirSupply());
+            } else {
+                int nextAir = player.getAirSupply() - 1;
+                if (nextAir <= -20) {
+                    nextAir = 0;
+                    player.hurt(player.damageSources().dryOut(), 2.0F);
+                }
+                player.setAirSupply(nextAir);
+            }
+        } else if (player.getAirSupply() < player.getMaxAirSupply()) {
+            player.setAirSupply(player.getMaxAirSupply());
+        }
+
+        if (MorphEntityTraits.isFireImmune(activeIdentity)) {
+            player.clearFire();
+            activeIdentity.clearFire();
+            this.identity2$morphSunBurning = false;
+        }
+
+        if (activeIdentity instanceof EnderDragon dragonIdentity) {
             if (dragonIdentity.getHealth() > player.getHealth()) {
                 player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
             }
         }
 
-        boolean sunBurnTick = false;
-        Object value = identity2$invokeNoArg(activeIdentity, "isSunBurnTick");
-        if (value instanceof Boolean bool) {
-            sunBurnTick = bool;
-        }
+        boolean sunBurnTick = MorphEntityTraits.tickSunBurnLikeVanilla(player, activeIdentity);
 
         if (sunBurnTick) {
-            player.igniteForSeconds(8.0F);
-            if (player.tickCount % 20 == 0 && player.level() instanceof ServerLevel serverLevel) {
-                player.hurtServer(serverLevel, player.damageSources().onFire(), 1.0F);
-            }
             this.identity2$morphSunBurning = true;
-        } else if (this.identity2$morphSunBurning) {
-            player.clearFire();
-            this.identity2$morphSunBurning = false;
         }
+
+        if (activeIdentity instanceof AbstractPiglin piglinIdentity && player instanceof ServerPlayer serverPlayer) {
+            identity2$tickPiglinConversion(serverPlayer, piglinIdentity);
+        }
+    }
+    @Unique
+    private static void identity2$syncDragonMultipartPosition(EnderDragon dragonIdentity, Vec3 targetPos) {
+        if (dragonIdentity == null || targetPos == null) {
+            return;
+        }
+        Vec3 previous = dragonIdentity.position();
+        Vec3 delta = targetPos.subtract(previous);
+        dragonIdentity.setPos(targetPos);
+        if (delta.lengthSqr() <= 1.0E-8D) {
+            return;
+        }
+        for (Entity part : dragonIdentity.getSubEntities()) {
+            if (part == null) {
+                continue;
+            }
+            Vec3 shifted = part.position().add(delta);
+            part.setPos(shifted);
+        }
+    }
+    @Unique
+    private static void identity2$clearEntityImpulseFlags(Entity entity) {
+        if (entity == null) {
+            return;
+        }
+        identity2$setBooleanField(entity, "hurtMarked", false);
+        identity2$setBooleanField(entity, "hasImpulse", false);
+    }
+
+    @Unique
+    private static void identity2$setBooleanField(Object target, String fieldName, boolean value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                java.lang.reflect.Field field = current.getDeclaredField(fieldName);
+                if (!(field.getType() == boolean.class || field.getType() == Boolean.class)) {
+                    return;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setBoolean(target, value);
+                return;
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+                return;
+            }
+        }
+    }
+    @Unique
+    private static void identity2$syncIdentityRotationFromHost(Entity host, Entity identity) {
+        if (host == null || identity == null) {
+            return;
+        }
+        float yawOffset = identity instanceof EnderDragon ? 180.0F : 0.0F;
+        float targetYaw = host.getYRot() + yawOffset;
+        identity.setYRot(targetYaw);
+        identity.yRotO = host.yRotO + yawOffset;
+        identity.setXRot(host.getXRot());
+        identity.xRotO = host.xRotO;
+        if (identity instanceof LivingEntity livingIdentity && host instanceof LivingEntity livingHost) {
+            if (identity.getType() == EntityType.GOAT) {
+                livingIdentity.yHeadRot = targetYaw;
+                livingIdentity.yHeadRotO = targetYaw;
+                livingIdentity.yBodyRot = targetYaw;
+                livingIdentity.yBodyRotO = targetYaw;
+            } else {
+                livingIdentity.yHeadRot = livingHost.yHeadRot + yawOffset;
+                livingIdentity.yHeadRotO = livingHost.yHeadRotO + yawOffset;
+                livingIdentity.yBodyRot = livingHost.yBodyRot + yawOffset;
+                livingIdentity.yBodyRotO = livingHost.yBodyRotO + yawOffset;
+            }
+        }
+        if (identity instanceof EnderDragon dragonIdentity) {
+            dragonIdentity.yRotA += Mth.wrapDegrees(targetYaw - dragonIdentity.yRotA) * 0.1F;
+        }
+    }
+
+    @Unique
+    private void identity2$tickPiglinConversion(ServerPlayer player, AbstractPiglin piglinIdentity) {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.customData).getNbt();
+        boolean shouldConvert = !player.level().dimensionType().piglinSafe();
+        if (Boolean.TRUE.equals(identity2$invokeNoArg(piglinIdentity, "isImmuneToZombification"))) {
+            shouldConvert = false;
+        }
+        if (!shouldConvert) {
+            nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
+            return;
+        }
+
+        int conversionTicks = Math.max(0, nbt.getIntOr(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0));
+        conversionTicks++;
+        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, conversionTicks);
+        if (conversionTicks < 300) {
+            return;
+        }
+
+        String zombifiedPiglinId = EntityType.getKey(EntityType.ZOMBIFIED_PIGLIN).toString();
+        nbt.putInt(IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY, 0);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, zombifiedPiglinId);
+        nbt.putString("model_override", zombifiedPiglinId);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        IdentityProgression.restoreMorphFromSavedDataAndSync(player);
     }
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
@@ -429,6 +568,51 @@ public class EntityMixin implements EntityAccessor{
 
 
 
+    @Inject(method="onRemoval",at=@At("HEAD"),cancellable=true)
+    private void commandOnRemoved(Entity.RemovalReason reason,CallbackInfo info){
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+            PredefIdentityAbilities.cleanupIdentitySideEffects(serverPlayer, this.currentIdentity);
+        }
+        if(reason.shouldDestroy()){
+            String reasonType="";
+            if(reason==Entity.RemovalReason.KILLED){
+                reasonType="killed";
+            }else if(reason==Entity.RemovalReason.DISCARDED){
+                reasonType="discarded";
+            }else if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK){
+                reasonType="unloaded_chunk";
+            }else if(reason==Entity.RemovalReason.UNLOADED_WITH_PLAYER){
+                reasonType="unloaded_player";
+            }else if(reason==Entity.RemovalReason.CHANGED_DIMENSION){
+                reasonType="dimension_change";
+            }
+        if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").isPresent()){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed").get();
+                if(((Entity)(Object)this).level().getServer()!=null){
+                    if(command!=""){
+                    
+                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                        command
+                        );
+                        
+                    }
+                }
+            }
+            if(((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).isPresent()){
+            String command=((NbtComponentAccessor)(Object)this.customData).getNbt().getString("on_removed_"+reasonType).get();
+                if(((Entity)(Object)this).level().getServer()!=null){
+                    if(command!=""){
+                    
+                        ((Entity)(Object)this).level().getServer().getCommands().performPrefixedCommand(((Entity)(Object)this).level().getServer().createCommandSourceStack().withEntity((Entity)(Object)this).withPosition(this.position()).withSuppressedOutput(),/*command*/
+                        command
+                        );
+                        
+                    }
+                }
+             }
+         }
+     }
+
     @Inject(method="baseTick",at=@At("HEAD"),cancellable=true)
     private void identity2$baseTick(CallbackInfo info){
         if(this.abilityCooldown>0){
@@ -459,7 +643,8 @@ public class EntityMixin implements EntityAccessor{
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
-    
+    private static final String IDENTITY2_PIGLIN_CONVERSION_TICKS_KEY = "identity2.piglin_conversion_ticks";
+
 
 
     public boolean canFly() {
@@ -469,10 +654,7 @@ public class EntityMixin implements EntityAccessor{
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
             } else {
-                try {
-                    this.entityCanFly = net.Gabou.identity2.util.MFCheck.isMethodEmpty(flightEntity.getClass(), FALL_METHOD_NAME);
-                } catch (Exception ignored) {
-                }
+                this.entityCanFly = false;
                 if (flightEntity.isNoGravity()) {
                     this.entityCanFly = true;
                 }
@@ -694,6 +876,7 @@ public class EntityMixin implements EntityAccessor{
     }
     public void fixAttributes(Entity entity, Entity identity){}
     public void setCurrentIdentity(String id){
+        Entity previousIdentity = this.currentIdentity;
         this.noPhysics=false;
         this.entityCanFlyEvaluated = false;
         this.entityCanFlyTickEvaluated = false;
@@ -731,6 +914,7 @@ public class EntityMixin implements EntityAccessor{
             }
         }
         if(id.length()==0){
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             this.currentIdentity=null;
             this.entityCanFly = false;
             ((Entity)(Object)this).refreshDimensions();
@@ -748,6 +932,7 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(identityId)) {
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             this.currentIdentity = null;
             this.entityCanFly = false;
             ((Entity)(Object)this).refreshDimensions();
@@ -791,6 +976,7 @@ public class EntityMixin implements EntityAccessor{
         }
         
         if(this.currentIdentity!=null){
+            PredefIdentityAbilities.cleanupIdentitySideEffects((Entity) (Object) this, previousIdentity);
             ((EntityAccessor)this.currentIdentity).setIdentityOf((Entity)(Object)this);
             //if(((Entity)(Object)this).getEntityWorld().isClient()){
             ((EntityAccessor)(this.currentIdentity)).setId(((EntityAccessor)(this.currentIdentity)).getId()*-1);
@@ -801,6 +987,10 @@ public class EntityMixin implements EntityAccessor{
                 Entity playerIdentity = ((EntityAccessor) player).getCurrentIdentity();
                 if (player instanceof ServerPlayer serverPlayer) {
                     IdentityProgression.updateHostileIdentityGrace(serverPlayer, this.currentIdentity);
+                }
+                if (MorphEntityTraits.isFireImmune(this.currentIdentity)) {
+                    player.clearFire();
+                    this.currentIdentity.clearFire();
                 }
                 this.applyIdentityFlightGrant(player, playerIdentity != null && ((EntityAccessor) playerIdentity).canFly());
             }
@@ -851,6 +1041,7 @@ public class EntityMixin implements EntityAccessor{
                 identity2$invokeIntArg(identityEntity, "setVariant", type);
             }
         }
+        identity2$applyNamedEnumVariant(identityEntity, variantNbt, "Variant", "variant", "Type", "type");
 
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "CatVariant", "CAT_VARIANT");
         identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
@@ -1004,6 +1195,80 @@ public class EntityMixin implements EntityAccessor{
         if (identity2$invokeOneArg(identityEntity, "setVariant", arg) == null) {
             identity2$invokeOneArg(identityEntity, "setType", arg);
         }
+    }
+
+    private static void identity2$applyNamedEnumVariant(Entity identityEntity, CompoundTag variantNbt, String... keys) {
+        if (identityEntity == null || variantNbt == null || keys == null || keys.length == 0) {
+            return;
+        }
+        String raw = identity2$readVariantString(variantNbt, keys);
+        if (raw == null || raw.isBlank()) {
+            return;
+        }
+        if (identity2$applyNamedEnumVariant(identityEntity, "setVariant", raw)) {
+            return;
+        }
+        identity2$applyNamedEnumVariant(identityEntity, "setType", raw);
+    }
+
+    private static boolean identity2$applyNamedEnumVariant(Entity identityEntity, String methodName, String raw) {
+        if (identityEntity == null || methodName == null || methodName.isBlank() || raw == null || raw.isBlank()) {
+            return false;
+        }
+        for (Method method : identity2$getAllMethods(identityEntity.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> paramType = method.getParameterTypes()[0];
+            if (!paramType.isEnum()) {
+                continue;
+            }
+            Object enumValue = identity2$resolveEnumVariant(paramType, raw);
+            if (enumValue == null) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(identityEntity)) {
+                    method.setAccessible(true);
+                }
+                method.invoke(identityEntity, enumValue);
+                return true;
+            } catch (Throwable ignored) {
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    private static Object identity2$resolveEnumVariant(Class<?> enumType, String raw) {
+        if (enumType == null || raw == null || raw.isBlank() || !enumType.isEnum()) {
+            return null;
+        }
+        String normalized = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains(":")) {
+            normalized = normalized.substring(normalized.indexOf(':') + 1);
+        }
+        Object[] constants = enumType.getEnumConstants();
+        if (constants == null) {
+            return null;
+        }
+        for (Object constant : constants) {
+            if (!(constant instanceof Enum<?> enumValue)) {
+                continue;
+            }
+            if (enumValue.name().equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+            Object serialized = identity2$invokeNoArg(constant, "getSerializedName");
+            if (serialized instanceof String text && text.equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+            Object asString = identity2$invokeNoArg(constant, "asString");
+            if (asString instanceof String text && text.equalsIgnoreCase(normalized)) {
+                return constant;
+            }
+        }
+        return null;
     }
 
     @Nullable
@@ -1515,8 +1780,10 @@ private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, 
     if (this.currentIdentity == null) {
         return;
     }
-    EntityType<?> type = this.currentIdentity.getType();
-    if (type == EntityType.CAMEL || type == EntityType.DONKEY) {
+    if (MorphEntityTraits.canIdentityRide(this.currentIdentity, vehicle)) {
+        return;
+    }
+    if (MorphEntityTraits.preventsInvalidMorphMounting(this.currentIdentity)) {
         cir.setReturnValue(false);
     }
 }

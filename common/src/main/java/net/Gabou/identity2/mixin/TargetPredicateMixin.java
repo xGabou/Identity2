@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin;
 
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.server.level.ServerLevel;
@@ -38,12 +39,6 @@ public class TargetPredicateMixin {
     private void identity2$skipHostileVsHostileMorph(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         identity2$replaceTargetWithIdentity.set(Boolean.FALSE);
 
-        if (!IdentitySettings.hostilesIgnoreHostileIdentityPlayer) {
-            return;
-        }
-        if (!(tester instanceof Monster)) {
-            return;
-        }
         if (!(target instanceof Player player)) {
             return;
         }
@@ -52,21 +47,10 @@ public class TargetPredicateMixin {
         if (!(currentIdentity instanceof LivingEntity identityLiving)) {
             return;
         }
-        if (identityLiving.getType() == EntityType.ALLAY || identityLiving.getType() == EntityType.BAT) {
+
+        if (MorphEntityTraits.shouldBlockHostileTargeting(tester, identityLiving)) {
             info.setReturnValue(false);
-            return;
         }
-        if (!identity2$isHostileMob(identityLiving.getType())) {
-            return;
-        }
-
-        if (IdentitySettings.hostilesForgetNewHostileIdentityPlayer
-                && target instanceof ServerPlayer serverPlayer
-                && IdentityProgression.isHostileIdentityGraceActive(serverPlayer)) {
-            return;
-        }
-
-        info.setReturnValue(false);
     }
 
     @Inject(
