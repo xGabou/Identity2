@@ -71,7 +71,7 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         if (!MorphEntityTraits.canIdentityRide(identity, target)) {
             return;
         }
-        if (player.startRiding(target, true, false)) {
+        if (player.startRiding(target, true)) {
             cir.setReturnValue(InteractionResult.SUCCESS);
         }
     }
