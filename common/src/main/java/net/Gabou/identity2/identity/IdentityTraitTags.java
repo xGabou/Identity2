@@ -5,7 +5,7 @@ import java.util.List;
 import net.Gabou.identity2.IdentitySettings;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.entity.EntityType;
@@ -14,27 +14,72 @@ import org.jetbrains.annotations.Nullable;
 public final class IdentityTraitTags {
     public static final TagKey<EntityType<?>> CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_fly")
+    );
+
+    public static final TagKey<EntityType<?>> CANNOT_FLY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "cannot_fly")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("minecraft", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("minecraft", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "can_breathe_underwater")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_breathe_underwater")
     );
 
     public static final TagKey<EntityType<?>> BURNS_IN_DAYLIGHT = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "burns_in_daylight")
+        ResourceLocation.fromNamespaceAndPath("identity2", "burns_in_daylight")
     );
 
     public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
         Registries.ENTITY_TYPE,
-        Identifier.fromNamespaceAndPath("identity2", "slow_falling")
+        ResourceLocation.fromNamespaceAndPath("identity2", "slow_falling")
+    );
+
+    public static final TagKey<EntityType<?>> HOSTILE_IGNORE_TARGETING = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "hostile_ignore_targeting")
+    );
+
+    public static final TagKey<EntityType<?>> INVALID_MORPH_MOUNT = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "invalid_morph_mount")
+    );
+
+    public static final TagKey<EntityType<?>> HIGH_JUMP_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "high_jump_ability")
+    );
+
+    public static final TagKey<EntityType<?>> SECONDARY_HIGH_JUMP_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "secondary_high_jump_ability")
+    );
+
+    public static final TagKey<EntityType<?>> RAM_ATTACK_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "ram_attack_ability")
+    );
+
+    public static final TagKey<EntityType<?>> ROLL_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "roll_ability")
+    );
+
+    public static final TagKey<EntityType<?>> DEFENSIVE_PUFF_ABILITY = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "defensive_puff_ability")
+    );
+
+    public static final TagKey<EntityType<?>> MELEE_IGNITES_TARGET = TagKey.create(
+        Registries.ENTITY_TYPE,
+        ResourceLocation.fromNamespaceAndPath("identity2", "melee_ignites_target")
     );
 
     private IdentityTraitTags() {
@@ -46,14 +91,18 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId == null) {
             return Boolean.FALSE;
         }
 
-        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CAN_FLY), tagId(VANILLA_CAN_FLY));
+        Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(CANNOT_FLY), tagId(CAN_FLY), tagId(VANILLA_CAN_FLY));
         if (assignmentOverride != null) {
             return assignmentOverride;
+        }
+
+        if (type.is(CANNOT_FLY)) {
+            return Boolean.FALSE;
         }
 
         if (containsTypeId(nullToEmpty(IdentitySettings.removedFlyingEntities), typeId)) {
@@ -77,7 +126,7 @@ public final class IdentityTraitTags {
             return Boolean.FALSE;
         }
 
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId == null) {
             return Boolean.FALSE;
         }
@@ -102,21 +151,21 @@ public final class IdentityTraitTags {
         if (type == null) {
             return false;
         }
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
-            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(EntityTypeTags.BURN_IN_DAYLIGHT));
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT));
             if (assignmentOverride != null) {
                 return assignmentOverride;
             }
         }
-        return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
+        return type.is(BURNS_IN_DAYLIGHT);
     }
 
     public static boolean hasSlowFalling(EntityType<?> type) {
         if (type == null) {
             return false;
         }
-        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
             Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(SLOW_FALLING));
             if (assignmentOverride != null) {
@@ -126,8 +175,46 @@ public final class IdentityTraitTags {
         return type.is(SLOW_FALLING);
     }
 
+    public static boolean hostileIgnoresTargeting(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        return type.is(HOSTILE_IGNORE_TARGETING);
+    }
+
+    public static boolean preventsInvalidMorphMounting(EntityType<?> type) {
+        if (type == null) {
+            return false;
+        }
+        return type.is(INVALID_MORPH_MOUNT);
+    }
+
+    public static boolean hasHighJumpAbility(EntityType<?> type) {
+        return type != null && type.is(HIGH_JUMP_ABILITY);
+    }
+
+    public static boolean hasSecondaryHighJumpAbility(EntityType<?> type) {
+        return type != null && type.is(SECONDARY_HIGH_JUMP_ABILITY);
+    }
+
+    public static boolean hasRamAttackAbility(EntityType<?> type) {
+        return type != null && type.is(RAM_ATTACK_ABILITY);
+    }
+
+    public static boolean hasRollAbility(EntityType<?> type) {
+        return type != null && type.is(ROLL_ABILITY);
+    }
+
+    public static boolean hasDefensivePuffAbility(EntityType<?> type) {
+        return type != null && type.is(DEFENSIVE_PUFF_ABILITY);
+    }
+
+    public static boolean ignitesTargetsOnMelee(EntityType<?> type) {
+        return type != null && type.is(MELEE_IGNITES_TARGET);
+    }
+
     @Nullable
-    private static Boolean resolveAssignmentOverride(Identifier typeId, Identifier... acceptedTagIds) {
+    private static Boolean resolveAssignmentOverride(ResourceLocation typeId, ResourceLocation... acceptedTagIds) {
         if (typeId == null || acceptedTagIds == null || acceptedTagIds.length == 0) {
             return null;
         }
@@ -157,13 +244,13 @@ public final class IdentityTraitTags {
         return null;
     }
 
-    private static boolean matchesTag(Identifier entryTag, Identifier[] acceptedTagIds) {
+    private static boolean matchesTag(ResourceLocation entryTag, ResourceLocation[] acceptedTagIds) {
         if (entryTag == null) {
             return false;
         }
         String entryFull = entryTag.toString();
         String entryPath = entryTag.getPath();
-        for (Identifier accepted : acceptedTagIds) {
+        for (ResourceLocation accepted : acceptedTagIds) {
             if (accepted == null) {
                 continue;
             }
@@ -174,7 +261,7 @@ public final class IdentityTraitTags {
         return false;
     }
 
-    private static boolean matchesType(Identifier entryType, Identifier typeId) {
+    private static boolean matchesType(ResourceLocation entryType, ResourceLocation typeId) {
         if (entryType == null || typeId == null) {
             return false;
         }
@@ -195,8 +282,8 @@ public final class IdentityTraitTags {
             return null;
         }
 
-        Identifier tagId = parseIdentifierLoose(normalized.substring(0, separator).trim());
-        Identifier entityTypeId = parseIdentifierLoose(normalized.substring(separator + 1).trim());
+        ResourceLocation tagId = parseResourceLocationLoose(normalized.substring(0, separator).trim());
+        ResourceLocation entityTypeId = parseResourceLocationLoose(normalized.substring(separator + 1).trim());
         if (tagId == null || entityTypeId == null) {
             return null;
         }
@@ -204,25 +291,25 @@ public final class IdentityTraitTags {
     }
 
     @Nullable
-    private static Identifier parseIdentifierLoose(String value) {
+    private static ResourceLocation parseResourceLocationLoose(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
             if (value.contains(":")) {
-                return Identifier.parse(value);
+                return ResourceLocation.parse(value);
             }
-            return Identifier.fromNamespaceAndPath("minecraft", value);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", value);
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private static Identifier tagId(TagKey<EntityType<?>> tag) {
+    private static ResourceLocation tagId(TagKey<EntityType<?>> tag) {
         return tag.location();
     }
 
-    private static boolean containsTypeId(List<String> entries, Identifier typeId) {
+    private static boolean containsTypeId(List<String> entries, ResourceLocation typeId) {
         String full = typeId.toString();
         String path = typeId.getPath();
         for (String entry : entries) {
@@ -244,6 +331,6 @@ public final class IdentityTraitTags {
         return entries == null ? Collections.emptyList() : entries;
     }
 
-    private record TagAssignment(Identifier tagId, Identifier entityTypeId) {
+    private record TagAssignment(ResourceLocation tagId, ResourceLocation entityTypeId) {
     }
 }

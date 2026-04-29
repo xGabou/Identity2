@@ -1,22 +1,17 @@
 package net.Gabou.identity2;
 
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Predicate;
 
 import javax.swing.Box;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.LinkedHashSet;
-import java.util.Set;
+
 import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -30,7 +25,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -47,27 +42,13 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Ghast;
-import net.minecraft.world.entity.monster.Shulker;
-import net.minecraft.world.entity.monster.illager.Illusioner;
+import net.minecraft.world.entity.monster.*;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.EvokerFangs;
-import net.minecraft.world.entity.projectile.LlamaSpit;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.entity.projectile.ShulkerBullet;
-import net.minecraft.world.entity.projectile.hurtingprojectile.DragonFireball;
-import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
-import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
-import net.minecraft.world.entity.projectile.hurtingprojectile.WitherSkull;
-import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
-import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownSplashPotion;
-import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.villager.VillagerProfession;
-import net.minecraft.world.entity.npc.villager.VillagerType;
-import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
@@ -86,6 +67,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.entity.monster.Shulker;
+import org.jetbrains.annotations.Nullable;
 public final class PredefIdentityAbilities {
     private static final float GENERIC_MIN_DAMAGE = 2.0F;
     private static final float GENERIC_MAX_DAMAGE = 10.0F;
@@ -93,6 +75,14 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
     public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
+    public static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
+    public static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
+    public static final String ANIM_CHARGE_TICKS_KEY = "identity2.anim.charge_ticks";
+    public static final String ANIM_JUMP_TICKS_KEY = "identity2.anim.jump_ticks";
+    public static final String ANIM_ROLL_TICKS_KEY = "identity2.anim.roll_ticks";
+    public static final String ANIM_ANGRY_TICKS_KEY = "identity2.anim.angry_ticks";
+    public static final String PUFFER_PUFF_TICKS_KEY = "identity2.pufferfish_puff_ticks";
+    private static final int WARDEN_SONIC_BOOM_ANIMATION_TICKS = 60;
     private static final int ILLUSIONER_CLONE_COUNT = 3;
     private static final int ILLUSIONER_CLONE_LIFETIME_TICKS = 20 * 25;
     private static final double ILLUSIONER_CLONE_RADIUS = 3.5D;
@@ -128,7 +118,7 @@ public final class PredefIdentityAbilities {
         }
     }
 
-    public static final Map<Identifier, BuiltinIdentityAbility> predef = create();
+    public static final Map<ResourceLocation, BuiltinIdentityAbility> predef = create();
     private static final BuiltinIdentityAbility genericMobAbility = createGenericMobAbility();
     private static final Map<UUID, List<IllusionerCloneRef>> illusionerCloneRefs = new HashMap<>();
 
@@ -138,7 +128,7 @@ public final class PredefIdentityAbilities {
     private PredefIdentityAbilities() {
     }
 
-    public static boolean hasFallbackAbility(Identifier identityTypeId) {
+    public static boolean hasFallbackAbility(ResourceLocation identityTypeId) {
         if (identityTypeId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityTypeId)) {
             return false;
         }
@@ -149,14 +139,30 @@ public final class PredefIdentityAbilities {
         return IdentityProgression.isMorphableType(type);
     }
 
-    public static BuiltinIdentityAbility resolveFallbackAbility(Identifier identityTypeId) {
+    public static BuiltinIdentityAbility resolveFallbackAbility(ResourceLocation identityTypeId) {
         if (!hasFallbackAbility(identityTypeId)) {
             return null;
         }
         return genericMobAbility;
     }
 
-    public static void register(Identifier id, BuiltinIdentityAbility ability) {
+    public static void triggerMorphAttackAnimation(Entity player, int ticks) {
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, ticks);
+    }
+
+    public static void cleanupIdentitySideEffects(Entity player, @Nullable Entity previousIdentity) {
+        if (!(player instanceof ServerPlayer serverPlayer) || previousIdentity == null) {
+            return;
+        }
+        if (previousIdentity.getType() == EntityType.ILLUSIONER) {
+            discardAllOwnedIllusionerClones(serverPlayer);
+        }
+        if (previousIdentity.getType() == EntityType.SHULKER) {
+            setShulkerOpenState(serverPlayer, false);
+        }
+    }
+
+    public static void register(ResourceLocation id, BuiltinIdentityAbility ability) {
         if (id == null) {
             throw new IllegalArgumentException("Ability id cannot be null.");
         }
@@ -170,17 +176,124 @@ public final class PredefIdentityAbilities {
         if (type == null) {
             throw new IllegalArgumentException("Entity type cannot be null.");
         }
-        Identifier id = EntityType.getKey(type);
+        ResourceLocation id = EntityType.getKey(type);
         if (id == null) {
             throw new IllegalArgumentException("Entity type is not registered: " + type);
         }
         register(id, ability);
     }
 
-    private static Map<Identifier, BuiltinIdentityAbility> create() {
-        Map<Identifier, BuiltinIdentityAbility> map = new HashMap<>();
+    private static Map<ResourceLocation, BuiltinIdentityAbility> create() {
+        Map<ResourceLocation, BuiltinIdentityAbility> map = new HashMap<>();
 
-        map.put(Identifier.parse("ghast"), new IdentityAbility() {
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeHighJump(player, ((EntityAccessor) player).getCurrentIdentity());
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_JUMP_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "secondary_high_jump"), new IdentityAbility() {
+            @Override
+            public void executeSecondary(Entity player) {
+                executeHighJump(player, ((EntityAccessor) player).getCurrentIdentity());
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_JUMP_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "frog"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeFrogEat(player);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                executeHighJump(player, ((EntityAccessor) player).getCurrentIdentity());
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ATTACK_TICKS_KEY, ANIM_JUMP_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeRamAttack(player, ((EntityAccessor) player).getCurrentIdentity());
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ATTACK_TICKS_KEY, ANIM_CHARGE_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "roll"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeRollingDash(player);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ROLL_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "defensive_puff"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executePufferDefense(player, ((EntityAccessor) player).getCurrentIdentity());
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, PUFFER_PUFF_TICKS_KEY, ANIM_ATTACK_TICKS_KEY);
+                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                if (currentIdentity != null) {
+                    tickPufferDefense(player, currentIdentity);
+                }
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "guardian_laser"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeGuardianLaser(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, 20);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "warden_beam"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeWardenSonicBoom(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, WARDEN_SONIC_BOOM_ANIMATION_TICKS);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.parse("ghast"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -201,6 +314,7 @@ public final class PredefIdentityAbilities {
                 LargeFireball fireball = new LargeFireball(world, livingPlayer, direction.normalize(), 1);
                 fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
+                identity2$setSyncedTicks(player, ANIM_ANGRY_TICKS_KEY, 16);
                 if (((EntityAccessor) player).getCurrentIdentity() instanceof Ghast ghastIdentity) {
                     //ghastIdentity.setCharging(false);
                 }
@@ -220,9 +334,14 @@ public final class PredefIdentityAbilities {
                     ghastIdentity.setCharging(false);
                 }
             }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ANGRY_TICKS_KEY);
+            }
         });
 
-        map.put(Identifier.parse("enderman"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("enderman"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -264,7 +383,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("shulker"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("shulker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
@@ -287,6 +406,9 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
+                if (!isShulkerOpen(player)) {
+                    return;
+                }
                 tryTeleportShulkerToNewAnchor(player, shulker);
             }
 
@@ -302,12 +424,15 @@ public final class PredefIdentityAbilities {
             }
             @Override
             public void passivetick(Entity player,boolean usedLastTick){
-                Identity2.LOGGER.info("Passive Tick");
                 Shulker shulker=(Shulker)((EntityAccessor)player).getCurrentIdentity();
-                if(usedLastTick==false){
-                    if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=0){
-                        ((ShulkerEntityAccessor)shulker).setPeekAmount(0);
-                    }
+                boolean locked = isShulkerOpen(player);
+                int targetPeek = locked ? 100 : 0;
+                if (((ShulkerEntityAccessor) shulker).runGetPeekAmount() != targetPeek) {
+                    ((ShulkerEntityAccessor) shulker).setPeekAmount(targetPeek);
+                }
+                if (locked) {
+                    Vec3 motion = player.getDeltaMovement();
+                    player.setDeltaMovement(0.0D, Math.min(motion.y, 0.0D), 0.0D);
                 }
                 if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(),shulker)) {
                     BlockPos pos=shulker.blockPosition();
@@ -343,7 +468,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("blaze"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("blaze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -362,7 +487,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("armadillo"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("armadillo"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof ServerPlayer serverPlayer)) {
@@ -374,7 +499,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("cow"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("cow"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (player instanceof LivingEntity living) {
@@ -393,21 +518,21 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("villager"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("villager"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(Identifier.parse("wandering_trader"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("wandering_trader"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 openVillagerTrade(player);
             }
         });
 
-        map.put(Identifier.parse("creeper"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("creeper"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 float power = 3.0F;
@@ -419,7 +544,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("endermite"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("endermite"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -429,9 +554,12 @@ public final class PredefIdentityAbilities {
 
                 for (int i = 0; i < 16; ++i) {
                     double targetX = startX + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
-                    int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(targetX), Mth.floor(startZ));
-                    double targetY = Mth.clamp(startY + (player.getRandom().nextInt(16) - 8), world.getMinY(), topY - 1);
                     double targetZ = startZ + (player.getRandom().nextDouble() - 0.5D) * 16.0D;
+                    int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(targetX), Mth.floor(targetZ));
+                    double targetY = Mth.clamp(startY + (player.getRandom().nextInt(16) - 8), world.getMinY(), topY - 1);
+                    if (!identity2$canTeleportPlayerSafely(player, targetX, targetY, targetZ)) {
+                        continue;
+                    }
                     if (player.isPassenger()) {
                         player.stopRiding();
                     }
@@ -443,9 +571,10 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("evoker"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("evoker"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 16);
                 Vec3 origin = player.position();
                 Vec3 facing = player.getViewVector(1.0F).multiply(1, 0, 1);
                 Level world = player.level();
@@ -479,9 +608,13 @@ public final class PredefIdentityAbilities {
                     break;
                 }
             }
-        });
 
-        map.put(Identifier.parse("illusioner"), new IdentityAbility() {
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ATTACK_TICKS_KEY);
+            }
+        });
+        map.put(ResourceLocation.parse("illusioner"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 summonIllusionerClones(player);
@@ -508,17 +641,24 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("guardian"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, 20);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
             }
         });
 
-        map.put(Identifier.parse("elder_guardian"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("elder_guardian"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeGuardianLaser(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, 20);
             }
 
             @Override
@@ -538,28 +678,80 @@ public final class PredefIdentityAbilities {
                 }
                 serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.HOSTILE, 1.0F, 1.0F);
             }
-        });
 
-        map.put(Identifier.parse("warden"), new IdentityAbility() {
             @Override
-            public void execute(Entity player) {
-                executeWardenSonicBoom(player);
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
             }
         });
 
-        map.put(Identifier.parse("breeze"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("warden"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeWardenSonicBoom(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, WARDEN_SONIC_BOOM_ANIMATION_TICKS);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
+            }
+        });
+
+        map.put(ResourceLocation.parse("breeze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 executeBreezeWindProjectile(player);
             }
         });
-        
-        map.put(Identifier.parse("iron_golem"), new IdentityAbility() {
+
+        map.put(ResourceLocation.parse("skeleton"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeSkeletonArrowShot(player, SkeletonArrowType.NORMAL);
+            }
+        });
+
+        map.put(ResourceLocation.parse("bogged"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeSkeletonArrowShot(player, SkeletonArrowType.POISON);
+            }
+        });
+
+        map.put(ResourceLocation.parse("stray"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeSkeletonArrowShot(player, SkeletonArrowType.SLOWNESS);
+            }
+        });
+
+        map.put(ResourceLocation.parse("fox"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "fox"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.parse("frog"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "frog")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "frog"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "frog")));
+        map.put(ResourceLocation.parse("horse"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "horse"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.parse("rabbit"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "rabbit"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.parse("skeleton_horse"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "skeleton_horse"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "high_jump")));
+        map.put(ResourceLocation.parse("goat"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "goat"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.parse("hoglin"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "hoglin"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.parse("ravager"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "ravager"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "ram_attack")));
+        map.put(ResourceLocation.parse("panda"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "roll")));
+        map.put(ResourceLocation.parse("pufferfish"), map.get(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "defensive_puff")));
+
+        map.put(ResourceLocation.parse("iron_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
                     return;
                 }
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 10);
                 Level world = player.level();
                 EntityHitResult hit = findLivingTarget(player, 6.0D);
                 if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
@@ -575,7 +767,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("llama"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("llama"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -602,7 +794,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("snow_golem"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("snow_golem"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -631,7 +823,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("witch"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("witch"), new IdentityAbility() {
             private final List<Holder<Potion>> validPotions = List.of(Potions.HARMING, Potions.POISON, Potions.SLOWNESS, Potions.WEAKNESS);
 
             @Override
@@ -665,7 +857,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("wither"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("wither"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 Level world = player.level();
@@ -688,7 +880,7 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(Identifier.parse("ender_dragon"), new IdentityAbility() {
+        map.put(ResourceLocation.parse("ender_dragon"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
@@ -708,11 +900,17 @@ public final class PredefIdentityAbilities {
                 fireball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 18);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ATTACK_TICKS_KEY);
             }
         });
 
         map.put(
-            Identifier.fromNamespaceAndPath("naturalist", "bear"),
+            ResourceLocation.fromNamespaceAndPath("naturalist", "bear"),
             new IdentityAbility() {
                 @Override
                 public void execute(Entity player) {
@@ -872,7 +1070,6 @@ public final class PredefIdentityAbilities {
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHULKER_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
         return true;
     }
-
     private static void summonIllusionerClones(Entity player) {
         if (!(player instanceof ServerPlayer serverPlayer) || !(serverPlayer.level() instanceof ServerLevel serverLevel)) {
             return;
@@ -1015,12 +1212,12 @@ public final class PredefIdentityAbilities {
         Vec3 end = start.add(look.scale(ILLUSIONER_SWAP_RANGE));
         AABB box = player.getBoundingBox().expandTowards(look.scale(ILLUSIONER_SWAP_RANGE)).inflate(1.0D);
         EntityHitResult hit = ProjectileUtil.getEntityHitResult(
-            player,
-            start,
-            end,
-            box,
-            candidate -> candidate instanceof Illusioner && isOwnedIllusionerClone(candidate, player.getUUID()),
-            ILLUSIONER_SWAP_RANGE * ILLUSIONER_SWAP_RANGE
+                player,
+                start,
+                end,
+                box,
+                candidate -> candidate instanceof Illusioner && isOwnedIllusionerClone(candidate, player.getUUID()),
+                ILLUSIONER_SWAP_RANGE * ILLUSIONER_SWAP_RANGE
         );
         if (hit == null || !(hit.getEntity() instanceof Illusioner illusioner)) {
             return null;
@@ -1048,9 +1245,9 @@ public final class PredefIdentityAbilities {
                 continue;
             }
             boolean valid = clone.isAlive()
-                && clone.level() == player.level()
-                && isOwnedIllusionerClone(clone, ownerId)
-                && now <= ref.expiresAt();
+                    && clone.level() == player.level()
+                    && isOwnedIllusionerClone(clone, ownerId)
+                    && now <= ref.expiresAt();
             if (!valid) {
                 if (discardInvalid) {
                     clone.discard();
@@ -1161,6 +1358,7 @@ public final class PredefIdentityAbilities {
         }
     }
 
+
     private static void executeWardenSonicBoom(Entity player) {
         if (!(player instanceof LivingEntity livingPlayer)) {
             return;
@@ -1184,9 +1382,9 @@ public final class PredefIdentityAbilities {
         if (player.level().isClientSide()) {
             return;
         }
-        boolean spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
+        boolean spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "breeze_wind_charge"));
         if (!spawned) {
-            spawned = spawnWindProjectile(player, Identifier.fromNamespaceAndPath("minecraft", "wind_charge"));
+            spawned = spawnWindProjectile(player, ResourceLocation.fromNamespaceAndPath("minecraft", "wind_charge"));
         }
         if (!spawned) {
             EntityHitResult hit = findLivingTarget(player, 20.0D);
@@ -1199,7 +1397,7 @@ public final class PredefIdentityAbilities {
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BREEZE_SHOOT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
-    private static boolean spawnWindProjectile(Entity player, Identifier projectileId) {
+    private static boolean spawnWindProjectile(Entity player, ResourceLocation projectileId) {
         if (player == null || projectileId == null) {
             return false;
         }
@@ -1288,6 +1486,26 @@ public final class PredefIdentityAbilities {
                 if (!(player instanceof LivingEntity livingPlayer)) {
                     return;
                 }
+                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                if (currentIdentity == null) {
+                    return;
+                }
+                if (MorphEntityTraits.hasDefensivePuffAbility(currentIdentity)) {
+                    executePufferDefense(player, currentIdentity);
+                    return;
+                }
+                if (MorphEntityTraits.hasRollAbility(currentIdentity)) {
+                    executeRollingDash(player);
+                    return;
+                }
+                if (MorphEntityTraits.hasRamAttackAbility(currentIdentity)) {
+                    executeRamAttack(player, currentIdentity);
+                    return;
+                }
+                if (MorphEntityTraits.hasHighJumpAbility(currentIdentity) && !MorphEntityTraits.hasSecondaryHighJumpAbility(currentIdentity)) {
+                    executeHighJump(player, currentIdentity);
+                    return;
+                }
                 Level world = player.level();
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 start = livingPlayer.getEyePosition(1.0F);
@@ -1305,15 +1523,284 @@ public final class PredefIdentityAbilities {
                 if (hit != null && hit.getEntity() instanceof LivingEntity target) {
                     float damage = resolveGenericDamage(player);
                     target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
-                    target.push(look.x * 0.45D, 0.10D, look.z * 0.45D);
+                    if (MorphEntityTraits.ignitesTargetsOnMelee(currentIdentity)) {
+                        target.igniteForSeconds(4.0F);
+                    }
+                    identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 10);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 0.85F, 0.95F);
                     return;
                 }
 
                 player.setDeltaMovement(player.getDeltaMovement().add(look.x * GENERIC_DASH_STRENGTH, GENERIC_DASH_UP, look.z * GENERIC_DASH_STRENGTH));
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 8);
                 world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.75F, 1.05F);
             }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(
+                    player,
+                    ANIM_ATTACK_TICKS_KEY,
+                    ANIM_BEAM_TICKS_KEY,
+                    ANIM_CHARGE_TICKS_KEY,
+                    ANIM_JUMP_TICKS_KEY,
+                    ANIM_ROLL_TICKS_KEY,
+                    ANIM_ANGRY_TICKS_KEY,
+                    PUFFER_PUFF_TICKS_KEY
+                );
+
+                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                if (currentIdentity == null) {
+                    return;
+                }
+                if (MorphEntityTraits.hasDefensivePuffAbility(currentIdentity)) {
+                    tickPufferDefense(player, currentIdentity);
+                }
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+                if (MorphEntityTraits.hasSecondaryHighJumpAbility(currentIdentity)) {
+                    executeHighJump(player, currentIdentity);
+                }
+            }
         };
+    }
+
+    private static boolean identity2$canTeleportPlayerSafely(Entity player, double x, double y, double z) {
+        if (player == null || player.level() == null) {
+            return false;
+        }
+        AABB movedBox = player.getBoundingBox().move(x - player.getX(), y - player.getY(), z - player.getZ());
+        if (!player.level().noCollision(player, movedBox)) {
+            return false;
+        }
+        BlockPos feet = BlockPos.containing(x, y, z);
+        BlockPos head = BlockPos.containing(x, y + Math.max(1.0D, player.getBbHeight() - 1.0E-3D), z);
+        return player.level().getBlockState(feet).isAir() && player.level().getBlockState(head).isAir();
+    }
+
+    private static void executeHighJump(Entity player, Entity currentIdentity) {
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+        if (horizontal.lengthSqr() > 1.0E-6D) {
+            horizontal = horizontal.normalize();
+        }
+        double verticalBoost = 0.72D;
+        double forwardBoost = 0.45D;
+        if (currentIdentity != null && currentIdentity.getType() == EntityType.HORSE) {
+            verticalBoost = 0.95D;
+            forwardBoost = 0.65D;
+        } else if (currentIdentity != null && currentIdentity.getType() == EntityType.SKELETON_HORSE) {
+            verticalBoost = 0.90D;
+            forwardBoost = 0.62D;
+        } else if (currentIdentity != null && currentIdentity.getType() == EntityType.RABBIT) {
+            verticalBoost = 0.82D;
+            forwardBoost = 0.55D;
+        }
+        Vec3 boost = new Vec3(horizontal.x * forwardBoost, verticalBoost, horizontal.z * forwardBoost);
+        player.setDeltaMovement(player.getDeltaMovement().add(boost));
+        player.hasImpulse = true;
+        player.hurtMarked = true;
+        player.setOnGround(false);
+        player.resetFallDistance();
+        identity2$setSyncedTicks(player, ANIM_JUMP_TICKS_KEY, 12);
+    }
+
+    private static void executeFrogEat(Entity player) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        EntityHitResult hit = findLivingTarget(player, 4.0D);
+        if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        EntityType<?> targetType = target.getType();
+        float damage = (targetType == EntityType.SLIME || targetType == EntityType.MAGMA_CUBE) ? 8.0F : 4.0F;
+        Vec3 pull = player.position().subtract(target.position());
+        if (pull.lengthSqr() > 1.0E-6D) {
+            pull = pull.normalize();
+            target.push(pull.x * 0.35D, 0.12D, pull.z * 0.35D);
+        }
+        target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.FROG_TONGUE, SoundSource.NEUTRAL, 1.0F, 1.0F);
+        player.level().playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.FROG_EAT, SoundSource.NEUTRAL, 1.0F, 1.0F);
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
+    }
+
+    private static void executeRamAttack(Entity player, Entity currentIdentity) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+        if (horizontal.lengthSqr() > 1.0E-6D) {
+            horizontal = horizontal.normalize();
+        }
+        EntityHitResult hit = findLivingTarget(player, 4.5D);
+        if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+            float damage = resolveGenericDamage(player) + 4.0F;
+            target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+            target.push(horizontal.x * 1.6D, 0.45D, horizontal.z * 1.6D);
+        }
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
+        player.setDeltaMovement(player.getDeltaMovement().add(horizontal.x * 1.1D, 0.18D, horizontal.z * 1.1D));
+        identity2$setSyncedTicks(player, ANIM_CHARGE_TICKS_KEY, 14);
+        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RAVAGER_ATTACK, SoundSource.HOSTILE, 1.0F, 1.0F);
+    }
+
+    private static void executeRollingDash(Entity player) {
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+        if (horizontal.lengthSqr() > 1.0E-6D) {
+            horizontal = horizontal.normalize();
+        }
+        player.setDeltaMovement(player.getDeltaMovement().add(horizontal.x * 0.9D, 0.15D, horizontal.z * 0.9D));
+        identity2$setSyncedTicks(player, ANIM_ROLL_TICKS_KEY, 18);
+    }
+
+    private static void executePufferDefense(Entity player, Entity currentIdentity) {
+        identity2$setSyncedTicks(player, PUFFER_PUFF_TICKS_KEY, 60);
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 10);
+        if (currentIdentity != null) {
+            invokePufferState(currentIdentity, 2);
+        }
+    }
+
+    private enum SkeletonArrowType {
+        NORMAL,
+        POISON,
+        SLOWNESS
+    }
+
+    private static void executeSkeletonArrowShot(Entity player, SkeletonArrowType arrowType) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        ItemStack virtualBow = new ItemStack(Items.BOW);
+        Arrow arrow = new Arrow(world, livingPlayer, new ItemStack(Items.ARROW), virtualBow);
+        if (arrowType == SkeletonArrowType.POISON) {
+            arrow.addEffect(new MobEffectInstance(MobEffects.POISON, 100));
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) arrow).getCustomData()).getNbt().putBoolean("identity2.bogged_poison_arrow", true);
+        } else if (arrowType == SkeletonArrowType.SLOWNESS) {
+            arrow.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 600));
+            ((NbtComponentAccessor) (Object) ((EntityAccessor) arrow).getCustomData()).getNbt().putBoolean("identity2.stray_slowness_arrow", true);
+        }
+        arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+        arrow.shootFromRotation(livingPlayer, livingPlayer.getXRot(), livingPlayer.getYRot(), 0.0F, 2.6F, 0.8F);
+        world.addFreshEntity(arrow);
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
+        world.playSound(
+            null,
+            player.getX(),
+            player.getY(),
+            player.getZ(),
+            SoundEvents.SKELETON_SHOOT,
+            SoundSource.HOSTILE,
+            1.0F,
+            1.0F
+        );
+    }
+
+    private static void tickPufferDefense(Entity player, Entity currentIdentity) {
+        int puffTicks = identity2$getSyncedTicks(player, PUFFER_PUFF_TICKS_KEY);
+        if (currentIdentity != null) {
+            invokePufferState(currentIdentity, puffTicks > 0 ? 2 : 0);
+        }
+        if (!(player instanceof LivingEntity livingPlayer) || puffTicks <= 0) {
+            return;
+        }
+        AABB nearby = player.getBoundingBox().inflate(1.2D);
+        for (LivingEntity target : player.level().getEntitiesOfClass(LivingEntity.class, nearby, entity -> entity != player)) {
+            target.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0));
+            target.hurt(player.damageSources().mobAttack(livingPlayer), 1.0F);
+        }
+    }
+
+    private static void invokePufferState(Entity entity, int state) {
+        if (entity == null) {
+            return;
+        }
+        invokeOneArg(entity, "setPuffState", state);
+    }
+
+    private static void identity2$setSyncedTicks(Entity player, String key, int ticks) {
+        if (!(player instanceof ServerPlayer serverPlayer) || key == null || key.isBlank()) {
+            return;
+        }
+        int duration = Math.max(0, ticks);
+        int now = player.tickCount;
+        double existingEnd = identity2$getStoredTickValue(player, key);
+        double nextEnd = now + duration;
+        if (duration <= 0) {
+            IdentityApi.syncDouble(serverPlayer, key, 0.0D);
+            IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), 0.0D);
+            return;
+        }
+        if (existingEnd > now) {
+            IdentityApi.syncDouble(serverPlayer, key, Math.max(existingEnd, nextEnd));
+            return;
+        }
+        IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), now);
+        IdentityApi.syncDouble(serverPlayer, key, nextEnd);
+    }
+
+    private static int identity2$getSyncedTicks(Entity player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return 0;
+        }
+        double endTick = identity2$getStoredTickValue(player, key);
+        return (int) Math.max(0, Math.ceil(endTick - player.tickCount));
+    }
+
+    private static void identity2$tickSyncedCountdowns(Entity player, String... keys) {
+        if (!(player instanceof ServerPlayer serverPlayer) || keys == null) {
+            return;
+        }
+        for (String key : keys) {
+            if (key == null || key.isBlank()) {
+                continue;
+            }
+            double endTick = identity2$getStoredTickValue(player, key);
+            if (endTick <= 0.0D || endTick > player.tickCount) {
+                continue;
+            }
+            IdentityApi.syncDouble(serverPlayer, key, 0.0D);
+            IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), 0.0D);
+        }
+    }
+
+    public static double getSyncedAnimationStartTick(Entity player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return 0.0D;
+        }
+        return identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+    }
+
+    public static boolean isSyncedAnimationActive(Entity player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return false;
+        }
+        return identity2$getStoredTickValue(player, key) > player.tickCount;
+    }
+
+    public static int getSyncedTicksRemaining(Entity player, String key) {
+        return identity2$getSyncedTicks(player, key);
+    }
+
+    private static String identity2$getWindowStartKey(String key) {
+        return key + ".start";
+    }
+
+    private static double identity2$getStoredTickValue(Entity player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return 0.0D;
+        }
+        CustomData customData = ((EntityAccessor) player).getCustomData();
+        return ((NbtComponentAccessor) (Object) customData).getNbt().getDoubleOr(key, 0.0D);
     }
 
     private static float resolveGenericDamage(Entity player) {
@@ -1373,7 +1860,7 @@ public final class PredefIdentityAbilities {
         BlockPos workstationPos = blockHit.getBlockPos();
         BlockState state = serverPlayer.level().getBlockState(workstationPos);
         Object poiReference = resolvePoiReference(state);
-        Identifier professionId = null;
+        ResourceLocation professionId = null;
         if (poiReference != null) {
             professionId = resolveProfessionForPoi(poiReference);
         }
@@ -1440,44 +1927,44 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static Identifier resolveProfessionForWorkstationBlock(BlockState state) {
+    private static ResourceLocation resolveProfessionForWorkstationBlock(BlockState state) {
         if (state == null) {
             return null;
         }
-        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (blockId == null) {
             return null;
         }
         return switch (blockId.getPath()) {
-            case "blast_furnace" -> Identifier.fromNamespaceAndPath("minecraft", "armorer");
-            case "smoker" -> Identifier.fromNamespaceAndPath("minecraft", "butcher");
-            case "cartography_table" -> Identifier.fromNamespaceAndPath("minecraft", "cartographer");
-            case "brewing_stand" -> Identifier.fromNamespaceAndPath("minecraft", "cleric");
-            case "composter" -> Identifier.fromNamespaceAndPath("minecraft", "farmer");
-            case "barrel" -> Identifier.fromNamespaceAndPath("minecraft", "fisherman");
-            case "fletching_table" -> Identifier.fromNamespaceAndPath("minecraft", "fletcher");
-            case "cauldron" -> Identifier.fromNamespaceAndPath("minecraft", "leatherworker");
-            case "lectern" -> Identifier.fromNamespaceAndPath("minecraft", "librarian");
-            case "stonecutter" -> Identifier.fromNamespaceAndPath("minecraft", "mason");
-            case "loom" -> Identifier.fromNamespaceAndPath("minecraft", "shepherd");
-            case "smithing_table" -> Identifier.fromNamespaceAndPath("minecraft", "toolsmith");
-            case "grindstone" -> Identifier.fromNamespaceAndPath("minecraft", "weaponsmith");
+            case "blast_furnace" -> ResourceLocation.fromNamespaceAndPath("minecraft", "armorer");
+            case "smoker" -> ResourceLocation.fromNamespaceAndPath("minecraft", "butcher");
+            case "cartography_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cartographer");
+            case "brewing_stand" -> ResourceLocation.fromNamespaceAndPath("minecraft", "cleric");
+            case "composter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "farmer");
+            case "barrel" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fisherman");
+            case "fletching_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "fletcher");
+            case "cauldron" -> ResourceLocation.fromNamespaceAndPath("minecraft", "leatherworker");
+            case "lectern" -> ResourceLocation.fromNamespaceAndPath("minecraft", "librarian");
+            case "stonecutter" -> ResourceLocation.fromNamespaceAndPath("minecraft", "mason");
+            case "loom" -> ResourceLocation.fromNamespaceAndPath("minecraft", "shepherd");
+            case "smithing_table" -> ResourceLocation.fromNamespaceAndPath("minecraft", "toolsmith");
+            case "grindstone" -> ResourceLocation.fromNamespaceAndPath("minecraft", "weaponsmith");
             default -> null;
         };
     }
 
-    private static Identifier resolveProfessionForPoi(Object poiReference) {
+    private static ResourceLocation resolveProfessionForPoi(Object poiReference) {
         Registry<?> professionRegistry = getBuiltInRegistry("VILLAGER_PROFESSION");
         if (professionRegistry == null || poiReference == null) {
             return null;
         }
 
-        Identifier poiId = resolvePoiIdentifier(poiReference);
+        ResourceLocation poiId = resolvePoiResourceLocation(poiReference);
         for (Object profession : professionRegistry) {
             if (profession == null) {
                 continue;
             }
-            Identifier professionId = getRegistryKey(professionRegistry, profession);
+            ResourceLocation professionId = getRegistryKey(professionRegistry, profession);
             if (professionId == null || "none".equals(professionId.getPath())) {
                 continue;
             }
@@ -1581,13 +2068,13 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static Identifier resolvePoiIdentifier(Object poiReference) {
+    private static ResourceLocation resolvePoiResourceLocation(Object poiReference) {
         Registry<?> poiRegistry = getBuiltInRegistry("POINT_OF_INTEREST_TYPE", "POI_TYPE");
         if (poiRegistry == null || poiReference == null) {
             return null;
         }
 
-        Identifier direct = getRegistryKey(poiRegistry, poiReference);
+        ResourceLocation direct = getRegistryKey(poiRegistry, poiReference);
         if (direct != null) {
             return direct;
         }
@@ -1618,7 +2105,7 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
-    private static boolean applyVillagerProfession(Villager villagerIdentity, Identifier professionId) {
+    private static boolean applyVillagerProfession(Villager villagerIdentity, ResourceLocation professionId) {
         if (villagerIdentity == null || professionId == null) {
             return false;
         }
@@ -1688,13 +2175,13 @@ public final class PredefIdentityAbilities {
         }
 
         Object profession = invokeNoArg(villagerData, "getProfession");
-        Identifier professionId = resolveRegistryIdentifier("VILLAGER_PROFESSION", profession);
+        ResourceLocation professionId = resolveRegistryResourceLocation("VILLAGER_PROFESSION", profession);
         if (professionId != null) {
             variant.putString("VillagerProfession", professionId.toString());
         }
 
         Object villagerType = invokeNoArg(villagerData, "getType");
-        Identifier typeId = resolveRegistryIdentifier("VILLAGER_TYPE", villagerType);
+        ResourceLocation typeId = resolveRegistryResourceLocation("VILLAGER_TYPE", villagerType);
         if (typeId != null) {
             variant.putString("VillagerType", typeId.toString());
         }
@@ -1707,12 +2194,12 @@ public final class PredefIdentityAbilities {
         IdentityProgression.updateCurrentVariantAndSync(player, variant);
     }
 
-    private static Identifier resolveRegistryIdentifier(String registryField, Object value) {
+    private static ResourceLocation resolveRegistryResourceLocation(String registryField, Object value) {
         Registry<?> registry = getBuiltInRegistry(registryField);
         if (registry == null || value == null) {
             return null;
         }
-        Identifier direct = getRegistryKey(registry, value);
+        ResourceLocation direct = getRegistryKey(registry, value);
         if (direct != null) {
             return direct;
         }
@@ -1838,7 +2325,7 @@ public final class PredefIdentityAbilities {
     }
 
     @SuppressWarnings("unchecked")
-    private static Identifier getRegistryKey(Registry<?> registry, Object value) {
+    private static ResourceLocation getRegistryKey(Registry<?> registry, Object value) {
         if (registry == null || value == null) {
             return null;
         }
@@ -1850,7 +2337,7 @@ public final class PredefIdentityAbilities {
     }
 
     @SuppressWarnings("unchecked")
-    private static Object getRegistryValue(Registry<?> registry, Identifier id) {
+    private static Object getRegistryValue(Registry<?> registry, ResourceLocation id) {
         if (registry == null || id == null) {
             return null;
         }

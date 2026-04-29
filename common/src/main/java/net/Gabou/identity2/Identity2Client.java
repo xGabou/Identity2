@@ -10,9 +10,8 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.identity2.auth.ClientAuth;
 import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.S2CChallengePacket;
+import net.Gabou.identity2.auth.C2SLauncherReportPacket;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -48,7 +47,7 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -70,9 +69,9 @@ public final class Identity2Client {
     private static boolean initialized = false;
 
     public static final ArrayList<BiFunction<Entity, Entity, Entity>> visualPatchValues = new ArrayList<>(0);
-    public static final ArrayList<Identifier> visualPatchKeys = new ArrayList<>(0);
+    public static final ArrayList<ResourceLocation> visualPatchKeys = new ArrayList<>(0);
     private static final KeyMapping.Category IDENTITY_KEY_CATEGORY = KeyMapping.Category
-            .register(Identifier.parse("category.identity2.test"));
+            .register(ResourceLocation.parse("category.identity2.test"));
 
     private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
             "key.identity2.primary_ability",
@@ -130,6 +129,8 @@ public final class Identity2Client {
     private static boolean isFading = false;
     private static int fadingProgress = 0;
     private static int pendingPacketProcessTicks = 0;
+    private static boolean clientGrantedMorphMayfly = false;
+    private static float clientStoredMorphFlyingSpeed = Float.NaN;
     private static final ArrayList<CustomEntityDataS2CPacketPayload> pendingDoubleDataPackets = new ArrayList<>(0);
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
@@ -137,15 +138,7 @@ public final class Identity2Client {
     private static final ArrayList<UnlockedIdentitySyncS2CPacketPayload> pendingUnlockedIdentityPackets = new ArrayList<>(0);
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
-
-    static {
-        addVisualPatch((identity, entity) -> {
-            if (identity instanceof EnderDragon dragonIdentity) {
-                dragonIdentity.yRotA += Mth.wrapDegrees(entity.getYRot() - identity.getYRot()) * 0.1F;
-            }
-            return identity;
-        }, Identifier.parse("minecraft:ender_dragon"));
-    }
+    private static UUID launcherReportSentForPlayer;
 
     private Identity2Client() {
     }
@@ -213,11 +206,6 @@ public final class Identity2Client {
                 ProgressionJarStateS2CPacketPayload.ID,
                 ProgressionJarStateS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                S2CChallengePacket.ID,
-                S2CChallengePacket.CODEC,
-                (payload, context) -> context.queue(() -> ClientAuth.handleChallenge(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
@@ -258,7 +246,7 @@ public final class Identity2Client {
         NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
     }
 
-    public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {
+    public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, ResourceLocation id) {
         visualPatchKeys.ensureCapacity(visualPatchKeys.size() + 1);
         visualPatchValues.ensureCapacity(visualPatchValues.size() + 1);
         visualPatchKeys.add(id);
@@ -289,8 +277,11 @@ public final class Identity2Client {
 
         LocalPlayer player = client.player;
         if (player == null) {
+            launcherReportSentForPlayer = null;
             return;
         }
+        sendLauncherReportIfNeeded(player);
+        syncLocalMorphFlight(player);
         processFavoriteKeybinds(player);
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
@@ -335,6 +326,70 @@ public final class Identity2Client {
             sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
         }
 
+    }
+
+    private static void sendLauncherReportIfNeeded(LocalPlayer player) {
+        if (player == null || player.getUUID() == null || player.getUUID().equals(launcherReportSentForPlayer)) {
+            return;
+        }
+
+        String launcherReason = ClientLauncherGuards.getDetectedReason();
+        if (launcherReason == null || launcherReason.isBlank()) {
+            launcherReportSentForPlayer = player.getUUID();
+            return;
+        }
+
+        NetworkManager.sendToServer(new C2SLauncherReportPacket(launcherReason));
+        launcherReportSentForPlayer = player.getUUID();
+    }
+
+    private static void syncLocalMorphFlight(LocalPlayer player) {
+        if (player == null) {
+            return;
+        }
+
+        if (player.isSpectator() || player.getAbilities().instabuild) {
+            clientGrantedMorphMayfly = false;
+            clientStoredMorphFlyingSpeed = Float.NaN;
+            return;
+        }
+
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        boolean identityCanFly = IdentitySettings.enableFlight
+                && identity != null
+                && ((EntityAccessor) identity).canFly();
+
+        if (identityCanFly) {
+            if (!player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = true;
+            }
+            if (Float.isNaN(clientStoredMorphFlyingSpeed)) {
+                clientStoredMorphFlyingSpeed = player.getAbilities().getFlyingSpeed();
+            }
+            float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
+            if (player.getAbilities().getFlyingSpeed() != configuredFlyingSpeed) {
+                player.getAbilities().setFlyingSpeed(configuredFlyingSpeed);
+            }
+            if (!player.getAbilities().flying && !player.onGround()) {
+                player.getAbilities().flying = true;
+            }
+            clientGrantedMorphMayfly = true;
+            return;
+        }
+
+        if (clientGrantedMorphMayfly) {
+            player.getAbilities().mayfly = false;
+            if (player.getAbilities().flying) {
+                player.getAbilities().flying = false;
+            }
+            if (!Float.isNaN(clientStoredMorphFlyingSpeed)) {
+                player.getAbilities().setFlyingSpeed(clientStoredMorphFlyingSpeed);
+            } else {
+                player.getAbilities().setFlyingSpeed(0.05F);
+            }
+            clientStoredMorphFlyingSpeed = Float.NaN;
+            clientGrantedMorphMayfly = false;
+        }
     }
 
     private void onUpdateCustomData(CustomEntityDataS2CPacketPayload packet) {
@@ -638,15 +693,15 @@ public final class Identity2Client {
         if (identity == null) {
             return false;
         }
-        Identifier identityTypeId = net.minecraft.world.entity.EntityType.getKey(identity.getType());
+        ResourceLocation identityTypeId = net.minecraft.world.entity.EntityType.getKey(identity.getType());
         if (identityTypeId == null) {
             return false;
         }
         return PredefIdentityAbilities.predef.containsKey(identityTypeId)
                 || PredefIdentityAbilities.predef
-                        .containsKey(Identifier.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
                 || PredefIdentityAbilities.predef
-                        .containsKey(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
                 || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
     }
 

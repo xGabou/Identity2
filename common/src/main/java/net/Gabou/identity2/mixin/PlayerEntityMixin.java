@@ -1,9 +1,6 @@
 package net.Gabou.identity2.mixin;
-
 import com.google.common.collect.Lists;
-
 import java.util.List;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
@@ -26,9 +25,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-
+import net.minecraft.world.phys.Vec3;
 import java.util.Set;
-
 import org.jetbrains.annotations.Nullable;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.ArgumentBuilder;
@@ -38,23 +36,23 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.util.EntityAccessor;
 import org.spongepowered.asm.mixin.Overwrite;
-
 @Mixin(Player.class)
-public class PlayerEntityMixin extends LivingEntityMixin {
-    @ModifyConstant(constant = @Constant(doubleValue = 2.9999999E7), method = "tick")
-    private static double TDIOA(double x) {
-        return Identity2.maxWorldSize - 1;
+public class PlayerEntityMixin extends LivingEntityMixin{
+    @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
+    private static double TDIOA(double x){
+        return Identity2.maxWorldSize-1;
     }
-
-    @ModifyConstant(constant = @Constant(doubleValue = -2.9999999E7), method = "tick")
-    private static double TDIOB(double x) {
-        return -Identity2.maxWorldSize + 1;
+    @ModifyConstant(constant=@Constant(doubleValue=-2.9999999E7),method="tick")
+    private static double TDIOB(double x){
+        return -Identity2.maxWorldSize+1;
     }
-    @Inject(method = "freeAt", at = @At("HEAD"), cancellable = true)
-    protected void disableNoClipSuffocate(BlockPos pos, CallbackInfoReturnable info) {
-        if (this.noPhysics) {
+    @Inject(method = "freeAt", at=@At("HEAD"), cancellable = true)
+    protected void disableNoClipSuffocate(BlockPos pos,CallbackInfoReturnable info) {
+		if(this.noPhysics){
             info.setReturnValue(true);
             return;
         }
@@ -62,37 +60,59 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         if (identity != null && ((EntityAccessor) identity).canFly()) {
             info.setReturnValue(true);
         }
+	}
+    @Inject(method = "interactOn(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
+    private void identity2$rideAsIdentity(Entity target, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+        Player player = (Player) (Object) this;
+        if (player.level().isClientSide() || player.isSpectator() || player.isPassenger()) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (!MorphEntityTraits.canIdentityRide(identity, target)) {
+            return;
+        }
+        if (player.startRiding(target, true, false)) {
+            cir.setReturnValue(InteractionResult.SUCCESS);
+        }
     }
 
-    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-    private void attackAlsoAsIdentity(Entity target, CallbackInfo ci) {
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$attackAsIdentityWhenUnarmed(Entity target, CallbackInfo ci) {
         Player player = (Player) (Object) this;
-
-        if (!(player.level() instanceof ServerLevel level)) return;
+        if (player.level().isClientSide()) {
+            return;
+        }
+        if (!player.getMainHandItem().isEmpty()) {
+            return;
+        }
 
         Entity identity = getCurrentIdentity();
-        if (identity == null) return;
-        if (identity instanceof LivingEntity livingIdentity) {
-            if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
-                return;
-            }
-
-            // Optional guard so it only triggers when the player actually hit something
-            if (target instanceof LivingEntity livingTarget) {
-                if (livingTarget.hurtTime <= 0) return;
-
-                // Optional, makes sure the second hit is not blocked by i frames
-                int oldInvul = livingTarget.invulnerableTime;
-                livingTarget.invulnerableTime = 0;
-
-                livingIdentity.doHurtTarget(level, target);
-
-                livingTarget.invulnerableTime = oldInvul;
-                return;
-            }
-
-            livingIdentity.doHurtTarget(level, target);
+        if (!(identity instanceof LivingEntity livingIdentity)) {
+            return;
         }
+        if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
+            return;
+        }
+
+        livingIdentity.setPos(player.position());
+        livingIdentity.setDeltaMovement(player.getDeltaMovement());
+
+        boolean attacked = player.level() instanceof ServerLevel serverLevel && livingIdentity.doHurtTarget(serverLevel, target);
+        if (!attacked) {
+            float damage = (float) livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            if (damage <= 0.0F) {
+                damage = 1.0F;
+            }
+            target.hurt(player.damageSources().mobAttack(livingIdentity), damage);
+            attacked = true;
+        }
+
+        if (attacked) {
+            identity2$applyAttackExtras(player, livingIdentity, target);
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 12);
+            player.resetAttackStrengthTicker();
+        }
+        ci.cancel();
     }
 
     @org.spongepowered.asm.mixin.Unique
@@ -105,6 +125,29 @@ public class PlayerEntityMixin extends LivingEntityMixin {
             return true;
         } catch (IllegalArgumentException ignored) {
             return false;
+        }
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private static void identity2$applyAttackExtras(Player player, LivingEntity identity, Entity target) {
+        if (player == null || identity == null || target == null) {
+            return;
+        }
+        double knockback = 0.0D;
+        try {
+            knockback = identity.getAttributeValue(Attributes.ATTACK_KNOCKBACK);
+        } catch (IllegalArgumentException ignored) {
+        }
+        if (knockback > 0.0D && target instanceof LivingEntity livingTarget) {
+            Vec3 look = player.getViewVector(1.0F);
+            Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+            if (horizontal.lengthSqr() > 1.0E-6D) {
+                horizontal = horizontal.normalize();
+                livingTarget.push(horizontal.x * (0.5D + knockback), 0.1D + Math.min(0.4D, knockback * 0.1D), horizontal.z * (0.5D + knockback));
+            }
+        }
+        if (MorphEntityTraits.ignitesTargetsOnMelee(identity)) {
+            target.igniteForSeconds(4.0F);
         }
     }
 }
