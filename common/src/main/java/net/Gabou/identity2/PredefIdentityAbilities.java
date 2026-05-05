@@ -13,6 +13,7 @@ import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -690,6 +691,13 @@ public final class PredefIdentityAbilities {
             public void execute(Entity player) {
                 executeWardenSonicBoom(player);
                 identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, WARDEN_SONIC_BOOM_ANIMATION_TICKS);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (player instanceof ServerPlayer serverPlayer) {
+                    WardenBurrowManager.toggle(serverPlayer);
+                }
             }
 
             @Override
