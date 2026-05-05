@@ -57,8 +57,8 @@ import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.minecraft.tags.DamageTypeTags;
-
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
 
@@ -390,6 +390,10 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
     private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
         if ((Entity) (Object) this instanceof Player player && source != null) {
+            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
+                info.setReturnValue(true);
+                return;
+            }
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;

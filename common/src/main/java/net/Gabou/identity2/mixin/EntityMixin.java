@@ -31,6 +31,7 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -615,6 +616,7 @@ public class EntityMixin implements EntityAccessor{
             this.secondaryAbilityCooldown-=1;
         }
         if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
+            WardenBurrowManager.serverTick(serverPlayer);
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
     }
@@ -906,6 +908,9 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+            WardenBurrowManager.stop(serverPlayer, true);
+        }
         ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);

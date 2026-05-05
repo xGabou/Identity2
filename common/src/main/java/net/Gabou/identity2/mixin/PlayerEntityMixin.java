@@ -1,59 +1,44 @@
 package net.Gabou.identity2.mixin;
-import com.google.common.collect.Lists;
-import java.util.List;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.Gabou.identity2.ModEffects;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.LivingEntity;
-import java.util.Set;
-import org.jetbrains.annotations.Nullable;
-import net.minecraft.world.item.ItemStack;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.context.CommandContext;
-import net.Gabou.identity2.ModComponents;
+
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
-import org.spongepowered.asm.mixin.Overwrite;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
 @Mixin(Player.class)
-public class PlayerEntityMixin extends LivingEntityMixin{
+public class PlayerEntityMixin extends LivingEntityMixin {
     @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getItemBySlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> info) {
         identity2$filterEquippedStack(slot, info);
     }
 
-    @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
-    private static double TDIOA(double x){
-        return Identity2.maxWorldSize-1;
+    @ModifyConstant(constant = @Constant(doubleValue = 2.9999999E7), method = "tick")
+    private static double TDIOA(double x) {
+        return Identity2.maxWorldSize - 1;
     }
-    @ModifyConstant(constant=@Constant(doubleValue=-2.9999999E7),method="tick")
-    private static double TDIOB(double x){
-        return -Identity2.maxWorldSize+1;
+
+    @ModifyConstant(constant = @Constant(doubleValue = -2.9999999E7), method = "tick")
+    private static double TDIOB(double x) {
+        return -Identity2.maxWorldSize + 1;
     }
-    @Inject(method = "freeAt", at=@At("HEAD"), cancellable = true)
-    protected void disableNoClipSuffocate(BlockPos pos,CallbackInfoReturnable info) {
-		if(this.noPhysics){
+
+    @Inject(method = "freeAt", at = @At("HEAD"), cancellable = true)
+    protected void disableNoClipSuffocate(BlockPos pos, CallbackInfoReturnable<Boolean> info) {
+        if (this.noPhysics || WardenBurrowManager.isHidden((Entity) (Object) this)) {
             info.setReturnValue(true);
             return;
         }
@@ -61,24 +46,23 @@ public class PlayerEntityMixin extends LivingEntityMixin{
         if (identity != null && ((EntityAccessor) identity).canFly()) {
             info.setReturnValue(true);
         }
-	}
+    }
+
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
+    private void identity2$exitWardenBurrowOnAttack(Entity target, CallbackInfo ci) {
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && WardenBurrowManager.isHidden(serverPlayer)) {
+            WardenBurrowManager.stop(serverPlayer, true);
+        }
+    }
+
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void identity2$attackAsIdentityWhenUnarmed(Entity target, CallbackInfo ci) {
-        if (!((Object) this instanceof Player player)) {
-            return;
-        }
-        if (player.level().isClientSide()) {
-            return;
-        }
-        if (!player.getMainHandItem().isEmpty()) {
+        if (!((Object) this instanceof Player player) || player.level().isClientSide() || !player.getMainHandItem().isEmpty()) {
             return;
         }
 
         Entity identity = getCurrentIdentity();
-        if (!(identity instanceof LivingEntity livingIdentity)) {
-            return;
-        }
-        if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
+        if (!(identity instanceof LivingEntity livingIdentity) || !identity2$hasAttackDamageAttribute(livingIdentity)) {
             return;
         }
 
