@@ -28,11 +28,15 @@ import net.Gabou.identity2.Identity2;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.identity.KeepInventoryHelper;
 @Mixin(Inventory.class)
 public class PlayerInventoryMixin{
     @Redirect(method = "dropAll",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;isEmpty()Z"))
     private boolean cancelDropSoulboundItems(ItemStack stack) {
+        if (KeepInventoryHelper.isKeepInventoryEnabled(((Inventory) (Object) this).player)) {
+            return true;
+        }
         return !(!stack.isEmpty() && !ModComponents.hasSoulbound(stack));
     }
 }

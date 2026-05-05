@@ -12,6 +12,7 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.auth.ClientLauncherGuards;
 import net.Gabou.identity2.auth.TLauncherDetectedHandler;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -184,6 +185,7 @@ public class PlayerManagerMixin {
             return;
         }
         identity2$copyCustomData(player, respawned);
+        WardenBurrowManager.stop(respawned, false);
         boolean alive = !player.isDeadOrDying();
 
         if (alive) {

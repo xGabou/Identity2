@@ -35,7 +35,9 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import org.spongepowered.asm.mixin.Overwrite;
+import net.minecraft.server.level.ServerPlayer;
 @Mixin(Player.class)
 public abstract class PlayerEntityMixin extends LivingEntityMixin{
     @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
@@ -48,7 +50,7 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
     }
     @Inject(method = "freeAt", at=@At("HEAD"), cancellable = true)
     protected void disableNoClipSuffocate(BlockPos pos,CallbackInfoReturnable info) {
-		if(this.noPhysics){
+		if(this.noPhysics || WardenBurrowManager.isHidden((Entity) (Object) this)){
             info.setReturnValue(true);
             return;
         }
@@ -57,6 +59,13 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
             info.setReturnValue(true);
         }
 	}
+
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
+    private void identity2$exitWardenBurrowOnAttack(Entity target, CallbackInfo ci) {
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && WardenBurrowManager.isHidden(serverPlayer)) {
+            WardenBurrowManager.stop(serverPlayer, true);
+        }
+    }
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void identity2$attackAsIdentityWhenUnarmed(Entity target, CallbackInfo ci) {
         Player player = (Player) (Object) this;
