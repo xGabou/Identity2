@@ -11,6 +11,7 @@ import java.lang.reflect.Modifier;
 import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -516,6 +517,13 @@ public final class PredefIdentityAbilities {
             @Override
             public void execute(Entity player) {
                 executeWardenSonicBoom(player);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (player instanceof ServerPlayer serverPlayer) {
+                    WardenBurrowManager.toggle(serverPlayer);
+                }
             }
         });
 
