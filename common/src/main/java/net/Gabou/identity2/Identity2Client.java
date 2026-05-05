@@ -25,6 +25,7 @@ import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
@@ -287,6 +288,21 @@ public final class Identity2Client {
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity == null) {
             return;
+        }
+
+        boolean wardenHidden = WardenBurrowManager.isHidden(player);
+        if (wardenHidden) {
+            boolean exitRequested = identity2$shouldExitWardenBurrow(client);
+            disableMovementInputs(client, player);
+            player.noPhysics = true;
+            player.setDeltaMovement(Vec3.ZERO);
+            if (exitRequested) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
+            }
+            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
+            return;
+        } else if (player.noPhysics) {
+            player.noPhysics = false;
         }
 
         IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
@@ -623,6 +639,27 @@ public final class Identity2Client {
         client.options.keyLeft.setDown(false);
         client.options.keyRight.setDown(false);
         client.options.keyJump.setDown(false);
+        client.options.keyShift.setDown(false);
+        client.options.keySprint.setDown(false);
+        client.options.keyAttack.setDown(false);
+        client.options.keyUse.setDown(false);
+    }
+
+    private static boolean identity2$shouldExitWardenBurrow(Minecraft client) {
+        if (client == null) {
+            return false;
+        }
+        return client.options.keyUp.isDown()
+                || client.options.keyDown.isDown()
+                || client.options.keyLeft.isDown()
+                || client.options.keyRight.isDown()
+                || client.options.keyJump.isDown()
+                || client.options.keyShift.isDown()
+                || client.options.keySprint.isDown()
+                || client.options.keyAttack.isDown()
+                || client.options.keyUse.isDown()
+                || primaryAbilityKeyBinding.consumeClick()
+                || secondaryAbilityKeyBinding.consumeClick();
     }
 
     private static boolean hasPredefFallback(Entity identity) {

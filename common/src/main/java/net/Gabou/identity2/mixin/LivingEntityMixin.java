@@ -57,6 +57,7 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.MorphEntityTraits;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 
 @Mixin(LivingEntity.class)
@@ -451,6 +452,10 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             }
         }
         if ((Object) this instanceof Player player) {
+            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
+                info.setReturnValue(true);
+                return;
+            }
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;

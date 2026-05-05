@@ -30,6 +30,7 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.IdentityTraitTags;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
@@ -130,8 +131,8 @@ public class EntityMixin implements EntityAccessor{
                 block.updateEntityMovementAfterFallOn(view,entity);
             }
     }
-	@Inject(method = "tick", at=@At("HEAD"))
-	private void identityFixCanFlyCheck(CallbackInfo info) {
+    @Inject(method = "tick", at=@At("HEAD"))
+    private void identityFixCanFlyCheck(CallbackInfo info) {
 //        if(this.currentIdentity!=null){
 //            this.currentIdentity.tick();
 //
@@ -630,6 +631,7 @@ public class EntityMixin implements EntityAccessor{
             this.secondaryAbilityCooldown-=1;
         }
         if ((Entity)(Object)this instanceof ServerPlayer serverPlayer) {
+            WardenBurrowManager.serverTick(serverPlayer);
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
         }
         if(((NbtComponentAccessor)(Object)this.customData).getNbt().contains("on_tick", Tag.TAG_STRING)){
@@ -902,6 +904,9 @@ public class EntityMixin implements EntityAccessor{
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+            WardenBurrowManager.stop(serverPlayer, true);
+        }
         ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
             IdentityProgression.updateHostileIdentityGrace(player instanceof ServerPlayer serverPlayer ? serverPlayer : null, null);
