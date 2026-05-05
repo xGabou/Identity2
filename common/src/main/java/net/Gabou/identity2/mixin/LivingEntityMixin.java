@@ -49,6 +49,7 @@ import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
 
@@ -360,6 +361,10 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
     )
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
         if ((Object) this instanceof Player player) {
+            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
+                info.setReturnValue(true);
+                return;
+            }
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;

@@ -33,14 +33,20 @@ import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import net.Gabou.identity2.ModComponents;
 import java.util.EnumMap;
+import net.Gabou.identity2.identity.KeepInventoryHelper;
 @Mixin(EntityEquipment.class)
 public class EntityEquipmentMixin{
     @Shadow
     private EnumMap<EquipmentSlot, ItemStack> items;
+    @Shadow
+    private LivingEntity entity;
     @Redirect(method = "dropAll",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
     @Nullable
     private ItemEntity cancelDropSoulboundItems(LivingEntity entity, ItemStack stack,boolean dropAtSelf,boolean retainOwnership) {
+        if (KeepInventoryHelper.isKeepInventoryEnabled(entity)) {
+            return null;
+        }
         if(!EnchantmentHelper.has(stack, ModComponents.SOULBOUND)){
             return entity.drop(stack,dropAtSelf,retainOwnership);
         }else{
@@ -50,6 +56,9 @@ public class EntityEquipmentMixin{
     @Redirect(method = "dropAll",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/EntityEquipment;clear()V"))
     private void clearNonSoulboundItems(EntityEquipment equipment) {
+        if (KeepInventoryHelper.isKeepInventoryEnabled(this.entity)) {
+            return;
+        }
         this.items.replaceAll((slot, stack) -> EnchantmentHelper.has(stack, ModComponents.SOULBOUND)?stack:ItemStack.EMPTY);
         /*for(EquipmentSlot key:this.map.keySet()){
             if(!EnchantmentHelper.hasAnyEnchantmentsWith(this.map.get(key), ModComponents.SOULBOUND)){
