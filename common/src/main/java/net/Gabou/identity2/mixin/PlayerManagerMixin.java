@@ -8,6 +8,7 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -153,6 +154,7 @@ public class PlayerManagerMixin {
         ServerPlayer respawned = cir.getReturnValue();
         if (respawned == null) return;
         identity2$copyCustomData(player, respawned);
+        WardenBurrowManager.stop(respawned, false);
 
         if (alive) {
             IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
