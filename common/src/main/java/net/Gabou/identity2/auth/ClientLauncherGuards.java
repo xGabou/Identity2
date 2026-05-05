@@ -5,6 +5,7 @@ import dev.architectury.platform.Platform;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import dev.architectury.platform.Platform;
 
 public final class ClientLauncherGuards {
     private static final String SUSPICIOUS_FILE_NAME = "TLauncherAdditional.json";

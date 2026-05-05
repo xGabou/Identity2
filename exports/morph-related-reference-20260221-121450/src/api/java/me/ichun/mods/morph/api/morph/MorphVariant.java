@@ -35,8 +35,8 @@ import java.util.function.BiConsumer;
 
 public class MorphVariant implements Comparable<MorphVariant>
 {
-    public static final int IDENTIFIER_LENGTH = 20;
-    public static final String IDENTIFIER_DEFAULT_PLAYER_STATE = "default_player_state";
+    public static final int ResourceLocation_LENGTH = 20;
+    public static final String ResourceLocation_DEFAULT_PLAYER_STATE = "default_player_state";
     public static final String NBT_PLAYER_ID = "Morph_Player_ID";
     public static String[] TAGS_TO_TAKE = new String[] { "CustomName", "CustomNameVisible", "ForgeCaps", "ForgeData" }; //Intentionally non-final. If you're going to be adding to this please remember to include tthe originals!
 
@@ -177,7 +177,7 @@ public class MorphVariant implements Comparable<MorphVariant>
         boolean flag = false;
         for(int i = variants.size() - 1; i >= 0; i--)
         {
-            if(variants.get(i).identifier.equals(variant.identifier))
+            if(variants.get(i).ResourceLocation.equals(variant.ResourceLocation))
             {
                 variants.remove(i);
                 flag = true;
@@ -208,13 +208,13 @@ public class MorphVariant implements Comparable<MorphVariant>
     {
         for(Variant variant : variants)
         {
-            if(variant.identifier.equals(id))
+            if(variant.ResourceLocation.equals(id))
             {
                 return variant;
             }
         }
 
-        if(thisVariant != null && thisVariant.identifier.equals(id))
+        if(thisVariant != null && thisVariant.ResourceLocation.equals(id))
         {
             return thisVariant;
         }
@@ -639,21 +639,21 @@ public class MorphVariant implements Comparable<MorphVariant>
 
     public static class Variant
     {
-        public String identifier;
+        public String ResourceLocation;
         public UUID playerUUID; // for player morphs
         public CompoundNBT nbtVariant;
         public boolean isFavourite;
 
         public Variant()
         {
-            this.identifier = RandomStringUtils.randomAscii(IDENTIFIER_LENGTH);
+            this.ResourceLocation = RandomStringUtils.randomAscii(ResourceLocation_LENGTH);
             this.nbtVariant = new CompoundNBT();
             this.isFavourite = false;
         }
 
         public CompoundNBT write(CompoundNBT tag)
         {
-            tag.putString("identifier", identifier);
+            tag.putString("ResourceLocation", ResourceLocation);
             if(playerUUID != null)
             {
                 tag.putUniqueId("playerUUID", playerUUID);
@@ -668,7 +668,7 @@ public class MorphVariant implements Comparable<MorphVariant>
 
         public void read(CompoundNBT tag)
         {
-            identifier = tag.getString("identifier");
+            ResourceLocation = tag.getString("ResourceLocation");
             if(tag.contains("playerUUID"))
             {
                 playerUUID = tag.getUniqueId("playerUUID");
@@ -693,7 +693,7 @@ public class MorphVariant implements Comparable<MorphVariant>
         @Override
         public int hashCode()
         {
-            return identifier.hashCode();
+            return ResourceLocation.hashCode();
         }
     }
 }

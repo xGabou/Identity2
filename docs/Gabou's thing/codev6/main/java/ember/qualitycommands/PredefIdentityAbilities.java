@@ -17,7 +17,7 @@ import net.minecraft.entity.projectile.ShulkerBulletEntity;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -41,8 +41,8 @@ public class PredefIdentityAbilities {
             return false;
         }
     }
-    public static Map<Identifier,IdentityAbility> predef=Map.of(
-        Identifier.of("ghast"),new PredefIdentityAbilities.IdentityAbility() {
+    public static Map<ResourceLocation,IdentityAbility> predef=Map.of(
+        ResourceLocation.of("ghast"),new PredefIdentityAbilities.IdentityAbility() {
             @Override
             public void execute(Entity arg){
                 return;
@@ -79,7 +79,7 @@ public class PredefIdentityAbilities {
                 return; 
             }
         },
-        Identifier.of("enderman"),new PredefIdentityAbilities.IdentityAbility() {
+        ResourceLocation.of("enderman"),new PredefIdentityAbilities.IdentityAbility() {
             @Override
             public void execute(Entity player){
                 World world=player.getEntityWorld();
@@ -138,7 +138,7 @@ public class PredefIdentityAbilities {
                 return blockAtFeet.isAir() && blockAtHead.isAir();
             }
         },
-        Identifier.of("shulker"),new PredefIdentityAbilities.IdentityAbility() {
+        ResourceLocation.of("shulker"),new PredefIdentityAbilities.IdentityAbility() {
             @Override
             public void execute(Entity player){
                 ShulkerEntity shulker=(ShulkerEntity)((EntityAccessor)player).getCurrentIdentity();

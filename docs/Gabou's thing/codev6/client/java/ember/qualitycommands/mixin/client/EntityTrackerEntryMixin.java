@@ -49,7 +49,7 @@ import ember.qualitycommands.util.NbtComponentAccessor;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 @Mixin(EntityTrackerEntry.class)
 public class EntityTrackerEntryMixin{

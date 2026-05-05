@@ -59,7 +59,7 @@ import net.minecraft.server.function.CommandFunctionManager;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.function.CommandFunction;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.server.network.ConnectedClientData;
 import ember.qualitycommands.util.EntityAccessor;
@@ -71,10 +71,10 @@ import net.minecraft.nbt.NbtCompound;
 public class PlayerManagerMixin{
     @Inject(method = "remove", at=@At("HEAD"))
     private static void removeInject(ServerPlayerEntity player,CallbackInfo info) {
-        //player.getEntityWorld().getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave"));
-        //player.getEntityWorld().getCommandFunctionManager().executeAll(player.getEntityWorld().getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave")),Identifier.of("quality_commands","on_before_player_leave"));
-        if(((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave"))!=null){
-        for(CommandFunction<ServerCommandSource> function:((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave"))){
+        //player.getEntityWorld().getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave"));
+        //player.getEntityWorld().getCommandFunctionManager().executeAll(player.getEntityWorld().getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave")),ResourceLocation.of("quality_commands","on_before_player_leave"));
+        if(((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave"))!=null){
+        for(CommandFunction<ServerCommandSource> function:((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave"))){
             ((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().execute(function,player.getEntityWorld().getServer().getCommandSource().withEntity(player).withPosition(player.getEntityPos()).withSilent());
         }
         }
@@ -89,8 +89,8 @@ public class PlayerManagerMixin{
     	
     @Inject(method = "onPlayerConnect", at=@At("TAIL"))
     private static void playerConnectInject(ClientConnection connection, ServerPlayerEntity player,ConnectedClientData clientData,CallbackInfo info) {
-        //player.getEntityWorld().getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave"));
-        //player.getEntityWorld().getCommandFunctionManager().executeAll(player.getEntityWorld().getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_leave")),Identifier.of("quality_commands","on_before_player_leave"));
+        //player.getEntityWorld().getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave"));
+        //player.getEntityWorld().getCommandFunctionManager().executeAll(player.getEntityWorld().getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_leave")),ResourceLocation.of("quality_commands","on_before_player_leave"));
 
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData=new ArrayList(0);
         ArrayList<CustomEntityDataS2CPacket.EntryNBT> compoundData=new ArrayList(0);
@@ -196,8 +196,8 @@ public class PlayerManagerMixin{
 
 
 
-        if(((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_join"))!=null){
-            for(CommandFunction<ServerCommandSource> function:((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(Identifier.of("quality_commands","on_before_player_join"))){
+        if(((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_join"))!=null){
+            for(CommandFunction<ServerCommandSource> function:((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().getTag(ResourceLocation.of("quality_commands","on_before_player_join"))){
                 ((ember.qualitycommands.util.MinecraftServerAccessor)player.getEntityWorld().getServer()).getCommandFunctionManager().execute(function,player.getEntityWorld().getServer().getCommandSource().withEntity(player).withPosition(player.getEntityPos()).withSilent());
             }
         }

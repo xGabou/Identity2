@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 public record IdentityAbilityPacketPayload(int entityid) implements CustomPayload {
     public static final CustomPayload.Id<IdentityAbilityPacketPayload> ID = new CustomPayload.Id<>(ModPackets.IDENTITY_ABILITY_PACKET_ID);

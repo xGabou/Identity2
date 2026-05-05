@@ -140,7 +140,7 @@ public class MorphInfoImpl extends MorphInfo
                 endMorphOnClient();
             }
 
-            if(nextState.variant.id.equals(EntityType.PLAYER.getRegistryName()) && nextState.variant.thisVariant.identifier.equals(MorphVariant.IDENTIFIER_DEFAULT_PLAYER_STATE))
+            if(nextState.variant.id.equals(EntityType.PLAYER.getRegistryName()) && nextState.variant.thisVariant.ResourceLocation.equals(MorphVariant.ResourceLocation_DEFAULT_PLAYER_STATE))
             {
                 setNextState(null);
             }

@@ -5,7 +5,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.commands.TpRelCommand;
 //import ember.qualitycommands.commands.SilentFunctionCommand;
 import ember.qualitycommands.commands.AccelerateCommand;

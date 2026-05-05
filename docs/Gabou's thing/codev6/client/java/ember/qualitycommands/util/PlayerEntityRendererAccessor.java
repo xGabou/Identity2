@@ -62,7 +62,7 @@ import net.minecraft.command.argument.RegistryEntryReferenceArgumentType;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.function.CommandFunctionManager;
 import net.minecraft.client.render.entity.EntityRenderManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.MinecraftClient;
 import ember.qualitycommands.util.MinecraftClientAccessor;
@@ -78,6 +78,6 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 public abstract interface PlayerEntityRendererAccessor {
 
-	public abstract void callRenderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Identifier skinTexture,ModelPart arm, boolean sleeveVisible);
+	public abstract void callRenderArm(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, ResourceLocation skinTexture,ModelPart arm, boolean sleeveVisible);
 }
 //execute as @n[type=item] run with d data entity @s Item summon item ~ ~5 ~ {Item:@(d)}

@@ -39,7 +39,7 @@ public class EventHandlerServer
         Entity entity = event.getObject();
         if(entity instanceof PlayerEntity && !(entity instanceof FakePlayer))
         {
-            event.addCapability(MorphInfo.CAPABILITY_IDENTIFIER, new MorphInfo.CapProvider(new MorphInfoImpl((PlayerEntity)entity)));
+            event.addCapability(MorphInfo.CAPABILITY_ResourceLocation, new MorphInfo.CapProvider(new MorphInfoImpl((PlayerEntity)entity)));
         }
     }
 

@@ -78,7 +78,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 @Mixin(Entity.class)
 public class EntityMixin implements ember.qualitycommands.util.EntityAccessor{
     @Shadow
@@ -491,7 +491,7 @@ public class EntityMixin implements ember.qualitycommands.util.EntityAccessor{
             if(((Entity)(Object)this).getEntityWorld() instanceof ServerWorld){
                 //nbtCompound.putBoolean("NoAI",true);
             }
-            EntityType<?> newType=Registries.ENTITY_TYPE.get(Identifier.of(id/*((NbtComponentAccessor)(Object)this.getCustomData()).getNbt().getString("model_override").get())*/));
+            EntityType<?> newType=Registries.ENTITY_TYPE.get(ResourceLocation.of(id/*((NbtComponentAccessor)(Object)this.getCustomData()).getNbt().getString("model_override").get())*/));
             Vec3d pos=new Vec3d(0,0,0);
             BlockPos blockPos = BlockPos.ofFloored(pos);
             /*if (!World.isValid(blockPos)) {

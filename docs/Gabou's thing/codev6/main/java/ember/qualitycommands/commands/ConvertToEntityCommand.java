@@ -30,8 +30,8 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 public class ConvertToEntityCommand {
 	public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
 		CommandFunctionManager commandFunctionManager = context.getSource().getServer().getCommandFunctionManager();
-		CommandSource.suggestIdentifiers(commandFunctionManager.getFunctionTags(), builder, "#");
-		return CommandSource.suggestIdentifiers(commandFunctionManager.getAllFunctions(), builder);
+		CommandSource.suggestResourceLocations(commandFunctionManager.getFunctionTags(), builder, "#");
+		return CommandSource.suggestResourceLocations(commandFunctionManager.getAllFunctions(), builder);
 	};
 
 	public static String stateManagerToBetterString(BlockState state,StateManager manager){

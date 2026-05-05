@@ -57,7 +57,7 @@ import net.minecraft.structure.pool.StructurePool;
 import net.minecraft.structure.processor.StructureProcessorType;
 import net.minecraft.test.TestEnvironmentDefinition;
 import net.minecraft.test.TestInstance;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StrictJsonParser;
 import net.minecraft.util.Util;
 import net.minecraft.util.crash.CrashCallable;
@@ -102,7 +102,7 @@ public class ModRegistries{
 
 
 	private static <T> RegistryKey<Registry<T>> of(String id) {
-		return RegistryKey.ofRegistry(Identifier.ofVanilla(id));
+		return RegistryKey.ofRegistry(ResourceLocation.ofVanilla(id));
 	}
 
 	public static String getPath(RegistryKey<? extends Registry<?>> registryRef) {
@@ -116,11 +116,11 @@ public class ModRegistries{
     private static <T> void register(Registry<? super T> registry, String id, T entry,CallbackInfoReturnable info){
         QualityCommands.LOGGER.info(registry.getKey().getRegistry().toString()+","+registry.getKey().getValue().toString()+","+id.toString());
     }
-    @Inject(method = "register(Lnet/minecraft/registry/Registry;Lnet/minecraft/util/Identifier;Ljava/lang/Object;)Ljava/lang/Object;", at=@At("TAIL"))
-    private static <V, T extends V> void register(Registry<V> registry, net.minecraft.util.Identifier id, T entry,CallbackInfoReturnable info){
+    @Inject(method = "register(Lnet/minecraft/registry/Registry;Lnet/minecraft/util/ResourceLocation;Ljava/lang/Object;)Ljava/lang/Object;", at=@At("TAIL"))
+    private static <V, T extends V> void register(Registry<V> registry, net.minecraft.util.ResourceLocation id, T entry,CallbackInfoReturnable info){
         QualityCommands.LOGGER.info(registry.getKey().getRegistry().toString()+","+registry.getKey().getValue().toString()+","+id.toString());
     }*/
-    public static final RegistryKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY = RegistryKey.ofRegistry(Identifier.of("quality_commands","identity_ability"));
+    public static final RegistryKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY = RegistryKey.ofRegistry(ResourceLocation.of("quality_commands","identity_ability"));
     public static Registry<IdentityAbilityDefinition> identityAbilityRegistry = null;// net.minecraft.registry.Registries.create(IDENTITY_ABILITY_KEY, registry -> null);
     //static final Registry<BlockSettingsRecord> DATA_BLOCK_REGISTRY = net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder.createSimple(DATA_BLOCK_KEY)
  	//												.buildAndRegister();
@@ -130,7 +130,7 @@ public class ModRegistries{
          Codec.STRING.optionalFieldOf("command","").forGetter(IdentityAbilityDefinition::command),
          Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
          Codec.INT.optionalFieldOf("use_duration",0).forGetter(IdentityAbilityDefinition::useduration),
-         Identifier.CODEC.optionalFieldOf("predef",Identifier.of("null")).forGetter(IdentityAbilityDefinition::bultinability),
+         ResourceLocation.CODEC.optionalFieldOf("predef",ResourceLocation.of("null")).forGetter(IdentityAbilityDefinition::bultinability),
          Codec.BOOL.optionalFieldOf("override_attack",false).forGetter(IdentityAbilityDefinition::override_attack)
      ).apply(inst, IdentityAbilityDefinition::new));
     
@@ -165,12 +165,12 @@ public class ModRegistries{
         for(RegistryLoader.Entry entry:DynamicRegistries.getDynamicRegistries()){
             QualityCommands.LOGGER.info("Dynamic registry at: "+entry.key().getRegistry()+"/"+entry.key().getValue());
         }
-        /*if(net.minecraft.registry.Registries.ROOT.getEntry(Identifier.of("quality_commands:identity_ability")).isPresent()){
+        /*if(net.minecraft.registry.Registries.ROOT.getEntry(ResourceLocation.of("quality_commands:identity_ability")).isPresent()){
             //net.minecraft.registry.Registries.create(DATA_BLOCK_KEY, registry -> new BlockSettingsRecord(false,"example"));
             QualityCommands.LOGGER.info("Identity ability registry inaccessible");
         }else{
             QualityCommands.LOGGER.info("Identity ability registry accessible");
-            identityAbilityRegistry=(Registry)net.minecraft.registry.Registries.ROOT.getEntry(Identifier.of("quality_commands:identity_ability")).orElse(null);
+            identityAbilityRegistry=(Registry)net.minecraft.registry.Registries.ROOT.getEntry(ResourceLocation.of("quality_commands:identity_ability")).orElse(null);
         }*/
     }
     

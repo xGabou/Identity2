@@ -357,14 +357,14 @@ public class IdentityCommand {
                 return 1;
             }
 
-            ResourceLocation identifier = ResourceLocation.tryParse(rawValue);
-            if (identifier == null || !Registries.ENTITY_TYPE.containsId(identifier)) {
+            ResourceLocation ResourceLocation = ResourceLocation.tryParse(rawValue);
+            if (ResourceLocation == null || !Registries.ENTITY_TYPE.containsId(ResourceLocation)) {
                 source.sendError(Text.literal("Unknown entity: " + rawValue));
                 return 0;
             }
 
-            IdentityConfig.getInstance().setForcedIdentity(identifier.toString());
-            persistConfig(source, Text.literal("Set forced identity to " + identifier));
+            IdentityConfig.getInstance().setForcedIdentity(ResourceLocation.toString());
+            persistConfig(source, Text.literal("Set forced identity to " + ResourceLocation));
             return 1;
         }
 
@@ -421,7 +421,7 @@ public class IdentityCommand {
                                         return 1;
                                     })
                             )
-                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.ResourceLocation())
                                     .executes(context -> {
                                         grant(
                                                 context.getSource().getPlayer(),
@@ -464,7 +464,7 @@ public class IdentityCommand {
                                         return 1;
                                     })
                             )
-                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.ResourceLocation())
                                     .executes(context -> {
                                         revoke(
                                                 context.getSource().getPlayer(),
@@ -495,7 +495,7 @@ public class IdentityCommand {
             LiteralCommandNode<ServerCommandSource> equip = CommandManager
                     .literal("equip")
                     .then(CommandManager.argument("player", EntityArgumentType.players())
-                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
+                            .then(CommandManager.argument("identity", ResourceLocationArgumentType.ResourceLocation())
                                     .executes(context -> {
                                         equip(context.getSource().getPlayer(),
                                                 EntityArgumentType.getPlayer(context, "player"),
@@ -537,7 +537,7 @@ public class IdentityCommand {
                     .literal("test")
                     .then(CommandManager.argument("player", EntityArgumentType.player())
                             .then(CommandManager.literal("not")
-                                     .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
+                                     .then(CommandManager.argument("identity", ResourceLocationArgumentType.ResourceLocation())
                                             .executes(context -> {
                                                 return testNot(
                                                         context.getSource().getPlayer(),
@@ -547,7 +547,7 @@ public class IdentityCommand {
                                          })
                                      )
                              )
-                             .then(CommandManager.argument("identity", ResourceLocationArgumentType.identifier())
+                             .then(CommandManager.argument("identity", ResourceLocationArgumentType.ResourceLocation())
                                      .executes(context -> {
                                          return test(
                                                  context.getSource().getPlayer(),

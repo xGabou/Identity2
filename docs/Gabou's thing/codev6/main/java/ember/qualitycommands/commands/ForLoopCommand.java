@@ -20,8 +20,8 @@ import ember.qualitycommands.QualityCommands;
 public class ForLoopCommand {
 	public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
 		CommandFunctionManager commandFunctionManager = context.getSource().getServer().getCommandFunctionManager();
-		CommandSource.suggestIdentifiers(commandFunctionManager.getFunctionTags(), builder, "#");
-		return CommandSource.suggestIdentifiers(commandFunctionManager.getAllFunctions(), builder);
+		CommandSource.suggestResourceLocations(commandFunctionManager.getFunctionTags(), builder, "#");
+		return CommandSource.suggestResourceLocations(commandFunctionManager.getAllFunctions(), builder);
 	};
 
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {

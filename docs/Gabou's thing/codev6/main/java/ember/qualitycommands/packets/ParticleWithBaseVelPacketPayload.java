@@ -9,7 +9,7 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 public record ParticleWithBaseVelPacketPayload(ParticleEffect parameters, boolean forceSpawn, boolean important, float x, float y, float z, float offsetX, float offsetY, float offsetZ, float speed, int count, float basevelx, float basevely, float basevelz) implements CustomPayload {
     public static final CustomPayload.Id<ParticleWithBaseVelPacketPayload> ID = new CustomPayload.Id<>(ModPackets.PARTICLE_BVEL_PACKET); 

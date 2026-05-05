@@ -30,6 +30,7 @@
     "EntityEquipmentMixin",
     "PlayerManagerMixin",
     "ServerPlayerMixin",
+    "MobEntityMixin",
     "MinecraftServerMixin",
     "MobGoalSelectorAccessorMixin",
     "NbtComponentMixin",

@@ -47,7 +47,7 @@ import net.minecraft.registry.Registries;
 import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.EntityRenderStateModifier;
 import ember.qualitycommands.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.MinecraftClient;
 import ember.qualitycommands.util.MinecraftClientAccessor;
@@ -70,7 +70,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState>{
                 if(d.contains("{")){
                     d=d.substring(0,d.indexOf('{'));
                 }
-                if(Registries.ENTITY_TYPE.containsId(Identifier.of(d))){
+                if(Registries.ENTITY_TYPE.containsId(ResourceLocation.of(d))){
                     if(((EntityAccessor)entity).getCurrentIdentity()!=null){
                 //Sync identity to entity
                 Entity identity=((EntityAccessor)entity).getCurrentIdentity();

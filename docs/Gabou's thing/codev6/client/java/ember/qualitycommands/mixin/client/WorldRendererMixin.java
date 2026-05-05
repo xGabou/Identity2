@@ -52,7 +52,7 @@ import ember.qualitycommands.util.BlockEntityAccessor;
 import ember.qualitycommands.util.EnderDragonEntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
 import java.util.function.BiFunction;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;

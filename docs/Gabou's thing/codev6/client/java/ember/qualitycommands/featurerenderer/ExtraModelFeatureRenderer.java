@@ -23,7 +23,7 @@ import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.Arm;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
 import ember.qualitycommands.util.EntityRenderStateModifier;
 import net.minecraft.component.DataComponentTypes;
@@ -42,7 +42,7 @@ public class ExtraModelFeatureRenderer<S extends EntityRenderState, M extends En
             this.test.get(key).clear();
     		for(String model:targets.get(key)){
                 ItemStack stack=Items.DIRT.getDefaultStack();
-                stack.set(DataComponentTypes.ITEM_MODEL,Identifier.of(model));
+                stack.set(DataComponentTypes.ITEM_MODEL,ResourceLocation.of(model));
                 MinecraftClient.getInstance().getItemModelManager().update(this.test.get(key), stack,ItemDisplayContext.GROUND,null, null,0);
             }
             this.renderItem(armedEntityRenderState, this.test.get(key), key, matrixStack, orderedRenderCommandQueue, i);

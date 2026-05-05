@@ -110,18 +110,18 @@ public final class MorphTransitionHelper {
 
     @Nullable
     private static Entity buildIdentity(Entity host, String typeId, String variantRaw) {
-        ResourceLocation identifier;
+        ResourceLocation resolvedId;
         try {
-            identifier = ResourceLocation.parse(typeId);
+            resolvedId = ResourceLocation.parse(typeId);
         } catch (Exception ignored) {
             return null;
         }
-        if (!BuiltInRegistries.ENTITY_TYPE.containsKey(identifier)) {
+        if (!BuiltInRegistries.ENTITY_TYPE.containsKey(resolvedId)) {
             return null;
         }
 
         CompoundTag nbt = IdentityProgression.parseVariantNbt(variantRaw);
-        nbt.putString("id", identifier.toString());
+        nbt.putString("id", resolvedId.toString());
 
         try {
             Entity entity = EntityType.loadEntityRecursive(nbt, host.level(), loaded -> {

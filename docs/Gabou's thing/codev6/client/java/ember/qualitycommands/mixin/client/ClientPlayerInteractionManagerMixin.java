@@ -44,7 +44,7 @@ import ember.qualitycommands.util.IdentityAbilityDefinition;
 import ember.qualitycommands.util.EnderDragonEntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
 import java.util.function.BiFunction;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.client.MinecraftClient;

@@ -41,7 +41,7 @@ import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.EnderDragonEntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
 import java.util.function.BiFunction;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 @Mixin(ClientPlayNetworkHandler.class)
 public class ClientPlayNetworkHandlerMixin{

@@ -406,7 +406,7 @@ public final class MorphHandler implements IApi
     public boolean demorph(ServerPlayerEntity player)
     {
         MorphVariant variant = MorphVariant.createPlayerMorph(player.getGameProfile().getId(), true);
-        variant.thisVariant.identifier = MorphVariant.IDENTIFIER_DEFAULT_PLAYER_STATE;
+        variant.thisVariant.ResourceLocation = MorphVariant.ResourceLocation_DEFAULT_PLAYER_STATE;
         return morphTo(player, variant);
     }
 

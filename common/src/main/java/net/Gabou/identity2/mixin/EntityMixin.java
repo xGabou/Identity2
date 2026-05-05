@@ -150,7 +150,6 @@ public class EntityMixin implements EntityAccessor{
                 //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
                     this.canFly();
                 }
-            this.identityOf.noPhysics=this.noPhysics;
         }
     }
     @Inject(method = "isInWall", at=@At("HEAD"),cancellable = true)
@@ -268,7 +267,7 @@ public class EntityMixin implements EntityAccessor{
                 this.currentIdentity.tick();
             } else {
                 if(this.currentIdentity instanceof Mob mobIdentity){
-                    mobIdentity.setNoAi(true);
+                    mobIdentity.setNoAi(false);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();
@@ -738,7 +737,11 @@ public class EntityMixin implements EntityAccessor{
             nbtCompound=new CompoundTag().copy();
         }
         if (nbtCompound.isEmpty() && forcedIdentity == null) {
-            String variantRaw = ((NbtComponentAccessor) (Object) this.customData).getNbt().getStringOr(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+            String variantRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(
+                    ((NbtComponentAccessor) (Object) ((EntityAccessor) (Object) this).getCustomData()).getNbt(),
+                    IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY,
+                    ""
+            );
             if (!variantRaw.isBlank()) {
                 try {
                     nbtCompound = net.minecraft.commands.arguments.CompoundTagArgument.compoundTag()

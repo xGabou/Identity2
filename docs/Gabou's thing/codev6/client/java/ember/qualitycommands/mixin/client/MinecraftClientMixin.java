@@ -38,7 +38,7 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.registry.Registries;
 import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.MinecraftClient;

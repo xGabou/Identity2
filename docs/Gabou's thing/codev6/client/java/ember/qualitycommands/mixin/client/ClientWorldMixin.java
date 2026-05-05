@@ -36,7 +36,7 @@ import ember.qualitycommands.util.EntityAccessor;
 import ember.qualitycommands.util.EnderDragonEntityAccessor;
 import ember.qualitycommands.util.NbtComponentAccessor;
 import java.util.function.BiFunction;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import ember.qualitycommands.QualityCommands;
 @Mixin(ClientWorld.class)
 public class ClientWorldMixin{
@@ -51,10 +51,10 @@ public class ClientWorldMixin{
                 if(d.contains("{")){
                     d=d.substring(0,d.indexOf('{'));
                 }
-                if(Registries.ENTITY_TYPE.containsId(Identifier.of(d))){
+                if(Registries.ENTITY_TYPE.containsId(ResourceLocation.of(d))){
                     if(((EntityAccessor)entity).getCurrentIdentity()!=null){
                     //Sync identity to entity
-                    Identifier id=Identifier.of(d);
+                    ResourceLocation id=ResourceLocation.of(d);
                     Entity identity=((EntityAccessor)entity).getCurrentIdentity();
                     identity.tick();
                     if(QualityCommandsClient.visualPatchKeys.contains(id)){
