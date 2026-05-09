@@ -249,6 +249,19 @@ public class EntityMixin implements EntityAccessor {
             ci.cancel();
         }
     }
+    @Inject(method = "canUsePortal", at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$preventAttachedIdentityPortalUse(CallbackInfoReturnable<Boolean> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$preventAttachedIdentityDimensionTravel(CallbackInfoReturnable<Entity> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(null);
+        }
+    }
 
     @Inject(method = "tick", at = @At("RETURN"))
     private void identityFix(CallbackInfo info) {
