@@ -27,7 +27,7 @@
     "WorldMixin",
     "BlockPosMixin",
     "EntityMixin",
-    "ServerPlayNetworkHandlerMixin",
+    "ServerPlayNetworkHandlerMixin",`r`n    "ServerPlayerDimensionMixin",
     "WorldBorderMixin",
     "WorldBorderMixin$SettingsMixin",
     "PlayerInventoryMixin",
