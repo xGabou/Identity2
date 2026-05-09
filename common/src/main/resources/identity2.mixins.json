@@ -16,9 +16,8 @@
     "client.EnderDragonEntityRendererMixin",
     "client.ClientPlayerInteractionManagerMixin",
     "client.ClientPlayNetworkHandlerMixin",
-    "client.YggdrasilAuthenticationServiceMixin",
     "client.PlayerNametagMixin",
-    "EntityTrackerEntryMixin",
+    "client.EntityTrackerEntryMixin",
     "client.WorldRendererMixin"
   ],
   "mixins": [
@@ -42,14 +41,13 @@
     "PlayerEntityMixin",
     "PlayerInventoryMixin",
     "PlayerManagerMixin",
+    "ServerPlayerDimensionMixin",
     "AbstractArrowMixin",
     "RegistriesMixin",
     "RegistryMixin",
-    "ServerPlayNetworkHandlerMixin",
     "ShulkerEntityMixin",
     "TargetPredicateMixin",
     "TypeFilterableListMixin",
-    "WorldMixin",
     "ZombieEntityMixin"
   ],
   "injectors": {

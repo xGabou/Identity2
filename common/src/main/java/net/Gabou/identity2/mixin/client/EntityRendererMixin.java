@@ -135,7 +135,12 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             mobIdentity.setAggressive(livingSource.isUsingItem());
         }
 
-        identity.setSharedFlagOnFire(source.isOnFire());
+        if (source.isInWater()) {
+            identity.clearFire();
+            identity.setSharedFlagOnFire(false);
+        } else {
+            identity.setSharedFlagOnFire(identity.isOnFire());
+        }
     }
 
     private static void identity2$patchMorphRenderState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {

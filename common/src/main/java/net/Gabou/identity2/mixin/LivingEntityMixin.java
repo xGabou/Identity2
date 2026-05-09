@@ -238,7 +238,6 @@ private void tickMovementIdentity(CallbackInfo info){
             if(livingIdentity instanceof Mob mobIdentity){
                 mobIdentity.setNoAi(false);
             }
-            livingIdentity.aiStep();
             this.setPos(livingIdentity.position());
             this.setDeltaMovement(livingIdentity.getDeltaMovement());
             //info.cancel();
@@ -396,6 +395,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
             if (
                     activeIdentity != null
+                            && activeIdentity.getType() != EntityType.ENDER_DRAGON
                             && identity2$isMorphFireImmune(activeIdentity)
                             && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
             ) {

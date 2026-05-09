@@ -55,6 +55,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -72,13 +73,20 @@ import net.minecraft.world.entity.animal.fish.WaterAnimal;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+import net.minecraft.world.entity.projectile.hurtingprojectile.Fireball;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Portal;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -147,19 +155,19 @@ public class EntityMixin implements EntityAccessor {
         return -Identity2.maxWorldSize;
     }
 
-    @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
-    private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
-        if (this.currentIdentity != null && ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()) {
-            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get() != 0.0) {
-                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
-            } else {
-                block.updateEntityMovementAfterFallOn(view, entity);
-            }
-        } else {
-            block.updateEntityMovementAfterFallOn(view, entity);
-        }
-    }
+//    @Redirect(method = "move",
+//            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
+//    private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
+//        if (this.currentIdentity != null && ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").isPresent()) {
+//            if (((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get() != 0.0) {
+//                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("land_speed_multiplier_override").get(), 1.0));
+//            } else {
+//                block.updateEntityMovementAfterFallOn(view, entity);
+//            }
+//        } else {
+//            block.updateEntityMovementAfterFallOn(view, entity);
+//        }
+//    }
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void identityFixCanFlyCheck(CallbackInfo info) {
@@ -168,17 +176,17 @@ public class EntityMixin implements EntityAccessor {
 //
 //        }
         //this.identity2$applyShulkerOpenVisualState();
-        if (this.identityOf != null) {
-            if (this.entityCanFlyTickEvaluated == false) {
-                this.entityCanFlyTickEvaluated = true;
-                this.entityCanFlyEvaluated = false;
-            }
-            if (this.entityCanFlyEvaluated == false) {
-                //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
-                this.canFly();
-            }
-            this.identityOf.noPhysics = this.noPhysics;
-        }
+//        if (this.identityOf != null) {
+//            if (this.entityCanFlyTickEvaluated == false) {
+//                this.entityCanFlyTickEvaluated = true;
+//                this.entityCanFlyEvaluated = false;
+//            }
+//            if (this.entityCanFlyEvaluated == false) {
+//                //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
+//                this.canFly();
+//            }
+//            this.identityOf.noPhysics = this.noPhysics;//to remove?
+//        }
     }
 
     @Inject(method = "isInWall", at = @At("HEAD"), cancellable = true)
@@ -275,58 +283,106 @@ public class EntityMixin implements EntityAccessor {
             ci.cancel();
         }
     }
+
+    @Inject(method = "setAsInsidePortal(Lnet/minecraft/world/level/block/Portal;Lnet/minecraft/core/BlockPos;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityPortalEntry(Portal portal, BlockPos pos, CallbackInfo ci) {
+        if (this.identityOf != null) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "canUsePortal(Z)Z", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityPortalUse(boolean passenger, CallbackInfoReturnable<Boolean> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityTeleport(TeleportTransition transition, CallbackInfoReturnable<Entity> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(null);
+        }
+    }
+
     @Inject(method = "tick", at = @At("RETURN"))
     private void identityFix(CallbackInfo info) {
         if (this.currentIdentity != null) {
+            if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && serverPlayer.isDeadOrDying()) {
+                this.currentIdentity.discard();
+                this.currentIdentity = null;
+                return;
+            }
+
+            float identity2$identityHealthBeforeTick = Float.NaN;
+            float identity2$identityMaxHealthBeforeTick = Float.NaN;
+            float identity2$hostMaxHealthBeforeTick = Float.NaN;
             boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
 
-//            if(((Entity) (Object) this) instanceof Player player)
-//            {
-//                this.currentIdentity.setInvulnerable(player.isInvulnerable());
-//            }
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
+            this.currentIdentity.setSwimming(((Entity) (Object) this).isSwimming());
+            ((EntityAccessor) this.currentIdentity).setTouchingWater(((Entity) (Object) this).isInWater());
+
             identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
             identity2$applySyncedMorphState(this.currentIdentity);
+
             if (
-                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
-                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
+                    this.currentIdentity instanceof LivingEntity livingIdentity &&
+                            ((Entity) (Object) this) instanceof LivingEntity livingHost
             ) {
-                livingIdentity.setHealth(livingEntity.getHealth());
+                if (hostIsPlayer && livingHost instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.refreshScaledHealth(serverPlayer);
+                }
+
+                identity2$identityMaxHealthBeforeTick = livingIdentity.getMaxHealth();
+                identity2$hostMaxHealthBeforeTick = livingHost.getMaxHealth();
+                livingIdentity.setHealth(identity2$scaleHealth(
+                        livingHost.getHealth(),
+                        identity2$hostMaxHealthBeforeTick,
+                        identity2$identityMaxHealthBeforeTick
+                ));
+                identity2$identityHealthBeforeTick = livingIdentity.getHealth();
             }
+
             if (this.currentIdentity.level().isClientSide()) {
                 this.currentIdentity.tick();
             } else {
                 if (this.currentIdentity instanceof Mob mobIdentity) {
                     mobIdentity.setNoAi(true);
                 }
+
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 this.currentIdentity.tick();
-                //if(this.currentIdentity instanceof MobEntity mobIdentity){
-                //    mobIdentity.setAiDisabled(false);
-                //}
+                if (
+                        hostIsPlayer &&
+                                (Entity) (Object) this instanceof ServerPlayer serverPlayer &&
+                                serverPlayer.level() instanceof ServerLevel serverLevel
+                ) {
+                    identity2$tickEnderDragonMorphSimulation(serverPlayer, serverLevel, this.currentIdentity);
+                }
             }
 
-
             if (hostIsPlayer) {
-                // For players, keep vanilla movement/gravity authoritative.
-                // Some morph AIs (especially flying mobs) can otherwise inject
-                // non-player motion and feel like speed/gravity glitches.
                 this.currentIdentity.setPos(this.position());
                 this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
                 this.setAirSupply(this.currentIdentity.getAirSupply());
+
                 Entity hostEntity = (Entity) (Object) this;
+
                 if (
-                    !hostEntity.onGround()
-                        && !hostEntity.isInWater()
-                        && this.currentIdentity != null
-                        && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
+                        !hostEntity.onGround()
+                                && !hostEntity.isInWater()
+                                && this.currentIdentity != null
+                                && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
                 ) {
                     Vec3 motion = hostEntity.getDeltaMovement();
+
                     if (motion.y < -0.08D) {
                         hostEntity.setDeltaMovement(motion.x, -0.08D, motion.z);
                     }
+
                     hostEntity.resetFallDistance();
                 }
             } else {
@@ -342,18 +398,209 @@ public class EntityMixin implements EntityAccessor {
             identity2$applyWardenEffects((Entity) (Object) this);
 
             if (
-                    (this.currentIdentity instanceof LivingEntity livingIdentity) &&
-                            ((Entity) (Object) this instanceof LivingEntity livingEntity)
+                    this.currentIdentity instanceof LivingEntity livingIdentity &&
+                            ((Entity) (Object) this) instanceof LivingEntity livingHost
             ) {
-                // Do not mirror transient identity damage back into players (prevents login hurt ticks/sounds).
-                if (!hostIsPlayer) {
-                    livingEntity.setHealth(livingIdentity.getHealth());
-                }
+                if (
+                        hostIsPlayer &&
+                                livingHost instanceof ServerPlayer serverPlayer &&
+                                serverPlayer.level() instanceof ServerLevel serverLevel &&
+                                !Float.isNaN(identity2$identityHealthBeforeTick)
+                ) {
+                    float damageTakenByIdentity = identity2$identityHealthBeforeTick - livingIdentity.getHealth();
 
+                    if (damageTakenByIdentity > 0.0F) {
+                        serverPlayer.hurtServer(
+                                serverLevel,
+                                serverPlayer.damageSources().generic(),
+                                identity2$scaleHealth(
+                                        damageTakenByIdentity,
+                                        identity2$identityMaxHealthBeforeTick,
+                                        identity2$hostMaxHealthBeforeTick
+                                )
+                        );
+                    } else if (damageTakenByIdentity < 0.0F) {
+                        serverPlayer.heal(identity2$scaleHealth(
+                                -damageTakenByIdentity,
+                                identity2$identityMaxHealthBeforeTick,
+                                identity2$hostMaxHealthBeforeTick
+                        ));
+                    }
+
+                    livingIdentity.setHealth(identity2$scaleHealth(
+                            serverPlayer.getHealth(),
+                            identity2$hostMaxHealthBeforeTick,
+                            identity2$identityMaxHealthBeforeTick
+                    ));
+                } else if (!hostIsPlayer) {
+                    livingHost.setHealth(livingIdentity.getHealth());
+                }
+            }
+        }
+    }
+
+    @Unique
+    private void identity2$tickEnderDragonMorphSimulation(ServerPlayer host, ServerLevel level, Entity identity) {
+        if (!(identity instanceof EnderDragon)) {
+            return;
+        }
+
+        List<AABB> proxyBoxes = identity2$getEnderDragonProxyBoxes(host);
+        identity2$destroyEnderDragonMorphBlocks(level, identity, proxyBoxes);
+        identity2$bridgeEnderDragonMorphProjectileDamage(host, level, identity, proxyBoxes);
+    }
+
+    @Unique
+    private static List<AABB> identity2$getEnderDragonProxyBoxes(Entity host) {
+        Vec3 origin = host.position();
+        float yaw = host.getYRot() * ((float) Math.PI / 180.0F);
+        Vec3 forward = new Vec3(-Mth.sin(yaw), 0.0D, Mth.cos(yaw));
+
+        List<AABB> boxes = Lists.newArrayList();
+        boxes.add(host.getBoundingBox().inflate(2.0D, 1.0D, 2.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(1.5D)).add(0.0D, 2.5D, 0.0D), 8.0D, 5.0D, 8.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(6.0D)).add(0.0D, 2.7D, 0.0D), 5.0D, 4.0D, 5.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(9.0D)).add(0.0D, 2.8D, 0.0D), 4.0D, 4.0D, 4.0D));
+        return boxes;
+    }
+
+    @Unique
+    private static AABB identity2$boxAt(Vec3 center, double width, double height, double depth) {
+        double halfWidth = width * 0.5D;
+        double halfDepth = depth * 0.5D;
+        double halfHeight = height * 0.5D;
+        return new AABB(
+                center.x - halfWidth,
+                center.y - halfHeight,
+                center.z - halfDepth,
+                center.x + halfWidth,
+                center.y + halfHeight,
+                center.z + halfDepth
+        );
+    }
+
+    @Unique
+    private static void identity2$destroyEnderDragonMorphBlocks(ServerLevel level, Entity identity, List<AABB> proxyBoxes) {
+        if (!level.getGameRules().get(GameRules.MOB_GRIEFING)) {
+            return;
+        }
+
+        boolean destroyedAny = false;
+        boolean blocked = false;
+
+        for (AABB box : proxyBoxes) {
+            int minX = Mth.floor(box.minX);
+            int minY = Mth.floor(box.minY);
+            int minZ = Mth.floor(box.minZ);
+            int maxX = Mth.floor(box.maxX);
+            int maxY = Mth.floor(box.maxY);
+            int maxZ = Mth.floor(box.maxZ);
+
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        BlockState state = level.getBlockState(pos);
+                        if (state.isAir() || state.is(BlockTags.DRAGON_TRANSPARENT)) {
+                            continue;
+                        }
+                        if (state.is(BlockTags.DRAGON_IMMUNE) || state.getDestroySpeed(level, pos) < 0.0F) {
+                            blocked = true;
+                            continue;
+                        }
+                        destroyedAny = level.removeBlock(pos, false) || destroyedAny;
+                    }
+                }
+            }
+        }
+
+        if (destroyedAny) {
+            AABB box = proxyBoxes.get(identity.tickCount % proxyBoxes.size());
+            BlockPos eventPos = BlockPos.containing(
+                    Mth.lerp(identity.getRandom().nextDouble(), box.minX, box.maxX),
+                    Mth.lerp(identity.getRandom().nextDouble(), box.minY, box.maxY),
+                    Mth.lerp(identity.getRandom().nextDouble(), box.minZ, box.maxZ)
+            );
+            level.levelEvent(2008, eventPos, 0);
+        }
+
+        if (blocked) {
+            identity.resetFallDistance();
+        }
+    }
+
+    @Unique
+    private static void identity2$bridgeEnderDragonMorphProjectileDamage(ServerPlayer host, ServerLevel level, Entity identity, List<AABB> proxyBoxes) {
+        AABB searchBox = identity2$combineBoxes(proxyBoxes).inflate(1.0D);
+        List<Projectile> projectiles = level.getEntitiesOfClass(
+                Projectile.class,
+                searchBox,
+                projectile -> !projectile.isRemoved() && projectile.getOwner() != host && projectile.getOwner() != identity
+        );
+
+        for (Projectile projectile : projectiles) {
+            AABB projectileBox = projectile.getBoundingBox().inflate(0.4D);
+            if (!identity2$intersectsAny(projectileBox, proxyBoxes)) {
+                continue;
             }
 
-
+            DamageSource source = identity2$projectileDamageSource(host, projectile);
+            float damage = identity2$projectileDamageAmount(projectile);
+            if (host.hurtServer(level, source, damage)) {
+                projectile.discard();
+            }
         }
+    }
+
+    @Unique
+    private static AABB identity2$combineBoxes(List<AABB> boxes) {
+        AABB combined = boxes.get(0);
+        for (int i = 1; i < boxes.size(); i++) {
+            combined = combined.minmax(boxes.get(i));
+        }
+        return combined;
+    }
+
+    @Unique
+    private static boolean identity2$intersectsAny(AABB testBox, List<AABB> boxes) {
+        for (AABB box : boxes) {
+            if (testBox.intersects(box)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private static DamageSource identity2$projectileDamageSource(ServerPlayer host, Projectile projectile) {
+        Entity owner = projectile.getOwner();
+        if (projectile instanceof AbstractArrow arrow) {
+            return host.damageSources().arrow(arrow, owner != null ? owner : projectile);
+        }
+        if (projectile instanceof FireworkRocketEntity firework) {
+            return host.damageSources().fireworks(firework, owner);
+        }
+        if (projectile instanceof Fireball fireball) {
+            return host.damageSources().fireball(fireball, owner);
+        }
+        if (owner instanceof LivingEntity livingOwner) {
+            return host.damageSources().mobProjectile(projectile, livingOwner);
+        }
+        return host.damageSources().thrown(projectile, owner);
+    }
+
+    @Unique
+    private static float identity2$projectileDamageAmount(Projectile projectile) {
+        if (projectile instanceof AbstractArrow arrow) {
+            return 4.0F;
+        }
+        if (projectile instanceof Fireball) {
+            return 6.0F;
+        }
+        if (projectile instanceof FireworkRocketEntity) {
+            return 5.0F;
+        }
+        return 4.0F;
     }
 
     @Unique
@@ -362,8 +609,19 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot));
+            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot).copy());
         }
+    }
+
+    @Unique
+    private static float identity2$scaleHealth(float value, float fromMax, float toMax) {
+        if (Float.isNaN(value)) {
+            return value;
+        }
+        if (fromMax <= 0.0F || toMax <= 0.0F || fromMax == toMax) {
+            return value;
+        }
+        return value * (toMax / fromMax);
     }
 
     @Unique
@@ -396,27 +654,29 @@ public class EntityMixin implements EntityAccessor {
         if (activeIdentity instanceof EnderDragon dragonIdentity && player.level() instanceof ServerLevel serverLevel) {
             ((EnderDragonEntityAccessor) dragonIdentity).runTickWithEndCrystals();
             identity2$invokeTwoArgs(dragonIdentity, "checkWalls", serverLevel, dragonIdentity.getBoundingBox());
-            if (dragonIdentity.getHealth() > player.getHealth()) {
-                player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
-            }
         }
 
-        boolean sunBurnTick = false;
-        Object value = identity2$invokeNoArg(activeIdentity, "isSunBurnTick");
-        if (value instanceof Boolean bool) {
-            sunBurnTick = bool;
-        }
+//        boolean sunBurnTick = false;
+//        Object value = identity2$invokeNoArg(activeIdentity, "isSunBurnTick");
+//        if (value instanceof Boolean bool) {
+//            sunBurnTick = bool;
+//        }
+//
+//        if (player.isInWater()) {
+//            if (this.identity2$morphSunBurning || player.isOnFire()) {
+//                player.clearFire();
+//            }
+//            this.identity2$morphSunBurning = false;
+//            return;
+//        }
 
-        if (sunBurnTick) {
-            player.igniteForSeconds(8.0F);
-            if (player.tickCount % 20 == 0 && player.level() instanceof ServerLevel serverLevel) {
-                player.hurtServer(serverLevel, player.damageSources().onFire(), 1.0F);
-            }
-            this.identity2$morphSunBurning = true;
-        } else if (this.identity2$morphSunBurning) {
-            player.clearFire();
-            this.identity2$morphSunBurning = false;
-        }
+//        if (sunBurnTick) {
+//            player.igniteForSeconds(8.0F);
+//            this.identity2$morphSunBurning = true;
+//        } else if (this.identity2$morphSunBurning) {
+//            player.clearFire();
+//            this.identity2$morphSunBurning = false;
+//        }
     }
 
     @Redirect(method = "move",
@@ -457,6 +717,10 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "onRemoval", at = @At("HEAD"), cancellable = true)
     private void commandOnRemoved(Entity.RemovalReason reason, CallbackInfo info) {
+        if (reason == Entity.RemovalReason.CHANGED_DIMENSION && this.currentIdentity != null) {
+            this.currentIdentity.discard();
+            this.currentIdentity = null;
+        }
         if (reason.shouldDestroy()) {
             String reasonType = "";
             if (reason == Entity.RemovalReason.KILLED) {
@@ -790,6 +1054,10 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
+        if (this.currentIdentity != null) {
+            this.currentIdentity.discard();
+            this.currentIdentity = null;
+        }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             WardenBurrowManager.stop(serverPlayer, true);
         }
@@ -886,9 +1154,7 @@ public class EntityMixin implements EntityAccessor {
 
         if (this.currentIdentity != null) {
             ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
-            //if(((Entity)(Object)this).getEntityWorld().isClient()){
-            ((EntityAccessor) (this.currentIdentity)).setId(((EntityAccessor) (this.currentIdentity)).getId() * -1);
-            //}
+            ((EntityAccessor) (this.currentIdentity)).setId(-Math.abs(((Entity) (Object) this).getId()));
             ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(this.currentIdentity.getEyeHeight());
             if ((Entity) (Object) this instanceof Player player) {
@@ -1795,6 +2061,9 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "isAttackable()Z", at = @At("HEAD"), cancellable = true)
     private void isAttackableIdentity(CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON) {
+            return;
+        }
         if (this.currentIdentity != null) {
             info.setReturnValue(this.currentIdentity.isAttackable());
         }
@@ -1802,6 +2071,9 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "isInvulnerable()Z", at = @At("HEAD"), cancellable = true)
     private void isInvulnerableIdentity(CallbackInfoReturnable info) {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON) {
+            return;
+        }
         if (this.currentIdentity != null) {
             info.setReturnValue(this.currentIdentity.isInvulnerable());
         }

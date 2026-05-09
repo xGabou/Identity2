@@ -23,11 +23,7 @@
     ]
   },
   "mixins": [
-    "identity2.mixins.json",
-    {
-      "config": "identity2.client.mixins.json",
-      "environment": "client"
-    }
+    "identity2.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.18.4",
