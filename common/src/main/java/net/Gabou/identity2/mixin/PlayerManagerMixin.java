@@ -6,7 +6,9 @@ import java.util.*;
 
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.auth.ClientLauncherGuards;
 import net.Gabou.identity2.auth.ServerAuth;
+import net.Gabou.identity2.auth.TLauncherDetectedHandler;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
@@ -18,11 +20,13 @@ import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.PlayerManagerAccessor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
@@ -31,13 +35,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerList.class)
-public class PlayerManagerMixin {
+public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     private static final int DELAYED_MORPH_REAPPLY_TICKS = 20;
     private static final Map<UUID, Integer> DELAYED_MORPH_REAPPLY = new HashMap<>();
 
@@ -50,11 +55,20 @@ public class PlayerManagerMixin {
     private static void playerConnectAuthInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
         if (!ServerAuth.onLogin(connection, player)) {
             info.cancel();
+            return;
+        }
+
+        String launcherReason = ClientLauncherGuards.getDetectedReason();
+        if (launcherReason != null && !launcherReason.isBlank() && player.level() instanceof ServerLevel serverLevel) {
+            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
+            ServerAuth.onLogout(player);
+            info.cancel();
         }
     }
 
     @Inject(method = "remove", at = @At("HEAD"))
     private static void removeInject(ServerPlayer player, CallbackInfo info) {
+        ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -70,6 +84,8 @@ public class PlayerManagerMixin {
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
     private static void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
+        ServerAuth.sendChallenge(player);
+
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleData = new ArrayList<>(0);
@@ -125,6 +141,8 @@ public class PlayerManagerMixin {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void identity2$delayedMorphReapply(CallbackInfo info) {
+        MinecraftServer server = ((PlayerList) (Object) this).getServer();
+        ServerAuth.onTick(server);
         if (DELAYED_MORPH_REAPPLY.isEmpty()) {
             return;
         }
@@ -141,6 +159,8 @@ public class PlayerManagerMixin {
             ServerPlayer player = this.getPlayer(entry.getKey());
             if (player != null) {
                 IdentityProgression.restoreMorphFromSavedDataAndSync(player);
+                IdentityProgression.refreshScaledHealth(player);
+                IdentityProgression.syncUnlockedIdentities(player);
             }
             iterator.remove();
         }
@@ -200,6 +220,14 @@ public class PlayerManagerMixin {
 
     private static void identity2$syncUnlockedIdentities(ServerPlayer player) {
         IdentityProgression.syncUnlockedIdentities(player);
+    }
+
+
+
+    @Unique
+    @Override
+    public void identity2$queueDelayedMorphReapply(ServerPlayer player) {
+        DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {

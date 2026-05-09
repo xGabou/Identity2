@@ -43,7 +43,7 @@ public final class TLauncherDetectedHandler {
                 "Banned launcher-violating player {} ({}) on {}: {}",
                 profile.name(),
                 profile.id(),
-                level.dimension().location(),
+                level.dimension(),
                 reason
             );
         }
@@ -62,7 +62,7 @@ public final class TLauncherDetectedHandler {
 
         ipBans.add(new IpBanListEntry(ipAddress, new Date(), BAN_SOURCE, null, reason));
         saveBanLists(level);
-        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension().location(), reason);
+        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension(), reason);
     }
 
     private static void saveBanLists(ServerLevel level) {

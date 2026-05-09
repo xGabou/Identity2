@@ -43,8 +43,6 @@ public class IdentitySettings {
         return IdentitySettings.DeathMorphRule.WIPE_ALL;
     }
 
-    //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
-    public static boolean unlockAllVariantsOnFirstUnlock = false;
     //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
     public final static boolean allowDisableMorphLossOnDeathWithoutCheats = false;
 
@@ -60,14 +58,14 @@ public class IdentitySettings {
     //@Comment(value = "Whether a hostile mob will stop targeting you after switching to a hostile mob identity.")
     public static boolean hostilesForgetNewHostileIdentityPlayer = false;
 
-    //@Comment(value = "Whether Villagers will run from Players morphed as identities villagers normally run from (Zombies).")
-    public static boolean villagersRunFromIdentities = true;
-
     //@Comment(value = "Whether Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
     public static boolean wolvesAttackIdentityPrey = true;
 
     //@Comment(value = "Whether owned Wolves will attack Players with an identity that the Wolf would normally hunt (Sheep, Fox, Skeleton).")
     public static boolean ownedWolvesAttackIdentityPrey = false;
+
+    //@Comment(value = "Whether Villagers will run from Players morphed as identities villagers normally run from (Zombies).")
+    public static boolean villagersRunFromIdentities = true;
 
     //@Comment(value = "Whether Foxes will attack Players with an identity that the Fox would normally hunt (Fish, Chicken).")
     public static boolean foxesAttackIdentityPrey = true;
@@ -91,7 +89,7 @@ public class IdentitySettings {
     public static List<String> advancementsRequiredForFlight = new ArrayList<>();
 
     //@Comment(value = "Whether Identities modify your max health value based on their max health value.")
-    public static boolean scalingHealth = false;
+    public static boolean scalingHealth = true;
 
     //@Comment(value = "The maximum value of scaling health. Useful for not giving players 300 HP when they turn into a wither.")
     public static int maxHealth = 40;
@@ -104,6 +102,12 @@ public class IdentitySettings {
     public static boolean enableSwaps = true;
     //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
     public final static boolean authStrictOfflineUuidReject = true;
+
+    //@Comment(value = "If true, players who fail the auth challenge are kicked instead of being banned/left in a suspicious state.")
+    public final static boolean authKickOnFailure = true;
+
+    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is treated as failed.")
+    public final static int authChallengeTimeoutTicks = 200;
 
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;
@@ -145,6 +149,8 @@ public class IdentitySettings {
 
     //@Comment(value = "Kills required to unlock an identity.")
     public static int identityKillsRequired = 1;
+    //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")
+    public static boolean unlockAllVariantsOnFirstUnlock = false;
 
     //@Comment(value = "Morph transition duration in ticks for dynamic model blending.")
     public static int morphTransitionTicks = 30;
