@@ -243,6 +243,19 @@ public class EntityMixin implements EntityAccessor{
             ci.cancel();
         }
     }
+    @Inject(method = "canUsePortal", at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$preventAttachedIdentityPortalUse(CallbackInfoReturnable<Boolean> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), cancellable = true, require = 0)
+    private void identity2$preventAttachedIdentityDimensionTravel(CallbackInfoReturnable<Entity> cir) {
+        if (this.identityOf != null) {
+            cir.setReturnValue(null);
+        }
+    }
 	@Inject(method = "tick", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
 		if(this.currentIdentity!=null){
@@ -335,7 +348,7 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot));
+            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot).copy());
         }
     }
 
@@ -885,6 +898,10 @@ public class EntityMixin implements EntityAccessor{
     }
     public void setCurrentIdentity(Entity e){
         this.currentIdentity=e;
+        if(e != null){
+            ((EntityAccessor) e).setIdentityOf((Entity) (Object) this);
+            ((EntityAccessor) e).setId(-Math.abs(((Entity) (Object) this).getId()));
+        }
     }
     public void setIdentityOf(Entity e){
         this.identityOf=e;
