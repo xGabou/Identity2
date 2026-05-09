@@ -1,7 +1,5 @@
 package net.Gabou.identity2.mixin;
-
 import com.google.common.collect.Lists;
-
 import java.util.List;
 import java.util.Locale;
 import java.lang.reflect.Method;
@@ -21,9 +19,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
-
 import java.util.Set;
-
 import org.jetbrains.annotations.Nullable;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.ArgumentBuilder;
@@ -47,26 +43,19 @@ import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.Vec3;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.WardenBurrowManager;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-
 @Mixin(LivingEntity.class)
-public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
+public class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor{
 
     @Mutable
     @Shadow
     private AttributeMap attributes;
-
     public void fixAttributes(Entity entity, Entity identity) {
         if (entity instanceof Player) {
             return;
@@ -82,17 +71,17 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
     }
 
 
-    public AttributeMap createMangled(AttributeMap a, AttributeMap b) {
-        AttributeSupplier.Builder builder = AttributeSupplier.builder();
-        for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) a).getDefaultAttributes()).getInstances().values()) {
-            builder.add(attr.getAttribute(), attr.getBaseValue());
+    public AttributeMap createMangled(AttributeMap a, AttributeMap b){
+        AttributeSupplier.Builder builder=AttributeSupplier.builder();
+        for(AttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)a).getDefaultAttributes()).getInstances().values()){
+            builder.add(attr.getAttribute(),attr.getBaseValue());
             //Identity2.LOGGER.info("Mangling A: "+attr.getAttribute().toString());
         }
-        for (AttributeInstance attr : ((DefaultAttributeContainerAccessor) ((AttributeContainerAccessor) b).getDefaultAttributes()).getInstances().values()) {
-            builder.add(attr.getAttribute(), attr.getBaseValue());
+        for(AttributeInstance attr:((DefaultAttributeContainerAccessor)((AttributeContainerAccessor)b).getDefaultAttributes()).getInstances().values()){
+            builder.add(attr.getAttribute(),attr.getBaseValue());
             //Identity2.LOGGER.info("Mangling B: "+attr.getAttribute().toString());
         }
-        AttributeMap newContainer = new AttributeMap(builder.build());
+        AttributeMap newContainer=new AttributeMap(builder.build());
         newContainer.assignAllValues(a);
         newContainer.assignAllValues(b);
         newContainer.assignBaseValues(a);
@@ -102,63 +91,15 @@ public class LivingEntityMixin extends EntityMixin implements LivingEntityAccess
         }*/
         return newContainer;
     }
-
-    @Shadow
-    public boolean canUseSlot(EquipmentSlot slot) {
-        return false;
-    }
-
-    @Inject(method = "getRiddenInput", at = @At("HEAD"), cancellable = true)
-    private void identity2$getIdentityRiddenInput(Player player, Vec3 travelVector, CallbackInfoReturnable<Vec3> cir) {
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
-            float strafe = player.xxa * 0.5F;
-            float forward = player.zza;
-            if (forward <= 0.0F) {
-                forward *= 0.25F;
-            }
-            cir.setReturnValue(new Vec3((double) strafe, 0.0D, (double) forward));
-        }
-    }
-
-    @Inject(method = "tickRidden", at = @At("HEAD"))
-    private void identity2$tickIdentityRidden(Player player, Vec3 travelVector, CallbackInfo ci) {
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (!MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
-            return;
-        }
-        LivingEntity vehicle = (LivingEntity) (Object) this;
-        vehicle.setYRot(player.getYRot());
-        vehicle.yRotO = vehicle.getYRot();
-        vehicle.yBodyRot = vehicle.getYRot();
-        vehicle.yHeadRot = vehicle.yBodyRot;
-        vehicle.setXRot(player.getXRot() * 0.5F);
-        vehicle.xxa = player.xxa * 0.5F;
-        vehicle.yya = player.yya;
-        vehicle.zza = player.zza <= 0.0F ? player.zza * 0.25F : player.zza;
-        AttributeInstance movementSpeed = vehicle.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (movementSpeed != null) {
-            vehicle.setSpeed((float) movementSpeed.getValue());
-        }
-    }
-
-    @Inject(method = "getRiddenSpeed", at = @At("HEAD"), cancellable = true)
-    private void identity2$getIdentityRiddenSpeed(Player player, CallbackInfoReturnable<Float> cir) {
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (!MorphEntityTraits.canIdentityRide(identity, (Entity) (Object) this)) {
-            return;
-        }
-        LivingEntity vehicle = (LivingEntity) (Object) this;
-        AttributeInstance movementSpeed = vehicle.getAttribute(Attributes.MOVEMENT_SPEED);
-        float speed = movementSpeed != null ? (float) movementSpeed.getValue() : vehicle.getSpeed();
-        if (vehicle.getType() == EntityType.CHICKEN) {
-            speed = Math.max(speed, 0.25F);
-        }
-        cir.setReturnValue(speed);
-    }
+@Shadow
+public boolean canUseSlot(EquipmentSlot slot){return false;}
 
     private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
-        return MorphEntityTraits.canBreatheUnderwater(livingIdentity);
+        return livingIdentity != null
+            && (
+                livingIdentity.canBreatheUnderwater()
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(livingIdentity.getType()))
+            );
     }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
@@ -169,26 +110,23 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
     }
 }*/
 
-    @Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at=@At("HEAD"),cancellable=true)
-    private void getAttributesIdentity(CallbackInfoReturnable info){
-        // Keep vanilla attributes for the host entity (especially players) so
-        // combat damage and other modded attribute changes are not replaced by identity stats.
-        if ((Entity)(Object)this instanceof Player) {
-            return;
-        }
-        try {
-            if(!this.saving && this.currentIdentity instanceof LivingEntity livingIdentity){
-                info.setReturnValue(livingIdentity.getAttributes());
-            }
-        } catch (Exception ignored){
-        }
+@Inject(method = "getAttributes()Lnet/minecraft/world/entity/ai/attributes/AttributeMap;", at=@At("HEAD"),cancellable=true)
+private void getAttributesIdentity(CallbackInfoReturnable info){
+    // Keep vanilla attributes for the host entity (especially players) so
+    // combat damage and other modded attribute changes are not replaced by identity stats.
+    if ((Entity)(Object)this instanceof Player) {
+        return;
     }
+    try {
+        if(!this.saving && this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.getAttributes());
+        }
+    } catch (Exception ignored){
+    }
+}
 
     @Inject(method = "decreaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirUnderwaterIdentity(int air, CallbackInfoReturnable info) {
-        if ((Object) this instanceof Player) {
-            return;
-        }
         if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
             return;
         }
@@ -201,9 +139,6 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
     @Inject(method = "increaseAirSupply(I)I", at = @At("HEAD"), cancellable = true)
     private void getNextAirOnLandIdentity(int air, CallbackInfoReturnable info) {
-        if ((Object) this instanceof Player) {
-            return;
-        }
         if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
             return;
         }
@@ -226,23 +161,23 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         info.setReturnValue(host.getMaxAirSupply());
     }
 
-    @Inject(method = "isInvertedHealAndHarm()Z", at = @At("HEAD"), cancellable = true)
-    private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvertedHealAndHarm());
-            }
+@Inject(method = "isInvertedHealAndHarm()Z", at=@At("HEAD"),cancellable=true)
+private void hasInvertedHealingAndHarmIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.isInvertedHealAndHarm());
         }
     }
+}
 
-    @Inject(method = "canBreatheUnderwater()Z", at = @At("HEAD"), cancellable = true)
-    private void canBreatheInWaterIdentity(CallbackInfoReturnable<Boolean> info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
-            }
+@Inject(method = "canBreatheUnderwater()Z", at=@At("HEAD"),cancellable=true)
+private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(identity2$isAquaticMorph(livingIdentity));
         }
     }
+}
 
     @Inject(method = "causeFallDamage", at = @At("HEAD"), cancellable = true)
     private void identity2$disableFallDamageForFlyingMorphs(double d, float f, DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
@@ -252,39 +187,63 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         if (this.currentIdentity != null && (((EntityAccessor) this.currentIdentity).canFly()
                 || this.currentIdentity.getType() == EntityType.CHICKEN
                 || this.currentIdentity.getType() == EntityType.CAT
-                || MorphEntityTraits.hasSlowFalling(this.currentIdentity))) {
+                || IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType()))) {
             cir.setReturnValue(false);
         }
     }
 
+@Shadow
+@Nullable
+public SoundEvent getHurtSound(DamageSource source){return null;}
+@Shadow
+@Nullable
+public SoundEvent getDeathSound(){return null;}
 
-    @Shadow
-    @Nullable
-    public SoundEvent getHurtSound(DamageSource source) {
-        return null;
-    }
-
-    @Shadow
-    @Nullable
-    public SoundEvent getDeathSound() {
-        return null;
-    }
-
-
-    @Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at = @At("HEAD"), cancellable = true)
-    private void getHurtSoundIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if (this.identityOf != null) {
-            info.setReturnValue(null);
-            return;
+@Inject(method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
+private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable info){
+    if(IdentitySettings.useIdentitySounds){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getHurtSound(source));
         }
-        if (IdentitySettings.useIdentitySounds) {
-            if (this.currentIdentity != null) {
-                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                    info.setReturnValue(((LivingEntityAccessor) this.currentIdentity).getHurtSound(source));
-                }
+    }
+    }
+}
+@Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
+private void getDeathSoundIdentity(CallbackInfoReturnable info){
+    if(IdentitySettings.useIdentitySounds){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getDeathSound());
+        }
+    }
+    }
+}
+
+
+
+
+
+@Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
+private void tickMovementIdentity(CallbackInfo info){
+    //if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
+    //    return;
+    //}
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+
+            livingIdentity.setPos(this.position());
+            livingIdentity.setDeltaMovement(this.getDeltaMovement());
+            if(livingIdentity instanceof Mob mobIdentity){
+                mobIdentity.setNoAi(false);
             }
+            this.setPos(livingIdentity.position());
+            this.setDeltaMovement(livingIdentity.getDeltaMovement());
+            //info.cancel();
         }
     }
+}
 
 @Inject(method = "aiStep()V", at = @At("TAIL"))
 private void identity2$playAmbientSound(CallbackInfo info) {
@@ -332,43 +291,6 @@ private void identity2$playAmbientSound(CallbackInfo info) {
             volume,
             pitch
     );
-}
-
-@Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
-private void tickMovementIdentity(CallbackInfo info){
-    //if ((Entity)(Object)this instanceof Player) {
-        // Keep vanilla player movement/collision to avoid wall-sticking while morphed.
-    //    return;
-    //}
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-
-            livingIdentity.setPos(this.position());
-            livingIdentity.setDeltaMovement(this.getDeltaMovement());
-            if(livingIdentity instanceof Mob mobIdentity){
-                mobIdentity.setNoAi(false);
-            }
-            livingIdentity.aiStep();
-            this.setPos(livingIdentity.position());
-            this.setDeltaMovement(livingIdentity.getDeltaMovement());
-            //info.cancel();
-        }
-    }
-}
-
-@Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"), cancellable = true)
-private void identity2$lockShulkerMovement(Vec3 input, CallbackInfo ci) {
-    if (!((Entity) (Object) this instanceof Player player)) {
-        return;
-    }
-    if (this.currentIdentity == null || this.currentIdentity.getType() != EntityType.SHULKER) {
-        return;
-    }
-    if (!PredefIdentityAbilities.isShulkerOpen(player)) {
-        return;
-    }
-    player.setDeltaMovement(Vec3.ZERO);
-    ci.cancel();
 }
 
 //getNextAir(underwater,onland) should be added
@@ -437,12 +359,6 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             cancellable = true
     )
     private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
-        if (this.identityOf instanceof Player) {
-            if (source == null || !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-                info.setReturnValue(true);
-                return;
-            }
-        }
         if ((Object) this instanceof Player player) {
             if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
                 info.setReturnValue(true);
@@ -460,7 +376,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
                             && player.isInWater()
-                            && MorphEntityTraits.canBreatheUnderwater(this.currentIdentity)
+                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
             ) {
                 info.setReturnValue(true);
                 return;
@@ -478,15 +394,8 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             }
 
             if (
-                    activeIdentity instanceof EnderDragon
-                            && identity2$isPlayerOwnedDragonMobAttack(activeIdentity, source)
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-
-            if (
                     activeIdentity != null
+                            && activeIdentity.getType() != EntityType.ENDER_DRAGON
                             && identity2$isMorphFireImmune(activeIdentity)
                             && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
             ) {
@@ -509,7 +418,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                             && (
                             activeIdentity.getType() == EntityType.CHICKEN
                                     || activeIdentity.getType() == EntityType.CAT
-                                    || MorphEntityTraits.hasSlowFalling(activeIdentity)
+                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
                     )
             ) {
                 info.setReturnValue(true);
@@ -531,6 +440,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             }
         }
     }
+
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
         float idHeight = activeIdentity.getBbHeight();
@@ -560,28 +470,10 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
         return headCollide && !feetCollide;
     }
-    @Unique
-    private static boolean identity2$isFallDamage(DamageSource source) {
-        if (source == null) {
-            return false;
-        }
-        if (source.is(DamageTypes.FALL)) {
-            return true;
-        }
-        if (source.is(DamageTypeTags.IS_FALL)) {
-            return true;
-        }
-        String msgId = identity2$getDamageMessageId(source);
-        if (msgId == null || msgId.isBlank()) {
-            return false;
-        }
-        String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
-        return normalized.equals("fall");
-    }
 
     @Unique
     private static boolean identity2$isMorphFireImmune(Entity activeIdentity) {
-        return MorphEntityTraits.isFireImmune(activeIdentity);
+        return activeIdentity != null && activeIdentity.fireImmune();
     }
 
     @Unique
@@ -594,16 +486,6 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             return false;
         }
         return cloud.getOwner() == player || source.getEntity() == player;
-    }
-
-    private static boolean identity2$isPlayerOwnedDragonMobAttack(Entity activeIdentity, DamageSource source) {
-        if (activeIdentity == null || source == null) {
-            return false;
-        }
-        if (!source.is(DamageTypes.MOB_ATTACK)) {
-            return false;
-        }
-        return source.getDirectEntity() == activeIdentity && source.getEntity() == activeIdentity;
     }
 
     private static boolean identity2$isWallCollisionDamage(DamageSource source) {
@@ -619,57 +501,76 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 || normalized.equals("cramming");
     }
 
-    private static String identity2$getDamageMessageId(DamageSource source) {
-        if (source == null) {
-            return "";
-        }
-        Object direct = identity2$invokeNoArg(source, "getMsgId");
-        if (direct instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        Object type = identity2$invokeNoArg(source, "type");
-        Object fromType = identity2$invokeNoArg(type, "msgId");
-        if (fromType instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        Object holder = identity2$invokeNoArg(source, "typeHolder");
-        Object value = identity2$invokeNoArg(holder, "value");
-        Object fromHolder = identity2$invokeNoArg(value, "msgId");
-        if (fromHolder instanceof String text && !text.isBlank()) {
-            return text;
-        }
+@Unique
+private static boolean identity2$isFallDamage(DamageSource source) {
+    if (source == null) {
+        return false;
+    }
+    if (source.is(DamageTypes.FALL)) {
+        return true;
+    }
+    if (source.is(DamageTypeTags.IS_FALL)) {
+        return true;
+    }
+    String msgId = identity2$getDamageMessageId(source);
+    if (msgId == null || msgId.isBlank()) {
+        return false;
+    }
+    String normalized = msgId.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+    return normalized.equals("fall");
+}
+
+@Unique
+private static String identity2$getDamageMessageId(DamageSource source) {
+    if (source == null) {
         return "";
     }
+    Object direct = identity2$invokeNoArg(source, "getMsgId");
+    if (direct instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object type = identity2$invokeNoArg(source, "type");
+    Object fromType = identity2$invokeNoArg(type, "msgId");
+    if (fromType instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    Object holder = identity2$invokeNoArg(source, "typeHolder");
+    Object value = identity2$invokeNoArg(holder, "value");
+    Object fromHolder = identity2$invokeNoArg(value, "msgId");
+    if (fromHolder instanceof String text && !text.isBlank()) {
+        return text;
+    }
+    return "";
+}
 
-    private static Object identity2$invokeNoArg(Object target, String methodName) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                    continue;
-                }
-                try {
-                    if (!method.canAccess(target)) {
-                        method.setAccessible(true);
-                    }
-                    return method.invoke(target);
-                } catch (Throwable ignored) {
-                }
-            }
-        }
+private static Object identity2$invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isBlank()) {
         return null;
     }
-
-    @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
-    private void pushAwayFromIdentity(Entity entity, CallbackInfo info) {
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity == entity) {
-                info.cancel();
+    for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+        for (Method method : current.getDeclaredMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                return method.invoke(target);
+            } catch (Throwable ignored) {
             }
         }
     }
+    return null;
+}
+@Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at=@At("HEAD"),cancellable=true)
+private void pushAwayFromIdentity(Entity entity,CallbackInfo info){
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity==entity){
+            info.cancel();
+        }
+    }
+}
 
 
 @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
@@ -707,17 +608,18 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
     }
 }
 
-    @Inject(method = "doHurtTarget(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
-    private void doHurtTargetIdentity(ServerLevel world, Entity entity, CallbackInfoReturnable info) {
-        if ((Entity)(Object)this instanceof Player) {
-            // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
-            return;
-        }
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.doHurtTarget(world, entity));
-            }
+@Inject(method = "doHurtTarget(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
+private void doHurtTargetIdentity(ServerLevel world, Entity entity,CallbackInfoReturnable info){
+    if ((Entity)(Object)this instanceof Player) {
+        // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
+        return;
+    }
+    if(this.currentIdentity!=null){
+        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+            info.setReturnValue(livingIdentity.doHurtTarget(world, entity));
         }
     }
+}
 //Tons of Redirects - End
 }
+

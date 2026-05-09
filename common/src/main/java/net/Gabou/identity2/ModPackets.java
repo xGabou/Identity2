@@ -539,4 +539,3 @@ public final class ModPackets {
         return player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 }
-

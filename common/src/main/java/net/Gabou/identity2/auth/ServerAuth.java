@@ -34,7 +34,7 @@ public final class ServerAuth {
         if (player.getUUID() != null && player.getUUID().version() == 3 && IdentitySettings.authStrictOfflineUuidReject) {
             Identity2.LOGGER.warn(
                 "Rejected {} because strict auth mode disallows offline UUID v3 identities.",
-                player.getGameProfile().getName()
+                player.getName().getString()
             );
             connection.disconnect(Component.literal("Authentication rejected."));
             return false;
@@ -78,7 +78,7 @@ public final class ServerAuth {
                 continue;
             }
 
-            Identity2.LOGGER.warn("Auth challenge timed out for {}", player.getGameProfile().getName());
+            Identity2.LOGGER.warn("Auth challenge timed out for {}", player.getName().getString());
             if (IdentitySettings.authKickOnFailure) {
                 player.connection.disconnect(Component.literal("Authentication timed out."));
             }
@@ -120,14 +120,14 @@ public final class ServerAuth {
         }
 
         PendingAuthManager.clear(player);
-        Identity2.LOGGER.info("Auth challenge completed for {}", player.getGameProfile().getName());
+        Identity2.LOGGER.info("Auth challenge completed for {}", player.getName().getString());
     }
 
     private static void markInvalid(ServerPlayer player, String reason) {
         PendingAuthManager.clear(player);
         Identity2.LOGGER.warn(
             "Marked {} as failed auth because verification failed: {}",
-            player.getGameProfile().getName(),
+            player.getName().getString(),
             reason
         );
         if (IdentitySettings.authKickOnFailure) {

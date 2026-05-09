@@ -27,7 +27,7 @@ import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.util.EntityAccessor;
 import java.util.Map;
 import net.minecraft.util.ClassInstanceMultiMap;
-import net.minecraft.Util;
+import java.util.stream.Collectors;
 import net.minecraft.world.entity.Entity;
 import java.util.Collections;
 @Mixin(ClassInstanceMultiMap.class)
@@ -40,6 +40,10 @@ public class TypeFilterableListMixin<T>{
     private List<T> allInstances;
     
     //@Inject(method = "getAllOfType", at=@At("HEAD"),cancellable=true)
+    /**
+     * @author Gaboouu
+     * @reason
+     */
     @Overwrite
     public <S extends T> Collection<S> find(Class<S> type) {
 		if (!this.baseClass.isAssignableFrom(type)) {
@@ -48,7 +52,7 @@ public class TypeFilterableListMixin<T>{
             if (net.Gabou.identity2.Identity2.indexOverrideActive == 0) {
                 List<S> list = (List<S>) this.byClass.computeIfAbsent(
                     type,
-                    typeClass -> (List) this.allInstances.stream().filter(typeClass::isInstance).collect(Util.toMutableList())
+                    typeClass -> (List) this.allInstances.stream().filter(typeClass::isInstance).collect(Collectors.toCollection(java.util.ArrayList::new))
                 );
                 return Collections.unmodifiableCollection(list);
             }
@@ -63,7 +67,7 @@ public class TypeFilterableListMixin<T>{
                     return entity;
                 })
                 .filter(type::isInstance)
-                .collect(Util.toMutableList());
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
             return Collections.unmodifiableCollection(liveList);
 		}
 	}
@@ -78,4 +82,3 @@ public class TypeFilterableListMixin<T>{
     }
     }*/
 }
-

@@ -395,7 +395,7 @@ public final class IdentityVariantDiscovery {
         if (direct instanceof ResourceLocation id) {
             return id;
         }
-        Object byResourceLocation = invokeNoArg(resourceKey, "identifier");
+        Object byResourceLocation = invokeNoArg(resourceKey, "ResourceLocation");
         if (byResourceLocation instanceof ResourceLocation id) {
             return id;
         }

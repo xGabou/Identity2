@@ -1,6 +1,5 @@
 package net.Gabou.identity2.auth;
 
-import com.mojang.authlib.GameProfile;
 import java.io.IOException;
 import java.util.Date;
 import java.util.UUID;
@@ -10,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.IpBanList;
 import net.minecraft.server.players.IpBanListEntry;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.server.players.UserBanList;
 import net.minecraft.server.players.UserBanListEntry;
 
@@ -24,7 +24,7 @@ public final class TLauncherDetectedHandler {
             return;
         }
 
-        handle(level, player.getUUID(), player.getGameProfile().getName(), reason);
+        handle(level, player.getUUID(), player.getName().getString(), reason);
         banIp(level, player, reason);
         disconnect(player, reason);
     }
@@ -43,7 +43,7 @@ public final class TLauncherDetectedHandler {
                 "Banned launcher-violating player {} ({}) on {}: {}",
                 profile.getName(),
                 profile.getId(),
-                level.dimension().location(),
+                level.dimension(),
                 reason
             );
         }
@@ -62,7 +62,7 @@ public final class TLauncherDetectedHandler {
 
         ipBans.add(new IpBanListEntry(ipAddress, new Date(), BAN_SOURCE, null, reason));
         saveBanLists(level);
-        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension().location(), reason);
+        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension(), reason);
     }
 
     private static void saveBanLists(ServerLevel level) {
