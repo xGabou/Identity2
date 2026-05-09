@@ -23,14 +23,14 @@ side = "BOTH"
 [[dependencies.identity2]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.10,)"
+versionRange = "[1.21.11,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "architectury"
 type = "required"
-versionRange = "[18.0.8,)"
+versionRange = "[19.0.1,)"
 ordering = "AFTER"
 side = "BOTH"
 
@@ -43,6 +43,3 @@ side = "BOTH"
 
 [[mixins]]
 config = "identity2.mixins.json"
-
-[[mixins]]
-config = "identity2.client.mixins.json"

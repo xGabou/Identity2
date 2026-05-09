@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -28,9 +29,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.InteractionHand;
 
 public final class IdentityCommand {
     private static final Set<String> HIDDEN_CONFIG_KEYS = Set.of(
@@ -424,7 +425,7 @@ public final class IdentityCommand {
 
         identity2$normalizeAliasedConfigAfterSet(key);
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " and saved it to the server config"));
         return 1;
     }
 
@@ -448,7 +449,7 @@ public final class IdentityCommand {
 
         values.add(value);
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " and saved it to the server config"));
         return 1;
     }
 
@@ -471,7 +472,7 @@ public final class IdentityCommand {
         }
 
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " and saved it to the server config"));
         return 1;
     }
 
@@ -491,7 +492,7 @@ public final class IdentityCommand {
         int removed = values.size();
         values.clear();
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) and saved it to the server config"));
         return removed;
     }
 
@@ -584,7 +585,7 @@ public final class IdentityCommand {
 
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(context.getSource())) {
             List<ResourceLocation> identifiers = IdentityProgression.getUnlockedIdentities(player).stream()
-                    .map(IdentityCommand::parseResourceLocation)
+                    .map(IdentityCommand::parseIdentifier)
                     .flatMap(Optional::stream)
                     .filter(IdentityProgression::isMorphableIdentity)
                     .toList();
@@ -632,7 +633,7 @@ public final class IdentityCommand {
         }
     }
 
-    private static Optional<ResourceLocation> parseResourceLocation(String value) {
+    private static Optional<ResourceLocation> parseIdentifier(String value) {
         try {
             return Optional.of(ResourceLocation.parse(value));
         } catch (Exception ignored) {
@@ -786,7 +787,7 @@ public final class IdentityCommand {
         }
 
         return IdentityProgression.getUnlockedIdentities(player).stream()
-                .map(IdentityCommand::parseResourceLocation)
+                .map(IdentityCommand::parseIdentifier)
                 .flatMap(Optional::stream)
                 .filter(IdentityProgression::isMorphableIdentity)
                 .sorted()
@@ -804,7 +805,7 @@ public final class IdentityCommand {
 
         IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type);
         ResourceLocation predefFromDefinition = definition == null ? null : definition.bultinability();
-        ResourceLocation predefKey = isNullResourceLocation(predefFromDefinition) ? identityId : predefFromDefinition;
+        ResourceLocation predefKey = isNullIdentifier(predefFromDefinition) ? identityId : predefFromDefinition;
 
         boolean hasSpecificPredef = hasSpecificPredef(predefKey);
         boolean hasFallback = PredefIdentityAbilities.hasFallbackAbility(identityId);
@@ -823,7 +824,7 @@ public final class IdentityCommand {
     }
 
     private static boolean hasSpecificPredef(ResourceLocation prebuilt) {
-        if (prebuilt == null || isNullResourceLocation(prebuilt)) {
+        if (prebuilt == null || isNullIdentifier(prebuilt)) {
             return false;
         }
 
@@ -839,7 +840,7 @@ public final class IdentityCommand {
         return PredefIdentityAbilities.predef.containsKey(ResourceLocation.fromNamespaceAndPath("identity2", prebuilt.getPath()));
     }
 
-    private static boolean isNullResourceLocation(ResourceLocation id) {
+    private static boolean isNullIdentifier(ResourceLocation id) {
         return id == null || "null".equals(id.getPath());
     }
 

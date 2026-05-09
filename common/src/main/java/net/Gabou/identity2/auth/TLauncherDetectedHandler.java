@@ -34,17 +34,16 @@ public final class TLauncherDetectedHandler {
             return;
         }
 
-        String normalizedName = playerName == null || playerName.isBlank() ? uuid.toString() : playerName;
-        NameAndId profile = NameAndId.createOffline(normalizedName);
+        NameAndId profile = new NameAndId(uuid, playerName == null || playerName.isBlank() ? uuid.toString() : playerName);
         UserBanList bans = level.getServer().getPlayerList().getBans();
         if (!bans.isBanned(profile)) {
             bans.add(new UserBanListEntry(profile, new Date(), BAN_SOURCE, null, reason));
             saveBanLists(level);
             Identity2.LOGGER.error(
                 "Banned launcher-violating player {} ({}) on {}: {}",
-                normalizedName,
-                uuid,
-                level.dimension().location(),
+                profile.name(),
+                profile.id(),
+                level.dimension(),
                 reason
             );
         }
@@ -63,7 +62,7 @@ public final class TLauncherDetectedHandler {
 
         ipBans.add(new IpBanListEntry(ipAddress, new Date(), BAN_SOURCE, null, reason));
         saveBanLists(level);
-        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension().location(), reason);
+        Identity2.LOGGER.error("Banned launcher-violating IP {} on {}: {}", ipAddress, level.dimension(), reason);
     }
 
     private static void saveBanLists(ServerLevel level) {

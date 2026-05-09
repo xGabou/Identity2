@@ -3,7 +3,8 @@ package net.Gabou.identity2;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
-import net.Gabou.identity2.auth.C2SLauncherReportPacket;
+import net.Gabou.identity2.auth.C2SChallengeReplyPacket;
+import net.Gabou.identity2.auth.S2CChallengePacket;
 import net.Gabou.identity2.auth.ServerAuth;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -35,9 +36,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -81,9 +82,13 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation LAUNCHER_REPORT_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
-        "launcher_report"
+        "auth_challenge"
+    );
+    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "auth_challenge_reply"
     );
     public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
@@ -115,15 +120,16 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(UnlockedIdentitySyncS2CPacketPayload.ID, UnlockedIdentitySyncS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(S2CChallengePacket.ID, S2CChallengePacket.CODEC);
         }
 
         NetworkManager.registerReceiver(
             NetworkManager.c2s(),
-            C2SLauncherReportPacket.ID,
-            C2SLauncherReportPacket.CODEC,
+            C2SChallengeReplyPacket.ID,
+            C2SChallengeReplyPacket.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
-                    ServerAuth.handleLauncherReport(player, payload);
+                    ServerAuth.handleChallengeReply(player, payload);
                 }
             })
         );

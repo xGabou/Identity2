@@ -54,19 +54,19 @@ public final class KeepInventoryHelper {
     private static Object resolveGameRule(String identifierString) {
         try {
             Object registry = BuiltInRegistries.class.getField("GAME_RULE").get(null);
-            ResourceLocation identifier = ResourceLocation.parse(identifierString);
+            ResourceLocation identityId = ResourceLocation.parse(identifierString);
 
-            Object value = invokeSingleArg(registry, "get", identifier);
+            Object value = invokeSingleArg(registry, "get", identityId);
             if (value != null) {
                 return unwrapOptional(value);
             }
 
-            value = invokeSingleArg(registry, "getOptional", identifier);
+            value = invokeSingleArg(registry, "getOptional", identityId);
             if (value != null) {
                 return unwrapOptional(value);
             }
 
-            value = invokeSingleArg(registry, "byNameOrThrow", identifier);
+            value = invokeSingleArg(registry, "byNameOrThrow", identityId);
             if (value != null) {
                 return value;
             }
