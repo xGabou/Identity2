@@ -1,6 +1,8 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.client.render.MorphRenderStateHelper;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -25,9 +27,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.phys.Vec3;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -141,9 +146,12 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         } else {
             identity.setSharedFlagOnFire(identity.isOnFire());
         }
+        identity2$syncEntityAnimationState(source, identity);
     }
 
     private static void identity2$patchMorphRenderState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {
+        MorphRenderStateHelper.applySharedState(source, identity, renderState, tickProgress);
+
         if (renderState instanceof LivingEntityRenderState livingState) {
             identity2$applyBabyRenderState(source, identity, livingState);
         }
@@ -251,6 +259,60 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         Object restAnimationState = identity2$getFieldValue(bat, "restAnimationState");
         identity2$invokeOneArg(flyAnimationState, "startIfStopped", tickCount);
         identity2$invokeNoArg(restAnimationState, "stop");
+    }
+
+    private static void identity2$syncEntityAnimationState(Entity source, Entity identity) {
+        if (source == null || identity == null) {
+            return;
+        }
+
+        if (identity instanceof IronGolem) {
+            identity2$setIntFieldExact(identity, "attackAnimationTick", Math.max(0, PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)));
+        }
+
+        if (identity instanceof Warden) {
+            int beamStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY);
+            int attackStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
+            identity2$syncAnimationStateField(identity, "sonicBoomAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY), beamStart);
+            identity2$syncAnimationStateField(identity, "attackAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY), attackStart);
+        }
+
+        if (identity instanceof Pufferfish) {
+            int puffState = PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY) ? 2 : 0;
+            identity2$invokeOneArg(identity, "setPuffState", puffState);
+        }
+    }
+
+    private static void identity2$syncAnimationStateField(Object target, String fieldName, boolean active, int startTick) {
+        Object state = identity2$getFieldValue(target, fieldName);
+        if (state == null) {
+            return;
+        }
+        if (active) {
+            identity2$invokeOneArg(state, "startIfStopped", startTick);
+        } else {
+            identity2$invokeNoArg(state, "stop");
+        }
+    }
+
+    private static void identity2$setIntFieldExact(Object target, String fieldName, int value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != int.class && field.getType() != Integer.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setInt(target, value);
+                return;
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     private static Object identity2$getFieldValue(Object target, String fieldName) {
