@@ -229,6 +229,17 @@ public class EntityMixin implements EntityAccessor {
         return false;
     }
 
+    @Unique
+    private static float identity2$scaleHealth(float value, float fromMax, float toMax) {
+        if (Float.isNaN(value)) {
+            return value;
+        }
+        if (fromMax <= 0.0F || toMax <= 0.0F || fromMax == toMax) {
+            return value;
+        }
+        return value * (toMax / fromMax);
+    }
+
     @Inject(method = "makeStuckInBlock", at = @At("HEAD"), cancellable = true)
     private void identity2$ignoreCobwebSlowdownForSpiderMorphs(BlockState state, Vec3 multiplier, CallbackInfo ci) {
         if (!state.is(Blocks.COBWEB)) {
@@ -266,6 +277,12 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "tick", at = @At("RETURN"))
     private void identityFix(CallbackInfo info) {
         if (this.currentIdentity != null) {
+            if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && serverPlayer.isDeadOrDying()) {
+                this.currentIdentity.discard();
+                this.currentIdentity = null;
+                return;
+            }
+
             boolean hostIsPlayer = ((Entity) (Object) this) instanceof Player;
 
 //            if(((Entity) (Object) this) instanceof Player player)
@@ -279,7 +296,10 @@ public class EntityMixin implements EntityAccessor {
                     (this.currentIdentity instanceof LivingEntity livingIdentity) &&
                             ((Entity) (Object) this instanceof LivingEntity livingEntity)
             ) {
-                livingIdentity.setHealth(livingEntity.getHealth());
+                if (hostIsPlayer && livingEntity instanceof ServerPlayer serverPlayer) {
+                    IdentityProgression.refreshScaledHealth(serverPlayer);
+                }
+                livingIdentity.setHealth(identity2$scaleHealth(livingEntity.getHealth(), livingEntity.getMaxHealth(), livingIdentity.getMaxHealth()));
             }
             if (!this.currentIdentity.level().isClientSide()) {
                 if (this.currentIdentity instanceof Mob mobIdentity) {
@@ -627,6 +647,10 @@ public class EntityMixin implements EntityAccessor {
         this.entityCanFlyTickEvaluated = false;
         this.entityCanFlyLastEvalTick = Long.MIN_VALUE;
         this.identity2$clearTransientMovementOverrides();
+        if (this.currentIdentity != null) {
+            this.currentIdentity.discard();
+            this.currentIdentity = null;
+        }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             WardenBurrowManager.stop(serverPlayer, true);
         }

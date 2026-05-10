@@ -23,6 +23,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.MinecraftServerAccessor;
 import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.util.NetworkPayload;
+import net.Gabou.identity2.util.PlayerManagerAccessor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
@@ -36,13 +37,14 @@ import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerList.class)
-public class PlayerManagerMixin {
+public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     private static final int DELAYED_MORPH_REAPPLY_TICKS = 20;
     private static final Map<UUID, Integer> DELAYED_MORPH_REAPPLY = new HashMap<>();
 
@@ -173,6 +175,8 @@ public class PlayerManagerMixin {
             ServerPlayer player = this.getPlayer(entry.getKey());
             if (player != null) {
                 IdentityProgression.restoreMorphFromSavedDataAndSync(player);
+                IdentityProgression.refreshScaledHealth(player);
+                IdentityProgression.syncUnlockedIdentities(player);
             }
             iterator.remove();
         }
@@ -227,6 +231,12 @@ public class PlayerManagerMixin {
 
     private static void identity2$syncUnlockedIdentities(ServerPlayer player) {
         IdentityProgression.syncUnlockedIdentities(player);
+    }
+
+    @Unique
+    @Override
+    public void identity2$queueDelayedMorphReapply(ServerPlayer player) {
+        DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
     }
 
     private static <T extends NetworkPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {

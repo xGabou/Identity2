@@ -70,6 +70,14 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
     public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
+    public static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
+    public static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
+    public static final String ANIM_CHARGE_TICKS_KEY = "identity2.anim.charge_ticks";
+    public static final String ANIM_JUMP_TICKS_KEY = "identity2.anim.jump_ticks";
+    public static final String ANIM_ROLL_TICKS_KEY = "identity2.anim.roll_ticks";
+    public static final String ANIM_ANGRY_TICKS_KEY = "identity2.anim.angry_ticks";
+    public static final String PUFFER_PUFF_TICKS_KEY = "identity2.anim.puffer_puff_ticks";
+    private static final int WARDEN_SONIC_BOOM_ANIMATION_TICKS = 60;
     private static final int ILLUSIONER_CLONE_COUNT = 3;
     private static final int ILLUSIONER_CLONE_LIFETIME_TICKS = 20 * 25;
     private static final double ILLUSIONER_CLONE_RADIUS = 3.5D;
@@ -116,6 +124,10 @@ public final class PredefIdentityAbilities {
     private PredefIdentityAbilities() {
     }
 
+    public static void triggerMorphAttackAnimation(Entity player, int ticks) {
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, ticks);
+    }
+
     public static boolean hasFallbackAbility(ResourceLocation identityTypeId) {
         if (identityTypeId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(identityTypeId)) {
             return false;
@@ -157,6 +169,18 @@ public final class PredefIdentityAbilities {
 
     private static Map<ResourceLocation, BuiltinIdentityAbility> create() {
         Map<ResourceLocation, BuiltinIdentityAbility> map = new HashMap<>();
+
+        map.put(new ResourceLocation(Identity2.MOD_ID, "ram_attack"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeRamAttack(player);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_ATTACK_TICKS_KEY, ANIM_CHARGE_TICKS_KEY);
+            }
+        });
 
         map.put(new ResourceLocation("ghast"), new IdentityAbility() {
             @Override
@@ -543,6 +567,7 @@ public final class PredefIdentityAbilities {
             @Override
             public void execute(Entity player) {
                 executeWardenSonicBoom(player);
+                identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, WARDEN_SONIC_BOOM_ANIMATION_TICKS);
             }
 
             @Override
@@ -550,6 +575,11 @@ public final class PredefIdentityAbilities {
                 if (player instanceof ServerPlayer serverPlayer) {
                     WardenBurrowManager.toggle(serverPlayer);
                 }
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_BEAM_TICKS_KEY);
             }
         });
 
@@ -571,6 +601,13 @@ public final class PredefIdentityAbilities {
                 executeBreezeWindProjectile(player);
             }
         });
+
+        map.put(new ResourceLocation("goat"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("minecraft", "goat"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("hoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("minecraft", "hoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("ravager"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("minecraft", "ravager"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
         
         map.put(new ResourceLocation("iron_golem"), new IdentityAbility() {
             @Override
@@ -578,6 +615,7 @@ public final class PredefIdentityAbilities {
                 if (!(player instanceof LivingEntity livingPlayer)) {
                     return;
                 }
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 10);
                 Level world = player.level();
                 EntityHitResult hit = findLivingTarget(player, 6.0D);
                 if (hit == null || !(hit.getEntity() instanceof LivingEntity target)) {
@@ -1691,14 +1729,110 @@ public final class PredefIdentityAbilities {
                     float damage = resolveGenericDamage(player);
                     target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
                     target.push(look.x * 0.45D, 0.10D, look.z * 0.45D);
+                    identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 10);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 0.85F, 0.95F);
                     return;
                 }
 
                 player.setDeltaMovement(player.getDeltaMovement().add(look.x * GENERIC_DASH_STRENGTH, GENERIC_DASH_UP, look.z * GENERIC_DASH_STRENGTH));
+                identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 8);
                 world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.75F, 1.05F);
             }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(
+                    player,
+                    ANIM_ATTACK_TICKS_KEY,
+                    ANIM_BEAM_TICKS_KEY,
+                    ANIM_CHARGE_TICKS_KEY,
+                    ANIM_JUMP_TICKS_KEY,
+                    ANIM_ROLL_TICKS_KEY,
+                    ANIM_ANGRY_TICKS_KEY,
+                    PUFFER_PUFF_TICKS_KEY
+                );
+            }
         };
+    }
+
+    private static void executeRamAttack(Entity player) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+        if (horizontal.lengthSqr() < 1.0E-4D) {
+            horizontal = new Vec3(0.0D, 0.0D, 1.0D);
+        } else {
+            horizontal = horizontal.normalize();
+        }
+
+        EntityHitResult hit = findLivingTarget(player, GENERIC_STRIKE_RANGE);
+        if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+            float damage = Math.max(6.0F, resolveGenericDamage(player));
+            target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+            target.push(horizontal.x * 1.6D, 0.45D, horizontal.z * 1.6D);
+        }
+
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
+        identity2$setSyncedTicks(player, ANIM_CHARGE_TICKS_KEY, 14);
+        player.setDeltaMovement(player.getDeltaMovement().add(horizontal.scale(0.85D)).add(0.0D, 0.12D, 0.0D));
+        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RAVAGER_ATTACK, SoundSource.HOSTILE, 1.0F, 0.85F);
+    }
+
+    private static void identity2$setSyncedTicks(Entity player, String key, int ticks) {
+        if (!(player instanceof ServerPlayer serverPlayer) || key == null || key.isBlank()) {
+            return;
+        }
+        int clampedTicks = Math.max(0, ticks);
+        double value = player.tickCount + clampedTicks;
+        double windowStart = clampedTicks > 0 ? player.tickCount : 0.0D;
+        IdentityApi.syncDouble(serverPlayer, key, value);
+        IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), windowStart);
+    }
+
+    private static int identity2$getSyncedTicks(Entity player, String key) {
+        double expiresAt = identity2$getStoredTickValue(player, key);
+        return Math.max(0, (int) Math.round(expiresAt - player.tickCount));
+    }
+
+    private static void identity2$tickSyncedCountdowns(Entity player, String... keys) {
+        if (!(player instanceof ServerPlayer)) {
+            return;
+        }
+        for (String key : keys) {
+            if (identity2$getSyncedTicks(player, key) <= 0 && identity2$getStoredTickValue(player, key) > 0.0D) {
+                identity2$setSyncedTicks(player, key, 0);
+            }
+        }
+    }
+
+    public static double getSyncedAnimationStartTick(Entity player, String key) {
+        if (player == null || key == null || key.isBlank() || identity2$getSyncedTicks(player, key) <= 0) {
+            return 0.0D;
+        }
+        return identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+    }
+
+    public static boolean isSyncedAnimationActive(Entity player, String key) {
+        return player != null && identity2$getSyncedTicks(player, key) > 0;
+    }
+
+    public static int getSyncedTicksRemaining(Entity player, String key) {
+        return player == null ? 0 : identity2$getSyncedTicks(player, key);
+    }
+
+    private static String identity2$getWindowStartKey(String key) {
+        return key + ".start";
+    }
+
+    private static double identity2$getStoredTickValue(Entity player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return 0.0D;
+        }
+        CompoundTag nbt = ((EntityAccessor) player).getCustomData();
+        return net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, key, 0.0D);
     }
 
     private static float resolveGenericDamage(Entity player) {

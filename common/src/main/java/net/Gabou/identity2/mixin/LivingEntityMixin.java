@@ -295,7 +295,6 @@ private void tickMovementIdentity(CallbackInfo info){
             if(livingIdentity instanceof Mob mobIdentity){
                 mobIdentity.setNoAi(false);
             }
-            livingIdentity.aiStep();
             this.setPos(livingIdentity.position());
             this.setDeltaMovement(livingIdentity.getDeltaMovement());
             //info.cancel();

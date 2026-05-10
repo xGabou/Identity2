@@ -41,6 +41,10 @@ public class TypeFilterableListMixin<T>{
     private List<T> allInstances;
     
     //@Inject(method = "getAllOfType", at=@At("HEAD"),cancellable=true)
+    /**
+     * @author Gaboouu
+     * @reason Identity-aware class lookup while targeting checks are active.
+     */
     @Overwrite
     public <S extends T> Collection<S> find(Class<S> type) {
 		if (!this.baseClass.isAssignableFrom(type)) {

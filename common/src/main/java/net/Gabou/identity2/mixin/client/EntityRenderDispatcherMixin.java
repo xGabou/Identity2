@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.Gabou.identity2.client.IdentityRenderStateHelper;
+import net.Gabou.identity2.client.render.MorphRenderContext;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -55,7 +56,12 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         IdentityRenderStateHelper.syncIdentityVisualState(entity, renderIdentity);
-        identity2$renderResolved(identityRenderer, renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
+        MorphRenderContext.begin(entity, renderIdentity, tickDelta);
+        try {
+            identity2$renderResolved(identityRenderer, renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
+        } finally {
+            MorphRenderContext.end();
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

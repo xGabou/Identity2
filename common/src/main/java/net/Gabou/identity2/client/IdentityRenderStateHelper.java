@@ -1,5 +1,6 @@
 package net.Gabou.identity2.client;
 
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
@@ -8,10 +9,16 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.phys.Vec3;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class IdentityRenderStateHelper {
     private IdentityRenderStateHelper() {
@@ -97,6 +104,124 @@ public final class IdentityRenderStateHelper {
             mobIdentity.setAggressive(livingSource.isUsingItem());
         }
 
-        identity.setSharedFlagOnFire(source.isOnFire());
+        if (source.isInWater()) {
+            identity.clearFire();
+            identity.setSharedFlagOnFire(false);
+        } else {
+            identity.setSharedFlagOnFire(identity.isOnFire());
+        }
+        syncEntityAnimationState(source, identity);
+    }
+
+    private static void syncEntityAnimationState(Entity source, Entity identity) {
+        if (source == null || identity == null) {
+            return;
+        }
+        if (identity instanceof IronGolem) {
+            setIntFieldExact(identity, "attackAnimationTick", Math.max(
+                    0,
+                    PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
+            ));
+        }
+        if (identity instanceof Warden) {
+            int beamStart = (int) Math.round(PredefIdentityAbilities.getSyncedAnimationStartTick(
+                    source,
+                    PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY
+            ));
+            int attackStart = (int) Math.round(PredefIdentityAbilities.getSyncedAnimationStartTick(
+                    source,
+                    PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY
+            ));
+            syncAnimationStateField(identity, "sonicBoomAnimationState", "sonicBoomAnimation", beamStart);
+            syncAnimationStateField(identity, "attackAnimationState", "attackAnimation", attackStart);
+        }
+        if (identity instanceof Pufferfish) {
+            invokeOneArg(identity, "setPuffState", PredefIdentityAbilities.isSyncedAnimationActive(
+                    source,
+                    PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY
+            ) ? 2 : 0);
+        }
+    }
+
+    private static void syncAnimationStateField(Object owner, String fieldName, String fallbackFieldName, int startTick) {
+        Object state = getFieldValue(owner, fieldName);
+        if (state == null && fallbackFieldName != null) {
+            state = getFieldValue(owner, fallbackFieldName);
+        }
+        if (state == null) {
+            return;
+        }
+        if (startTick > 0) {
+            invokeOneArg(state, "start", startTick);
+        } else {
+            invokeNoArg(state, "stop");
+        }
+    }
+
+    private static Object getFieldValue(Object target, String fieldName) {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            try {
+                Field field = type.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (NoSuchFieldException ignored) {
+                type = type.getSuperclass();
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static void setIntFieldExact(Object target, String fieldName, int value) {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            try {
+                Field field = type.getDeclaredField(fieldName);
+                if (field.getType() != int.class) {
+                    return;
+                }
+                field.setAccessible(true);
+                field.setInt(target, value);
+                return;
+            } catch (NoSuchFieldException ignored) {
+                type = type.getSuperclass();
+            } catch (Throwable ignored) {
+                return;
+            }
+        }
+    }
+
+    private static Object invokeOneArg(Object target, String methodName, Object value) {
+        if (target == null) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                continue;
+            }
+            try {
+                return method.invoke(target, value);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeNoArg(Object target, String methodName) {
+        if (target == null) {
+            return null;
+        }
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                return method.invoke(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 }

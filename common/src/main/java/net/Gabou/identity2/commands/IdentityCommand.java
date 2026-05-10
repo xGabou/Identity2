@@ -432,7 +432,7 @@ public final class IdentityCommand {
 
         identity2$normalizeAliasedConfigAfterSet(key);
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " and saved it to the server config"));
         return 1;
     }
 
@@ -456,7 +456,7 @@ public final class IdentityCommand {
 
         values.add(value);
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " and saved it to the server config"));
         return 1;
     }
 
@@ -479,7 +479,7 @@ public final class IdentityCommand {
         }
 
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " and saved it to the server config"));
         return 1;
     }
 
@@ -499,7 +499,7 @@ public final class IdentityCommand {
         int removed = values.size();
         values.clear();
         IdentityConfigManager.save();
-        identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) (runtime only)"));
+        identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) and saved it to the server config"));
         return removed;
     }
 
