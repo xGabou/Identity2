@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.client.render.MorphRenderContext;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.ModelPartCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
@@ -32,7 +33,9 @@ public class EntityRendererMixin {
             at = @At("HEAD")
     )
     private void identity2$beforeRender(Entity entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo ci) {
-        identity2$applyModelPartOverrides(entity);
+        MorphRenderContext.Context context = MorphRenderContext.current();
+        Entity dataEntity = context != null && context.matches(entity) ? context.source() : entity;
+        identity2$applyModelPartOverrides(entity, dataEntity);
     }
 
     @Inject(
@@ -43,11 +46,11 @@ public class EntityRendererMixin {
         identity2$restoreModelPartOverrides();
     }
 
-    private static void identity2$applyModelPartOverrides(Entity entity) {
+    private static void identity2$applyModelPartOverrides(Entity modelEntity, Entity dataEntity) {
         Map<ModelPart, ModelPartCompat.PartSnapshot> snapshots = identity2$snapshots.get();
         snapshots.clear();
 
-        if (!(entity instanceof EntityAccessor accessor)) {
+        if (!(dataEntity instanceof EntityAccessor accessor)) {
             return;
         }
         Object customData = accessor.getCustomData();
@@ -75,7 +78,7 @@ public class EntityRendererMixin {
             return;
         }
 
-        EntityModel<?> model = Identity2Client.getModel(entity);
+        EntityModel<?> model = Identity2Client.getModel(modelEntity);
         if (model == null) {
             return;
         }
