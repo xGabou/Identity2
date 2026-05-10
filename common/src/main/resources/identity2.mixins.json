@@ -18,15 +18,14 @@
     "client.ClientPlayerInteractionManagerMixin",
     "client.ClientPlayNetworkHandlerMixin",
     "client.PlayerNametagMixin",
-    "EntityTrackerEntryMixin",
+    "client.EntityTrackerEntryMixin",
     "client.WorldRendererMixin"
   ],
   "mixins": [
     "FishingBobberEntityMixin",
-    "WorldMixin",
     "BlockPosMixin",
     "EntityMixin",
-    "ServerPlayNetworkHandlerMixin",`r`n    "ServerPlayerDimensionMixin",
+    "ServerPlayerDimensionMixin",
     "WorldBorderMixin",
     "WorldBorderMixin$SettingsMixin",
     "PlayerInventoryMixin",
