@@ -1893,8 +1893,8 @@ private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnabl
     }
 }
 
-@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z", at = @At("HEAD"), cancellable = true)
-private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, boolean keepData, CallbackInfoReturnable<Boolean> cir){
+@Inject(method = "startRiding(Lnet/minecraft/world/entity/Entity;Z)Z", at = @At("HEAD"), cancellable = true)
+private void identity2$preventInvalidMorphMounts(Entity vehicle, boolean force, CallbackInfoReturnable<Boolean> cir){
     if (!((Entity) (Object) this instanceof Player)) {
         return;
     }

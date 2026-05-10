@@ -4,6 +4,7 @@ import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.MorphEntityTraits;
+import net.Gabou.identity2.client.render.MorphRenderContext;
 import net.Gabou.identity2.client.render.MorphRenderStateHelper;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -56,11 +57,18 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
     @Inject(method = "createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;", at = @At("RETURN"), cancellable = true)
     private void identity2$createRenderState(T entity, float tickProgress, CallbackInfoReturnable<S> cir) {
         EntityRenderState renderState = cir.getReturnValue();
+        MorphRenderContext.Context context = MorphRenderContext.current();
+        Entity modelOverrideSource = entity;
+
+        if (context != null && context.matches(entity)) {
+            modelOverrideSource = context.source();
+            identity2$patchMorphRenderState(context.source(), entity, renderState, tickProgress);
+        }
 
         Entity renderIdentity = MorphTransitionHelper.resolveRenderIdentity(entity, ((EntityAccessor) entity).getCurrentIdentity(), tickProgress);
         if (renderIdentity != null) {
             EntityRenderer renderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(renderIdentity);
-            if (renderer != null) {
+            if (renderer != null && renderer == (Object) this) {
                 identity2$syncIdentityForRender(entity, renderIdentity, tickProgress);
                 EntityRenderState replacement = renderer.createRenderState();
                 renderer.extractRenderState(renderIdentity, replacement, tickProgress);
@@ -69,7 +77,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             }
         }
 
-        MorphRenderStateHelper.resetAndApplyModelPartOverrides(entity);
+        MorphRenderStateHelper.resetAndApplyModelPartOverrides(entity, modelOverrideSource);
         cir.setReturnValue((S) renderState);
     }
 

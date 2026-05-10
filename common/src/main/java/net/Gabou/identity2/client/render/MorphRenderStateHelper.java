@@ -40,14 +40,18 @@ public final class MorphRenderStateHelper {
     }
 
     public static void resetAndApplyModelPartOverrides(Entity entity) {
-        EntityModel<?> model = Identity2Client.getModel(entity);
+        resetAndApplyModelPartOverrides(entity, entity);
+    }
+
+    public static void resetAndApplyModelPartOverrides(Entity modelEntity, Entity dataEntity) {
+        EntityModel<?> model = Identity2Client.getModel(modelEntity);
         if (model == null) {
             return;
         }
 
         resetModelParts(model.root());
 
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) entity).getCustomData())).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) (((EntityAccessor) dataEntity).getCustomData())).getNbt();
         for (String key : NbtCompat.keySet(nbt)) {
             if (!key.startsWith("hidden_parts.")) {
                 continue;
