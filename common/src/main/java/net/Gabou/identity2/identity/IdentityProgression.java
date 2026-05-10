@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
+import dev.architectury.event.events.common.PlayerEvent;
 
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +34,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.PlayerManagerAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -45,6 +47,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -58,6 +61,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
@@ -109,6 +113,20 @@ public final class IdentityProgression {
         }
         initialized = true;
         EntityEvent.LIVING_DEATH.register(IdentityProgression::onLivingDeath);
+        PlayerEvent.CHANGE_DIMENSION.register(IdentityProgression::onPlayerChangeDimension);
+    }
+
+    private static void onPlayerChangeDimension(ServerPlayer player, ResourceKey<Level> from, ResourceKey<Level> to) {
+        if (player == null) {
+            return;
+        }
+
+        Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        if (currentIdentity != null) {
+            currentIdentity.discard();
+            ((EntityAccessor) player).setCurrentIdentity((Entity) null);
+        }
+        ((PlayerManagerAccessor) player.level().getServer().getPlayerList()).identity2$queueDelayedMorphReapply(player);
     }
 
     public static List<String> getUnlockedIdentities(ServerPlayer player) {
@@ -1648,7 +1666,8 @@ public final class IdentityProgression {
         if (attribute == null) {
             return true;
         }
-        return attribute.equals(Attributes.MAX_HEALTH);
+        return attribute.equals(Attributes.MAX_HEALTH)
+                || attribute.equals(Attributes.FLYING_SPEED);
     }
 
     @Nullable

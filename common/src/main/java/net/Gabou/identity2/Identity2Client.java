@@ -443,6 +443,7 @@ public final class Identity2Client {
                 }
             }
             if (identityDataChanged) {
+                MorphTransitionHelper.clearCachedPreviousIdentity(entity.getId());
                 applyIdentityFromCustomData(entity);
             }
         }
@@ -614,6 +615,7 @@ public final class Identity2Client {
             }
         }
         if (identityDataChanged) {
+            MorphTransitionHelper.clearCachedPreviousIdentity(entity.getId());
             applyIdentityFromCustomData(entity);
         }
         return true;
