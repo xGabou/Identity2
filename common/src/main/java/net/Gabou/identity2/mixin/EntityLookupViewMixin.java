@@ -67,20 +67,35 @@ public interface EntityLookupViewMixin{
         }
         }
     }
-    @Inject(method = "getNearestEntity(Lnet/minecraft/tags/TagKey;Lnet/minecraft/world/entity/ai/targeting/TargetingConditions;Lnet/minecraft/world/entity/LivingEntity;DDDLnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/entity/LivingEntity;", at=@At("RETURN"),cancellable=true)
-    private static void useInject(TagKey<EntityType<?>> type, TargetingConditions predicate, @Nullable LivingEntity target, double x, double y, double z, AABB box,CallbackInfoReturnable info) {
-        if(info.getReturnValue()!=null){
-        Entity m=((EntityAccessor)info.getReturnValue()).getCurrentIdentity();
-        if(m!=null){
-            //Identity2.LOGGER.info("EntityLookupViewMixin not triggered!");
+    @Inject(
+            method = "getNearestEntity(Ljava/lang/Class;Lnet/minecraft/world/entity/ai/targeting/TargetingConditions;Lnet/minecraft/world/entity/LivingEntity;DDDLnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/entity/LivingEntity;",
+            at = @At("RETURN"),
+            cancellable = true
+    )
+    private static void identity2$redirectNearestIdentityToOwnerFromClass(
+            Class<? extends LivingEntity> type,
+            TargetingConditions predicate,
+            @Nullable LivingEntity target,
+            double x,
+            double y,
+            double z,
+            AABB box,
+            CallbackInfoReturnable<LivingEntity> cir
+    ) {
+        LivingEntity result = cir.getReturnValue();
+
+        if (result == null) {
+            return;
         }
+
+        if (Identity2.indexOverrideActive == 0) {
+            return;
         }
-        if(Identity2.indexOverrideActive!=0 && info.getReturnValue()!=null){
-        Entity returnvalue=((EntityAccessor)info.getReturnValue()).getIdentityOwner();
-        if(returnvalue!=null){
-            //Identity2.LOGGER.info("EntityLookupViewMixin trigger 2!");
-            info.setReturnValue(returnvalue);
-        }
+
+        Entity owner = ((EntityAccessor) result).getIdentityOwner();
+
+        if (owner instanceof LivingEntity livingOwner) {
+            cir.setReturnValue(livingOwner);
         }
     }
 }

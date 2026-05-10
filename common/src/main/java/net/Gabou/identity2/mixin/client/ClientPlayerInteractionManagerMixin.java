@@ -25,13 +25,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true, require = 0)
-    private void forceFlyIdentitySpectator(CallbackInfoReturnable<Boolean> info) {
-        if (identity2$hasFlyIdentity()) {
-            // 1.21.11 path: do not treat fly-capable identities as spectator-only behavior.
-            info.setReturnValue(false);
-        }
-    }
+//    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true, require = 0)
+//    private void forceFlyIdentitySpectator(CallbackInfoReturnable<Boolean> info) {
+//        if (identity2$hasFlyIdentity()) {
+//            // 1.21.11 path: do not treat fly-capable identities as spectator-only behavior.
+//            info.setReturnValue(false);
+//        }
+//    }
 
     @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true, require = 0)
     private void forceFlyIdentityAlwaysFlying(CallbackInfoReturnable<Boolean> info) {

@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.Gabou.identity2.client.render.MorphRenderContext;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
@@ -73,17 +74,22 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         identity2$syncIdentityForRender(entity, renderIdentity);
-        this.render(
-            (E) renderIdentity,
-            x,
-            y,
-            z,
-            tickProgress,
-            matrices,
-            vertexConsumers,
-            light,
-            (EntityRenderer<? super E, S>) identityRenderer
-        );
+        MorphRenderContext.begin(entity, renderIdentity, tickProgress);
+        try {
+            this.render(
+                (E) renderIdentity,
+                x,
+                y,
+                z,
+                tickProgress,
+                matrices,
+                vertexConsumers,
+                light,
+                (EntityRenderer<? super E, S>) identityRenderer
+            );
+        } finally {
+            MorphRenderContext.end();
+        }
     }
 
     private static void identity2$syncIdentityForRender(Entity source, Entity identity) {
