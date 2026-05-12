@@ -50,6 +50,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -58,6 +60,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
@@ -98,6 +101,9 @@ public final class IdentityProgression {
     public static final String TRANSITION_DURATION_TICKS_KEY = "identity2.transition_duration_ticks";
     public static final String BASE_PLAYER_TRANSITION_SENTINEL = "identity2:base_player";
     private static final String DAILY_RANDOM_MORPH_LAST_DAY_KEY = "identity2.daily_random_morph_last_day";
+    private static final String NETHER_CONVERSION_TICKS_KEY = "identity2.nether_conversion_ticks";
+    private static final String NETHER_CONVERSION_SOURCE_KEY = "identity2.nether_conversion_source";
+    private static final int NETHER_CONVERSION_TIME = 300;
     private static final Codec<List<String>> STRING_LIST_CODEC = Codec.STRING.listOf();
     private static final Codec<Map<String, Integer>> STRING_INT_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.INT);
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
@@ -116,6 +122,16 @@ public final class IdentityProgression {
         initialized = true;
         EntityEvent.LIVING_DEATH.register(IdentityProgression::onLivingDeath);
         PlayerEvent.CHANGE_DIMENSION.register(IdentityProgression::onPlayerChangeDimension);
+        registerNetherConversionMorphHandlers();
+    }
+
+    private static void registerNetherConversionMorphHandlers() {
+        IdentityApi.registerMorphTickHandler(EntityType.PIGLIN, (host, currentMorph) ->
+                tickNetherConversionMorph(host, currentMorph, EntityType.ZOMBIFIED_PIGLIN));
+        IdentityApi.registerMorphTickHandler(EntityType.PIGLIN_BRUTE, (host, currentMorph) ->
+                tickNetherConversionMorph(host, currentMorph, EntityType.ZOMBIFIED_PIGLIN));
+        IdentityApi.registerMorphTickHandler(EntityType.HOGLIN, (host, currentMorph) ->
+                tickNetherConversionMorph(host, currentMorph, EntityType.ZOGLIN));
     }
 
     private static void onPlayerChangeDimension(ServerPlayer player, ResourceKey<Level> from, ResourceKey<Level> to) {
@@ -130,6 +146,90 @@ public final class IdentityProgression {
         }
         ((PlayerManagerAccessor) player.level().getServer().getPlayerList())
                 .identity2$queueDelayedMorphReapply(player);
+    }
+
+    private static void tickNetherConversionMorph(Entity host, Entity currentMorph, EntityType<?> convertedType) {
+        if (!(host instanceof ServerPlayer player) || currentMorph == null || convertedType == null) {
+            return;
+        }
+        if (player.level() == null || player.level().isClientSide()) {
+            return;
+        }
+
+        CompoundTag customData = getCustomData(player);
+        ResourceLocation sourceId = EntityType.getKey(currentMorph.getType());
+        if (sourceId == null || !shouldNetherConvertMorph(player, currentMorph)) {
+            clearNetherConversionProgress(customData);
+            return;
+        }
+
+        String source = sourceId.toString();
+        String previousSource = customData.getStringOr(NETHER_CONVERSION_SOURCE_KEY, "");
+        int ticks = source.equals(previousSource) ? customData.getIntOr(NETHER_CONVERSION_TICKS_KEY, 0) : 0;
+        ticks++;
+
+        if (ticks <= NETHER_CONVERSION_TIME) {
+            customData.putString(NETHER_CONVERSION_SOURCE_KEY, source);
+            customData.putInt(NETHER_CONVERSION_TICKS_KEY, ticks);
+            return;
+        }
+
+        clearNetherConversionProgress(customData);
+        playNetherConversionSound(player, convertedType);
+        ResourceLocation convertedId = EntityType.getKey(convertedType);
+        if (convertedId == null) {
+            return;
+        }
+
+        CompoundTag convertedVariant = preserveBabyVariant(currentMorph);
+        if (replaceCurrentMorph(player, convertedId, convertedVariant)) {
+            Entity convertedIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            if (convertedIdentity instanceof Mob mobIdentity) {
+                mobIdentity.setNoAi(true);
+            }
+        }
+    }
+
+    private static boolean shouldNetherConvertMorph(ServerPlayer player, Entity currentMorph) {
+        if (player == null || currentMorph == null || player.level() == null) {
+            return false;
+        }
+        if (player.level().dimensionType().piglinSafe()) {
+            return false;
+        }
+        Object immune = invokeNoArg(currentMorph, "isImmuneToZombification");
+        return !(immune instanceof Boolean immuneValue && immuneValue);
+    }
+
+    private static void clearNetherConversionProgress(CompoundTag customData) {
+        if (customData == null) {
+            return;
+        }
+        customData.remove(NETHER_CONVERSION_TICKS_KEY);
+        customData.remove(NETHER_CONVERSION_SOURCE_KEY);
+    }
+
+    private static CompoundTag preserveBabyVariant(Entity currentMorph) {
+        CompoundTag variant = new CompoundTag();
+        Object baby = invokeNoArg(currentMorph, "isBaby");
+        if (baby instanceof Boolean babyValue && babyValue) {
+            variant.putBoolean("Baby", true);
+        }
+        return variant;
+    }
+
+    private static void playNetherConversionSound(ServerPlayer player, EntityType<?> convertedType) {
+        if (player == null || player.level() == null) {
+            return;
+        }
+        player.level().playSound(
+                null,
+                player.blockPosition(),
+                convertedType == EntityType.ZOGLIN ? SoundEvents.HOGLIN_CONVERTED_TO_ZOMBIFIED : SoundEvents.PIGLIN_CONVERTED_TO_ZOMBIFIED,
+                SoundSource.HOSTILE,
+                1.0F,
+                1.0F
+        );
     }
 
     public static List<String> getUnlockedIdentities(ServerPlayer player) {
@@ -285,17 +385,26 @@ public final class IdentityProgression {
     }
 
     public static boolean morph(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+        return morph(player, identityId, variantNbt, true);
+    }
+
+    public static boolean replaceCurrentMorph(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt) {
+        return morph(player, identityId, variantNbt, false);
+    }
+
+    private static boolean morph(ServerPlayer player, ResourceLocation identityId, CompoundTag variantNbt, boolean consumeCharge) {
         if (player == null || identityId == null) {
             return false;
         }
         CustomData customData = ((EntityAccessor) player).getCustomData();
         String value = identityId.toString();
         CompoundTag safeVariant = variantNbt == null ? new CompoundTag() : variantNbt.copy();
-        if (!MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
+        if (consumeCharge && !MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
             return false;
         }
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        clearNetherConversionProgress(nbt);
         double previousWidth = nbt.getDoubleOr("width_override", 0.0D);
         double previousHeight = nbt.getDoubleOr("height_override", 0.0D);
         if (previousWidth <= 0.0D) {
@@ -378,6 +487,7 @@ public final class IdentityProgression {
     public static void clearMorph(ServerPlayer player) {
         CustomData customData = ((EntityAccessor) player).getCustomData();
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        clearNetherConversionProgress(nbt);
         String previousType = resolveTransitionSourceType(nbt);
         String previousVariant = resolveTransitionSourceVariant(nbt, previousType);
         if (previousType.isBlank()) {
@@ -409,6 +519,7 @@ public final class IdentityProgression {
 
     public static void restoreMorphFromSavedData(ServerPlayer player) {
         CompoundTag nbt = getCustomData(player);
+        clearNetherConversionProgress(nbt);
         String type = nbt.getStringOr(SELECTED_IDENTITY_TYPE_KEY, "");
         if (type.isBlank()) {
             type = nbt.getStringOr("model_override", "");
