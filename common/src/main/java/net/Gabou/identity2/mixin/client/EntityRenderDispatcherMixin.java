@@ -53,7 +53,7 @@ public abstract class EntityRenderDispatcherMixin {
             return;
         }
 
-        IdentityRenderStateHelper.syncIdentityVisualState(entity, renderIdentity);
+        IdentityRenderStateHelper.syncIdentityVisualState(entity, renderIdentity, tickDelta);
         MorphRenderContext.begin(entity, renderIdentity, tickDelta);
         try {
             identity2$renderResolved(identityRenderer, renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
