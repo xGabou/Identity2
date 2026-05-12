@@ -2,8 +2,10 @@ package net.Gabou.identity2.client.render;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -22,6 +24,10 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 
 public final class MorphRenderStateHelper {
+    private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
+    private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
+    private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
+
     private MorphRenderStateHelper() {
     }
 
@@ -33,7 +39,7 @@ public final class MorphRenderStateHelper {
         applyAllayHoldingState(identity, renderState);
         applySyncedAbilityState(source, renderState);
         applyFlightState(source, identity, renderState, tickProgress);
-        applyAttackState(source, renderState);
+        applyAttackState(source, identity, renderState, tickProgress);
         applyMovementState(source, identity, renderState);
     }
 
@@ -58,11 +64,17 @@ public final class MorphRenderStateHelper {
 
     }
 
-    private static void applyAttackState(Entity source, EntityRenderState renderState) {
+    private static void applyAttackState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {
         if (!(source instanceof LivingEntity livingSource)) {
             return;
         }
         boolean attacking = livingSource.attackAnim > 0.0F || livingSource.swinging;
+        if (identity != null && identity.getType() == EntityType.IRON_GOLEM) {
+            float golemAttackTicks = resolveIronGolemAttackTicks(source, livingSource, attacking, tickProgress);
+            if (golemAttackTicks > 0.0F) {
+                setFloatFieldMax(renderState, "attackTicksRemaining", golemAttackTicks);
+            }
+        }
         if (!attacking) {
             return;
         }
@@ -70,6 +82,27 @@ public final class MorphRenderStateHelper {
         setBooleanFieldIfPresent(renderState, "attacking", true);
         setBooleanFieldIfPresent(renderState, "isAggressive", true);
         setFloatFieldMax(renderState, "rollAmount", livingSource.attackAnim);
+    }
+
+    private static float resolveIronGolemAttackTicks(Entity source, LivingEntity livingSource, boolean attacking, float tickProgress) {
+        int entityId = source.getId();
+        int previousSwingTime = IRON_GOLEM_LAST_SWING_TIMES.getOrDefault(entityId, -1);
+        int currentEndTick = IRON_GOLEM_ATTACK_END_TICKS.getOrDefault(entityId, 0);
+        boolean restartedSwing = livingSource.swinging && livingSource.swingTime <= 1 && previousSwingTime > 1;
+
+        if (attacking && (currentEndTick <= source.tickCount || restartedSwing)) {
+            currentEndTick = source.tickCount + IRON_GOLEM_ATTACK_ANIMATION_TICKS;
+            IRON_GOLEM_ATTACK_END_TICKS.put(entityId, currentEndTick);
+        }
+        IRON_GOLEM_LAST_SWING_TIMES.put(entityId, livingSource.swingTime);
+
+        float remaining = currentEndTick - (source.tickCount + tickProgress);
+        if (remaining <= 0.0F) {
+            IRON_GOLEM_ATTACK_END_TICKS.remove(entityId);
+            IRON_GOLEM_LAST_SWING_TIMES.remove(entityId);
+            return 0.0F;
+        }
+        return Math.min(IRON_GOLEM_ATTACK_ANIMATION_TICKS, remaining);
     }
 
     private static void applyMovementState(Entity source, Entity identity, EntityRenderState renderState) {
