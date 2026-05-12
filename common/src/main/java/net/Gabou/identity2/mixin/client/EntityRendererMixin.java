@@ -31,6 +31,8 @@ import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.monster.Ravager;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.warden.Warden;
@@ -276,6 +278,18 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
 
         if (identity instanceof IronGolem) {
             identity2$setIntFieldExact(identity, "attackAnimationTick", Math.max(0, PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)));
+        }
+
+        int attackTicks = Math.max(
+            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
+            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
+        );
+        if (identity instanceof Ravager) {
+            identity2$setIntFieldExact(identity, "attackTick", attackTicks);
+        }
+
+        if (identity instanceof Hoglin) {
+            identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
         }
 
         if (identity instanceof Warden) {
