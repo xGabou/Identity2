@@ -335,10 +335,11 @@ public class EntityMixin implements EntityAccessor {
                     mobIdentity.setNoAi(true);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
-                this.currentIdentity.tick();
-                //if(this.currentIdentity instanceof MobEntity mobIdentity){
-                //    mobIdentity.setAiDisabled(false);
-                //}
+                if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
+                    identityServerLevel.tickNonPassenger(this.currentIdentity);
+                } else {
+                    this.currentIdentity.tick();
+                }
             }
 
 
