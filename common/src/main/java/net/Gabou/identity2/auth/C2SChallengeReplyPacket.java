@@ -16,6 +16,11 @@ public record C2SChallengeReplyPacket(long nonce, String response, String launch
         );
     }
 
+    public C2SChallengeReplyPacket {
+        response = response == null ? "" : response;
+        launcherReason = launcherReason == null ? "" : launcherReason;
+    }
+
     @Override
     public ResourceLocation id() {
         return ID;
