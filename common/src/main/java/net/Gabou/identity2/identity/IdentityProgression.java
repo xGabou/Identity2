@@ -1929,6 +1929,13 @@ public final class IdentityProgression {
         if (adapterVariant != null && !adapterVariant.isEmpty()) {
             variant.merge(adapterVariant);
         }
+        Boolean actualBaby = detectBabyState(entity, null);
+        if (actualBaby == null) {
+            actualBaby = detectBabyState(entity, variant);
+        }
+        if (actualBaby != null) {
+            variant.putBoolean("IsBaby", actualBaby);
+        }
         return normalizeVariantForUnlock(variant);
     }
 
@@ -1938,14 +1945,9 @@ public final class IdentityProgression {
             return null;
         }
         if (variant != null) {
-            if (variant.getBoolean("IsBaby").isPresent()) {
-                return variant.getBooleanOr("IsBaby", false);
-            }
-            if (variant.getBoolean("Baby").isPresent()) {
-                return variant.getBooleanOr("Baby", false);
-            }
-            if (variant.getInt("Age").isPresent()) {
-                return variant.getInt("Age").get() < 0;
+            Boolean variantBaby = resolveBabyVariantFlag(variant);
+            if (variantBaby != null) {
+                return variantBaby;
             }
         }
 
@@ -1992,6 +1994,7 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
+        Boolean babyVariant = root ? resolveBabyVariantFlag(source) : null;
         for (String key : source.keySet()) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
@@ -2009,7 +2012,34 @@ public final class IdentityProgression {
             }
             out.put(key, tag.copy());
         }
+        if (Boolean.TRUE.equals(babyVariant)) {
+            out.putBoolean("IsBaby", true);
+        }
         return out;
+    }
+
+    @Nullable
+    private static Boolean resolveBabyVariantFlag(CompoundTag variant) {
+        if (variant == null || variant.isEmpty()) {
+            return null;
+        }
+        boolean sawBabyFlag = false;
+        if (variant.getBoolean("IsBaby").isPresent()) {
+            sawBabyFlag = true;
+            if (variant.getBooleanOr("IsBaby", false)) {
+                return true;
+            }
+        }
+        if (variant.getBoolean("Baby").isPresent()) {
+            sawBabyFlag = true;
+            if (variant.getBooleanOr("Baby", false)) {
+                return true;
+            }
+        }
+        if (variant.getInt("Age").isPresent()) {
+            return variant.getInt("Age").get() < 0;
+        }
+        return sawBabyFlag ? false : null;
     }
 
     private static boolean compoundContains(CompoundTag container, CompoundTag subset) {
