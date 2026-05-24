@@ -1,15 +1,14 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
-import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -19,7 +18,9 @@ import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
+import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,9 +33,7 @@ import java.lang.reflect.Method;
 
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
-    private static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
-    private static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
-    private static final String PUFFER_PUFF_TICKS_KEY = "identity2.pufferfish_puff_ticks";
+    private static final float ENDER_DRAGON_MORPH_FLAP_SPEED = 1.0F / 10.0F;
 
     @Shadow
     public abstract  <T extends Entity> EntityRenderer<? super T> getRenderer(T entity);
@@ -87,6 +86,7 @@ public abstract class EntityRenderDispatcherMixin {
         identity.setPosRaw(source.position().x, source.position().y, source.position().z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
+            identity2$syncEnderDragonFlapAnimation(source, (EnderDragon) identity);
         } else {
             identity.setYRot(source.getYRot());
         }
@@ -161,8 +161,19 @@ public abstract class EntityRenderDispatcherMixin {
             mobIdentity.setAggressive(livingSource.isUsingItem());
         }
 
+        if (source.isInWater()) {
+            identity.clearFire();
+            identity.setSharedFlagOnFire(false);
+        } else {
+            identity.setSharedFlagOnFire(identity.isOnFire());
+        }
         identity2$syncEntityAnimationState(source, identity);
-        identity.setSharedFlagOnFire(source.isOnFire());
+    }
+
+    private static void identity2$syncEnderDragonFlapAnimation(Entity source, EnderDragon dragonIdentity) {
+        float flapTime = source.tickCount * ENDER_DRAGON_MORPH_FLAP_SPEED;
+        dragonIdentity.oFlapTime = (source.tickCount - 1) * ENDER_DRAGON_MORPH_FLAP_SPEED;
+        dragonIdentity.flapTime = flapTime;
     }
 
     private static void identity2$syncLivingHealthForRender(LivingEntity source, LivingEntity identity) {
@@ -181,53 +192,32 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         if (identity instanceof IronGolem) {
-            identity2$setIntFieldExact(identity, "attackAnimationTick", identity2$getSyncedTicksRemaining(source, ANIM_ATTACK_TICKS_KEY));
+            identity2$setIntFieldExact(identity, "attackAnimationTick", PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY));
+        }
+
+        int attackTicks = Math.max(
+            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
+            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
+        );
+        if (identity instanceof Ravager) {
+            identity2$setIntFieldExact(identity, "attackTick", attackTicks);
+        }
+
+        if (identity instanceof Hoglin) {
+            identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
         }
 
         if (identity instanceof Warden) {
-            int beamStart = (int) identity2$getSyncedAnimationStartTick(source, ANIM_BEAM_TICKS_KEY);
-            int attackStart = (int) identity2$getSyncedAnimationStartTick(source, ANIM_ATTACK_TICKS_KEY);
-            identity2$syncAnimationStateField(identity, "sonicBoomAnimationState", identity2$isSyncedAnimationActive(source, ANIM_BEAM_TICKS_KEY), beamStart);
-            identity2$syncAnimationStateField(identity, "attackAnimationState", identity2$isSyncedAnimationActive(source, ANIM_ATTACK_TICKS_KEY), attackStart);
+            int beamStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY);
+            int attackStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
+            identity2$syncAnimationStateField(identity, "sonicBoomAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY), beamStart);
+            identity2$syncAnimationStateField(identity, "attackAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY), attackStart);
         }
 
         if (identity instanceof Pufferfish) {
-            int puffState = identity2$isSyncedAnimationActive(source, PUFFER_PUFF_TICKS_KEY) ? 2 : 0;
+            int puffState = PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY) ? 2 : 0;
             identity2$invokeOneArg(identity, "setPuffState", puffState);
         }
-    }
-
-    private static boolean identity2$isSyncedAnimationActive(Entity source, String key) {
-        if (source == null || key == null || key.isBlank()) {
-            return false;
-        }
-        return identity2$getStoredTickValue(source, key) > source.tickCount;
-    }
-
-    private static int identity2$getSyncedTicksRemaining(Entity source, String key) {
-        if (source == null || key == null || key.isBlank()) {
-            return 0;
-        }
-        return Math.max(0, (int) Math.ceil(identity2$getStoredTickValue(source, key) - source.tickCount));
-    }
-
-    private static double identity2$getSyncedAnimationStartTick(Entity source, String key) {
-        if (source == null || key == null || key.isBlank()) {
-            return 0.0D;
-        }
-        return identity2$getStoredTickValue(source, key + ".start");
-    }
-
-    private static double identity2$getStoredTickValue(Entity source, String key) {
-        if (!(source instanceof EntityAccessor accessor)) {
-            return 0.0D;
-        }
-        Object customData = accessor.getCustomData();
-        if (!(customData instanceof NbtComponentAccessor nbtAccessor)) {
-            return 0.0D;
-        }
-        CompoundTag nbt = nbtAccessor.getNbt();
-        return nbt.contains(key) ? nbt.getDouble(key) : 0.0D;
     }
 
     private static void identity2$syncAnimationStateField(Object target, String fieldName, boolean active, int startTick) {

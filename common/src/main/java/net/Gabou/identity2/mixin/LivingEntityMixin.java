@@ -269,9 +269,8 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
                 livingIdentity.setPos(this.position());
                 livingIdentity.setDeltaMovement(this.getDeltaMovement());
                 if (livingIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(false);
+                    mobIdentity.setNoAi(livingIdentity.getType() == EntityType.ENDER_DRAGON);
                 }
-                livingIdentity.aiStep();
                 this.setPos(livingIdentity.position());
                 this.setDeltaMovement(livingIdentity.getDeltaMovement());
                 //info.cancel();
@@ -408,6 +407,10 @@ private void identity2$playAmbientSound(CallbackInfo info) {
                 return;
             }
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            if (identity2$isOwnIdentityDamage(player, activeIdentity, source)) {
+                info.setReturnValue(true);
+                return;
+            }
             if (
                     activeIdentity != null
                             && activeIdentity.getType() == EntityType.ENDER_DRAGON
@@ -459,6 +462,32 @@ private void identity2$playAmbientSound(CallbackInfo info) {
             }
         }
     }
+    @Unique
+    private static boolean identity2$isOwnIdentityDamage(Player player, Entity activeIdentity, DamageSource source) {
+        if (player == null || activeIdentity == null || source == null) {
+            return false;
+        }
+        Entity attacker = source.getEntity();
+        Entity direct = source.getDirectEntity();
+        return identity2$isOwnedIdentityDamageEntity(player, activeIdentity, attacker)
+                || identity2$isOwnedIdentityDamageEntity(player, activeIdentity, direct);
+    }
+
+    @Unique
+    private static boolean identity2$isOwnedIdentityDamageEntity(Player player, Entity activeIdentity, Entity damageEntity) {
+        if (damageEntity == null) {
+            return false;
+        }
+        if (damageEntity == activeIdentity) {
+            return true;
+        }
+        try {
+            return ((EntityAccessor) damageEntity).getIdentityOwner() == player;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
         float idHeight = activeIdentity.getBbHeight();

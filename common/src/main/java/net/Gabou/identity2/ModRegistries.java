@@ -78,10 +78,15 @@ public final class ModRegistries {
         Registry<IdentityAbilityDefinition> previous = identityAbilityRegistry;
         identityAbilityRegistry = registry;
         if (previous != registry) {
+            String previousSource = identityAbilityRegistrySource;
+            boolean entrySetChanged = previous == null || !previous.keySet().equals(registry.keySet());
+
             identityAbilityRegistrySource = source == null || source.isBlank() ? "unknown" : source;
-            loggedMissingRegistryWarnings.clear();
-            loggedMissingDefinitionWarnings.clear();
-            loggedResolutionDebug.clear();
+            if (entrySetChanged || !identityAbilityRegistrySource.equals(previousSource)) {
+                loggedMissingRegistryWarnings.clear();
+                loggedMissingDefinitionWarnings.clear();
+                loggedResolutionDebug.clear();
+            }
             Identity2.LOGGER.debug(
                 "Identity ability registry became available from {} with {} entries.",
                 identityAbilityRegistrySource,
@@ -159,13 +164,24 @@ public final class ModRegistries {
 
     private static void logMissingDefinition(ResourceLocation typeId) {
         String key = String.valueOf(typeId);
-        if (loggedMissingDefinitionWarnings.add(key)) {
-            Identity2.LOGGER.warn(
+        if (!loggedMissingDefinitionWarnings.add(key)) {
+            return;
+        }
+
+        if (PredefIdentityAbilities.hasFallbackAbility(typeId)) {
+            Identity2.LOGGER.debug(
                 "No identity ability definition found for {} in the active identity ability registry from {}. Runtime fallback config will be used.",
                 typeId,
                 identityAbilityRegistrySource
             );
+            return;
         }
+
+        Identity2.LOGGER.warn(
+            "No identity ability definition found for {} in the active identity ability registry from {}.",
+            typeId,
+            identityAbilityRegistrySource
+        );
     }
 
     private static void logResolution(ResourceLocation requestedId, ResourceLocation resolvedEntryId, IdentityAbilityDefinition definition) {

@@ -34,16 +34,28 @@ public class AbstractArrowMixin {
         }
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity == null || identity.getType() != EntityType.BOGGED) {
+        if (identity == null) {
             return;
         }
 
         CustomData customData = ((EntityAccessor) arrow).getCustomData();
-        if (NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) customData).getNbt(), "identity2.bogged_poison_arrow", false)) {
+        if (identity.getType() == EntityType.BOGGED) {
+            if (NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) customData).getNbt(), "identity2.bogged_poison_arrow", false)) {
+                return;
+            }
+
+            tippedArrow.addEffect(new MobEffectInstance(MobEffects.POISON, 100));
+            ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean("identity2.bogged_poison_arrow", true);
             return;
         }
 
-        tippedArrow.addEffect(new MobEffectInstance(MobEffects.POISON, 100));
-        ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean("identity2.bogged_poison_arrow", true);
+        if (identity.getType() == EntityType.STRAY) {
+            if (NbtCompat.getBooleanOr(((NbtComponentAccessor) (Object) customData).getNbt(), "identity2.stray_slowness_arrow", false)) {
+                return;
+            }
+
+            tippedArrow.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 600));
+            ((NbtComponentAccessor) (Object) customData).getNbt().putBoolean("identity2.stray_slowness_arrow", true);
+        }
     }
 }

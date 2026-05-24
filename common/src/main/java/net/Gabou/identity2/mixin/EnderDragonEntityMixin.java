@@ -38,4 +38,3 @@ public class EnderDragonEntityMixin implements net.Gabou.identity2.util.EnderDra
     public int getTicksUntilNextGrowl(){return this.growlTime;};
     public void runTickWithEndCrystals(){this.checkCrystals();};
 }
-
