@@ -56,7 +56,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
-    private static void playerConnectAuthInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
+    private void playerConnectAuthInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
         if (!ServerAuth.onLogin(connection, player)) {
             info.cancel();
             return;

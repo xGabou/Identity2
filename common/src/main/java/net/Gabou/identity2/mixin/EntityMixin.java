@@ -165,6 +165,7 @@ public class EntityMixin implements EntityAccessor {
         block.updateEntityAfterFallOn(view, entity);
     }
 
+
     @Inject(method = "tick", at = @At("HEAD"))
     private void identityFixCanFlyCheck(CallbackInfo info) {
         //this.identity2$applyShulkerOpenVisualState();
@@ -1671,9 +1672,17 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         }
     }
 
-    @Inject(method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), cancellable = true)
-    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player player && source != null) {
+    @Inject(
+            method = "isInvulnerableTo(Lnet/minecraft/world/damagesource/DamageSource;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if ((Object) this instanceof Player player && source != null) {
+            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
+                info.setReturnValue(true);
+                return;
+            }
             if (player.getAbilities().instabuild || player.isSpectator()) {
                 if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                     return;
@@ -1681,6 +1690,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             if (
                     this.currentIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1690,7 +1700,9 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+
             if (
                     activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1711,12 +1723,16 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 info.setReturnValue(true);
                 return;
             }
+
             boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;
             }
+
+            return;
         }
+
         if (this.currentIdentity != null) {
             if (this.currentIdentity instanceof LivingEntity livingIdentity) {
                 info.setReturnValue(livingIdentity.isInvulnerableTo(source));

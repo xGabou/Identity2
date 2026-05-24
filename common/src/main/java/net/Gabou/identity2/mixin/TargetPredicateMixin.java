@@ -33,11 +33,11 @@ public class TargetPredicateMixin {
     private static final ThreadLocal<Boolean> identity2$replaceTargetWithIdentity = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @Inject(
-            method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+            method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void identity2$skipHostileVsHostileMorph(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+    private void identity2$skipHostileVsHostileMorph( @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         identity2$replaceTargetWithIdentity.set(Boolean.FALSE);
 
         if (!IdentitySettings.hostilesIgnoreHostileIdentityPlayer) {
@@ -68,10 +68,10 @@ public class TargetPredicateMixin {
     }
 
     @Inject(
-            method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+            method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at = @At("HEAD")
     )
-    private void identity2$prepareTargetReplacement(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+    private void identity2$prepareTargetReplacement( @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         if (!(target instanceof Player)) {
             return;
         }
@@ -85,15 +85,15 @@ public class TargetPredicateMixin {
     }
 
     @Inject(
-            method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+            method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at = @At("RETURN")
     )
-    private void identity2$clearTargetReplacement(ServerLevel world, @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+    private void identity2$clearTargetReplacement( @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         identity2$replaceTargetWithIdentity.remove();
     }
 
     @ModifyVariable(
-            method = "test(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+            method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at = @At("HEAD"),
             index = 2
     )
