@@ -270,10 +270,11 @@ public class EntityMixin implements EntityAccessor{
                     mobIdentity.setNoAi(false);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
-                this.currentIdentity.tick();
-                //if(this.currentIdentity instanceof MobEntity mobIdentity){
-                //    mobIdentity.setAiDisabled(false);
-                //}
+                if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
+                    identityServerLevel.tickNonPassenger(this.currentIdentity);
+                } else {
+                    this.currentIdentity.tick();
+                }
             }
             if (hostIsPlayer) {
                 // For players, keep vanilla movement/gravity authoritative.
@@ -332,7 +333,11 @@ public class EntityMixin implements EntityAccessor{
     @Unique
     private void identity2$applySyncedMorphState(Entity identity) {
         if (identity instanceof Armadillo armadillo) {
-            boolean shellActive = ((NbtComponentAccessor) (Object) this.customData).getNbt().getBooleanOr("identity2.armadillo_shell", false);
+            boolean shellActive = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                    ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt(),
+                    "identity2.armadillo_shell",
+                    false
+            );
             if (shellActive) {
                 armadillo.rollUp();
             } else {
@@ -373,7 +378,7 @@ public class EntityMixin implements EntityAccessor{
         if (sunBurnTick) {
             player.igniteForSeconds(8.0F);
             if (player.tickCount % 20 == 0 && player.level() instanceof ServerLevel serverLevel) {
-                player.hurtServer(serverLevel, player.damageSources().onFire(), 1.0F);
+                player.hurt(player.damageSources().onFire(), 1.0F);
             }
             this.identity2$morphSunBurning = true;
         } else if (this.identity2$morphSunBurning) {
@@ -1128,6 +1133,34 @@ public class EntityMixin implements EntityAccessor{
                 Object result = method.invoke(target);
                 return result == null ? target : result;
             } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeTwoArgs(Object target, String methodName, Object firstArg, Object secondArg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 2) {
+                    continue;
+                }
+                Class<?>[] params = method.getParameterTypes();
+                if (firstArg != null && !params[0].isAssignableFrom(firstArg.getClass())) {
+                    continue;
+                }
+                if (secondArg != null && !params[1].isAssignableFrom(secondArg.getClass())) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    return method.invoke(target, firstArg, secondArg);
+                } catch (Throwable ignored) {
+                }
             }
         }
         return null;

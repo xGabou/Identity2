@@ -26,6 +26,8 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
@@ -70,6 +72,7 @@ public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
     // Keep this tunable to match in-game feel.
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
+    private static final double LARGE_MORPH_DAMAGE_GRACE_TICKS = 40.0D;
     private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
     private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = "morph_attribute_base_";
     private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = "morph_attribute_modifier_";
@@ -100,7 +103,6 @@ public final class IdentityProgression {
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
     private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
-    private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -196,7 +198,7 @@ public final class IdentityProgression {
         }
 
         CompoundTag nbt = getCustomData(player);
-        double endTick = nbt.getDoubleOr(HOSTILE_IDENTITY_GRACE_END_TICK_KEY, 0.0D);
+        double endTick = NbtCompat.getDoubleOr(nbt, HOSTILE_IDENTITY_GRACE_END_TICK_KEY, 0.0D);
         return endTick > 0.0D && player.level().getGameTime() < endTick;
     }
 
@@ -667,7 +669,7 @@ public final class IdentityProgression {
 
         int removed = Math.max(0, unlocked.size() - retained.size());
         storeUnlockedIdentityData(customData, retained, retainedVariants);
-        customData.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
+        NbtCompat.store(customData, IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
         if (removed > 0) {
             player.displayClientMessage(
                     Component.literal("All unlocked identities were removed."),
@@ -712,9 +714,6 @@ public final class IdentityProgression {
 
         int kills = incrementKillCount(player, unlockTarget.identityId(), unlockTarget.variantNbt());
         int requiredKills = Math.max(1, IdentitySettings.identityKillsRequired);
-        if (IdentitySettings.killForIdentity) {
-            requiredKills = Math.max(requiredKills, IdentitySettings.requiredKillsForIdentity);
-        }
         if (kills < requiredKills) {
             return EventResult.pass();
         }
@@ -945,7 +944,7 @@ public final class IdentityProgression {
         } catch (RuntimeException exception) {
             Identity2.LOGGER.error(
                     "Failed to serialize unlocked identity payload for player={} uuid={} entityId={} payload={}",
-                    player.getGameProfile().name(),
+                    player.getGameProfile().getName(),
                     player.getUUID(),
                     player.getId(),
                     payload,
@@ -963,7 +962,7 @@ public final class IdentityProgression {
     }
 
     public static void logOversizedIdentityPayload(ServerPlayer player, UnlockedIdentitySyncS2CPacketPayload payload, int serializedSize, String reason) {
-        String playerName = player.getGameProfile().name();
+        String playerName = player.getGameProfile().getName();
         String playerUuid = player.getUUID().toString();
         int identityCount = payload.unlockedIdentityIds() == null ? 0 : payload.unlockedIdentityIds().size();
         int variantCount = payload.unlockedVariantEntries() == null ? 0 : payload.unlockedVariantEntries().size();
@@ -1001,8 +1000,8 @@ public final class IdentityProgression {
 
         List<String> normalizedUnlocked = normalizeUnlockedIdentityIds(unlocked);
         Map<String, List<String>> normalizedVariants = normalizeUnlockedIdentityVariantUnlocks(variantUnlocks);
-        customData.store(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, normalizedUnlocked);
-        customData.store(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, normalizedVariants);
+        NbtCompat.store(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC, normalizedUnlocked);
+        NbtCompat.store(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC, normalizedVariants);
         customData.remove(UNLOCKED_IDENTITIES_CACHE_KEY);
         customData.remove(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY);
     }
@@ -1036,12 +1035,12 @@ public final class IdentityProgression {
             return List.of();
         }
 
-        List<String> unlocked = customData.read(UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of());
+        List<String> unlocked = NbtCompat.read(customData, UNLOCKED_IDENTITIES_KEY, STRING_LIST_CODEC).orElse(List.of());
         if (!unlocked.isEmpty()) {
             return unlocked;
         }
 
-        String legacy = customData.getStringOr(UNLOCKED_IDENTITIES_CACHE_KEY, "");
+        String legacy = NbtCompat.getStringOr(customData, UNLOCKED_IDENTITIES_CACHE_KEY, "");
         if (legacy.isBlank()) {
             return List.of();
         }
@@ -1060,13 +1059,13 @@ public final class IdentityProgression {
         }
 
         Map<String, List<String>> unlockedVariants = new HashMap<>(
-                customData.read(UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
+                NbtCompat.read(customData, UNLOCKED_IDENTITY_VARIANTS_KEY, STRING_LIST_MAP_CODEC).orElse(Map.of())
         );
         if (!unlockedVariants.isEmpty()) {
             return unlockedVariants;
         }
 
-        String legacy = customData.getStringOr(UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
+        String legacy = NbtCompat.getStringOr(customData, UNLOCKED_IDENTITY_VARIANTS_CACHE_KEY, "");
         if (legacy.isBlank()) {
             return Map.of();
         }
@@ -1858,6 +1857,13 @@ public final class IdentityProgression {
         if (adapterVariant != null && !adapterVariant.isEmpty()) {
             variant.merge(adapterVariant);
         }
+        Boolean actualBaby = detectBabyState(entity, null);
+        if (actualBaby == null) {
+            actualBaby = detectBabyState(entity, variant);
+        }
+        if (actualBaby != null) {
+            variant.putBoolean("IsBaby", actualBaby);
+        }
         return normalizeVariantForUnlock(variant);
     }
 
@@ -1867,16 +1873,9 @@ public final class IdentityProgression {
             return null;
         }
         if (variant != null) {
-            if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
-                return NbtCompat.getBooleanOr(variant, "IsBaby", false);
-            }
-
-            if (variant.contains("Baby", Tag.TAG_BYTE)) {
-                return NbtCompat.getBooleanOr(variant, "Baby", false);
-            }
-
-            if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
-                return NbtCompat.getIntOr(variant, "Age", 0) < 0;
+            Boolean variantBaby = resolveBabyVariantFlag(variant);
+            if (variantBaby != null) {
+                return variantBaby;
             }
         }
 
@@ -1923,12 +1922,19 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
+        Boolean babyVariant = root ? resolveBabyVariantFlag(source) : null;
         for (String key : source.getAllKeys()) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
             }
             Tag tag = source.get(key);
             if (tag == null) {
+                continue;
+            }
+            if (root && ("IsBaby".equals(key) || "Baby".equals(key))) {
+                if (source.contains(key, Tag.TAG_BYTE) && NbtCompat.getBooleanOr(source, key, false)) {
+                    out.putBoolean("IsBaby", true);
+                }
                 continue;
             }
             if (tag instanceof CompoundTag nested) {
@@ -1940,7 +1946,34 @@ public final class IdentityProgression {
             }
             out.put(key, tag.copy());
         }
+        if (Boolean.TRUE.equals(babyVariant)) {
+            out.putBoolean("IsBaby", true);
+        }
         return out;
+    }
+
+    @Nullable
+    private static Boolean resolveBabyVariantFlag(CompoundTag variant) {
+        if (variant == null || variant.isEmpty()) {
+            return null;
+        }
+        boolean sawBabyFlag = false;
+        if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
+            sawBabyFlag = true;
+            if (NbtCompat.getBooleanOr(variant, "IsBaby", false)) {
+                return true;
+            }
+        }
+        if (variant.contains("Baby", Tag.TAG_BYTE)) {
+            sawBabyFlag = true;
+            if (NbtCompat.getBooleanOr(variant, "Baby", false)) {
+                return true;
+            }
+        }
+        if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+            return NbtCompat.getIntOr(variant, "Age", 0) < 0;
+        }
+        return sawBabyFlag ? false : null;
     }
 
     private static boolean compoundContains(CompoundTag container, CompoundTag subset) {

@@ -1,6 +1,7 @@
 package net.Gabou.identity2.identity;
 
 import net.Gabou.identity2.util.EntityNbtIoCompat;
+import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
@@ -140,13 +141,13 @@ public final class IdentityVariantNbtHelper {
         if (variantNbt == null || variantNbt.isEmpty()) {
             return false;
         }
-        if (variantNbt.getBoolean("IsBaby").isPresent() && variantNbt.getBooleanOr("IsBaby", false)) {
+        if (variantNbt.contains("IsBaby", Tag.TAG_BYTE) && NbtCompat.getBooleanOr(variantNbt, "IsBaby", false)) {
             return true;
         }
-        if (variantNbt.getBoolean("Baby").isPresent() && variantNbt.getBooleanOr("Baby", false)) {
+        if (variantNbt.contains("Baby", Tag.TAG_BYTE) && NbtCompat.getBooleanOr(variantNbt, "Baby", false)) {
             return true;
         }
-        return variantNbt.getInt("Age").isPresent() && variantNbt.getInt("Age").get() < 0;
+        return variantNbt.contains("Age", Tag.TAG_ANY_NUMERIC) && NbtCompat.getIntOr(variantNbt, "Age", 0) < 0;
     }
 
     private static boolean isIgnoredRootKey(String key) {

@@ -15,6 +15,7 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.Gabou.identity2.util.ShulkerEntityAccessor;
 import net.minecraft.core.BlockPos;
@@ -351,7 +352,7 @@ public final class PredefIdentityAbilities {
                     return;
                 }
                 CompoundTag nbt = ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
-                boolean shellActive = !nbt.getBooleanOr("identity2.armadillo_shell", false);
+                boolean shellActive = !NbtCompat.getBooleanOr(nbt, "identity2.armadillo_shell", false);
                 IdentityApi.syncBoolean(serverPlayer, "identity2.armadillo_shell", shellActive);
             }
         });
