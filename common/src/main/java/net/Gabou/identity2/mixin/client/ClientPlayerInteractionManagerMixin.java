@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true)
     private void forceFlyIdentity(CallbackInfoReturnable<Boolean> info) {
         Player player = Minecraft.getInstance().player;
         if (player == null) {
@@ -42,8 +42,8 @@ public class ClientPlayerInteractionManagerMixin {
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity != null && ((EntityAccessor) identity).canFly()) {
-            // Keep flight unlocked for fly-capable identities.
-            info.setReturnValue(false);
+            // Keep flight enabled for fly-capable identities.
+            info.setReturnValue(true);
         }
     }
 
