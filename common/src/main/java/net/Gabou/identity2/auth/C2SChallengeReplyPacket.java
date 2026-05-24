@@ -12,6 +12,11 @@ public record C2SChallengeReplyPacket(long nonce, String response, String launch
         return new C2SChallengeReplyPacket(buffer.readLong(), buffer.readUtf(128), buffer.readUtf(256));
     }
 
+    public C2SChallengeReplyPacket {
+        response = response == null ? "" : response;
+        launcherReason = launcherReason == null ? "" : launcherReason;
+    }
+
     @Override
     public ResourceLocation id() {
         return ID;

@@ -46,6 +46,7 @@ public final class IdentityRenderStateHelper {
         ((EntityAccessor) identity).setLastPosition(new Vec3(source.xOld, source.yOld, source.zOld));
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
+            syncLivingHealthForRender(livingSource, livingIdentity);
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping()
                     != ((LivingEntityAccessor) livingSource).identity2$isJumping()) {
                 livingIdentity.setJumping(((LivingEntityAccessor) livingSource).identity2$isJumping());
@@ -123,6 +124,16 @@ public final class IdentityRenderStateHelper {
             identity.setSharedFlagOnFire(identity.isOnFire());
         }
         syncEntityAnimationState(source, identity, tickDelta);
+    }
+
+    private static void syncLivingHealthForRender(LivingEntity source, LivingEntity identity) {
+        float sourceMaxHealth = source.getMaxHealth();
+        float identityMaxHealth = identity.getMaxHealth();
+        if (sourceMaxHealth <= 0.0F || identityMaxHealth <= 0.0F) {
+            return;
+        }
+        float scaledHealth = source.getHealth() * (identityMaxHealth / sourceMaxHealth);
+        identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
     }
 
     private static void syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {

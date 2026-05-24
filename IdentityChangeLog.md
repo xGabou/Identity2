@@ -1,6 +1,25 @@
 # Identity2 Public Changelog
 
 ---
+## 2026-04-29
+
+### Ability and Behavior Fixes
+
+- Fixed and added several identity abilities and behavior hooks across supported branches.
+- Restored Ender Dragon animation handling and destructive behavior.
+- Fixed Iron Golem health synchronization.
+- Fixed Ravager, Iron Golem, and Hoglin attack animations.
+- Unlocked baby variants where supported.
+- Restored sunlight burning damage behavior.
+- Added Shulker teleportation and attack behavior.
+- Added Guardian attack behavior.
+- Added several additional ability fixes and behavior improvements.
+
+### Notes
+
+- For the full changelog, check previous Discord posts.
+
+---
 
 ## 1.3.4
 
