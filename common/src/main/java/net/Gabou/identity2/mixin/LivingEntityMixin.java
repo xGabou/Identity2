@@ -368,8 +368,8 @@ private void isAffectedBySplashPotionsIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "getLastHurtByPlayerMemoryTime()I", at=@At("HEAD"),cancellable=true)
-private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
+@Inject(method = "getLastHurtByMobTimestamp()I", at=@At("HEAD"),cancellable=true)
+private void getPlayerHitTimerIdentity(CallbackInfoReturnable<Integer> info){
     if(this.identityOf!=null){
         if(this.identityOf instanceof LivingEntity livingIdentity){
             info.setReturnValue(livingIdentity.getLastHurtByMobTimestamp());
@@ -549,25 +549,6 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
     }
 }
 
-
-@Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at=@At("HEAD"),cancellable=true)
-private void getEquippedStackIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-                return;
-            }
-            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-                return;
-            }
-            if(!identity2$canUseSlot(livingIdentity, slot)){
-                info.setReturnValue(Items.AIR.getDefaultInstance());
-            }
-        }
-    }
-}
 @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
 private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
