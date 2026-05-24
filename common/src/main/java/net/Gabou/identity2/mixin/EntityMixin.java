@@ -354,7 +354,11 @@ public class EntityMixin implements EntityAccessor {
                 }
 
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
-                this.currentIdentity.tick();
+                if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
+                    identityServerLevel.tickNonPassenger(this.currentIdentity);
+                } else {
+                    this.currentIdentity.tick();
+                }
                 if (
                         hostIsPlayer &&
                                 (Entity) (Object) this instanceof ServerPlayer serverPlayer &&
