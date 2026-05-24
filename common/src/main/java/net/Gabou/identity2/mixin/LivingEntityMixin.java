@@ -379,73 +379,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable<Integer> info){
 
 
 
-    @Inject(
-            method = "isInvulnerableTo(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)Z",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void isInvulnerableToIdentity(ServerLevel world, DamageSource source, CallbackInfoReturnable<Boolean> info) {
-        if ((Object) this instanceof Player player) {
-            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
-                info.setReturnValue(true);
-                return;
-            }
-            if (player.getAbilities().instabuild || player.isSpectator()) {
-                if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-                    return;
-                }
-                info.setReturnValue(true);
-                return;
-            }
 
-            if (
-                    this.currentIdentity != null
-                            && source.is(DamageTypes.IN_WALL)
-                            && player.isInWater()
-                            && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(this.currentIdentity.getType()))
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-
-            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-
-            if (
-                    activeIdentity != null
-                            && source.is(DamageTypes.IN_WALL)
-                            && identity2$shouldIgnoreMorphSuffocation(player, activeIdentity)
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-
-            if (
-                    activeIdentity != null
-                            && identity2$isFallDamage(source)
-                            && (
-                            activeIdentity.getType() == EntityType.CHICKEN
-                                    || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
-                    )
-            ) {
-                info.setReturnValue(true);
-                return;
-            }
-
-            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
-            if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
-                info.setReturnValue(true);
-                return;
-            }
-
-            return;
-        }
-
-        if (this.currentIdentity != null) {
-            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                info.setReturnValue(livingIdentity.isInvulnerableTo(source));
-            }
-        }
-    }
 
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
