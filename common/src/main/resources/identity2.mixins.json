@@ -38,6 +38,7 @@
     "LimbAnimatorMixin",
     "LivingEntityMixin",
     "MinecraftServerMixin",
+    "MobEquipmentMixin",
     "NbtComponentMixin",
     "PlayerEntityMixin",
     "PlayerInventoryMixin",

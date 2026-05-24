@@ -75,6 +75,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -85,8 +86,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor{
-    @Shadow
-    private CustomData customData;
+    @Unique
+    private static final String IDENTITY2_CUSTOM_DATA_KEY = "data";
+    @Unique
+    private CustomData customData = CustomData.EMPTY;
     @Shadow
     private int id;
     @Shadow
@@ -110,14 +113,28 @@ public class EntityMixin implements EntityAccessor{
     public final void setPos(Vec3 v){return;}
     @Shadow
     public void setDeltaMovement(Vec3 v){return;}
-    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOA(double x){
-        return Identity2.maxWorldSize;
+    @Inject(method = "saveWithoutId", at = @At("RETURN"))
+    private void identity2$saveCustomData(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
+        CompoundTag target = cir.getReturnValue() == null ? tag : cir.getReturnValue();
+        if (target == null) {
+            return;
+        }
+        if (this.customData == null || this.customData.isEmpty()) {
+            target.remove(IDENTITY2_CUSTOM_DATA_KEY);
+            return;
+        }
+        target.put(IDENTITY2_CUSTOM_DATA_KEY, this.customData.copyTag());
     }
-    @ModifyConstant(constant=@Constant(doubleValue=-3.0E7),method="absSnapTo(DDD)V")
-    private static double TDIOB(double x){
-        return -Identity2.maxWorldSize;
+
+    @Inject(method = "load", at = @At("RETURN"))
+    private void identity2$loadCustomData(CompoundTag tag, CallbackInfo ci) {
+        if (tag != null && tag.contains(IDENTITY2_CUSTOM_DATA_KEY, Tag.TAG_COMPOUND)) {
+            this.customData = CustomData.of(tag.getCompound(IDENTITY2_CUSTOM_DATA_KEY).copy());
+        } else {
+            this.customData = CustomData.EMPTY;
+        }
     }
+
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityMovementAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
     private void moveOnEntityLandOverride(Block block, BlockGetter view,Entity entity){
@@ -250,8 +267,8 @@ public class EntityMixin implements EntityAccessor{
         }
     }
 
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), cancellable = true, require = 0)
-    private void identity2$preventAttachedIdentityDimensionTravel(CallbackInfoReturnable<Entity> cir) {
+    @Inject(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityDimensionTravel(TeleportTransition transition, CallbackInfoReturnable<Entity> cir) {
         if (this.identityOf != null) {
             cir.setReturnValue(null);
         }
@@ -788,8 +805,8 @@ public class EntityMixin implements EntityAccessor{
 
 
 
-    @Inject(method="isClientAuthoritative",at=@At("HEAD"),cancellable=true)
-    private void isControlledByPlayerOverride(CallbackInfoReturnable info){
+    @Inject(method="isControlledByClient",at=@At("HEAD"),cancellable=true)
+    private void isControlledByPlayerOverride(CallbackInfoReturnable<Boolean> info){
         if(this.identityOf!=null){
             info.setReturnValue(false);
         }
@@ -1875,23 +1892,8 @@ private void getSoundCategoryIdentity(CallbackInfoReturnable info){
     }
 }
 
-@Inject(method = "getInterpolation()Lnet/minecraft/world/entity/InterpolationHandler;", at=@At("HEAD"),cancellable=true)
-private void getInterpolatorIdentity(CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        info.cancel();
-    }
-}
-
-@Inject(method = "canBeCollidedWith(Lnet/minecraft/world/entity/Entity;)Z", at=@At("HEAD"),cancellable=true)
-private void isCollidableIdentity(@Nullable Entity entity, CallbackInfoReturnable info){
-    try{
-        if(entity!=null){
-            if(((EntityAccessor)entity).getIdentityOwner()!=null){
-                info.setReturnValue(false);
-                return;
-            }
-        }
-    }catch(Exception e){int x=0;}
+@Inject(method = "canBeCollidedWith()Z", at=@At("HEAD"),cancellable=true)
+private void isCollidableIdentity(CallbackInfoReturnable<Boolean> info){
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.canBeCollidedWith());
     }

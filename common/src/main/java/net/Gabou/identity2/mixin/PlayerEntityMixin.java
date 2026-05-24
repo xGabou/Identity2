@@ -40,8 +40,11 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.MorphEntityTraits;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.IdentityEquipmentHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 @Mixin(Player.class)
 public class PlayerEntityMixin extends LivingEntityMixin{
     @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
@@ -70,6 +73,15 @@ public class PlayerEntityMixin extends LivingEntityMixin{
             WardenBurrowManager.stop(serverPlayer, true);
         }
     }
+
+    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
+    private void identity2$getItemBySlot(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> cir) {
+        ItemStack blocked = IdentityEquipmentHelper.getBlockedSlotStack((Entity) (Object) this, slot);
+        if (blocked != null) {
+            cir.setReturnValue(blocked);
+        }
+    }
+
     @Inject(method = "interactOn(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
     private void identity2$rideAsIdentity(Entity target, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         Player player = (Player) (Object) this;

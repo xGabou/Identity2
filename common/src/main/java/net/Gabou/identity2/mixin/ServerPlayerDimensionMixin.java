@@ -4,6 +4,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.portal.TeleportTransition;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -11,8 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ServerPlayer.class)
 public class ServerPlayerDimensionMixin {
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), require = 0)
-    private void identity2$discardIdentityBeforeDimensionTravel(CallbackInfoReturnable<?> cir) {
+    @Inject(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/server/level/ServerPlayer;", at = @At("HEAD"))
+    private void identity2$discardIdentityBeforeDimensionTravel(TeleportTransition transition, CallbackInfoReturnable<ServerPlayer> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
         if (currentIdentity != null) {
@@ -24,8 +25,8 @@ public class ServerPlayerDimensionMixin {
         }
     }
 
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("RETURN"), require = 0)
-    private void identity2$pruneIdentityAfterDimensionTravel(CallbackInfoReturnable<?> cir) {
+    @Inject(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/server/level/ServerPlayer;", at = @At("RETURN"))
+    private void identity2$pruneIdentityAfterDimensionTravel(TeleportTransition transition, CallbackInfoReturnable<ServerPlayer> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         if (player.level() instanceof ServerLevel level) {
             identity2$pruneAttachedIdentities(level, player);
