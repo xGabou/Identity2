@@ -2,6 +2,8 @@ package net.Gabou.identity2.auth;
 
 import java.util.Map;
 import java.util.UUID;
+import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModNetworking;
@@ -22,6 +24,14 @@ public final class ServerAuth {
 
         PendingAuthManager.clear(player);
         SuspiciousPlayers.clear(player);
+
+        if (Platform.isDevelopmentEnvironment()) {
+            Identity2.LOGGER.info(
+                    "Skipping launcher/auth checks for {} because the game is running in a development environment.",
+                    player.getGameProfile().getName()
+            );
+            return true;
+        }
 
         if (AuthGuards.isLikelyOfflineUuid(player) && IdentitySettings.authStrictOfflineUuidReject) {
             Identity2.LOGGER.warn(
