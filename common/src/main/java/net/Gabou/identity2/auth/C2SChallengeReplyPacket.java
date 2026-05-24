@@ -18,6 +18,11 @@ public record C2SChallengeReplyPacket(long nonce, String response, String launch
         C2SChallengeReplyPacket::new
     );
 
+    public C2SChallengeReplyPacket {
+        response = response == null ? "" : response;
+        launcherReason = launcherReason == null ? "" : launcherReason;
+    }
+
     @Override
     public Type<? extends CustomPacketPayload> type() {
         return ID;
