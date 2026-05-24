@@ -25,6 +25,7 @@
     "FishingBobberEntityMixin",
     "BlockPosMixin",
     "EntityMixin",
+    "MobEquipmentMixin",
     "ServerPlayerDimensionMixin",
     "WorldBorderMixin",
     "WorldBorderMixin$SettingsMixin",

@@ -290,15 +290,15 @@ public class EntityMixin implements EntityAccessor {
             ci.cancel();
         }
     }
-    @Inject(method = "canUsePortal", at = @At("HEAD"), cancellable = true, require = 0)
-    private void identity2$preventAttachedIdentityPortalUse(CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "canChangeDimensions()Z", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityDimensionChange(CallbackInfoReturnable<Boolean> cir) {
         if (this.identityOf != null) {
             cir.setReturnValue(false);
         }
     }
 
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), cancellable = true, require = 0)
-    private void identity2$preventAttachedIdentityDimensionTravel(CallbackInfoReturnable<Entity> cir) {
+    @Inject(method = "changeDimension(Lnet/minecraft/server/level/ServerLevel;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityDimensionTravel(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
         if (this.identityOf != null) {
             cir.setReturnValue(null);
         }
