@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ServerPlayer.class)
 public class ServerPlayerDimensionMixin {
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("HEAD"), require = 0)
-    private void identity2$discardIdentityBeforeDimensionTravel(CallbackInfoReturnable<?> cir) {
+    @Inject(method = "changeDimension(Lnet/minecraft/server/level/ServerLevel;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"))
+    private void identity2$discardIdentityBeforeDimensionTravel(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
         if (currentIdentity != null) {
@@ -24,8 +24,8 @@ public class ServerPlayerDimensionMixin {
         }
     }
 
-    @Inject(method = {"teleport", "changeDimension"}, at = @At("RETURN"), require = 0)
-    private void identity2$pruneIdentityAfterDimensionTravel(CallbackInfoReturnable<?> cir) {
+    @Inject(method = "changeDimension(Lnet/minecraft/server/level/ServerLevel;)Lnet/minecraft/world/entity/Entity;", at = @At("RETURN"))
+    private void identity2$pruneIdentityAfterDimensionTravel(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         if (player.level() instanceof ServerLevel level) {
             identity2$pruneAttachedIdentities(level, player);
