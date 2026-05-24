@@ -26,6 +26,7 @@
     "BlockPosMixin",
     "EntityMixin",
     "ServerPlayNetworkHandlerMixin",
+    "MobEquipmentMixin",
     "PlayerInventoryMixin",
     "EntityEquipmentMixin",
     "PlayerManagerMixin",

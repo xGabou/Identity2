@@ -589,7 +589,6 @@ private void identity2$playAmbientSound(CallbackInfo info) {
         }
     }
 
-
     @Inject(method = "getMainHandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getMainHandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
         if (this.currentIdentity instanceof LivingEntity livingIdentity && !livingIdentity.canUseSlot(EquipmentSlot.MAINHAND)) {
