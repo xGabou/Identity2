@@ -288,10 +288,14 @@ public class EntityMixin implements EntityAccessor{
                 if(this.currentIdentity instanceof Mob mobIdentity && !allowFullServerTick){
                     mobIdentity.setNoAi(true);
                 }
-                if (allowFullServerTick) {
-                    this.currentIdentity.tick();
-                }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
+                if (allowFullServerTick) {
+                    if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
+                        identityServerLevel.tickNonPassenger(this.currentIdentity);
+                    } else {
+                        this.currentIdentity.tick();
+                    }
+                }
                 //if(this.currentIdentity instanceof MobEntity mobIdentity){
                 //    mobIdentity.setAiDisabled(false);
                 //}

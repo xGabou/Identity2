@@ -1787,6 +1787,13 @@ public final class IdentityProgression {
         if (adapterVariant != null && !adapterVariant.isEmpty()) {
             variant.merge(adapterVariant);
         }
+        Boolean actualBaby = detectBabyState(entity, null);
+        if (actualBaby == null) {
+            actualBaby = detectBabyState(entity, variant);
+        }
+        if (actualBaby != null) {
+            variant.putBoolean("IsBaby", actualBaby);
+        }
         return normalizeVariantForUnlock(variant);
     }
 
@@ -1796,14 +1803,9 @@ public final class IdentityProgression {
             return null;
         }
         if (variant != null) {
-            if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
-                return variant.getBoolean("IsBaby");
-            }
-            if (variant.contains("Baby", Tag.TAG_BYTE)) {
-                return variant.getBoolean("Baby");
-            }
-            if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
-                return variant.getInt("Age") < 0;
+            Boolean variantBaby = resolveBabyVariantFlag(variant);
+            if (variantBaby != null) {
+                return variantBaby;
             }
         }
 
@@ -1850,9 +1852,7 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         CompoundTag out = new CompoundTag();
-        if (root && identity2$isBabyVariantToken(source)) {
-            out.putBoolean("IsBaby", true);
-        }
+        Boolean babyVariant = root ? resolveBabyVariantFlag(source) : null;
         for (String key : NbtCompat.keySet(source)) {
             if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
                 continue;
@@ -1876,20 +1876,34 @@ public final class IdentityProgression {
             }
             out.put(key, tag.copy());
         }
+        if (Boolean.TRUE.equals(babyVariant)) {
+            out.putBoolean("IsBaby", true);
+        }
         return out;
     }
 
-    private static boolean identity2$isBabyVariantToken(CompoundTag source) {
-        if (source == null || source.isEmpty()) {
-            return false;
+    @Nullable
+    private static Boolean resolveBabyVariantFlag(CompoundTag variant) {
+        if (variant == null || variant.isEmpty()) {
+            return null;
         }
-        if (source.contains("IsBaby", Tag.TAG_BYTE) && source.getBoolean("IsBaby")) {
-            return true;
+        boolean sawBabyFlag = false;
+        if (variant.contains("IsBaby", Tag.TAG_BYTE)) {
+            sawBabyFlag = true;
+            if (variant.getBoolean("IsBaby")) {
+                return true;
+            }
         }
-        if (source.contains("Baby", Tag.TAG_BYTE) && source.getBoolean("Baby")) {
-            return true;
+        if (variant.contains("Baby", Tag.TAG_BYTE)) {
+            sawBabyFlag = true;
+            if (variant.getBoolean("Baby")) {
+                return true;
+            }
         }
-        return source.contains("Age", Tag.TAG_ANY_NUMERIC) && source.getInt("Age") < 0;
+        if (variant.contains("Age", Tag.TAG_ANY_NUMERIC)) {
+            return variant.getInt("Age") < 0;
+        }
+        return sawBabyFlag ? false : null;
     }
 
     private static boolean compoundContains(CompoundTag container, CompoundTag subset) {

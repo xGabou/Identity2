@@ -95,6 +95,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
 
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
             identity2$applyBabyVariantState(source, identity);
+            identity2$syncLivingHealthForRender(livingSource, livingIdentity);
             boolean sourceJumping = ((LivingEntityAccessor) livingSource).identity2$isJumping();
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping() != sourceJumping) {
                 livingIdentity.setJumping(sourceJumping);
@@ -183,6 +184,16 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             Vec3 shifted = part.position().add(delta);
             part.setPosRaw(shifted.x, shifted.y, shifted.z);
         }
+    }
+
+    private static void identity2$syncLivingHealthForRender(LivingEntity source, LivingEntity identity) {
+        float sourceMaxHealth = source.getMaxHealth();
+        float identityMaxHealth = identity.getMaxHealth();
+        if (sourceMaxHealth <= 0.0F || identityMaxHealth <= 0.0F) {
+            return;
+        }
+        float scaledHealth = source.getHealth() * (identityMaxHealth / sourceMaxHealth);
+        identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
     }
 
     private static void identity2$patchMorphRenderState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {
