@@ -3,12 +3,10 @@ package net.Gabou.identity2.mixin;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.npc.WanderingTrader;
@@ -54,6 +52,10 @@ public class TargetPredicateMixin {
         if (!(currentIdentity instanceof LivingEntity identityLiving)) {
             return;
         }
+        if (identityLiving.getType() == EntityType.ALLAY || identityLiving.getType() == EntityType.BAT) {
+            info.setReturnValue(false);
+            return;
+        }
         if (!identity2$isHostileMob(identityLiving.getType())) {
             return;
         }
@@ -73,6 +75,9 @@ public class TargetPredicateMixin {
     )
     private void identity2$prepareTargetReplacement( @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         if (!(target instanceof Player)) {
+            return;
+        }
+        if (tester != null && tester.getType() == EntityType.ENDERMAN) {
             return;
         }
 
@@ -117,6 +122,9 @@ public class TargetPredicateMixin {
     private static boolean identity2$shouldReplaceTarget(@Nullable LivingEntity tester, LivingEntity target, LivingEntity identityLiving) {
         EntityType<?> identityType = identityLiving.getType();
         if (identityType == null) {
+            return false;
+        }
+        if (tester != null && tester.getType() == EntityType.ENDERMAN) {
             return false;
         }
 
