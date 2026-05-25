@@ -25,8 +25,6 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
-import net.Gabou.identity2.util.EntityAccessor;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.Gabou.identity2.Identity2;
@@ -41,15 +39,6 @@ public class ActiveTargetGoalMixin{
 	}
 	@Inject(method = "findTarget", at=@At("RETURN"))
 	private void identityFix(CallbackInfo info) {
-		try {
-			if (this.target != null) {
-				Entity owner = ((EntityAccessor) this.target).getIdentityOwner();
-				if (owner instanceof LivingEntity livingOwner) {
-					this.target = livingOwner;
-				}
-			}
-		} catch (Exception ignored) {
-		}
 		Identity2.indexOverrideActive-=1;
 	}
 	
