@@ -1,38 +1,59 @@
 package net.Gabou.identity2.mixin;
 
 import com.google.common.collect.Lists;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.identity.WardenBurrowManager;
-import org.spongepowered.asm.mixin.Overwrite;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.AbilitiesAccessor;
-import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.util.EnderDragonEntityAccessor;
+import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.AreaEffectCloud;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.monster.Phantom;
+import net.minecraft.world.entity.monster.Ravager;
+import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Fireball;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -293,6 +314,10 @@ public class EntityMixin implements EntityAccessor {
             this.currentIdentity.setPos(this.position());
             this.currentIdentity.setDeltaMovement(this.getDeltaMovement());
             this.currentIdentity.setAirSupply(this.getAirSupply());
+            this.currentIdentity.setSwimming(((Entity) (Object) this).isSwimming());
+            ((EntityAccessor) this.currentIdentity).setTouchingWater(((Entity) (Object) this).isInWater());
+            identity2$syncIdentityEquipmentFromHost((Entity) (Object) this, this.currentIdentity);
+            identity2$applySyncedMorphState(this.currentIdentity);
             if (
                     (this.currentIdentity instanceof LivingEntity livingIdentity) &&
                             ((Entity) (Object) this instanceof LivingEntity livingEntity)
@@ -311,6 +336,13 @@ public class EntityMixin implements EntityAccessor {
                     identityServerLevel.tickNonPassenger(this.currentIdentity);
                 } else {
                     this.currentIdentity.tick();
+                }
+                if (
+                        hostIsPlayer
+                                && (Entity) (Object) this instanceof ServerPlayer serverPlayer
+                                && serverPlayer.level() instanceof ServerLevel serverLevel
+                ) {
+                    identity2$tickEnderDragonMorphSimulation(serverPlayer, serverLevel, this.currentIdentity);
                 }
             }
 
@@ -341,6 +373,11 @@ public class EntityMixin implements EntityAccessor {
                 this.setAirSupply(this.currentIdentity.getAirSupply());
             }
 
+            if (hostIsPlayer && (Entity) (Object) this instanceof Player playerHost) {
+                identity2$maintainIdentityFlight(playerHost);
+                identity2$applyMorphSpecificPlayerTraits(playerHost);
+            }
+
             identity2$applyWardenEffects((Entity) (Object) this);
 
             if (
@@ -358,10 +395,294 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
+    @Unique
+    private void identity2$tickEnderDragonMorphSimulation(ServerPlayer host, ServerLevel level, Entity identity) {
+        if (!(identity instanceof EnderDragon)) {
+            return;
+        }
+
+        List<AABB> proxyBoxes = identity2$getEnderDragonProxyBoxes(host);
+        identity2$destroyEnderDragonMorphBlocks(level, identity, proxyBoxes);
+        identity2$bridgeEnderDragonMorphProjectileDamage(host, level, identity, proxyBoxes);
+    }
+
+    @Unique
+    private static List<AABB> identity2$getEnderDragonProxyBoxes(Entity host) {
+        Vec3 origin = host.position();
+        float yaw = host.getYRot() * ((float) Math.PI / 180.0F);
+        Vec3 forward = new Vec3(-Mth.sin(yaw), 0.0D, Mth.cos(yaw));
+
+        List<AABB> boxes = Lists.newArrayList();
+        boxes.add(host.getBoundingBox().inflate(2.0D, 1.0D, 2.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(1.5D)).add(0.0D, 2.5D, 0.0D), 8.0D, 5.0D, 8.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(6.0D)).add(0.0D, 2.7D, 0.0D), 5.0D, 4.0D, 5.0D));
+        boxes.add(identity2$boxAt(origin.add(forward.scale(9.0D)).add(0.0D, 2.8D, 0.0D), 4.0D, 4.0D, 4.0D));
+        return boxes;
+    }
+
+    @Unique
+    private static AABB identity2$boxAt(Vec3 center, double width, double height, double depth) {
+        double halfWidth = width * 0.5D;
+        double halfDepth = depth * 0.5D;
+        double halfHeight = height * 0.5D;
+        return new AABB(
+                center.x - halfWidth,
+                center.y - halfHeight,
+                center.z - halfDepth,
+                center.x + halfWidth,
+                center.y + halfHeight,
+                center.z + halfDepth
+        );
+    }
+
+    @Unique
+    private static void identity2$destroyEnderDragonMorphBlocks(ServerLevel level, Entity identity, List<AABB> proxyBoxes) {
+        if (!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
+            return;
+        }
+
+        boolean destroyedAny = false;
+        boolean blocked = false;
+
+        for (AABB box : proxyBoxes) {
+            int minX = Mth.floor(box.minX);
+            int minY = Mth.floor(box.minY);
+            int minZ = Mth.floor(box.minZ);
+            int maxX = Mth.floor(box.maxX);
+            int maxY = Mth.floor(box.maxY);
+            int maxZ = Mth.floor(box.maxZ);
+
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        BlockState state = level.getBlockState(pos);
+                        if (state.isAir() || state.is(BlockTags.DRAGON_TRANSPARENT)) {
+                            continue;
+                        }
+                        if (state.is(BlockTags.DRAGON_IMMUNE) || state.getDestroySpeed(level, pos) < 0.0F) {
+                            blocked = true;
+                            continue;
+                        }
+                        destroyedAny = level.removeBlock(pos, false) || destroyedAny;
+                    }
+                }
+            }
+        }
+
+        if (destroyedAny) {
+            AABB box = proxyBoxes.get(identity.tickCount % proxyBoxes.size());
+            BlockPos eventPos = BlockPos.containing(
+                    Mth.lerp(level.random.nextDouble(), box.minX, box.maxX),
+                    Mth.lerp(level.random.nextDouble(), box.minY, box.maxY),
+                    Mth.lerp(level.random.nextDouble(), box.minZ, box.maxZ)
+            );
+            level.levelEvent(2008, eventPos, 0);
+        }
+
+        if (blocked) {
+            identity.resetFallDistance();
+        }
+    }
+
+    @Unique
+    private static void identity2$bridgeEnderDragonMorphProjectileDamage(ServerPlayer host, ServerLevel level, Entity identity, List<AABB> proxyBoxes) {
+        AABB searchBox = identity2$combineBoxes(proxyBoxes).inflate(1.0D);
+        List<Projectile> projectiles = level.getEntitiesOfClass(
+                Projectile.class,
+                searchBox,
+                projectile -> !projectile.isRemoved() && projectile.getOwner() != host && projectile.getOwner() != identity
+        );
+
+        for (Projectile projectile : projectiles) {
+            AABB projectileBox = projectile.getBoundingBox().inflate(0.4D);
+            if (!identity2$intersectsAny(projectileBox, proxyBoxes)) {
+                continue;
+            }
+
+            DamageSource source = identity2$projectileDamageSource(host, projectile);
+            float damage = identity2$projectileDamageAmount(projectile);
+            if (host.hurt(source, damage)) {
+                projectile.discard();
+            }
+        }
+    }
+
+    @Unique
+    private static AABB identity2$combineBoxes(List<AABB> boxes) {
+        AABB combined = boxes.get(0);
+        for (int i = 1; i < boxes.size(); i++) {
+            combined = combined.minmax(boxes.get(i));
+        }
+        return combined;
+    }
+
+    @Unique
+    private static boolean identity2$intersectsAny(AABB testBox, List<AABB> boxes) {
+        for (AABB box : boxes) {
+            if (testBox.intersects(box)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private static DamageSource identity2$projectileDamageSource(ServerPlayer host, Projectile projectile) {
+        Entity owner = projectile.getOwner();
+        if (projectile instanceof AbstractArrow arrow) {
+            return host.damageSources().arrow(arrow, owner != null ? owner : projectile);
+        }
+        if (projectile instanceof FireworkRocketEntity firework) {
+            return host.damageSources().fireworks(firework, owner);
+        }
+        if (projectile instanceof Fireball fireball) {
+            return host.damageSources().fireball(fireball, owner);
+        }
+        if (owner instanceof LivingEntity livingOwner) {
+            return host.damageSources().mobProjectile(projectile, livingOwner);
+        }
+        return host.damageSources().thrown(projectile, owner);
+    }
+
+    @Unique
+    private static float identity2$projectileDamageAmount(Projectile projectile) {
+        if (projectile instanceof AbstractArrow) {
+            return 4.0F;
+        }
+        if (projectile instanceof Fireball) {
+            return 6.0F;
+        }
+        if (projectile instanceof FireworkRocketEntity) {
+            return 5.0F;
+        }
+        return 2.0F;
+    }
+
+    @Unique
+    private static void identity2$syncIdentityEquipmentFromHost(Entity host, Entity identity) {
+        if (!(host instanceof LivingEntity livingHost) || !(identity instanceof LivingEntity livingIdentity)) {
+            return;
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot).copy());
+        }
+    }
+
+    @Unique
+    private void identity2$applySyncedMorphState(Entity identity) {
+    }
+
+    @Unique
+    private static boolean identity2$isRavager(Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        if (entity.getType() == EntityType.RAVAGER) {
+            return true;
+        }
+        if (entity instanceof EntityAccessor accessor) {
+            Entity currentIdentity = accessor.getCurrentIdentity();
+            return currentIdentity != null && currentIdentity.getType() == EntityType.RAVAGER;
+        }
+        return false;
+    }
+
+    @Unique
+    private static boolean identity2$canRideRavager(Player player) {
+        return player != null;
+    }
+
+    @Unique
+    private void identity2$applyMorphSpecificPlayerTraits(Player player) {
+        Entity activeIdentity = this.currentIdentity;
+        if (activeIdentity == null || player.level().isClientSide()) {
+            return;
+        }
+
+        if (activeIdentity.getType() == EntityType.DOLPHIN && player.isInWater()) {
+            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
+        }
+
+        if (activeIdentity instanceof EnderDragon dragonIdentity && player.level() instanceof ServerLevel serverLevel) {
+            ((EnderDragonEntityAccessor) dragonIdentity).runTickWithEndCrystals();
+            if (identity2$invokeTwoArgs(dragonIdentity, "checkWalls", serverLevel, dragonIdentity.getBoundingBox()) == null) {
+                identity2$invokeOneArg(dragonIdentity, "checkWalls", dragonIdentity.getBoundingBox());
+            }
+            if (dragonIdentity.getHealth() > player.getHealth()) {
+                player.setHealth(Math.min(player.getMaxHealth(), dragonIdentity.getHealth()));
+            }
+        }
+
+        if (activeIdentity.fireImmune()) {
+            activeIdentity.clearFire();
+        }
+        identity2$syncFireStateFromIdentity(player, activeIdentity);
+
+        if (activeIdentity instanceof AbstractPiglin piglinIdentity) {
+            identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
+        } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
+            identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
+        } else {
+            identity2$clearMorphZombificationTicks();
+        }
+    }
+
+    @Unique
+    private void identity2$tickMorphZombification(Player player, Entity identity, EntityType<?> convertedType) {
+        if (!(player instanceof ServerPlayer serverPlayer) || identity == null || convertedType == null) {
+            return;
+        }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        boolean shouldConvert = !player.level().dimensionType().piglinSafe();
+        Object immune = identity2$invokeNoArg(identity, "isImmuneToZombification");
+        if (immune instanceof Boolean immuneToZombification && immuneToZombification) {
+            shouldConvert = false;
+        }
+        if (!shouldConvert) {
+            nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+            return;
+        }
+
+        int conversionTicks = Math.max(0, net.Gabou.identity2.util.NbtCompat.getIntOr(nbt, IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0)) + 1;
+        nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, conversionTicks);
+        if (conversionTicks < 300) {
+            return;
+        }
+
+        String convertedId = EntityType.getKey(convertedType).toString();
+        nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, convertedId);
+        nbt.putString("model_override", convertedId);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        IdentityProgression.restoreMorphFromSavedDataAndSync(serverPlayer);
+    }
+
+    @Unique
+    private void identity2$clearMorphZombificationTicks() {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        if (net.Gabou.identity2.util.NbtCompat.getIntOr(nbt, IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0) != 0) {
+            nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+        }
+    }
+
+    @Unique
+    private static void identity2$syncFireStateFromIdentity(Player player, Entity identity) {
+        if (player == null || identity == null) {
+            return;
+        }
+        int remainingFireTicks = Math.max(0, identity.getRemainingFireTicks());
+        player.setRemainingFireTicks(remainingFireTicks);
+        player.setSharedFlagOnFire(identity.isOnFire() && remainingFireTicks > 0);
+        if (remainingFireTicks <= 0) {
+            player.clearFire();
+        }
+    }
+
     @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
-    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, MoverType moverType, Vec3 movementInput) {
-        CompoundTag nbt = this.getCustomData();
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
+    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
         if (this.currentIdentity != null &&!Double.isNaN(multiplier) && multiplier != 0.0D) {
             Vec3 baseDelta = entity.getDeltaMovement();
@@ -421,6 +742,7 @@ public class EntityMixin implements EntityAccessor {
     private float identity2$storedFlyingSpeed = Float.NaN;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
+    private static final String IDENTITY2_ZOMBIFICATION_TICKS_KEY = "identity2.zombification_ticks";
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
 
 
@@ -513,6 +835,15 @@ public class EntityMixin implements EntityAccessor {
                 serverPlayer.onUpdateAbilities();
             }
         }
+    }
+
+    @Unique
+    private void identity2$maintainIdentityFlight(Player player) {
+        Entity activeIdentity = this.currentIdentity;
+        if (activeIdentity == null) {
+            return;
+        }
+        this.applyIdentityFlightGrant(player, ((EntityAccessor) activeIdentity).canFly());
     }
 
     @Inject(method = "isControlledByLocalInstance", at = @At("HEAD"), cancellable = true)
@@ -1061,6 +1392,33 @@ public class EntityMixin implements EntityAccessor {
                     method.setAccessible(true);
                 }
                 Object result = method.invoke(target, arg);
+                return result == null ? target : result;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Object identity2$invokeTwoArgs(Object target, String methodName, Object firstArg, Object secondArg) {
+        if (target == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        for (Method method : identity2$getAllMethods(target.getClass())) {
+            if (!method.getName().equals(methodName) || method.getParameterCount() != 2) {
+                continue;
+            }
+            Class<?>[] params = method.getParameterTypes();
+            if (firstArg != null && !identity2$isAssignable(params[0], firstArg.getClass())) {
+                continue;
+            }
+            if (secondArg != null && !identity2$isAssignable(params[1], secondArg.getClass())) {
+                continue;
+            }
+            try {
+                if (!method.canAccess(target)) {
+                    method.setAccessible(true);
+                }
+                Object result = method.invoke(target, firstArg, secondArg);
                 return result == null ? target : result;
             } catch (Throwable ignored) {
             }
@@ -1643,6 +2001,30 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
 
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
 
+            if (identity2$isOwnIdentityDamage(player, activeIdentity, source)) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
+                            && activeIdentity.getType() == EntityType.ENDER_DRAGON
+                            && (source.is(DamageTypes.DRAGON_BREATH) || identity2$isOwnDragonBreathCloud(player, source))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
+            if (
+                    activeIdentity != null
+                            && activeIdentity.getType() != EntityType.ENDER_DRAGON
+                            && identity2$isMorphFireImmune(activeIdentity)
+                            && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
+            ) {
+                info.setReturnValue(true);
+                return;
+            }
+
             if (
                     activeIdentity != null
                             && source.is(DamageTypes.IN_WALL)
@@ -1657,6 +2039,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                             && identity2$isFallDamage(source)
                             && (
                             activeIdentity.getType() == EntityType.CHICKEN
+                                    || activeIdentity.getType() == EntityType.CAT
                                     || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
                     )
             ) {
@@ -1679,6 +2062,50 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
             }
         }
     }
+
+    @Unique
+    private static boolean identity2$isOwnIdentityDamage(Player player, Entity activeIdentity, DamageSource source) {
+        if (player == null || activeIdentity == null || source == null) {
+            return false;
+        }
+        Entity attacker = source.getEntity();
+        Entity direct = source.getDirectEntity();
+        return identity2$isOwnedIdentityDamageEntity(player, activeIdentity, attacker)
+                || identity2$isOwnedIdentityDamageEntity(player, activeIdentity, direct);
+    }
+
+    @Unique
+    private static boolean identity2$isOwnedIdentityDamageEntity(Player player, Entity activeIdentity, Entity damageEntity) {
+        if (damageEntity == null) {
+            return false;
+        }
+        if (damageEntity == activeIdentity) {
+            return true;
+        }
+        try {
+            return ((EntityAccessor) damageEntity).getIdentityOwner() == player;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    @Unique
+    private static boolean identity2$isMorphFireImmune(Entity activeIdentity) {
+        return activeIdentity != null && activeIdentity.fireImmune();
+    }
+
+    @Unique
+    private static boolean identity2$isOwnDragonBreathCloud(Player player, DamageSource source) {
+        if (player == null || source == null) {
+            return false;
+        }
+        Entity direct = source.getDirectEntity();
+        if (!(direct instanceof AreaEffectCloud cloud)) {
+            return false;
+        }
+        return cloud.getOwner() == player || source.getEntity() == player;
+    }
+
     @Unique
     private static boolean identity2$shouldIgnoreMorphSuffocation(Player player, Entity activeIdentity) {
         float idHeight = activeIdentity.getBbHeight();

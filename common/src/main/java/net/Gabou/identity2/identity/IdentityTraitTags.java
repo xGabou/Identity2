@@ -36,6 +36,11 @@ public final class IdentityTraitTags {
         new ResourceLocation("identity2", "burns_in_daylight")
     );
 
+    public static final TagKey<EntityType<?>> VANILLA_BURNS_IN_DAYLIGHT = TagKey.create(
+        Registries.ENTITY_TYPE,
+        new ResourceLocation("minecraft", "burn_in_daylight")
+    );
+
     public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
         Registries.ENTITY_TYPE,
         new ResourceLocation("identity2", "slow_falling")
@@ -108,12 +113,12 @@ public final class IdentityTraitTags {
         }
         ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (typeId != null) {
-            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT));
+            Boolean assignmentOverride = resolveAssignmentOverride(typeId, tagId(BURNS_IN_DAYLIGHT), tagId(VANILLA_BURNS_IN_DAYLIGHT));
             if (assignmentOverride != null) {
                 return assignmentOverride;
             }
         }
-        return type.is(BURNS_IN_DAYLIGHT);
+        return type.is(BURNS_IN_DAYLIGHT) || type.is(VANILLA_BURNS_IN_DAYLIGHT);
     }
 
     public static boolean hasSlowFalling(EntityType<?> type) {

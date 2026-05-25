@@ -33,7 +33,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -59,7 +58,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
-    private void identity2$authOnLogin(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
+    private void identity2$authOnLogin(Connection connection, ServerPlayer player, CallbackInfo info) {
         if (!net.Gabou.identity2.auth.ServerAuth.onLogin(connection, player)) {
             info.cancel();
             return;
