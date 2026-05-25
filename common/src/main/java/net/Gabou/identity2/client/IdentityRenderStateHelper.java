@@ -176,7 +176,7 @@ public final class IdentityRenderStateHelper {
         }
     }
 
-    private static int resolveIronGolemAttackTicks(Entity source, float tickDelta) {
+    public static int resolveIronGolemAttackTicks(Entity source, float tickDelta) {
         if (!(source instanceof LivingEntity livingSource)) {
             return 0;
         }
