@@ -2,6 +2,7 @@ package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.client.IdentityRenderStateHelper;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
@@ -76,13 +77,13 @@ public abstract class EntityRenderDispatcherMixin {
             return;
         }
 
-        identity2$syncIdentityForRender(entity, renderIdentity);
+        identity2$syncIdentityForRender(entity, renderIdentity, tickDelta);
 
         //noinspection unchecked
         ((EntityRenderer) identityRenderer).render(renderIdentity, yaw, tickDelta, matrices, vertexConsumers, light);
     }
 
-    private static void identity2$syncIdentityForRender(Entity source, Entity identity) {
+    private static void identity2$syncIdentityForRender(Entity source, Entity identity, float tickDelta) {
         identity.setPosRaw(source.position().x, source.position().y, source.position().z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
@@ -162,7 +163,7 @@ public abstract class EntityRenderDispatcherMixin {
         } else {
             identity.setSharedFlagOnFire(identity.isOnFire());
         }
-        identity2$syncEntityAnimationState(source, identity);
+        identity2$syncEntityAnimationState(source, identity, tickDelta);
     }
 
     private static void identity2$syncEnderDragonFlapAnimation(Entity source, EnderDragon dragonIdentity) {
@@ -181,13 +182,20 @@ public abstract class EntityRenderDispatcherMixin {
         identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
     }
 
-    private static void identity2$syncEntityAnimationState(Entity source, Entity identity) {
+    private static void identity2$syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
         if (source == null || identity == null) {
             return;
         }
 
         if (identity instanceof IronGolem) {
-            identity2$setIntFieldExact(identity, "attackAnimationTick", PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY));
+            identity2$setIntFieldExact(
+                    identity,
+                    "attackAnimationTick",
+                    Math.max(
+                            IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta),
+                            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
+                    )
+            );
         }
 
         int attackTicks = Math.max(
