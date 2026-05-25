@@ -1,6 +1,7 @@
 package net.Gabou.identity2.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -24,6 +25,7 @@ import net.Gabou.identity2.config.IdentityConfigManager;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
+import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -32,12 +34,14 @@ import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.item.DyeColor;
 
 public final class IdentityCommand {
     private static final Set<String> HIDDEN_CONFIG_KEYS = Set.of(
@@ -66,6 +70,16 @@ public final class IdentityCommand {
                             Commands.argument("identity_id", ResourceLocationArgument.id())
                                 .suggests(IdentityCommand::suggestUnlockedIdentities)
                                 .executes(context -> morph(context.getSource(), ResourceLocationArgument.getId(context, "identity_id")))
+                                .then(
+                                    Commands.argument("variant", StringArgumentType.greedyString())
+                                        .executes(
+                                            context -> morph(
+                                                context.getSource(),
+                                                ResourceLocationArgument.getId(context, "identity_id"),
+                                                StringArgumentType.getString(context, "variant")
+                                            )
+                                        )
+                                )
                         )
                 )
                 .then(Commands.literal("clear").executes(context -> clear(context.getSource())))
@@ -256,6 +270,10 @@ public final class IdentityCommand {
     }
 
     private static int morph(CommandSourceStack source, ResourceLocation identityId) {
+        return morph(source, identityId, "");
+    }
+
+    private static int morph(CommandSourceStack source, ResourceLocation identityId, String rawVariant) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
             source.sendFailure(Component.literal("Only players can morph."));
@@ -289,10 +307,27 @@ public final class IdentityCommand {
             return 0;
         }
 
-        if (!IdentityProgression.morph(player, identityId)) {
+        MorphVariantParseResult variantResult = resolveMorphVariant(identityId, rawVariant);
+        if (variantResult.error() != null) {
+            source.sendFailure(Component.literal(variantResult.error()));
             return 0;
         }
-        identity2$sendCommandFeedback(source, Component.literal("Morphed into " + identityId));
+
+        CompoundTag variantNbt = variantResult.variantNbt();
+        if (
+                IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
+                        && !isOperator(source)
+                        && !IdentityProgression.isVariantUnlocked(player, identityId, variantNbt)
+        ) {
+            source.sendFailure(Component.literal("Variant not unlocked for " + identityId + ": " + variantResult.variantLabel()));
+            return 0;
+        }
+
+        if (!IdentityProgression.morph(player, identityId, variantNbt)) {
+            return 0;
+        }
+        String suffix = variantResult.isDefaultVariant() ? "" : " (" + variantResult.variantLabel() + ")";
+        identity2$sendCommandFeedback(source, Component.literal("Morphed into " + identityId + suffix));
         return 1;
     }
 
@@ -648,6 +683,206 @@ public final class IdentityCommand {
         }
     }
 
+    private static MorphVariantParseResult resolveMorphVariant(ResourceLocation identityId, String rawVariant) {
+        String trimmed = rawVariant == null ? "" : rawVariant.trim();
+        if (trimmed.isEmpty()) {
+            return MorphVariantParseResult.defaultVariant();
+        }
+
+        if (trimmed.startsWith("{")) {
+            try {
+                CompoundTag parsed = CompoundTagArgument.compoundTag().parse(new StringReader(trimmed));
+                return new MorphVariantParseResult(parsed, trimmed, false, null);
+            } catch (Exception exception) {
+                return new MorphVariantParseResult(new CompoundTag(), trimmed, false, "Invalid variant NBT: " + trimmed);
+            }
+        }
+
+        String normalized = normalizeVariantToken(trimmed);
+        if (normalized.isEmpty() || normalized.equals("default") || normalized.equals("base") || normalized.equals("normal") || normalized.equals("none")) {
+            return MorphVariantParseResult.defaultVariant();
+        }
+
+        CompoundTag variantNbt = new CompoundTag();
+        List<String> labelParts = new ArrayList<>();
+        for (String token : trimmed.split("[,\\s]+")) {
+            String part = token == null ? "" : token.trim();
+            if (part.isEmpty()) {
+                continue;
+            }
+            String normalizedPart = normalizeVariantToken(part);
+            if (normalizedPart.isEmpty()) {
+                continue;
+            }
+
+            if (applySimpleVariantToken(identityId, normalizedPart, variantNbt, labelParts)) {
+                continue;
+            }
+
+            int separator = part.indexOf('=');
+            if (separator < 0) {
+                separator = part.indexOf(':');
+            }
+            if (separator > 0 && separator < part.length() - 1) {
+                String key = normalizeVariantToken(part.substring(0, separator));
+                String value = part.substring(separator + 1).trim();
+                if (applyKeyValueVariant(identityId, key, value, variantNbt, labelParts)) {
+                    continue;
+                }
+            }
+
+            return new MorphVariantParseResult(new CompoundTag(), trimmed, false, "Unknown variant token for " + identityId + ": " + part);
+        }
+
+        if (variantNbt.isEmpty()) {
+            return new MorphVariantParseResult(new CompoundTag(), trimmed, false, "Unknown variant for " + identityId + ": " + trimmed);
+        }
+
+        String label = labelParts.isEmpty() ? trimmed : String.join(" ", labelParts);
+        return new MorphVariantParseResult(variantNbt, label, false, null);
+    }
+
+    private static boolean applySimpleVariantToken(
+            ResourceLocation identityId,
+            String token,
+            CompoundTag variantNbt,
+            List<String> labelParts
+    ) {
+        if ("baby".equals(token)) {
+            variantNbt.putBoolean("IsBaby", true);
+            variantNbt.putInt("Age", -24000);
+            labelParts.add("baby");
+            return true;
+        }
+        if ("adult".equals(token)) {
+            variantNbt.putBoolean("IsBaby", false);
+            variantNbt.putInt("Age", 0);
+            labelParts.add("adult");
+            return true;
+        }
+
+        DyeColor color = parseDyeColor(token);
+        if (color != null && isColorMorph(identityId)) {
+            variantNbt.putByte("Color", (byte) color.getId());
+            labelParts.add(color.getName());
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean applyKeyValueVariant(
+            ResourceLocation identityId,
+            String key,
+            String value,
+            CompoundTag variantNbt,
+            List<String> labelParts
+    ) {
+        if (key.isEmpty() || value == null || value.isBlank()) {
+            return false;
+        }
+
+        String normalizedValue = normalizeVariantToken(value);
+        if ("baby".equals(key)) {
+            boolean baby = parseBooleanVariantValue(normalizedValue);
+            variantNbt.putBoolean("IsBaby", baby);
+            variantNbt.putInt("Age", baby ? -24000 : 0);
+            labelParts.add(baby ? "baby" : "adult");
+            return true;
+        }
+
+        if ("age".equals(key)) {
+            try {
+                int age = Integer.parseInt(value.trim());
+                variantNbt.putInt("Age", age);
+                variantNbt.putBoolean("IsBaby", age < 0);
+                labelParts.add("age=" + age);
+                return true;
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+
+        if ("color".equals(key) && isColorMorph(identityId)) {
+            DyeColor color = parseDyeColor(normalizedValue);
+            if (color == null) {
+                return false;
+            }
+            variantNbt.putByte("Color", (byte) color.getId());
+            labelParts.add(color.getName());
+            return true;
+        }
+
+        if ("variant".equals(key) || "type".equals(key)) {
+            Integer numeric = parseIntegerVariantValue(value);
+            if (numeric != null) {
+                variantNbt.putInt("Variant", numeric);
+                labelParts.add(key + "=" + numeric);
+                return true;
+            }
+            if ("minecraft:frog".equals(identityId.toString())) {
+                variantNbt.putString("FrogVariant", normalizeVariantResourceValue(value));
+                labelParts.add(value.trim());
+                return true;
+            }
+            if ("minecraft:cat".equals(identityId.toString())) {
+                variantNbt.putString("CatVariant", normalizeVariantResourceValue(value));
+                labelParts.add(value.trim());
+                return true;
+            }
+            if ("minecraft:wolf".equals(identityId.toString())) {
+                variantNbt.putString("WolfVariant", normalizeVariantResourceValue(value));
+                labelParts.add(value.trim());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isColorMorph(ResourceLocation identityId) {
+        return identityId != null && "minecraft:sheep".equals(identityId.toString());
+    }
+
+    private static DyeColor parseDyeColor(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        String normalized = normalizeVariantToken(token);
+        for (DyeColor color : DyeColor.values()) {
+            if (normalizeVariantToken(color.getName()).equals(normalized)) {
+                return color;
+            }
+        }
+        return null;
+    }
+
+    private static boolean parseBooleanVariantValue(String value) {
+        return switch (value) {
+            case "true", "1", "yes", "on", "enabled", "baby" -> true;
+            default -> false;
+        };
+    }
+
+    private static Integer parseIntegerVariantValue(String raw) {
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String normalizeVariantResourceValue(String raw) {
+        String normalized = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
+        if (normalized.indexOf(':') >= 0) {
+            return normalized;
+        }
+        return "minecraft:" + normalized;
+    }
+
+    private static String normalizeVariantToken(String raw) {
+        return raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+    }
+
     private static Map<String, Field> createConfigFieldMap() {
         List<Field> fields = new ArrayList<>();
         for (Field field : IdentitySettings.class.getFields()) {
@@ -861,6 +1096,17 @@ public final class IdentityCommand {
             String commandText = (this.command != null && !this.command.isBlank()) ? " command=\"" + this.command + "\"" : "";
             String overrideText = this.overrideAttack ? " override_attack=true" : "";
             return source + " cooldown=" + this.cooldown + " use_duration=" + this.useDuration + overrideText + commandText;
+        }
+    }
+
+    private record MorphVariantParseResult(
+            CompoundTag variantNbt,
+            String variantLabel,
+            boolean isDefaultVariant,
+            String error
+    ) {
+        static MorphVariantParseResult defaultVariant() {
+            return new MorphVariantParseResult(new CompoundTag(), "default", true, null);
         }
     }
 }
