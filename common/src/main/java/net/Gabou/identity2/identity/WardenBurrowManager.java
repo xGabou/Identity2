@@ -3,6 +3,7 @@ package net.Gabou.identity2.identity;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -31,7 +32,7 @@ public final class WardenBurrowManager {
             return false;
         }
         CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
-        return nbt.getBooleanOr(HIDDEN_KEY, false);
+        return NbtCompat.getBooleanOr(nbt, HIDDEN_KEY, false);
     }
 
     public static boolean toggle(ServerPlayer player) {
@@ -149,9 +150,9 @@ public final class WardenBurrowManager {
             return null;
         }
         return new Vec3(
-                nbt.getDoubleOr(ANCHOR_X_KEY, player.getX()),
-                nbt.getDoubleOr(ANCHOR_Y_KEY, player.getY()),
-                nbt.getDoubleOr(ANCHOR_Z_KEY, player.getZ())
+                NbtCompat.getDoubleOr(nbt, ANCHOR_X_KEY, player.getX()),
+                NbtCompat.getDoubleOr(nbt, ANCHOR_Y_KEY, player.getY()),
+                NbtCompat.getDoubleOr(nbt, ANCHOR_Z_KEY, player.getZ())
         );
     }
 

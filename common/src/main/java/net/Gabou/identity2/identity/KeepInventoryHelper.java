@@ -1,7 +1,7 @@
 package net.Gabou.identity2.identity;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -54,7 +54,7 @@ public final class KeepInventoryHelper {
     private static Object resolveGameRule(String identifierString) {
         try {
             Object registry = BuiltInRegistries.class.getField("GAME_RULE").get(null);
-            Identifier identifier = Identifier.parse(identifierString);
+            ResourceLocation identifier = ResourceLocation.parse(identifierString);
 
             Object value = invokeSingleArg(registry, "get", identifier);
             if (value != null) {

@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin;
 
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.core.BlockPos;
@@ -79,6 +80,7 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         }
 
         if (attacked) {
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 10);
             player.resetAttackStrengthTicker();
         }
         ci.cancel();

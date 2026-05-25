@@ -62,6 +62,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
@@ -530,10 +532,6 @@ public class EntityMixin implements EntityAccessor{
     private void identity2$applyMorphSpecificPlayerTraits(Player player) {
         Entity activeIdentity = this.currentIdentity;
         if (activeIdentity == null || player.level().isClientSide()) {
-            if (this.identity2$morphSunBurning) {
-                player.clearFire();
-                this.identity2$morphSunBurning = false;
-            }
             return;
         }
 
@@ -548,13 +546,73 @@ public class EntityMixin implements EntityAccessor{
             }
         }
 
-        if (this.identity2$morphSunBurning) {
-            player.clearFire();
-            this.identity2$morphSunBurning = false;
+        if (activeIdentity.fireImmune()) {
+            activeIdentity.clearFire();
+        }
+        identity2$syncFireStateFromIdentity(player, activeIdentity);
+
+        if (activeIdentity instanceof AbstractPiglin piglinIdentity) {
+            identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
+        } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
+            identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
+        } else {
+            identity2$clearMorphZombificationTicks();
         }
     }
+
+    @Unique
+    private void identity2$tickMorphZombification(Player player, Entity identity, EntityType<?> convertedType) {
+        if (!(player instanceof ServerPlayer serverPlayer) || identity == null || convertedType == null) {
+            return;
+        }
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        boolean shouldConvert = !player.level().dimensionType().piglinSafe();
+        Object immune = identity2$invokeNoArg(identity, "isImmuneToZombification");
+        if (immune instanceof Boolean immuneToZombification && immuneToZombification) {
+            shouldConvert = false;
+        }
+        if (!shouldConvert) {
+            nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+            return;
+        }
+
+        int conversionTicks = Math.max(0, net.Gabou.identity2.util.NbtCompat.getIntOr(nbt, IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0)) + 1;
+        nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, conversionTicks);
+        if (conversionTicks < 300) {
+            return;
+        }
+
+        String convertedId = EntityType.getKey(convertedType).toString();
+        nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, convertedId);
+        nbt.putString("model_override", convertedId);
+        nbt.putString(IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "");
+        IdentityProgression.restoreMorphFromSavedDataAndSync(serverPlayer);
+    }
+
+    @Unique
+    private void identity2$clearMorphZombificationTicks() {
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        if (net.Gabou.identity2.util.NbtCompat.getIntOr(nbt, IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0) != 0) {
+            nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
+        }
+    }
+
+    @Unique
+    private static void identity2$syncFireStateFromIdentity(Player player, Entity identity) {
+        if (player == null || identity == null) {
+            return;
+        }
+        int remainingFireTicks = Math.max(0, identity.getRemainingFireTicks());
+        player.setRemainingFireTicks(remainingFireTicks);
+        player.setSharedFlagOnFire(identity.isOnFire() && remainingFireTicks > 0);
+        if (remainingFireTicks <= 0) {
+            player.clearFire();
+        }
+    }
+
     @Redirect(method = "move",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity,double x,double y,double z, @Local(ordinal=0) boolean bl, @Local(ordinal=1) boolean bl2, @Local(ordinal=2) Vec3 vec3d4){
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
@@ -634,9 +692,9 @@ public class EntityMixin implements EntityAccessor{
     public boolean entityCanFlyTickEvaluated=false;
     private boolean identity2$grantedMayfly = false;
     private float identity2$storedFlyingSpeed = Float.NaN;
-    private boolean identity2$morphSunBurning = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
+    private static final String IDENTITY2_ZOMBIFICATION_TICKS_KEY = "identity2.zombification_ticks";
     private static final String FALL_METHOD_NAME = identity2$resolveFallMethodName();
     
 
