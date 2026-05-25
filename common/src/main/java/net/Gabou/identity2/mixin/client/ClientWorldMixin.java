@@ -2,11 +2,13 @@ package net.Gabou.identity2.mixin.client;
 
 import java.util.function.BiFunction;
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.client.IdentityRenderStateHelper;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,6 +22,13 @@ public class ClientWorldMixin {
         if (identity == null) {
             return;
         }
+
+        IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);
+        if (identity instanceof Mob mobIdentity) {
+            mobIdentity.setNoAi(true);
+        }
+        identity.tick();
+        IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);
 
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(identity.getType());
         if (id == null) {

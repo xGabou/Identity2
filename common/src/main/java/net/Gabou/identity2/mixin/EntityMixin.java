@@ -187,6 +187,10 @@ public class EntityMixin implements EntityAccessor{
                     || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
+                return;
+            }
+            if (identity != null && ((EntityAccessor) identity).canFly()) {
+                info.setReturnValue(false);
             }
         }
     }
@@ -1811,6 +1815,9 @@ private void shouldSpawnSprintingParticlesIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "canBeHitByProjectile()Z", at=@At("HEAD"),cancellable=true)
 private void canBeHitByProjectileIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof Player){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.canBeHitByProjectile());
     }
@@ -1888,6 +1895,9 @@ private void getFreezingScaleIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isAttackable()Z", at=@At("HEAD"),cancellable=true)
 private void isAttackableIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof Player){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.isAttackable());
     }
@@ -1895,6 +1905,9 @@ private void isAttackableIdentity(CallbackInfoReturnable info){
 
 @Inject(method = "isInvulnerable()Z", at=@At("HEAD"),cancellable=true)
 private void isInvulnerableIdentity(CallbackInfoReturnable info){
+    if(((Entity)(Object)this) instanceof Player){
+        return;
+    }
     if(this.currentIdentity!=null){
         info.setReturnValue(this.currentIdentity.isInvulnerable());
     }

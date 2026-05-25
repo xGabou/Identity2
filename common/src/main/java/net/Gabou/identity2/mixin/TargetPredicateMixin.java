@@ -77,6 +77,9 @@ public class TargetPredicateMixin {
         if (!(target instanceof Player)) {
             return;
         }
+        if (tester != null && tester.getType() == EntityType.ENDERMAN) {
+            return;
+        }
 
         Entity currentIdentity = ((EntityAccessor) target).getCurrentIdentity();
         if (!(currentIdentity instanceof LivingEntity identityLiving)) {
@@ -119,6 +122,9 @@ public class TargetPredicateMixin {
     private static boolean identity2$shouldReplaceTarget(@Nullable LivingEntity tester, LivingEntity target, LivingEntity identityLiving) {
         EntityType<?> identityType = identityLiving.getType();
         if (identityType == null) {
+            return false;
+        }
+        if (tester != null && tester.getType() == EntityType.ENDERMAN) {
             return false;
         }
 
