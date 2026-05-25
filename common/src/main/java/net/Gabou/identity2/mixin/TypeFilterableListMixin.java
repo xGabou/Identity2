@@ -29,7 +29,6 @@ import java.util.Map;
 import net.minecraft.util.ClassInstanceMultiMap;
 import net.minecraft.Util;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import java.util.Collections;
 @Mixin(ClassInstanceMultiMap.class)
 public class TypeFilterableListMixin<T>{
@@ -62,12 +61,8 @@ public class TypeFilterableListMixin<T>{
             // Do not cache transformed results, otherwise identity substitutions leak to normal queries.
             List<S> liveList = (List<S>) this.allInstances.stream()
                 .map((T entity) -> {
-                    if (!(entity instanceof Entity hostEntity) || hostEntity instanceof Player) {
-                        return entity;
-                    }
-                    Entity identity = ((EntityAccessor) hostEntity).getCurrentIdentity();
-                    if (identity != null && hostEntity.getClass().isAssignableFrom(identity.getClass())) {
-                        return (T) identity;
+                    if (entity instanceof Entity && ((EntityAccessor) entity).getCurrentIdentity() != null) {
+                        return (T) ((EntityAccessor) entity).getCurrentIdentity();
                     }
                     return entity;
                 })

@@ -262,7 +262,7 @@ private void tickMovementIdentity(CallbackInfo info){
             livingIdentity.setPos(this.position());
             livingIdentity.setDeltaMovement(this.getDeltaMovement());
             if(livingIdentity instanceof Mob mobIdentity){
-                mobIdentity.setNoAi(false);
+                mobIdentity.setNoAi(livingIdentity.getType() == EntityType.ENDER_DRAGON);
             }
             this.setPos(livingIdentity.position());
             this.setDeltaMovement(livingIdentity.getDeltaMovement());

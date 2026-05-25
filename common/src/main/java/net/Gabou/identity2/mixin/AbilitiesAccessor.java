@@ -1,4 +1,4 @@
-package net.Gabou.identity2.util;
+package net.Gabou.identity2.mixin;
 
 import net.minecraft.world.entity.player.Abilities;
 import org.spongepowered.asm.mixin.Mixin;

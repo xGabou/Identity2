@@ -32,6 +32,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.IdentityEquipmentHelper;
@@ -104,6 +105,7 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         }
 
         if (attacked) {
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 10);
             player.resetAttackStrengthTicker();
         }
         ci.cancel();
