@@ -164,6 +164,8 @@ public class PlayerManagerMixin {
             ServerPlayer player = this.getPlayer(entry.getKey());
             if (player != null) {
                 IdentityProgression.restoreMorphFromSavedDataAndSync(player);
+                IdentityProgression.refreshScaledHealth(player);
+                IdentityProgression.syncUnlockedIdentities(player);
             }
             iterator.remove();
         }

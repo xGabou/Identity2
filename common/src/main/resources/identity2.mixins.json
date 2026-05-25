@@ -30,6 +30,7 @@
     "PlayerInventoryMixin",
     "EntityEquipmentMixin",
     "PlayerManagerMixin",
+    "ServerPlayerDimensionMixin",
     "ServerPlayerMixin",
     "MobEntityMixin",
     "MinecraftServerMixin",
