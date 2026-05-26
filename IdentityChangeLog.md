@@ -1,4 +1,12 @@
-﻿# Identity2 Public Changelog
+# Identity2 Public Changelog
+
+---
+## 2026-05-26
+
+### Release 2.1.1
+
+- Fixed unlock sync packets so variant data is sent as binary NBT instead of oversized string tokens, while keeping legacy unlock storage compatible.
+- Added morph command variant support so `/identity morph <identity> [variant]` can parse and validate variant NBT.
 
 ---
 ## 2026-04-29
