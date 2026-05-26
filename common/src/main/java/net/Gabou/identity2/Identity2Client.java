@@ -525,7 +525,16 @@ public final class Identity2Client {
             if (entry == null || entry.identityId() == null || entry.identityId().isBlank()) {
                 continue;
             }
-            result.put(entry.identityId(), new ArrayList<>(entry.variantTokens() == null ? java.util.List.of() : entry.variantTokens()));
+            java.util.List<String> tokens = new ArrayList<>();
+            java.util.List<net.minecraft.nbt.CompoundTag> variantData = entry.variantData();
+            if (variantData != null) {
+                for (net.minecraft.nbt.CompoundTag data : variantData) {
+                    tokens.add(IdentityProgression.toVariantUnlockToken(
+                            IdentityProgression.normalizeVariantForUnlock(data)
+                    ));
+                }
+            }
+            result.put(entry.identityId(), tokens);
         }
         return result;
     }
