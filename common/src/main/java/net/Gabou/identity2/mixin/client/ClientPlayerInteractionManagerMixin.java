@@ -25,36 +25,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
-//    @Inject(method = "isSpectator", at = @At("HEAD"), cancellable = true, require = 0)
-//    private void forceFlyIdentitySpectator(CallbackInfoReturnable<Boolean> info) {
-//        if (identity2$hasFlyIdentity()) {
-//            // 1.21.11 path: do not treat fly-capable identities as spectator-only behavior.
-//            info.setReturnValue(false);
-//        }
-//    }
-
-    @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true, require = 0)
-    private void forceFlyIdentityAlwaysFlying(CallbackInfoReturnable<Boolean> info) {
-        // Do not force always-flying for morph flight. Keep vanilla toggle behavior
-        // so players can exit flight after changing gamemode or morph state.
-    }
-
-    private static boolean identity2$hasFlyIdentity() {
+    @Inject(method = "isAlwaysFlying", at = @At("HEAD"), cancellable = true)
+    private void forceFlyIdentity(CallbackInfoReturnable<Boolean> info) {
         Player player = Minecraft.getInstance().player;
         if (player == null) {
-            return false;
+            return;
         }
 
         if (!IdentitySettings.enableFlight) {
-            return false;
+            return;
         }
 
         if (player.isSpectator()) {
-            return false;
+            return;
         }
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        return identity != null && ((EntityAccessor) identity).canFly();
+        if (identity != null && ((EntityAccessor) identity).canFly()) {
+            // Keep flight enabled for fly-capable identities.
+            info.setReturnValue(true);
+        }
     }
 
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
