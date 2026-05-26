@@ -1035,7 +1035,19 @@ public final class IdentityProgression {
             if (entry.getKey() == null || entry.getKey().isBlank()) {
                 continue;
             }
-            variantEntries.add(new UnlockedIdentitySyncS2CPacketPayload.VariantEntry(entry.getKey(), new ArrayList<>(entry.getValue())));
+            List<CompoundTag> variantData = new ArrayList<>();
+            for (String token : entry.getValue()) {
+                CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
+                if (!decoded.isEmpty()) {
+                    variantData.add(decoded);
+                } else if (token != null && !token.isBlank() && "-".equals(token.trim())) {
+                    variantData.add(new CompoundTag());
+                }
+            }
+            if (variantData.isEmpty()) {
+                continue;
+            }
+            variantEntries.add(new UnlockedIdentitySyncS2CPacketPayload.VariantEntry(entry.getKey(), variantData));
         }
         return new UnlockedIdentitySyncS2CPacketPayload(player.getId(), new ArrayList<>(unlocked), variantEntries);
     }
@@ -1073,12 +1085,10 @@ public final class IdentityProgression {
                 notifyPlayerOversizedIdentityPayload(player);
                 return false;
             }
-            for (String token : entry.variantTokens()) {
-                if (token != null && token.length() > maxLength) {
-                    logOversizedIdentityPayload(player, payload, -1, "variant token exceeded max string length");
-                    notifyPlayerOversizedIdentityPayload(player);
-                    return false;
-                }
+            if (entry.variantData() == null) {
+                logOversizedIdentityPayload(player, payload, -1, "variant payload list was null");
+                notifyPlayerOversizedIdentityPayload(player);
+                return false;
             }
         }
 
