@@ -1,6 +1,8 @@
 package net.Gabou.identity2.client;
 
-import net.Gabou.identity2.PredefIdentityAbilities;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
@@ -10,24 +12,18 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-import net.minecraft.world.entity.monster.Ravager;
-import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.Phantom;
+import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
-import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.phys.Vec3;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 
 public final class IdentityRenderStateHelper {
     private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
     private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
+    private static final String HOGLIN_BASE_CLASS_NAME = "net.minecraft.world.entity.monster.hoglin.HoglinBase";
 
     private IdentityRenderStateHelper() {
     }
@@ -45,8 +41,9 @@ public final class IdentityRenderStateHelper {
         }
         ((EntityAccessor) identity).setLastPosition(new Vec3(source.xOld, source.yOld, source.zOld));
 
+        boolean preserveNativeAttackState = isHoglinFamily(identity) || identity instanceof IronGolem || identity instanceof Ravager;
+
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
-            syncLivingHealthForRender(livingSource, livingIdentity);
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping()
                     != ((LivingEntityAccessor) livingSource).identity2$isJumping()) {
                 livingIdentity.setJumping(((LivingEntityAccessor) livingSource).identity2$isJumping());
@@ -59,10 +56,12 @@ public final class IdentityRenderStateHelper {
             target.setPosition(origin.getPosition());
             target.setPositionScale(origin.getPositionScale());
 
-            livingIdentity.swinging = livingSource.swinging;
-            livingIdentity.swingTime = livingSource.swingTime;
-            livingIdentity.oAttackAnim = livingSource.oAttackAnim;
-            livingIdentity.attackAnim = livingSource.attackAnim;
+            if (!preserveNativeAttackState) {
+                livingIdentity.swinging = livingSource.swinging;
+                livingIdentity.swingTime = livingSource.swingTime;
+                livingIdentity.oAttackAnim = livingSource.oAttackAnim;
+                livingIdentity.attackAnim = livingSource.attackAnim;
+            }
             livingIdentity.hurtTime = livingSource.hurtTime;
             livingIdentity.hurtDuration = livingSource.hurtDuration;
             livingIdentity.deathTime = livingSource.deathTime;
@@ -114,7 +113,9 @@ public final class IdentityRenderStateHelper {
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {
-            mobIdentity.setAggressive(livingSource.isUsingItem());
+            if (!preserveNativeAttackState) {
+                mobIdentity.setAggressive(livingSource.isUsingItem());
+            }
         }
 
         if (source.isInWater()) {
@@ -123,17 +124,8 @@ public final class IdentityRenderStateHelper {
         } else {
             identity.setSharedFlagOnFire(identity.isOnFire());
         }
-        syncEntityAnimationState(source, identity, tickDelta);
-    }
 
-    private static void syncLivingHealthForRender(LivingEntity source, LivingEntity identity) {
-        float sourceMaxHealth = source.getMaxHealth();
-        float identityMaxHealth = identity.getMaxHealth();
-        if (sourceMaxHealth <= 0.0F || identityMaxHealth <= 0.0F) {
-            return;
-        }
-        float scaledHealth = source.getHealth() * (identityMaxHealth / sourceMaxHealth);
-        identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
+        syncEntityAnimationState(source, identity, tickDelta);
     }
 
     private static void syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
@@ -141,42 +133,39 @@ public final class IdentityRenderStateHelper {
             return;
         }
         if (identity instanceof IronGolem) {
-            setIntFieldExact(identity, "attackAnimationTick", Math.max(
-                    resolveIronGolemAttackTicks(source, tickDelta),
-                    PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
-            ));
-        }
-        int attackTicks = Math.max(
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
-        );
-        if (identity instanceof Ravager) {
-            setIntFieldExact(identity, "attackTick", attackTicks);
-        }
-        if (identity instanceof Hoglin) {
-            setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
-        }
-        if (identity instanceof Warden) {
-            int beamStart = (int) Math.round(PredefIdentityAbilities.getSyncedAnimationStartTick(
-                    source,
-                    PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY
-            ));
-            int attackStart = (int) Math.round(PredefIdentityAbilities.getSyncedAnimationStartTick(
-                    source,
-                    PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY
-            ));
-            syncAnimationStateField(identity, "sonicBoomAnimationState", "sonicBoomAnimation", beamStart);
-            syncAnimationStateField(identity, "attackAnimationState", "attackAnimation", attackStart);
-        }
-        if (identity instanceof Pufferfish) {
-            invokeOneArg(identity, "setPuffState", PredefIdentityAbilities.isSyncedAnimationActive(
-                    source,
-                    PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY
-            ) ? 2 : 0);
+            setIntFieldExact(identity, "attackAnimationTick", resolveIronGolemAttackTicks(source, tickDelta));
+        } else if (identity instanceof Ravager) {
+            int attackTicks = resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                setIntFieldExact(identity, "attackTick", attackTicks);
+                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
+        } else if (isHoglinFamily(identity)) {
+            int attackTicks = resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                setIntFieldExact(identity, "attackTick", attackTicks);
+                setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
         }
     }
 
-    public static int resolveIronGolemAttackTicks(Entity source, float tickDelta) {
+    private static boolean isHoglinFamily(Entity identity) {
+        if (identity instanceof Hoglin) {
+            return true;
+        }
+        try {
+            Class<?> hoglinBase = Class.forName(HOGLIN_BASE_CLASS_NAME);
+            return hoglinBase.isInstance(identity);
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    private static int resolveIronGolemAttackTicks(Entity source, float tickDelta) {
         if (!(source instanceof LivingEntity livingSource)) {
             return 0;
         }
@@ -201,85 +190,43 @@ public final class IdentityRenderStateHelper {
         return Math.min(IRON_GOLEM_ATTACK_ANIMATION_TICKS, (int) Math.ceil(remaining));
     }
 
-    private static void syncAnimationStateField(Object owner, String fieldName, String fallbackFieldName, int startTick) {
-        Object state = getFieldValue(owner, fieldName);
-        if (state == null && fallbackFieldName != null) {
-            state = getFieldValue(owner, fallbackFieldName);
-        }
-        if (state == null) {
+    private static void setIntFieldExact(Object target, String fieldName, int value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
             return;
         }
-        if (startTick > 0) {
-            invokeOneArg(state, "start", startTick);
-        } else {
-            invokeNoArg(state, "stop");
-        }
-    }
-
-    private static Object getFieldValue(Object target, String fieldName) {
-        Class<?> type = target.getClass();
-        while (type != null) {
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
             try {
-                Field field = type.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(target);
-            } catch (NoSuchFieldException ignored) {
-                type = type.getSuperclass();
-            } catch (Throwable ignored) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static void setIntFieldExact(Object target, String fieldName, int value) {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Field field = type.getDeclaredField(fieldName);
-                if (field.getType() != int.class) {
-                    return;
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != int.class && field.getType() != Integer.class) {
+                    continue;
                 }
-                field.setAccessible(true);
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
                 field.setInt(target, value);
                 return;
-            } catch (NoSuchFieldException ignored) {
-                type = type.getSuperclass();
             } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static void setFloatFieldExact(Object target, String fieldName, float value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != float.class && field.getType() != Float.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setFloat(target, value);
                 return;
-            }
-        }
-    }
-
-    private static Object invokeOneArg(Object target, String methodName, Object value) {
-        if (target == null) {
-            return null;
-        }
-        for (Method method : target.getClass().getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            try {
-                return method.invoke(target, value);
             } catch (Throwable ignored) {
             }
         }
-        return null;
-    }
-
-    private static Object invokeNoArg(Object target, String methodName) {
-        if (target == null) {
-            return null;
-        }
-        for (Method method : target.getClass().getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                continue;
-            }
-            try {
-                return method.invoke(target);
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
     }
 }
