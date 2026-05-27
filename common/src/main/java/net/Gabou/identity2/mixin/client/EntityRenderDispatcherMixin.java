@@ -35,6 +35,7 @@ import java.lang.reflect.Method;
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
     private static final float ENDER_DRAGON_MORPH_FLAP_SPEED = 1.0F / 10.0F;
+    private static final String HOGLIN_BASE_CLASS_NAME = "net.minecraft.world.entity.monster.hoglin.HoglinBase";
 
     @Shadow
     public abstract  <T extends Entity> EntityRenderer<? super T> getRenderer(T entity);
@@ -93,6 +94,8 @@ public abstract class EntityRenderDispatcherMixin {
         }
         ((EntityAccessor) identity).setLastPosition(new Vec3(source.xOld, source.yOld, source.zOld));
 
+        boolean preserveNativeAttackState = identity2$isHoglinFamily(identity) || identity instanceof IronGolem || identity instanceof Ravager;
+
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
             identity2$syncLivingHealthForRender(livingSource, livingIdentity);
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping() != ((LivingEntityAccessor)livingSource).identity2$isJumping()) {
@@ -106,10 +109,12 @@ public abstract class EntityRenderDispatcherMixin {
             target.setPosition(origin.getPosition());
             target.setPositionScale(origin.getPositionScale());
 
-            livingIdentity.swinging = livingSource.swinging;
-            livingIdentity.swingTime = livingSource.swingTime;
-            livingIdentity.oAttackAnim = livingSource.oAttackAnim;
-            livingIdentity.attackAnim = livingSource.attackAnim;
+            if (!preserveNativeAttackState) {
+                livingIdentity.swinging = livingSource.swinging;
+                livingIdentity.swingTime = livingSource.swingTime;
+                livingIdentity.oAttackAnim = livingSource.oAttackAnim;
+                livingIdentity.attackAnim = livingSource.attackAnim;
+            }
             if (!(livingIdentity instanceof Shulker)) {
                 livingIdentity.yBodyRot = livingSource.yBodyRot;
                 livingIdentity.yBodyRotO = livingSource.yBodyRotO;
@@ -159,7 +164,9 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {
-            mobIdentity.setAggressive(livingSource.isUsingItem());
+            if (!preserveNativeAttackState) {
+                mobIdentity.setAggressive(livingSource.isUsingItem());
+            }
         }
 
         if (source.isInWater()) {
@@ -193,26 +200,23 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         if (identity instanceof IronGolem) {
-            identity2$setIntFieldExact(
-                    identity,
-                    "attackAnimationTick",
-                    Math.max(
-                            IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta),
-                            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
-                    )
-            );
-        }
-
-        int attackTicks = Math.max(
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
-        );
-        if (identity instanceof Ravager) {
-            identity2$setIntFieldExact(identity, "attackTick", attackTicks);
-        }
-
-        if (identity instanceof Hoglin) {
-            identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+            identity2$setIntFieldExact(identity, "attackAnimationTick", IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta));
+        } else if (identity instanceof Ravager) {
+            int attackTicks = IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                identity2$setIntFieldExact(identity, "attackTick", attackTicks);
+                identity2$setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                identity2$setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
+        } else if (identity2$isHoglinFamily(identity)) {
+            int attackTicks = IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                identity2$setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                identity2$setIntFieldExact(identity, "attackTick", attackTicks);
+                identity2$setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
         }
 
         if (identity instanceof Warden) {
@@ -257,6 +261,38 @@ public abstract class EntityRenderDispatcherMixin {
                 return;
             } catch (Throwable ignored) {
             }
+        }
+    }
+
+    private static void identity2$setFloatFieldExact(Object target, String fieldName, float value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != float.class && field.getType() != Float.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setFloat(target, value);
+                return;
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static boolean identity2$isHoglinFamily(Entity identity) {
+        if (identity instanceof Hoglin) {
+            return true;
+        }
+        try {
+            Class<?> hoglinBase = Class.forName(HOGLIN_BASE_CLASS_NAME);
+            return hoglinBase.isInstance(identity);
+        } catch (ClassNotFoundException ignored) {
+            return false;
         }
     }
 

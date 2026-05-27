@@ -20,7 +20,6 @@ import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +27,7 @@ public final class IdentityRenderStateHelper {
     private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
     private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
+    private static final String HOGLIN_BASE_CLASS_NAME = "net.minecraft.world.entity.monster.hoglin.HoglinBase";
 
     private IdentityRenderStateHelper() {
     }
@@ -45,6 +45,8 @@ public final class IdentityRenderStateHelper {
         }
         ((EntityAccessor) identity).setLastPosition(new Vec3(source.xOld, source.yOld, source.zOld));
 
+        boolean preserveNativeAttackState = isHoglinFamily(identity) || identity instanceof IronGolem || identity instanceof Ravager;
+
         if (identity instanceof LivingEntity livingIdentity && source instanceof LivingEntity livingSource) {
             syncLivingHealthForRender(livingSource, livingIdentity);
             if (((LivingEntityAccessor) livingIdentity).identity2$isJumping()
@@ -59,10 +61,12 @@ public final class IdentityRenderStateHelper {
             target.setPosition(origin.getPosition());
             target.setPositionScale(origin.getPositionScale());
 
-            livingIdentity.swinging = livingSource.swinging;
-            livingIdentity.swingTime = livingSource.swingTime;
-            livingIdentity.oAttackAnim = livingSource.oAttackAnim;
-            livingIdentity.attackAnim = livingSource.attackAnim;
+            if (!preserveNativeAttackState) {
+                livingIdentity.swinging = livingSource.swinging;
+                livingIdentity.swingTime = livingSource.swingTime;
+                livingIdentity.oAttackAnim = livingSource.oAttackAnim;
+                livingIdentity.attackAnim = livingSource.attackAnim;
+            }
             livingIdentity.hurtTime = livingSource.hurtTime;
             livingIdentity.hurtDuration = livingSource.hurtDuration;
             livingIdentity.deathTime = livingSource.deathTime;
@@ -114,7 +118,9 @@ public final class IdentityRenderStateHelper {
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {
-            mobIdentity.setAggressive(livingSource.isUsingItem());
+            if (!preserveNativeAttackState) {
+                mobIdentity.setAggressive(livingSource.isUsingItem());
+            }
         }
 
         if (source.isInWater()) {
@@ -141,20 +147,23 @@ public final class IdentityRenderStateHelper {
             return;
         }
         if (identity instanceof IronGolem) {
-            setIntFieldExact(identity, "attackAnimationTick", Math.max(
-                    resolveIronGolemAttackTicks(source, tickDelta),
-                    PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
-            ));
-        }
-        int attackTicks = Math.max(
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
-                PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
-        );
-        if (identity instanceof Ravager) {
-            setIntFieldExact(identity, "attackTick", attackTicks);
-        }
-        if (identity instanceof Hoglin) {
-            setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+            setIntFieldExact(identity, "attackAnimationTick", resolveIronGolemAttackTicks(source, tickDelta));
+        } else if (identity instanceof Ravager) {
+            int attackTicks = resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                setIntFieldExact(identity, "attackTick", attackTicks);
+                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
+        } else if (isHoglinFamily(identity)) {
+            int attackTicks = resolveIronGolemAttackTicks(source, tickDelta);
+            if (attackTicks > 0) {
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
+                setIntFieldExact(identity, "attackTick", attackTicks);
+                setFloatFieldExact(identity, "attackTicksRemaining", attackTicks);
+            }
         }
         if (identity instanceof Warden) {
             int beamStart = (int) Math.round(PredefIdentityAbilities.getSyncedAnimationStartTick(
@@ -199,6 +208,18 @@ public final class IdentityRenderStateHelper {
             return 0;
         }
         return Math.min(IRON_GOLEM_ATTACK_ANIMATION_TICKS, (int) Math.ceil(remaining));
+    }
+
+    private static boolean isHoglinFamily(Entity identity) {
+        if (identity instanceof Hoglin) {
+            return true;
+        }
+        try {
+            Class<?> hoglinBase = Class.forName(HOGLIN_BASE_CLASS_NAME);
+            return hoglinBase.isInstance(identity);
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
     }
 
     private static void syncAnimationStateField(Object owner, String fieldName, String fallbackFieldName, int startTick) {
@@ -247,6 +268,26 @@ public final class IdentityRenderStateHelper {
                 type = type.getSuperclass();
             } catch (Throwable ignored) {
                 return;
+            }
+        }
+    }
+
+    private static void setFloatFieldExact(Object target, String fieldName, float value) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != float.class && field.getType() != Float.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                field.setFloat(target, value);
+                return;
+            } catch (Throwable ignored) {
             }
         }
     }
