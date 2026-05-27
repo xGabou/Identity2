@@ -7,6 +7,9 @@ import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import dev.architectury.event.events.common.PlayerEvent;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -18,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.lang.reflect.Method;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
@@ -100,6 +105,7 @@ public final class IdentityProgression {
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
     private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
+    private static final String VARIANT_TOKEN_GZIP_PREFIX = "gz:";
     private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
     private static final long LARGE_MORPH_DAMAGE_GRACE_TICKS = 20L;
     private static boolean initialized = false;
@@ -908,7 +914,19 @@ public final class IdentityProgression {
             if (entry.getKey() == null || entry.getKey().isBlank()) {
                 continue;
             }
-            variantEntries.add(new UnlockedIdentitySyncS2CPacketPayload.VariantEntry(entry.getKey(), new ArrayList<>(entry.getValue())));
+            List<CompoundTag> variantData = new ArrayList<>();
+            for (String token : entry.getValue()) {
+                CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
+                if (!decoded.isEmpty()) {
+                    variantData.add(decoded);
+                } else if (token != null && !token.isBlank() && "-".equals(token.trim())) {
+                    variantData.add(new CompoundTag());
+                }
+            }
+            if (variantData.isEmpty()) {
+                continue;
+            }
+            variantEntries.add(new UnlockedIdentitySyncS2CPacketPayload.VariantEntry(entry.getKey(), variantData));
         }
         return new UnlockedIdentitySyncS2CPacketPayload(player.getId(), new ArrayList<>(unlocked), variantEntries);
     }
@@ -946,12 +964,10 @@ public final class IdentityProgression {
                 notifyPlayerOversizedIdentityPayload(player);
                 return false;
             }
-            for (String token : entry.variantTokens()) {
-                if (token != null && token.length() > maxLength) {
-                    logOversizedIdentityPayload(player, payload, -1, "variant token exceeded max string length");
-                    notifyPlayerOversizedIdentityPayload(player);
-                    return false;
-                }
+            if (entry.variantData() == null) {
+                logOversizedIdentityPayload(player, payload, -1, "variant payload list was null");
+                notifyPlayerOversizedIdentityPayload(player);
+                return false;
             }
         }
 
@@ -1168,7 +1184,7 @@ public final class IdentityProgression {
                 if (rawToken == null) {
                     continue;
                 }
-                String trimmedToken = rawToken.trim();
+                String trimmedToken = normalizeVariantUnlockToken(rawToken);
                 if (!trimmedToken.isEmpty()) {
                     normalizedTokens.add(trimmedToken);
                 }
@@ -1769,7 +1785,11 @@ public final class IdentityProgression {
         if (raw.isBlank()) {
             return "-";
         }
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        byte[] compressed = gzip(raw.getBytes(StandardCharsets.UTF_8));
+        if (compressed.length == 0) {
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        }
+        return VARIANT_TOKEN_GZIP_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(compressed);
     }
 
     public static CompoundTag fromVariantUnlockToken(String token) {
@@ -1777,11 +1797,76 @@ public final class IdentityProgression {
             return new CompoundTag();
         }
         try {
-            byte[] decoded = Base64.getUrlDecoder().decode(token);
-            String raw = new String(decoded, StandardCharsets.UTF_8);
-            return parseVariantNbt(raw);
+            if (token.startsWith(VARIANT_TOKEN_GZIP_PREFIX)) {
+                byte[] decoded = Base64.getUrlDecoder().decode(token.substring(VARIANT_TOKEN_GZIP_PREFIX.length()));
+                String raw = ungzip(decoded);
+                if (!raw.isBlank()) {
+                    return parseVariantNbt(raw);
+                }
+            } else {
+                byte[] decoded = Base64.getUrlDecoder().decode(token);
+                String raw = new String(decoded, StandardCharsets.UTF_8);
+                if (!raw.isBlank()) {
+                    return parseVariantNbt(raw);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            return parseVariantNbt(token);
         } catch (Throwable ignored) {
             return new CompoundTag();
+        }
+    }
+
+    private static String normalizeVariantUnlockToken(String rawToken) {
+        if (rawToken == null) {
+            return "";
+        }
+        String trimmed = rawToken.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        if ("-".equals(trimmed)) {
+            return "-";
+        }
+
+        CompoundTag parsed = fromVariantUnlockToken(trimmed);
+        if (parsed.isEmpty()) {
+            return trimmed;
+        }
+        return toVariantUnlockToken(normalizeVariantForUnlock(parsed));
+    }
+
+    private static byte[] gzip(byte[] input) {
+        if (input == null || input.length == 0) {
+            return new byte[0];
+        }
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(input);
+            gzip.finish();
+            return output.toByteArray();
+        } catch (IOException ignored) {
+            return new byte[0];
+        }
+    }
+
+    private static String ungzip(byte[] input) {
+        if (input == null || input.length == 0) {
+            return "";
+        }
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(input);
+             GZIPInputStream gzip = new GZIPInputStream(inputStream);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = gzip.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            return output.toString(StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            return "";
         }
     }
 

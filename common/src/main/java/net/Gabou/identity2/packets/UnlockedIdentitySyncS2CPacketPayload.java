@@ -7,6 +7,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.nbt.CompoundTag;
 
 public record UnlockedIdentitySyncS2CPacketPayload(
         int entityid,
@@ -32,12 +33,12 @@ public record UnlockedIdentitySyncS2CPacketPayload(
         return ID;
     }
 
-    public record VariantEntry(String identityId, List<String> variantTokens) {
+    public record VariantEntry(String identityId, List<CompoundTag> variantData) {
         public static final StreamCodec<RegistryFriendlyByteBuf, VariantEntry> CODEC = StreamCodec.composite(
                 ByteBufCodecs.STRING_UTF8,
                 VariantEntry::identityId,
-                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()),
-                VariantEntry::variantTokens,
+                ByteBufCodecs.COMPOUND_TAG.apply(ByteBufCodecs.list()),
+                VariantEntry::variantData,
                 VariantEntry::new
         );
     }
