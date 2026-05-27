@@ -136,7 +136,8 @@ public class EntityMixin implements EntityAccessor{
 //        return -Identity2.maxWorldSize;
 //    }
     @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"),
+    require = 0)
     private void moveOnEntityLandOverride(Block block, BlockGetter view, Entity entity) {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
