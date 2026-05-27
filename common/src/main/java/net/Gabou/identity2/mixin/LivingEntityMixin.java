@@ -269,7 +269,7 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
                 livingIdentity.setPos(this.position());
                 livingIdentity.setDeltaMovement(this.getDeltaMovement());
                 if (livingIdentity instanceof Mob mobIdentity) {
-                    mobIdentity.setNoAi(livingIdentity.getType() == EntityType.ENDER_DRAGON);
+                    mobIdentity.setNoAi(true);
                 }
                 this.setPos(livingIdentity.position());
                 this.setDeltaMovement(livingIdentity.getDeltaMovement());
@@ -683,5 +683,6 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
             }
         }
     }
+
 //Tons of Redirects - End
 }

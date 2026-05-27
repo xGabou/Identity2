@@ -280,7 +280,7 @@ public class EntityMixin implements EntityAccessor{
                 this.currentIdentity.tick();
             } else {
                 if(this.currentIdentity instanceof Mob mobIdentity){
-                    mobIdentity.setNoAi(this.currentIdentity instanceof EnderDragon);
+                    mobIdentity.setNoAi(true);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
                 if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {

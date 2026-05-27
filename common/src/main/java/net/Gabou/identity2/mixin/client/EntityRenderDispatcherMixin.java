@@ -1,7 +1,6 @@
 package net.Gabou.identity2.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.client.IdentityRenderStateHelper;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -21,16 +20,12 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
-import net.minecraft.world.entity.monster.hoglin.Hoglin;
-import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.entity.monster.hoglin.HoglinBase;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
@@ -84,6 +79,10 @@ public abstract class EntityRenderDispatcherMixin {
     }
 
     private static void identity2$syncIdentityForRender(Entity source, Entity identity, float tickDelta) {
+        boolean preserveNativeAttackState = identity instanceof IronGolem
+                || identity instanceof Ravager
+                || identity instanceof HoglinBase;
+
         identity.setPosRaw(source.position().x, source.position().y, source.position().z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
@@ -106,10 +105,12 @@ public abstract class EntityRenderDispatcherMixin {
             target.setPosition(origin.getPosition());
             target.setPositionScale(origin.getPositionScale());
 
-            livingIdentity.swinging = livingSource.swinging;
-            livingIdentity.swingTime = livingSource.swingTime;
-            livingIdentity.oAttackAnim = livingSource.oAttackAnim;
-            livingIdentity.attackAnim = livingSource.attackAnim;
+            if (!preserveNativeAttackState) {
+                livingIdentity.swinging = livingSource.swinging;
+                livingIdentity.swingTime = livingSource.swingTime;
+                livingIdentity.oAttackAnim = livingSource.oAttackAnim;
+                livingIdentity.attackAnim = livingSource.attackAnim;
+            }
             if (!(livingIdentity instanceof Shulker)) {
                 livingIdentity.yBodyRot = livingSource.yBodyRot;
                 livingIdentity.yBodyRotO = livingSource.yBodyRotO;
@@ -159,7 +160,9 @@ public abstract class EntityRenderDispatcherMixin {
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {
-            mobIdentity.setAggressive(livingSource.isUsingItem());
+            if (!preserveNativeAttackState) {
+                mobIdentity.setAggressive(livingSource.isUsingItem());
+            }
         }
 
         if (source.isInWater()) {
@@ -168,7 +171,7 @@ public abstract class EntityRenderDispatcherMixin {
         } else {
             identity.setSharedFlagOnFire(identity.isOnFire());
         }
-        identity2$syncEntityAnimationState(source, identity, tickDelta);
+        IdentityRenderStateHelper.syncEntityAnimationState(source, identity, tickDelta);
     }
 
     private static void identity2$syncEnderDragonFlapAnimation(Entity source, EnderDragon dragonIdentity) {
@@ -185,141 +188,5 @@ public abstract class EntityRenderDispatcherMixin {
         }
         float scaledHealth = source.getHealth() * (identityMaxHealth / sourceMaxHealth);
         identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
-    }
-
-    private static void identity2$syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
-        if (source == null || identity == null) {
-            return;
-        }
-
-        if (identity instanceof IronGolem) {
-            identity2$setIntFieldExact(
-                identity,
-                "attackAnimationTick",
-                Math.max(
-                    IdentityRenderStateHelper.resolveIronGolemAttackTicks(source, tickDelta),
-                    PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
-                )
-            );
-        }
-
-        int attackTicks = Math.max(
-            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
-            PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
-        );
-        if (identity instanceof Ravager) {
-            identity2$setIntFieldExact(identity, "attackTick", attackTicks);
-        }
-
-        if (identity instanceof Hoglin) {
-            identity2$setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
-        }
-
-        if (identity instanceof Warden) {
-            int beamStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY);
-            int attackStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
-            identity2$syncAnimationStateField(identity, "sonicBoomAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY), beamStart);
-            identity2$syncAnimationStateField(identity, "attackAnimationState", PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY), attackStart);
-        }
-
-        if (identity instanceof Pufferfish) {
-            int puffState = PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY) ? 2 : 0;
-            identity2$invokeOneArg(identity, "setPuffState", puffState);
-        }
-    }
-
-    private static void identity2$syncAnimationStateField(Object target, String fieldName, boolean active, int startTick) {
-        Object state = identity2$getFieldValue(target, fieldName);
-        if (state == null) {
-            return;
-        }
-        if (active) {
-            identity2$invokeOneArg(state, "startIfStopped", startTick);
-        } else {
-            identity2$invokeNoArg(state, "stop");
-        }
-    }
-
-    private static void identity2$setIntFieldExact(Object target, String fieldName, int value) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != int.class && field.getType() != Integer.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                field.setInt(target, value);
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static Object identity2$getFieldValue(Object target, String fieldName) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return null;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                return field.get(target);
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
-
-    private static Object identity2$invokeNoArg(Object target, String methodName) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                    continue;
-                }
-                try {
-                    if (!method.canAccess(target)) {
-                        method.setAccessible(true);
-                    }
-                    return method.invoke(target);
-                } catch (Throwable ignored) {
-                }
-            }
-        }
-        return null;
-    }
-
-    private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
-        if (target == null || methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                    continue;
-                }
-                Class<?> param = method.getParameterTypes()[0];
-                if (arg != null && !(param.isAssignableFrom(arg.getClass()) || (param == int.class && arg instanceof Integer))) {
-                    continue;
-                }
-                try {
-                    if (!method.canAccess(target)) {
-                        method.setAccessible(true);
-                    }
-                    return method.invoke(target, arg);
-                } catch (Throwable ignored) {
-                }
-            }
-        }
-        return null;
     }
 }

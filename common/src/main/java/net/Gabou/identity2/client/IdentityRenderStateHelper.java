@@ -19,7 +19,7 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
-import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.hoglin.HoglinBase;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.phys.Vec3;
 
@@ -161,32 +161,43 @@ public final class IdentityRenderStateHelper {
         identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
     }
 
-    private static void syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
+    public static void syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
         if (source == null || identity == null) {
             return;
         }
 
-        if (identity instanceof IronGolem) {
-            setIntFieldExact(
-                identity,
-                "attackAnimationTick",
-                Math.max(
-                    resolveIronGolemAttackTicks(source, tickDelta),
-                    PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
-                )
-            );
-        }
-
-        int attackTicks = Math.max(
+        int abilityAttackTicks = Math.max(
             PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY),
             PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
         );
-        if (identity instanceof Ravager) {
-            setIntFieldExact(identity, "attackTick", attackTicks);
-        }
 
-        if (identity instanceof Hoglin) {
-            setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
+        if (identity instanceof IronGolem) {
+            int golemAttackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
+            if (golemAttackTicks > 0) {
+                setIntFieldExact(identity, "attackAnimationTick", golemAttackTicks);
+            }
+        } else if (identity instanceof Ravager) {
+            int ravagerAttackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
+            if (ravagerAttackTicks > 0) {
+                setIntFieldExact(identity, "attackAnimationTick", ravagerAttackTicks);
+                setIntFieldExact(identity, "attackTick", ravagerAttackTicks);
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", ravagerAttackTicks);
+                setFloatFieldMax(identity, "attackTicksRemaining", ravagerAttackTicks);
+            }
+        } else if (identity instanceof HoglinBase) {
+            int hoglinAttackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
+            if (hoglinAttackTicks > 0) {
+                setIntFieldExact(identity, "attackAnimationRemainingTicks", hoglinAttackTicks);
+                setIntFieldExact(identity, "attackAnimationTick", hoglinAttackTicks);
+                setIntFieldExact(identity, "attackTick", hoglinAttackTicks);
+                setFloatFieldMax(identity, "attackTicksRemaining", hoglinAttackTicks);
+            }
+        } else if (abilityAttackTicks > 0) {
+            ensureVanillaAttackAnimation(identity);
+            setIntFieldMax(identity, "attackAnimationTick", abilityAttackTicks);
+            setIntFieldMax(identity, "attackTick", abilityAttackTicks);
+            setIntFieldMax(identity, "attackAnimationRemainingTicks", abilityAttackTicks);
+            setFloatFieldMax(identity, "attackTicksRemaining", abilityAttackTicks);
         }
 
         if (identity instanceof Warden) {
@@ -232,6 +243,156 @@ public final class IdentityRenderStateHelper {
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    private static void setIntFieldMax(Object target, String fieldName, int minValue) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != int.class && field.getType() != Integer.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                int currentValue = field.getInt(target);
+                if (currentValue < minValue) {
+                    field.setInt(target, minValue);
+                }
+                return;
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static void setFloatFieldMax(Object target, String fieldName, float minValue) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != float.class && field.getType() != Float.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                float currentValue = field.getFloat(target);
+                if (currentValue < minValue) {
+                    field.setFloat(target, minValue);
+                }
+                return;
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static boolean ensureVanillaAttackAnimation(Entity identity) {
+        if (!(identity instanceof IronGolem || identity instanceof Ravager || identity instanceof HoglinBase)) {
+            return false;
+        }
+        if (hasActiveAttackAnimation(identity)) {
+            return false;
+        }
+        return invokeHandleEntityEvent(identity, (byte) 4);
+    }
+
+    private static boolean hasActiveAttackAnimation(Object target) {
+        return getIntFieldValue(target, "attackAnimationTick") > 0
+            || getIntFieldValue(target, "attackTick") > 0
+            || getIntFieldValue(target, "attackAnimationRemainingTicks") > 0
+            || getFloatFieldValue(target, "attackTicksRemaining") > 0;
+    }
+
+    private static int getIntFieldValue(Object target, String fieldName) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return 0;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != int.class && field.getType() != Integer.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                return field.getInt(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        Object viaGetter = invokeNoArg(target, getterNameForField(fieldName));
+        if (viaGetter instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
+    }
+
+    private static float getFloatFieldValue(Object target, String fieldName) {
+        if (target == null || fieldName == null || fieldName.isBlank()) {
+            return 0.0F;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                if (field.getType() != float.class && field.getType() != Float.class) {
+                    continue;
+                }
+                if (!field.canAccess(target)) {
+                    field.setAccessible(true);
+                }
+                return field.getFloat(target);
+            } catch (Throwable ignored) {
+            }
+        }
+        Object viaGetter = invokeNoArg(target, getterNameForField(fieldName));
+        if (viaGetter instanceof Number number) {
+            return number.floatValue();
+        }
+        return 0.0F;
+    }
+
+    private static String getterNameForField(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return "";
+        }
+        return switch (fieldName) {
+            case "attackAnimationTick" -> "getAttackAnimationTick";
+            case "attackTick" -> "getAttackTick";
+            case "attackAnimationRemainingTicks" -> "getAttackAnimationRemainingTicks";
+            case "attackTicksRemaining" -> "getAttackTicksRemaining";
+            default -> "";
+        };
+    }
+
+    private static boolean invokeHandleEntityEvent(Object target, byte eventId) {
+        if (target == null) {
+            return false;
+        }
+        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals("handleEntityEvent") || method.getParameterCount() != 1) {
+                    continue;
+                }
+                Class<?> param = method.getParameterTypes()[0];
+                if (param != byte.class && param != Byte.class) {
+                    continue;
+                }
+                try {
+                    if (!method.canAccess(target)) {
+                        method.setAccessible(true);
+                    }
+                    method.invoke(target, eventId);
+                    return true;
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return false;
     }
 
     private static Object getFieldValue(Object target, String fieldName) {
