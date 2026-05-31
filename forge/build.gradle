@@ -8,24 +8,18 @@ loom {
         client {
             client()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             vmArg "-Dlog4j2.level=DEBUG"
         }
 
         server {
             server()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             vmArg "-Dlog4j2.level=DEBUG"
         }
 
         data {
             data()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             programArgs "--mod", "identity2", "--all",
                     "--output", project(":common").file("src/generated/resources/").absolutePath,
                     "--existing", project(":common").file("src/main/resources/").absolutePath
@@ -43,7 +37,8 @@ configurations {
     shadowCommon
     compileClasspath.extendsFrom common
 //    runtimeClasspath.extendsFrom common
-    developmentForge.extendsFrom common
+    // Dev runtime needs the Forge-transformed common output so Mixin sees Forge mappings, not intermediary ones.
+    developmentForge.extendsFrom shadowCommon
 }
 
 dependencies {
@@ -63,6 +58,12 @@ processResources {
     // Forge dev runtime reads this config from forge resources via -mixin.config.
     from(project(":common").file("src/main/resources")) {
         include "identity2.mixins.json"
+    }
+    // Ship the Forge-remapped refmap into the Forge resource output so dev runs do not fall back to the intermediary common refmap.
+    from({
+        zipTree(configurations.shadowCommon.singleFile)
+    }) {
+        include "identity2-common-refmap.json"
     }
 
     filesMatching("META-INF/mods.toml") {

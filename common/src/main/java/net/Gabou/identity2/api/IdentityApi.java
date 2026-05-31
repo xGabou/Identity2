@@ -19,6 +19,9 @@ import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.NetworkCompat;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -100,19 +103,115 @@ public final class IdentityApi {
 
     public static List<IdentityVariant> discoverVariants(EntityType<?> type, Level level) {
         IdentityVariantAdapter adapter = getVariantAdapter(type);
-        if (adapter == null || level == null) {
+        if (adapter != null && level != null) {
+            try {
+                List<IdentityVariant> variants = adapter.discoverVariants(type, level);
+                if (variants != null && !variants.isEmpty()) {
+                    return List.copyOf(variants);
+                }
+            } catch (Throwable throwable) {
+                Identity2.LOGGER.error("Variant adapter discovery failed for {}", EntityType.getKey(type), throwable);
+            }
+        }
+        List<IdentityVariant> builtInVariants = discoverBuiltInVariants(type);
+        if (!builtInVariants.isEmpty()) {
+            return builtInVariants;
+        }
+        return List.of();
+    }
+
+    private static List<IdentityVariant> discoverBuiltInVariants(EntityType<?> type) {
+        if (type == null) {
             return List.of();
+        }
+        ResourceLocation typeId = EntityType.getKey(type);
+        if (typeId == null) {
+            return List.of();
+        }
+        if (type == EntityType.CAT) {
+            return discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat");
+        }
+        if (type == EntityType.WOLF) {
+            return discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf");
+        }
+        if (type == EntityType.FROG) {
+            return discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog");
+        }
+        return List.of();
+    }
+
+    private static List<IdentityVariant> discoverRegistryBackedVariants(
+            ResourceLocation typeId,
+            String registryField,
+            String variantKey,
+            String labelPrefix
+    ) {
+        Registry<?> registry = resolveRegistry(registryField);
+        if (registry == null || registry.keySet().isEmpty()) {
+            return List.of();
+        }
+        List<ResourceLocation> keys = new ArrayList<>(registry.keySet());
+        keys.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
+        List<IdentityVariant> variants = new ArrayList<>(keys.size());
+        for (ResourceLocation variantId : keys) {
+            if (variantId == null) {
+                continue;
+            }
+            CompoundTag nbt = new CompoundTag();
+            nbt.putString(variantKey, variantId.toString());
+            variants.add(new IdentityVariant(typeId, labelPrefix + " " + capitalize(variantId.getPath().replace('_', ' ')), nbt));
+        }
+        return variants;
+    }
+
+    private static Registry<?> resolveRegistry(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return null;
         }
         try {
-            List<IdentityVariant> variants = adapter.discoverVariants(type, level);
-            if (variants == null || variants.isEmpty()) {
-                return List.of();
+            Object direct = BuiltInRegistries.class.getField(fieldName).get(null);
+            if (direct instanceof Registry<?> registry) {
+                return registry;
             }
-            return List.copyOf(variants);
-        } catch (Throwable throwable) {
-            Identity2.LOGGER.error("Variant adapter discovery failed for {}", EntityType.getKey(type), throwable);
-            return List.of();
+        } catch (Throwable ignored) {
         }
+        try {
+            Object key = Registries.class.getField(fieldName).get(null);
+            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
+                ResourceLocation location = resourceKey.location();
+                if (location != null) {
+                    Object value = BuiltInRegistries.REGISTRY.get(location);
+                    if (value instanceof Registry<?> registry) {
+                        return registry;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static String capitalize(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder(text.length());
+        boolean capitalizeNext = true;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (Character.isWhitespace(ch) || ch == '_' || ch == '-' || ch == '/') {
+                builder.append(' ');
+                capitalizeNext = true;
+                continue;
+            }
+            if (capitalizeNext) {
+                builder.append(Character.toUpperCase(ch));
+                capitalizeNext = false;
+            } else {
+                builder.append(Character.toLowerCase(ch));
+            }
+        }
+        return builder.toString().trim();
     }
 
     public static void registerMorphTickHandler(EntityType<?> type, IdentityMorphTickHandler handler) {

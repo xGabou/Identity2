@@ -21,7 +21,9 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.config.IdentityConfigManager;
+import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.commands.arguments.CompoundTagArgument;
@@ -75,6 +77,7 @@ public final class IdentityCommand {
                                 .executes(context -> morph(context.getSource(), ResourceLocationArgument.getId(context, "identity_id")))
                                 .then(
                                     Commands.argument("variant", StringArgumentType.greedyString())
+                                        .suggests(IdentityCommand::suggestMorphVariants)
                                         .executes(
                                             context -> morph(
                                                 context.getSource(),
@@ -643,6 +646,42 @@ public final class IdentityCommand {
             BuiltInRegistries.ENTITY_TYPE.keySet().stream().filter(IdentityProgression::isMorphableIdentity),
             builder
         );
+    }
+
+    private static CompletableFuture<Suggestions> suggestMorphVariants(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        ResourceLocation identityId;
+        try {
+            identityId = ResourceLocationArgument.getId(context, "identity_id");
+        } catch (Exception exception) {
+            return Suggestions.empty();
+        }
+
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(identityId);
+        if (type == null) {
+            return Suggestions.empty();
+        }
+
+        ServerPlayer player = context.getSource().getPlayer();
+        if (context.getSource().getLevel() == null) {
+            return Suggestions.empty();
+        }
+
+        List<String> suggestions = new ArrayList<>();
+        for (IdentityVariant variant : IdentityApi.discoverVariants(type, context.getSource().getLevel())) {
+            CompoundTag variantNbt = variant.variantNbt();
+            if (variantNbt == null || variantNbt.isEmpty()) {
+                continue;
+            }
+            if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
+                    && !isOperator(context.getSource())
+                    && player != null
+                    && !IdentityProgression.isVariantUnlocked(player, identityId, variantNbt)) {
+                continue;
+            }
+            suggestions.add(IdentityProgression.serializeVariantNbt(variantNbt));
+        }
+
+        return SharedSuggestionProvider.suggest(suggestions, builder);
     }
 
     private static CompletableFuture<Suggestions> suggestConfigKeys(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {

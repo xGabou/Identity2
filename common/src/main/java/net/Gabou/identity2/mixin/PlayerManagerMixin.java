@@ -90,12 +90,11 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
-    private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
-        if (!net.Gabou.identity2.auth.PendingAuthManager.isPending(player.getUUID())) {
-            return;
+    private void playerConnectInject(Connection connection, ServerPlayer player,CommonListenerCookie cookie, CallbackInfo info) {
+        boolean pendingAuth = net.Gabou.identity2.auth.PendingAuthManager.isPending(player.getUUID());
+        if (pendingAuth) {
+            net.Gabou.identity2.auth.ServerAuth.sendChallenge(player);
         }
-
-        net.Gabou.identity2.auth.ServerAuth.sendChallenge(player);
 
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);

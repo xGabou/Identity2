@@ -37,6 +37,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -65,6 +66,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Fireball;
 import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.GameRules;
@@ -93,6 +95,9 @@ import java.util.Set;
 
 @Mixin(Entity.class)
 public class EntityMixin implements EntityAccessor {
+    @Unique
+    private static final String CUSTOM_DATA_TAG_KEY = "identity2_custom_data";
+
     @Unique
     private static final Set<ResourceLocation> identity2$ravagerRiderIds = Set.of(
             new ResourceLocation("minecraft", "pillager"),
@@ -156,7 +161,8 @@ public class EntityMixin implements EntityAccessor {
 //    private static double TDIOB(double x){
 //        return -Identity2.maxWorldSize;
 //    }
-    @Inject(method = "move", at = @At("TAIL"))
+    // Use the full descriptor to avoid ambiguous remapping of the bare method name.
+    @Inject(method = "move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V", at = @At("TAIL"))
     private void moveOnEntityLandOverride(MoverType moverType, Vec3 movementInput, CallbackInfo ci) {
         CompoundTag nbt = this.getCustomData();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "land_speed_multiplier_override", Double.NaN);
@@ -376,10 +382,14 @@ public class EntityMixin implements EntityAccessor {
                         && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
                 ) {
                     Vec3 motion = hostEntity.getDeltaMovement();
-                    if (motion.y < -0.08D) {
+                    if (hostEntity.isShiftKeyDown()) {
+                        if (motion.y > -0.45D) {
+                            hostEntity.setDeltaMovement(motion.x, -0.45D, motion.z);
+                        }
+                    } else if (motion.y < -0.08D) {
                         hostEntity.setDeltaMovement(motion.x, -0.08D, motion.z);
+                        hostEntity.resetFallDistance();
                     }
-                    hostEntity.resetFallDistance();
                 }
             } else {
                 this.setPos(this.currentIdentity.position());
@@ -579,7 +589,10 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            livingIdentity.setItemSlot(slot, livingHost.getItemBySlot(slot).copy());
+            ItemStack stack = livingHost.getItemBySlot(slot).copy();
+            if (!ItemStack.matches(livingIdentity.getItemBySlot(slot), stack)) {
+                livingIdentity.setItemSlot(slot, stack);
+            }
         }
     }
 
@@ -787,8 +800,6 @@ public class EntityMixin implements EntityAccessor {
                 && (!(player instanceof ServerPlayer serverPlayer) || IdentityProgression.canGrantIdentityFlight(serverPlayer));
 
         if (canGrantFlight) {
-            Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
@@ -800,10 +811,6 @@ public class EntityMixin implements EntityAccessor {
             float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
             if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
                 ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
-                abilitiesChanged = true;
-            }
-            if (!player.getAbilities().flying && (!player.onGround() || forceImmediateFlight)) {
-                player.getAbilities().flying = true;
                 abilitiesChanged = true;
             }
             if (abilitiesChanged && player instanceof ServerPlayer serverPlayer) {
@@ -1141,6 +1148,9 @@ public class EntityMixin implements EntityAccessor {
 
         identity2$applyVillagerVariantState(identityEntity, variantNbt);
         IdentityApi.applyVariantData(identityEntity, variantNbt);
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "CatVariant", "CAT_VARIANT");
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "WolfVariant", "WOLF_VARIANT");
+        identity2$applyRegistryBackedVariant(identityEntity, variantNbt, "FrogVariant", "FROG_VARIANT");
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
@@ -1273,12 +1283,14 @@ public class EntityMixin implements EntityAccessor {
         Object arg = variant;
         Object registry = identity2$getBuiltInRegistryObject(registryField);
         Object wrapped = identity2$wrapAsHolder(registry, variant);
-        if (wrapped != null) {
-            arg = wrapped;
+        if (identity2$invokeOneArg(identityEntity, "setVariant", arg) != null) {
+            return;
         }
-
-        if (identity2$invokeOneArg(identityEntity, "setVariant", arg) == null) {
-            identity2$invokeOneArg(identityEntity, "setType", arg);
+        if (wrapped != null && identity2$invokeOneArg(identityEntity, "setVariant", wrapped) != null) {
+            return;
+        }
+        if (identity2$invokeOneArg(identityEntity, "setType", arg) == null && wrapped != null) {
+            identity2$invokeOneArg(identityEntity, "setType", wrapped);
         }
     }
 
@@ -1722,7 +1734,7 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
-    @Inject(method = "lerpTo(DDDFFIZ)V", at = @At("HEAD"))
+    @Inject(method = "lerpTo(DDDFFI)V", at = @At("HEAD"))
     private void identity2$forwardLerpTo(
             double x,
             double y,
@@ -1730,7 +1742,6 @@ public class EntityMixin implements EntityAccessor {
             float yRot,
             float xRot,
             int interpolationSteps,
-            boolean interpolate,
             CallbackInfo info
     ) {
         if (this.currentIdentity != null) {
@@ -1938,6 +1949,36 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     @Inject(method = "saveWithoutId", at = @At("TAIL"), cancellable = true, require = 0)
     public void writeDataLabelDoneSaving(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
         this.saving = false;
+    }
+
+    @Inject(method = "saveWithoutId", at = @At("TAIL"), require = 0)
+    private void identity2$saveCustomData(CompoundTag compoundTag, CallbackInfoReturnable<CompoundTag> cir) {
+        identity2$writeCustomData(compoundTag);
+    }
+
+    @Inject(method = "load", at = @At("TAIL"), require = 0)
+    private void identity2$loadCustomData(CompoundTag compoundTag, CallbackInfo info) {
+        identity2$readCustomData(compoundTag);
+    }
+
+    private void identity2$writeCustomData(CompoundTag compoundTag) {
+        if (compoundTag == null) {
+            return;
+        }
+        CompoundTag customData = this.persistentData;
+        if (customData == null || customData.isEmpty()) {
+            compoundTag.remove(CUSTOM_DATA_TAG_KEY);
+            return;
+        }
+        compoundTag.put(CUSTOM_DATA_TAG_KEY, customData.copy());
+    }
+
+    private void identity2$readCustomData(CompoundTag compoundTag) {
+        if (compoundTag != null && compoundTag.contains(CUSTOM_DATA_TAG_KEY, Tag.TAG_COMPOUND)) {
+            this.persistentData = compoundTag.getCompound(CUSTOM_DATA_TAG_KEY).copy();
+            return;
+        }
+        this.persistentData = new CompoundTag();
     }
 
 

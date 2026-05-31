@@ -29,6 +29,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -311,10 +312,9 @@ public final class PredefIdentityAbilities {
             public void passivetick(Entity player,boolean usedLastTick){
                 Identity2.LOGGER.info("Passive Tick");
                 Shulker shulker=(Shulker)((EntityAccessor)player).getCurrentIdentity();
-                if(usedLastTick==false){
-                    if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=0){
-                        ((ShulkerEntityAccessor)shulker).setPeekAmount(0);
-                    }
+                int desiredPeekAmount = isShulkerOpen(player) ? 100 : 0;
+                if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=desiredPeekAmount){
+                    ((ShulkerEntityAccessor)shulker).setPeekAmount(desiredPeekAmount);
                 }
                 if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(),shulker)) {
                     BlockPos pos=shulker.blockPosition();
@@ -563,12 +563,26 @@ public final class PredefIdentityAbilities {
             }
         });
 
-        map.put(new ResourceLocation("goat"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
-        map.put(new ResourceLocation("minecraft", "goat"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("goat"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                executeGoatRamAttack(player);
+            }
+        });
+        map.put(new ResourceLocation("minecraft", "goat"), map.get(new ResourceLocation("goat")));
         map.put(new ResourceLocation("hoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
         map.put(new ResourceLocation("minecraft", "hoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("zoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("minecraft", "zoglin"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
         map.put(new ResourceLocation("ravager"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
         map.put(new ResourceLocation("minecraft", "ravager"), map.get(new ResourceLocation(Identity2.MOD_ID, "ram_attack")));
+        map.put(new ResourceLocation("silverfish"), new IdentityAbility() {
+            @Override
+            public void executeSecondary(Entity player) {
+                executeSilverfishBury(player);
+            }
+        });
+        map.put(new ResourceLocation("minecraft", "silverfish"), map.get(new ResourceLocation("silverfish")));
         
         map.put(new ResourceLocation("iron_golem"), new IdentityAbility() {
             @Override
@@ -970,6 +984,10 @@ public final class PredefIdentityAbilities {
                 clone.discard();
             }
         }
+    }
+
+    public static void clearOwnedIllusionerClones(ServerPlayer player) {
+        discardAllOwnedIllusionerClones(player);
     }
 
     private static void syncIllusionerClones(ServerPlayer player) {
@@ -1385,7 +1403,95 @@ public final class PredefIdentityAbilities {
         identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
         identity2$setSyncedTicks(player, ANIM_CHARGE_TICKS_KEY, 14);
         player.setDeltaMovement(player.getDeltaMovement().add(horizontal.scale(0.85D)).add(0.0D, 0.12D, 0.0D));
-        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.RAVAGER_ATTACK, SoundSource.HOSTILE, 1.0F, 0.85F);
+        world.playSound(null, player.getX(), player.getY(), player.getZ(), resolveRamAttackSound(player), SoundSource.HOSTILE, 1.0F, 0.85F);
+    }
+
+    private static SoundEvent resolveRamAttackSound(Entity player) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        EntityType<?> type = identity == null ? null : identity.getType();
+        if (type == EntityType.HOGLIN) {
+            return SoundEvents.HOGLIN_ATTACK;
+        }
+        if (type == EntityType.ZOGLIN) {
+            return SoundEvents.ZOGLIN_ATTACK;
+        }
+        return SoundEvents.RAVAGER_ATTACK;
+    }
+
+    private static void executeSilverfishBury(Entity player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        BlockPos targetPos = BlockPos.containing(player.position().add(0.0D, -0.15D, 0.0D));
+        HitResult hit = player.pick(3.0D, 0.0F, false);
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            targetPos = BlockPos.containing(hit.getLocation()).relative(Direction.DOWN);
+        }
+
+        BlockState infested = identity2$infestedSilverfishState(world.getBlockState(targetPos));
+        if (infested == null && !targetPos.equals(player.blockPosition().below())) {
+            targetPos = player.blockPosition().below();
+            infested = identity2$infestedSilverfishState(world.getBlockState(targetPos));
+        }
+        if (infested == null) {
+            serverPlayer.displayClientMessage(Component.literal("No silverfish-burrowable block found."), true);
+            return;
+        }
+
+        world.setBlock(targetPos, infested, 3);
+        serverPlayer.teleportTo(targetPos.getX() + 0.5D, targetPos.getY() + 1.0D, targetPos.getZ() + 0.5D);
+        serverPlayer.setShiftKeyDown(true);
+        world.playSound(null, targetPos, SoundEvents.SILVERFISH_HURT, SoundSource.HOSTILE, 0.8F, 0.8F);
+        ((EntityAccessor) serverPlayer).setSecondaryAbilityCooldown(40);
+    }
+
+    private static BlockState identity2$infestedSilverfishState(BlockState state) {
+        if (state.is(Blocks.STONE)) {
+            return Blocks.INFESTED_STONE.defaultBlockState();
+        }
+        if (state.is(Blocks.COBBLESTONE)) {
+            return Blocks.INFESTED_COBBLESTONE.defaultBlockState();
+        }
+        if (state.is(Blocks.STONE_BRICKS)) {
+            return Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
+        }
+        if (state.is(Blocks.MOSSY_STONE_BRICKS)) {
+            return Blocks.INFESTED_MOSSY_STONE_BRICKS.defaultBlockState();
+        }
+        if (state.is(Blocks.CRACKED_STONE_BRICKS)) {
+            return Blocks.INFESTED_CRACKED_STONE_BRICKS.defaultBlockState();
+        }
+        if (state.is(Blocks.CHISELED_STONE_BRICKS)) {
+            return Blocks.INFESTED_CHISELED_STONE_BRICKS.defaultBlockState();
+        }
+        return null;
+    }
+
+    private static void executeGoatRamAttack(Entity player) {
+        if (!(player instanceof LivingEntity livingPlayer)) {
+            return;
+        }
+        Level world = player.level();
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+        if (horizontal.lengthSqr() < 1.0E-4D) {
+            horizontal = new Vec3(0.0D, 0.0D, 1.0D);
+        } else {
+            horizontal = horizontal.normalize();
+        }
+
+        EntityHitResult hit = findLivingTarget(player, GENERIC_STRIKE_RANGE);
+        if (hit != null && hit.getEntity() instanceof LivingEntity target) {
+            float damage = Math.max(6.0F, resolveGenericDamage(player));
+            target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
+            target.push(horizontal.x * 1.6D, 0.45D, horizontal.z * 1.6D);
+        }
+
+        identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
+        identity2$setSyncedTicks(player, ANIM_CHARGE_TICKS_KEY, 14);
+        player.setDeltaMovement(player.getDeltaMovement().add(horizontal.scale(0.85D)).add(0.0D, 0.12D, 0.0D));
+        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GOAT_RAM_IMPACT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
     private static void identity2$setSyncedTicks(Entity player, String key, int ticks) {
@@ -1443,6 +1549,9 @@ public final class PredefIdentityAbilities {
     }
 
     private static float resolveGenericDamage(Entity player) {
+        if (!IdentitySettings.useIdentityAttackDamage && player instanceof LivingEntity livingPlayer) {
+            return Math.max(1.0F, (float) livingPlayer.getAttributeValue(Attributes.ATTACK_DAMAGE));
+        }
         Entity currentIdentity = ((EntityAccessor) player).getCurrentIdentity();
         if (currentIdentity instanceof LivingEntity livingIdentity) {
             double attackDamage = livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE);
