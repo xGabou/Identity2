@@ -37,12 +37,14 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.IdentityEquipmentHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 @Mixin(Player.class)
 public abstract class PlayerEntityMixin extends LivingEntityMixin{
     @ModifyConstant(constant=@Constant(doubleValue=2.9999999E7),method="tick")
@@ -55,7 +57,7 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
     }
     @Inject(method = "freeAt", at=@At("HEAD"), cancellable = true)
     protected void disableNoClipSuffocate(BlockPos pos,CallbackInfoReturnable info) {
-		if(this.noPhysics || WardenBurrowManager.isHidden((Entity) (Object) this)){
+		if(this.noPhysics || WardenBurrowManager.isHidden((Entity) (Object) this) || SilverfishBurrowManager.isHidden((Entity) (Object) this)){
             info.setReturnValue(true);
             return;
         }
@@ -66,9 +68,14 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
 	}
 
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
-    private void identity2$exitWardenBurrowOnAttack(Entity target, CallbackInfo ci) {
-        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && WardenBurrowManager.isHidden(serverPlayer)) {
-            WardenBurrowManager.stop(serverPlayer, true);
+    private void identity2$exitBurrowOnAttack(Entity target, CallbackInfo ci) {
+        if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
+            if (WardenBurrowManager.isHidden(serverPlayer)) {
+                WardenBurrowManager.stop(serverPlayer, true);
+            }
+            if (SilverfishBurrowManager.isHidden(serverPlayer)) {
+                SilverfishBurrowManager.stop(serverPlayer, true);
+            }
         }
     }
 
@@ -102,7 +109,14 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         livingIdentity.setDeltaMovement(player.getDeltaMovement());
 
         boolean attacked;
-        if (IdentitySettings.useIdentityAttackDamage) {
+        if (identity.getType() == EntityType.WARDEN) {
+            float damage = Math.max(16.0F, (float) livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE));
+            attacked = target.hurt(player.damageSources().mobAttack(livingIdentity), damage);
+            if (attacked) {
+                Vec3 look = player.getViewVector(1.0F).normalize();
+                target.push(look.x * 1.6D, 0.55D, look.z * 1.6D);
+            }
+        } else if (IdentitySettings.useIdentityAttackDamage) {
             attacked = livingIdentity.doHurtTarget(target);
         } else {
             float playerDamage = Math.max(1.0F, (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE));
@@ -117,42 +131,42 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         }
 
         if (attacked) {
-            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 10);
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, identity.getType() == EntityType.WARDEN ? 20 : 10);
             player.resetAttackStrengthTicker();
         }
         ci.cancel();
     }
 
-//    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-//    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
-//        if (((Entity)(Object)this).level().isClientSide()) {
-//            return;
-//        }
-//        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
-//            return;
-//        }
-//        if (livingTarget.isDeadOrDying()) {
-//            return;
-//        }
-//        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
-//            return;
-//        }
-//
-//        EntityType<?> identityType = this.currentIdentity.getType();
-//        if (identityType == EntityType.CAVE_SPIDER) {
-//            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
-//                case HARD -> 300;
-//                case NORMAL -> 140;
-//                default -> 0;
-//            };
-//            if (poisonDuration > 0) {
-//                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
-//            }
-//            return;
-//        }
-//
-//        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
-//            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
-//        }
-//    }
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+    private void identity2$applyIdentityMeleeEffect(Entity target, CallbackInfo info) {
+        if (((Entity)(Object)this).level().isClientSide()) {
+            return;
+        }
+        if (this.currentIdentity == null || !(target instanceof LivingEntity livingTarget)) {
+            return;
+        }
+        if (livingTarget.isDeadOrDying()) {
+            return;
+        }
+        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
+            return;
+        }
+
+        EntityType<?> identityType = this.currentIdentity.getType();
+        if (identityType == EntityType.CAVE_SPIDER) {
+            int poisonDuration = switch (((Entity)(Object)this).level().getDifficulty()) {
+                case HARD -> 300;
+                case NORMAL -> 140;
+                default -> 0;
+            };
+            if (poisonDuration > 0) {
+                livingTarget.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDuration), (Entity)(Object)this);
+            }
+            return;
+        }
+
+        if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
+            livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
+        }
+    }
 }

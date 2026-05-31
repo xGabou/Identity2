@@ -299,6 +299,7 @@ public final class IdentityProgression {
         if (previousIdentityId != null && previousIdentityId.equals(EntityType.getKey(EntityType.ILLUSIONER)) && !identityId.equals(previousIdentityId)) {
             PredefIdentityAbilities.clearOwnedIllusionerClones(player);
         }
+        MorphMobTargetHelper.clearStaleTargets(player);
         if (previousIdentity != null) {
             net.minecraft.world.entity.EntityDimensions previousIdentityDimensions = previousIdentity.getDimensions(previousIdentity.getPose());
             if (previousWidth <= 0.0D) {
@@ -406,6 +407,7 @@ public final class IdentityProgression {
         if (((EntityAccessor) player).getCurrentIdentity() != null && ((EntityAccessor) player).getCurrentIdentity().getType() == EntityType.ILLUSIONER) {
             PredefIdentityAbilities.clearOwnedIllusionerClones(player);
         }
+        MorphMobTargetHelper.clearStaleTargets(player);
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -1232,6 +1234,9 @@ public final class IdentityProgression {
     }
 
     private static void broadcastAcquisitionAnimation(ServerPlayer player, LivingEntity acquired, boolean morphAcquisition) {
+        if (!IdentitySettings.enableMorphAcquisitionTendrils) {
+            return;
+        }
         if (!(player.level() instanceof ServerLevel serverWorld)) {
             return;
         }

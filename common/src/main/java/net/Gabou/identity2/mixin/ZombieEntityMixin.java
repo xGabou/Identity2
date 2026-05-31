@@ -1,6 +1,7 @@
 package net.Gabou.identity2.mixin;
 
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
@@ -21,6 +22,9 @@ public abstract class ZombieEntityMixin {
         }
 
         Zombie zombie = (Zombie) (Object) this;
+        if (((EntityAccessor) zombie).getIdentityOwner() != null) {
+            return;
+        }
         if (zombie.level().isClientSide()) {
             return;
         }

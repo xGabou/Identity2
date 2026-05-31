@@ -22,6 +22,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -123,14 +124,14 @@ public final class IdentityApi {
                 Identity2.LOGGER.error("Variant adapter discovery failed for {}", EntityType.getKey(type), throwable);
             }
         }
-        List<IdentityVariant> builtInVariants = discoverBuiltInVariants(type);
+        List<IdentityVariant> builtInVariants = discoverBuiltInVariants(type, level);
         if (!builtInVariants.isEmpty()) {
             return builtInVariants;
         }
         return List.of();
     }
 
-    private static List<IdentityVariant> discoverBuiltInVariants(EntityType<?> type) {
+    private static List<IdentityVariant> discoverBuiltInVariants(EntityType<?> type, Level level) {
         if (type == null) {
             return List.of();
         }
@@ -138,16 +139,38 @@ public final class IdentityApi {
         if (typeId == null) {
             return List.of();
         }
+        List<IdentityVariant> variants = new ArrayList<>();
         if (type == EntityType.CAT) {
-            return discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat");
+            variants.addAll(discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat"));
+        } else if (type == EntityType.WOLF) {
+            variants.addAll(discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
+        } else if (type == EntityType.FROG) {
+            variants.addAll(discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog"));
         }
-        if (type == EntityType.WOLF) {
-            return discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf");
+        IdentityVariant baby = discoverBabyVariant(type, typeId, level);
+        if (baby != null) {
+            variants.add(baby);
         }
-        if (type == EntityType.FROG) {
-            return discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog");
+        return variants.isEmpty() ? List.of() : variants;
+    }
+
+    private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, Level level) {
+        if (type == null || typeId == null || level == null) {
+            return null;
         }
-        return List.of();
+        Entity probe;
+        try {
+            probe = type.create(level);
+        } catch (Throwable ignored) {
+            return null;
+        }
+        if (!(probe instanceof AgeableMob)) {
+            return null;
+        }
+        CompoundTag nbt = new CompoundTag();
+        nbt.putBoolean("IsBaby", true);
+        nbt.putInt("Age", -24000);
+        return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", nbt);
     }
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(

@@ -192,6 +192,7 @@ public class HeldItemRendererMixin {
 
             EntityRenderer<?> identityRenderer = ((MinecraftClientAccessor) client).getEntityRenderManager().getRenderer(identity);
             if (identityRenderer == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
@@ -203,16 +204,19 @@ public class HeldItemRendererMixin {
             }
 
             if (identityModel == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
             ModelPart identityArm = identity2$resolveIdentityHandPart(identityModel, rightArm);
             if (identityArm == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
             ResourceLocation identityTexture = identity2$resolveIdentityTexture(identityRenderer, identity);
             if (identityTexture == null) {
+                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
                 return;
             }
 
@@ -231,9 +235,7 @@ public class HeldItemRendererMixin {
             identity2$renderIdentityHand(matrices, queue, light, identityTexture, identityArm);
             matrices.popPose();
         } catch (Exception ignored) {
-            if (!morphed) {
-                identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
-            }
+            identity2$renderVanillaHand(renderer, matrices, queue, light, player, rightArm);
         }
     }
 

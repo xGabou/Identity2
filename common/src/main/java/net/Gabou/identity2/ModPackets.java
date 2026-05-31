@@ -237,6 +237,10 @@ public final class ModPackets {
                 return;
             }
             EntityAccessor accessor = (EntityAccessor) player;
+            if (identity.getType() == EntityType.WARDEN) {
+                predefAbility.executeSecondary(player);
+                return;
+            }
             if (accessor.getSecondaryAbilityCooldown() > 0 && !WardenBurrowManager.isHidden(player)) {
                 return;
             }

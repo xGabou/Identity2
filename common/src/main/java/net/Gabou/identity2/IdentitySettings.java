@@ -112,7 +112,7 @@ public class IdentitySettings {
     //@Comment(value = "If true, Giants gain zombie-like AI and can appear naturally in Hard difficulty.")
     public static boolean enableGiantZombieAiAndHardSpawns = false;
 
-    //@Comment(value = "Chance for an eligible hard-difficulty Zombie spawn to become a Giant when enableGiantZombieAiAndHardSpawns is true.")
+    //@Comment(value = "If true, eligible hard-difficulty zombie spawns can become giants. Requires enableGiantZombieAiAndHardSpawns.")
     public static double giantZombieSpawnReplacementChance = 0.02D;
 
     //@Comment(value = "If true, unarmed morph melee attacks use the identity's attack damage instead of the vanilla player attack damage.")
@@ -134,6 +134,9 @@ public class IdentitySettings {
     public static boolean logCommands = true;
 
     public static float flySpeed = 0.05f;
+
+    //@Comment(value = "If true, flySpeed also overrides creative flight while using fly-capable identities.")
+    public static boolean overrideCreativeFlySpeed = false;
 
     //@Comment(value = "If true, killing entities unlocks their identities.")
     public static boolean enableIdentityKillUnlocks = true;

@@ -7,11 +7,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import dev.architectury.platform.Platform;
+import net.Gabou.identity2.identity.WardenBurrowManager;
+import net.Gabou.identity2.mixin.EnderManAccessor;
 import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.identity.WardenBurrowManager;
+import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -40,6 +42,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.horse.Llama;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
@@ -70,6 +73,7 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
     public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
+    public static final String ENDERMAN_ANGRY_STATE_KEY = "identity2.enderman_angry";
     public static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
     public static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
     public static final String ANIM_CHARGE_TICKS_KEY = "identity2.anim.charge_ticks";
@@ -264,6 +268,31 @@ public final class PredefIdentityAbilities {
                 );
             }
 
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                boolean angry = !identity2$isEndermanAngry(player);
+                identity2$setEndermanAngry(serverPlayer, angry);
+                Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+                if (identity instanceof EnderMan enderMan) {
+                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), angry);
+                }
+                serverPlayer.displayClientMessage(
+                        Component.literal(angry ? "Enderman morph is now agitated." : "Enderman morph calmed down."),
+                        true
+                );
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+                if (identity instanceof EnderMan enderMan) {
+                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), identity2$isEndermanAngry(player));
+                }
+            }
+
             private boolean isSafeTeleportSpot(Level world, BlockPos pos) {
                 return world.getBlockState(pos).isAir() && world.getBlockState(pos.above()).isAir();
             }
@@ -347,6 +376,14 @@ public final class PredefIdentityAbilities {
             }
         });
 
+        map.put(new ResourceLocation("bee"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                identity2$setSyncedTicks(player, ANIM_ROLL_TICKS_KEY, 20);
+            }
+        });
+        map.put(new ResourceLocation("minecraft", "bee"), map.get(new ResourceLocation("bee")));
+
         map.put(new ResourceLocation("blaze"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
@@ -383,6 +420,81 @@ public final class PredefIdentityAbilities {
                     1.0F,
                     1.0F
                 );
+            }
+        });
+
+        map.put(new ResourceLocation("mooshroom"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                ItemStack stew = new ItemStack(Items.MUSHROOM_STEW);
+                if (!serverPlayer.getInventory().add(stew)) {
+                    serverPlayer.drop(stew, false);
+                }
+                player.level().playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.MOOSHROOM_SHEAR,
+                        SoundSource.PLAYERS,
+                        1.0F,
+                        1.0F
+                );
+            }
+        });
+
+        map.put(new ResourceLocation("chicken"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                ItemStack egg = new ItemStack(Items.EGG);
+                if (!serverPlayer.getInventory().add(egg)) {
+                    serverPlayer.drop(egg, false);
+                }
+                player.level().playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.CHICKEN_EGG,
+                        SoundSource.NEUTRAL,
+                        1.0F,
+                        1.0F
+                );
+            }
+        });
+
+        map.put(new ResourceLocation("camel"), new IdentityAbility() {
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer)) {
+                    return;
+                }
+                Vec3 look = player.getViewVector(1.0F);
+                Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+                if (horizontal.lengthSqr() < 1.0E-4D) {
+                    horizontal = new Vec3(0.0D, 0.0D, 1.0D);
+                } else {
+                    horizontal = horizontal.normalize();
+                }
+                player.setDeltaMovement(horizontal.scale(1.35D).add(0.0D, 0.72D, 0.0D));
+                player.hurtMarked = true;
+                player.level().playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.CAMEL_DASH,
+                        SoundSource.NEUTRAL,
+                        1.0F,
+                        1.0F
+                );
+                identity2$setSyncedTicks(player, ANIM_JUMP_TICKS_KEY, 24);
             }
         });
 
@@ -617,7 +729,9 @@ public final class PredefIdentityAbilities {
         map.put(new ResourceLocation("silverfish"), new IdentityAbility() {
             @Override
             public void executeSecondary(Entity player) {
-                executeSilverfishBury(player);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    SilverfishBurrowManager.toggle(serverPlayer);
+                }
             }
         });
         map.put(new ResourceLocation("minecraft", "silverfish"), map.get(new ResourceLocation("silverfish")));
@@ -1810,54 +1924,14 @@ public final class PredefIdentityAbilities {
         return SoundEvents.RAVAGER_ATTACK;
     }
 
-    private static void executeSilverfishBury(Entity player) {
-        if (!(player instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
-        Level world = player.level();
-        BlockPos targetPos = BlockPos.containing(player.position().add(0.0D, -0.15D, 0.0D));
-        HitResult hit = player.pick(3.0D, 0.0F, false);
-        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-            targetPos = BlockPos.containing(hit.getLocation()).relative(Direction.DOWN);
-        }
-
-        BlockState infested = identity2$infestedSilverfishState(world.getBlockState(targetPos));
-        if (infested == null && !targetPos.equals(player.blockPosition().below())) {
-            targetPos = player.blockPosition().below();
-            infested = identity2$infestedSilverfishState(world.getBlockState(targetPos));
-        }
-        if (infested == null) {
-            serverPlayer.displayClientMessage(Component.literal("No silverfish-burrowable block found."), true);
-            return;
-        }
-
-        world.setBlock(targetPos, infested, 3);
-        serverPlayer.teleportTo(targetPos.getX() + 0.5D, targetPos.getY() + 1.0D, targetPos.getZ() + 0.5D);
-        serverPlayer.setShiftKeyDown(true);
-        world.playSound(null, targetPos, SoundEvents.SILVERFISH_HURT, SoundSource.HOSTILE, 0.8F, 0.8F);
-        ((EntityAccessor) serverPlayer).setSecondaryAbilityCooldown(40);
+    private static boolean identity2$isEndermanAngry(Entity player) {
+        return net.Gabou.identity2.util.NbtCompat.getBooleanOr(((EntityAccessor) player).getCustomData(), ENDERMAN_ANGRY_STATE_KEY, false);
     }
 
-    private static BlockState identity2$infestedSilverfishState(BlockState state) {
-        if (state.is(Blocks.STONE)) {
-            return Blocks.INFESTED_STONE.defaultBlockState();
-        }
-        if (state.is(Blocks.COBBLESTONE)) {
-            return Blocks.INFESTED_COBBLESTONE.defaultBlockState();
-        }
-        if (state.is(Blocks.STONE_BRICKS)) {
-            return Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
-        }
-        if (state.is(Blocks.MOSSY_STONE_BRICKS)) {
-            return Blocks.INFESTED_MOSSY_STONE_BRICKS.defaultBlockState();
-        }
-        if (state.is(Blocks.CRACKED_STONE_BRICKS)) {
-            return Blocks.INFESTED_CRACKED_STONE_BRICKS.defaultBlockState();
-        }
-        if (state.is(Blocks.CHISELED_STONE_BRICKS)) {
-            return Blocks.INFESTED_CHISELED_STONE_BRICKS.defaultBlockState();
-        }
-        return null;
+    private static void identity2$setEndermanAngry(ServerPlayer player, boolean angry) {
+        ((EntityAccessor) player).getCustomData().putBoolean(ENDERMAN_ANGRY_STATE_KEY, angry);
+        syncBoolData(player, ENDERMAN_ANGRY_STATE_KEY, angry);
+        identity2$setSyncedTicks(player, ANIM_ANGRY_TICKS_KEY, angry ? 200 : 0);
     }
 
     private static void executeGoatRamAttack(Entity player) {

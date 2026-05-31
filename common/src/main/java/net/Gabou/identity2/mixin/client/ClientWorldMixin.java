@@ -3,12 +3,16 @@ package net.Gabou.identity2.mixin.client;
 import java.util.function.BiFunction;
 import net.Gabou.identity2.client.IdentityRenderStateHelper;
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Bee;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,6 +30,13 @@ public class ClientWorldMixin {
         IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);
         if (identity instanceof Mob mobIdentity) {
             mobIdentity.setNoAi(true);
+        }
+        if (entity instanceof Player player) {
+            EntityType<?> identityType = identity.getType();
+            if (identity instanceof Bee
+                    || Boolean.TRUE.equals(IdentityTraitTags.resolveFlight(identityType))) {
+                ((EntityAccessor) player).runAddAirTravelEffects();
+            }
         }
         identity.tick();
         IdentityRenderStateHelper.syncIdentityVisualState(entity, identity);

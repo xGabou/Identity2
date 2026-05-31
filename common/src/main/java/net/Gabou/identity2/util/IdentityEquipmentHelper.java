@@ -20,8 +20,8 @@ public final class IdentityEquipmentHelper {
         if (!(identity instanceof LivingEntity livingIdentity)) {
             return null;
         }
-        if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
-            return Items.AIR.getDefaultInstance();
+        if (slot.getType() == EquipmentSlot.Type.HAND) {
+            return IdentitySettings.identitiesEquipItems ? null : Items.AIR.getDefaultInstance();
         }
         if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
             return Items.AIR.getDefaultInstance();

@@ -66,7 +66,7 @@ public abstract class AvoidEntityGoalMixin<T extends LivingEntity> {
     }
 
     private boolean identity2$isAvoidableMorph(Entity candidate) {
-        if (!(candidate instanceof ServerPlayer player) || player.isSpectator() || player.isCreative()) {
+        if (!(candidate instanceof ServerPlayer player) || player.isSpectator()) {
             return false;
         }
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();

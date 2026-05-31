@@ -52,7 +52,7 @@ public final class WardenBurrowManager {
 
         Vec3 burrowPos = findBurrowPosition(player);
         setAnchor(player, burrowPos);
-        player.teleportTo(burrowPos.x, burrowPos.y, burrowPos.z);
+        teleportPlayer(player, burrowPos);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         player.noPhysics = true;
@@ -79,7 +79,7 @@ public final class WardenBurrowManager {
         if (safeExit) {
             Vec3 exitPos = findSafeExitPosition(player, anchor);
             if (exitPos != null) {
-                player.teleportTo(exitPos.x, exitPos.y, exitPos.z);
+                teleportPlayer(player, exitPos);
             }
         }
 
@@ -106,7 +106,7 @@ public final class WardenBurrowManager {
         }
 
         player.noPhysics = true;
-        player.teleportTo(anchor.x, anchor.y, anchor.z);
+        teleportPlayer(player, anchor);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
 
@@ -170,6 +170,14 @@ public final class WardenBurrowManager {
         return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
     }
 
+    private static void teleportPlayer(ServerPlayer player, Vec3 pos) {
+        if (player == null || pos == null) {
+            return;
+        }
+        player.connection.teleport(pos.x, pos.y, pos.z, player.getYRot(), player.getXRot());
+        player.setPos(pos.x, pos.y, pos.z);
+    }
+
     @Nullable
     private static Vec3 findBurrowPosition(ServerPlayer player) {
         Vec3 origin = player.position();
@@ -221,15 +229,15 @@ public final class WardenBurrowManager {
         if (player == null || candidate == null) {
             return false;
         }
-        player.setPos(candidate.x, candidate.y, candidate.z);
-        return !player.level().noCollision(player, player.getBoundingBox());
+        Vec3 delta = candidate.subtract(player.position());
+        return !player.level().noCollision(player, player.getBoundingBox().move(delta));
     }
 
     private static boolean isSafe(ServerPlayer player, Vec3 candidate) {
         if (player == null || candidate == null) {
             return false;
         }
-        player.setPos(candidate.x, candidate.y, candidate.z);
-        return player.level().noCollision(player, player.getBoundingBox());
+        Vec3 delta = candidate.subtract(player.position());
+        return player.level().noCollision(player, player.getBoundingBox().move(delta));
     }
 }

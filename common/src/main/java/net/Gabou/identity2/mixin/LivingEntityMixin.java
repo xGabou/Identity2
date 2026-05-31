@@ -56,12 +56,16 @@ import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.nbt.CompoundTag;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
+    @Unique
+    private static final String IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY = "identity2.last_ambient_sound_tick";
 
     @Shadow
     protected boolean jumping;
@@ -301,7 +305,7 @@ private void tickMovementIdentity(CallbackInfo info){
 
 @Inject(method = "aiStep()V", at = @At("TAIL"))
 private void identity2$playAmbientSound(CallbackInfo info) {
-    if (!IdentitySettings.playAmbientSounds) {
+    if (!IdentitySettings.useIdentitySounds || !IdentitySettings.playAmbientSounds) {
         return;
     }
     if (!(this.currentIdentity instanceof LivingEntity livingIdentity)) {
@@ -324,6 +328,12 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     if (serverLevel.getRandom().nextInt(interval) != 0) {
         return;
     }
+    CompoundTag customData = ((EntityAccessor) hostPlayer).getCustomData();
+    long lastAmbientTick = customData.getLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY);
+    if (lastAmbientTick > 0L && hostPlayer.tickCount - lastAmbientTick < 20) {
+        return;
+    }
+    customData.putLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY, hostPlayer.tickCount);
 
     float volume = 1.0F;
     Object volumeValue = identity2$invokeNoArg(livingIdentity, "getSoundVolume");
@@ -602,6 +612,27 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
                 info.setReturnValue(livingIdentity.doHurtTarget(entity));
             }
         }
+    }
+
+    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$suppressOwnedIdentityDeathLoot(DamageSource source, CallbackInfo ci) {
+        if (((EntityAccessor) (Object) this).getIdentityOwner() != null) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z", at = @At("HEAD"), cancellable = true)
+    private void identity2$forwardOwnedIdentityDamage(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        Entity ownerEntity = ((EntityAccessor) self).getIdentityOwner();
+        if (!(ownerEntity instanceof LivingEntity owner) || owner == self || !owner.isAlive()) {
+            return;
+        }
+        if (owner instanceof Player playerOwner && SilverfishBurrowManager.isHidden(playerOwner) && source != null && source.is(DamageTypes.IN_WALL)) {
+            cir.setReturnValue(false);
+            return;
+        }
+        cir.setReturnValue(owner.hurt(source, amount));
     }
 //Tons of Redirects - End
 }

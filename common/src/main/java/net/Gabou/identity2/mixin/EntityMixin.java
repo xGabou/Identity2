@@ -10,6 +10,7 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
+import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
@@ -23,6 +24,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
@@ -41,6 +43,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
@@ -631,14 +634,38 @@ public class EntityMixin implements EntityAccessor {
         if (activeIdentity.fireImmune()) {
             activeIdentity.clearFire();
         }
+        if (IdentityTraitTags.burnsInDaylight(activeIdentity.getType())
+                && player.level().isDay()
+                && !player.isInWaterRainOrBubble()
+                && player.level().canSeeSky(BlockPos.containing(player.getX(), player.getEyeY(), player.getZ()))) {
+            activeIdentity.setSecondsOnFire(8);
+            player.setSecondsOnFire(8);
+        }
         identity2$syncFireStateFromIdentity(player, activeIdentity);
 
         if (activeIdentity instanceof AbstractPiglin piglinIdentity) {
             identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
         } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
             identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
+        } else if (activeIdentity.getType() == EntityType.STRIDER && player.isInLava()) {
+            identity2$applyStriderLavaMovement(player);
         } else {
             identity2$clearMorphZombificationTicks();
+        }
+    }
+
+    @Unique
+    private static void identity2$applyStriderLavaMovement(Player player) {
+        Vec3 motion = player.getDeltaMovement();
+        double surfaceY = player.getY() + player.getEyeHeight() - 0.2D;
+        boolean submerged = player.level().getFluidState(player.blockPosition()).isSource()
+                && surfaceY < player.blockPosition().getY() + 1.0D;
+        if (submerged && !player.isShiftKeyDown()) {
+            player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
+        } else if (player.isShiftKeyDown()) {
+            player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
+        } else if (Math.abs(motion.y) < 0.02D) {
+            player.setDeltaMovement(motion.x, 0.02D, motion.z);
         }
     }
 
@@ -739,7 +766,84 @@ public class EntityMixin implements EntityAccessor {
         }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             WardenBurrowManager.serverTick(serverPlayer);
+            SilverfishBurrowManager.serverTick(serverPlayer);
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
+            identity2$tickMorphFear(serverPlayer);
+        }
+        identity2$tickGiantDaylightBurn();
+    }
+
+    @Unique
+    private void identity2$tickMorphFear(ServerPlayer player) {
+        if (player == null || player.level().isClientSide() || (player.tickCount & 7) != 0) {
+            return;
+        }
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity == null) {
+            return;
+        }
+        EntityType<?> identityType = identity.getType();
+        if (!identity2$isFearIdentity(identityType)) {
+            return;
+        }
+        AABB search = player.getBoundingBox().inflate(12.0D);
+        for (Mob mob : player.level().getEntitiesOfClass(Mob.class, search, mob -> mob.isAlive() && identity2$shouldMobFearIdentity(mob.getType(), identityType))) {
+            Vec3 away = mob.position().subtract(player.position());
+            if (away.horizontalDistanceSqr() < 1.0E-4D) {
+                away = Vec3.directionFromRotation(0.0F, mob.getYRot());
+            }
+            Vec3 target = mob.position().add(new Vec3(away.x, 0.0D, away.z).normalize().scale(8.0D));
+            mob.setTarget(null);
+            if (mob instanceof Creeper creeper) {
+                CreeperAccessor creeperAccessor = (CreeperAccessor) creeper;
+                creeperAccessor.identity2$setSwellDir(-1);
+                creeperAccessor.identity2$setSwell(0);
+                creeperAccessor.identity2$setOldSwell(0);
+            }
+            mob.getNavigation().moveTo(target.x, mob.getY(), target.z, 1.35D);
+        }
+    }
+
+    @Unique
+    private static boolean identity2$isFearIdentity(EntityType<?> identityType) {
+        return identity2$isVillagerFearIdentity(identityType)
+                || identityType == EntityType.WOLF
+                || identityType == EntityType.CAT
+                || identityType == EntityType.OCELOT;
+    }
+
+    @Unique
+    private static boolean identity2$shouldMobFearIdentity(EntityType<?> mobType, EntityType<?> identityType) {
+        if (IdentitySettings.villagersRunFromIdentities
+                && (mobType == EntityType.VILLAGER || mobType == EntityType.WANDERING_TRADER)
+                && identity2$isVillagerFearIdentity(identityType)) {
+            return true;
+        }
+        if (identityType == EntityType.WOLF
+                && (mobType == EntityType.SKELETON || mobType == EntityType.STRAY || mobType == EntityType.WITHER_SKELETON)) {
+            return true;
+        }
+        return (identityType == EntityType.CAT || identityType == EntityType.OCELOT) && mobType == EntityType.CREEPER;
+    }
+
+    @Unique
+    private static boolean identity2$isVillagerFearIdentity(EntityType<?> type) {
+        return type == EntityType.ZOMBIE
+                || type == EntityType.HUSK
+                || type == EntityType.DROWNED
+                || type == EntityType.ZOMBIFIED_PIGLIN
+                || type == EntityType.ZOMBIE_VILLAGER
+                || type == EntityType.GIANT;
+    }
+
+    @Unique
+    private void identity2$tickGiantDaylightBurn() {
+        Entity self = (Entity) (Object) this;
+        if (self.getType() != EntityType.GIANT || self.level().isClientSide() || !self.isAlive() || self.isInWaterRainOrBubble()) {
+            return;
+        }
+        if (self.level().isDay() && self.level().canSeeSky(BlockPos.containing(self.getX(), self.getEyeY(), self.getZ()))) {
+            self.setSecondsOnFire(8);
         }
     }
 
@@ -754,6 +858,7 @@ public class EntityMixin implements EntityAccessor {
     public boolean entityCanFlyTickEvaluated = false;
     private boolean identity2$grantedMayfly = false;
     private float identity2$storedFlyingSpeed = Float.NaN;
+    private boolean identity2$overrodeFlyingSpeed = false;
     private long entityCanFlyLastEvalTick = Long.MIN_VALUE;
     private static final long ENTITY_FLY_REEVAL_TICKS = 20L;
     private static final String IDENTITY2_ZOMBIFICATION_TICKS_KEY = "identity2.zombification_ticks";
@@ -796,8 +901,8 @@ public class EntityMixin implements EntityAccessor {
     }
 
     private void applyIdentityFlightGrant(Player player, boolean identityCanFly) {
-        // Do not touch spectator/creative abilities.
-        if (player.isSpectator() || player.getAbilities().instabuild) {
+        if (player.isSpectator()) {
+            identity2$restoreIdentityFlyingSpeed(player);
             this.identity2$grantedMayfly = false;
             return;
         }
@@ -806,20 +911,29 @@ public class EntityMixin implements EntityAccessor {
                 && IdentitySettings.enableFlight
                 && (!(player instanceof ServerPlayer serverPlayer) || IdentityProgression.canGrantIdentityFlight(serverPlayer));
 
+        if (player.getAbilities().instabuild) {
+            if (canGrantFlight && IdentitySettings.overrideCreativeFlySpeed && identity2$isStrictFlyingIdentity(this.currentIdentity)) {
+                identity2$applyConfiguredFlyingSpeed(player);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.onUpdateAbilities();
+                }
+            } else {
+                identity2$restoreIdentityFlyingSpeed(player);
+            }
+            this.identity2$grantedMayfly = false;
+            return;
+        }
+
         if (canGrantFlight) {
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
                 abilitiesChanged = true;
             }
-            if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
-            }
-            float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
-            if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() != configuredFlyingSpeed) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+            if (identity2$applyConfiguredFlyingSpeed(player)) {
                 abilitiesChanged = true;
             }
+            identity2$landFlyingIdentityIfRequested(player);
             if (abilitiesChanged && player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.onUpdateAbilities();
             }
@@ -832,17 +946,66 @@ public class EntityMixin implements EntityAccessor {
             if (player.getAbilities().flying) {
                 player.getAbilities().flying = false;
             }
-            if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
-            } else {
-                ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
-            }
-            this.identity2$storedFlyingSpeed = Float.NaN;
+            identity2$restoreIdentityFlyingSpeed(player);
             this.identity2$grantedMayfly = false;
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.onUpdateAbilities();
             }
+        } else {
+            identity2$restoreIdentityFlyingSpeed(player);
         }
+    }
+
+    @Unique
+    private boolean identity2$applyConfiguredFlyingSpeed(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
+            this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+        }
+        float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
+        if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() == configuredFlyingSpeed) {
+            this.identity2$overrodeFlyingSpeed = true;
+            return false;
+        }
+        ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(configuredFlyingSpeed);
+        this.identity2$overrodeFlyingSpeed = true;
+        return true;
+    }
+
+    @Unique
+    private void identity2$restoreIdentityFlyingSpeed(Player player) {
+        if (player == null || !this.identity2$overrodeFlyingSpeed) {
+            return;
+        }
+        if (!Float.isNaN(this.identity2$storedFlyingSpeed)) {
+            ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(this.identity2$storedFlyingSpeed);
+        } else {
+            ((AbilitiesAccessor) player.getAbilities()).identity2$setFlyingSpeed(0.05F);
+        }
+        this.identity2$storedFlyingSpeed = Float.NaN;
+        this.identity2$overrodeFlyingSpeed = false;
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.onUpdateAbilities();
+        }
+    }
+
+    @Unique
+    private void identity2$landFlyingIdentityIfRequested(Player player) {
+        if (player == null || !player.onGround() || !player.isShiftKeyDown() || !player.getAbilities().flying) {
+            return;
+        }
+        player.getAbilities().flying = false;
+        player.setDeltaMovement(player.getDeltaMovement().x, Math.min(0.0D, player.getDeltaMovement().y), player.getDeltaMovement().z);
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.onUpdateAbilities();
+        }
+    }
+
+    @Unique
+    private static boolean identity2$isStrictFlyingIdentity(@Nullable Entity identity) {
+        return identity != null && Boolean.TRUE.equals(IdentityTraitTags.resolveFlight(identity.getType()));
     }
 
     @Unique
@@ -994,6 +1157,7 @@ public class EntityMixin implements EntityAccessor {
         }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             WardenBurrowManager.stop(serverPlayer, true);
+            SilverfishBurrowManager.stop(serverPlayer, true);
         }
         ResourceLocation forcedIdentity = null;
         if ((Entity) (Object) this instanceof Player player) {
@@ -1500,6 +1664,7 @@ public class EntityMixin implements EntityAccessor {
         nbt.putDouble("land_speed_multiplier_override", 0.0D);
         nbt.putDouble("horizontal_collision_speed_multiplier_override", 0.0D);
         this.identity2$storedFlyingSpeed = Float.NaN;
+        this.identity2$overrodeFlyingSpeed = false;
     }
 
     @Unique
@@ -1691,6 +1856,18 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
+    @Inject(method = "playSound(Lnet/minecraft/sounds/SoundEvent;FF)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$cancelOwnedIdentityAmbientSound(SoundEvent sound, float volume, float pitch, CallbackInfo info) {
+        Entity self = (Entity) (Object) this;
+        if (!(self instanceof LivingEntity) || this.identityOf == null || sound == null) {
+            return;
+        }
+        Object ambientSoundValue = identity2$invokeNoArg(self, "getAmbientSound");
+        if (ambientSoundValue instanceof SoundEvent ambientSound && ambientSound.equals(sound)) {
+            info.cancel();
+        }
+    }
+
     @Inject(method = "lerpTo(DDDFFIZ)V", at = @At("HEAD"))
     private void identity2$forwardLerpTo(
             double x,
@@ -1754,6 +1931,10 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "isPickable()Z", at = @At("HEAD"), cancellable = true)
     private void canHitIdentity(CallbackInfoReturnable info) {
+        if (this.identityOf != null) {
+            info.setReturnValue(false);
+            return;
+        }
         if (this.currentIdentity != null) {
             info.setReturnValue(this.currentIdentity.isPickable());
         }
@@ -1969,8 +2150,19 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
             cancellable = true
     )
     private void isInvulnerableToIdentity(DamageSource source, CallbackInfoReturnable<Boolean> info) {
+        if (this.identityOf instanceof Player owner
+                && SilverfishBurrowManager.isHidden(owner)
+                && source != null
+                && source.is(DamageTypes.IN_WALL)) {
+            info.setReturnValue(true);
+            return;
+        }
         if ((Object) this instanceof Player player && source != null) {
             if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
+                info.setReturnValue(true);
+                return;
+            }
+            if (SilverfishBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
                 info.setReturnValue(true);
                 return;
             }

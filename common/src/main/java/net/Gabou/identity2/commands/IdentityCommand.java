@@ -63,6 +63,10 @@ public final class IdentityCommand {
         source.sendSystemMessage(message);
     }
 
+    private static void identity2$sendChatFeedback(CommandSourceStack source, Component message) {
+        source.sendSystemMessage(message);
+    }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
             Commands.literal("identity")
@@ -362,11 +366,11 @@ public final class IdentityCommand {
             .filter(IdentityCommand::isMorphableIdentityString)
             .toList();
         if (unlocked.isEmpty()) {
-            identity2$sendCommandFeedback(source, Component.literal("Unlocked identities: none"));
+            identity2$sendChatFeedback(source, Component.literal("Unlocked identities: none"));
             return 1;
         }
 
-        identity2$sendCommandFeedback(source, Component.literal("Unlocked identities (" + unlocked.size() + "): " + String.join(", ", unlocked)));
+        identity2$sendChatFeedback(source, Component.literal("Unlocked identities (" + unlocked.size() + "): " + String.join(", ", unlocked)));
         return 1;
     }
 
@@ -421,10 +425,10 @@ public final class IdentityCommand {
 
     private static int listConfig(CommandSourceStack source) {
         if (CONFIG_FIELDS.isEmpty()) {
-            identity2$sendCommandFeedback(source, Component.literal("No editable config keys found."));
+            identity2$sendChatFeedback(source, Component.literal("No editable config keys found."));
             return 1;
         }
-        identity2$sendCommandFeedback(source, Component.literal("Config keys (" + CONFIG_FIELDS.size() + "): " + String.join(", ", CONFIG_FIELDS.keySet())));
+        identity2$sendChatFeedback(source, Component.literal("Config keys (" + CONFIG_FIELDS.size() + "): " + String.join(", ", CONFIG_FIELDS.keySet())));
         return CONFIG_FIELDS.size();
     }
 
@@ -681,6 +685,10 @@ public final class IdentityCommand {
                 continue;
             }
             suggestions.add(IdentityProgression.serializeVariantNbt(variantNbt));
+            String displayName = variant.displayName();
+            if (displayName != null && !displayName.isBlank()) {
+                suggestions.add(displayName);
+            }
         }
 
         return SharedSuggestionProvider.suggest(suggestions, builder);
@@ -740,6 +748,16 @@ public final class IdentityCommand {
         String normalized = normalizeVariantToken(trimmed);
         if (normalized.isEmpty() || normalized.equals("default") || normalized.equals("base") || normalized.equals("normal") || normalized.equals("none")) {
             return MorphVariantParseResult.defaultVariant();
+        }
+
+        EntityType<?> resolvedType = BuiltInRegistries.ENTITY_TYPE.get(identityId);
+        if (resolvedType != null) {
+            for (IdentityVariant variant : IdentityApi.discoverVariants(resolvedType, null)) {
+                if (variant.displayName() != null && trimmed.equalsIgnoreCase(variant.displayName().trim())) {
+                    CompoundTag discovered = variant.variantNbt() == null ? new CompoundTag() : variant.variantNbt().copy();
+                    return new MorphVariantParseResult(discovered, trimmed, false, null);
+                }
+            }
         }
 
         CompoundTag variantNbt = new CompoundTag();

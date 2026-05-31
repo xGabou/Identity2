@@ -5,24 +5,29 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.mixin.BeeAccessor;
+import net.Gabou.identity2.mixin.EnderManAccessor;
+import net.Gabou.identity2.mixin.WolfAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.animal.Pufferfish;
+import net.minecraft.world.entity.animal.goat.Goat;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.animal.Wolf;
+import net.minecraft.world.entity.animal.Bee;
+import net.minecraft.world.entity.animal.camel.Camel;
+import net.minecraft.world.entity.animal.Squid;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,6 +37,8 @@ public final class IdentityRenderStateHelper {
     private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
     private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
+    private static final Map<Integer, Boolean> WOLF_WAS_IN_WATER = new HashMap<>();
+    private static final Map<Integer, Float> WOLF_SHAKE_PROGRESS = new HashMap<>();
     private static final String HOGLIN_BASE_CLASS_NAME = "net.minecraft.world.entity.monster.hoglin.HoglinBase";
 
     private IdentityRenderStateHelper() {
@@ -76,6 +83,7 @@ public final class IdentityRenderStateHelper {
             livingIdentity.hurtDuration = livingSource.hurtDuration;
             livingIdentity.deathTime = livingSource.deathTime;
             livingIdentity.invulnerableTime = livingSource.invulnerableTime;
+            livingIdentity.setInvisible(livingSource.isInvisible() || livingSource.hasEffect(MobEffects.INVISIBILITY));
             if (!(livingIdentity instanceof Shulker)) {
                 livingIdentity.yBodyRot = livingSource.yBodyRot;
                 livingIdentity.yBodyRotO = livingSource.yBodyRotO;
@@ -94,6 +102,34 @@ public final class IdentityRenderStateHelper {
                 syncAnimationStateField(batIdentity, "flyAnimationState", null, source.tickCount);
                 syncAnimationStateField(batIdentity, "restAnimationState", null, 0);
             }
+
+            if (livingIdentity instanceof Bee beeIdentity) {
+                boolean rolling = PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
+                        || PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ROLL_TICKS_KEY);
+                BeeAccessor beeAccessor = (BeeAccessor) beeIdentity;
+                beeAccessor.identity2$setRolling(rolling);
+                if (!rolling) {
+                    beeAccessor.identity2$setRollAmount(0.0F);
+                    beeAccessor.identity2$setRollAmountO(0.0F);
+                }
+                beeIdentity.setStayOutOfHiveCountdown(0);
+                if (!source.onGround() || source.getDeltaMovement().y > 0.0D) {
+                    beeIdentity.setRemainingPersistentAngerTime(0);
+                }
+            }
+
+            if (livingIdentity instanceof Squid || livingIdentity instanceof GlowSquid) {
+                // TODO: The squid/glow squid swim loop is serviceable but still not a perfect vanilla match.
+                float swimSpeed = livingSource.walkAnimation.speed();
+                livingIdentity.walkAnimation.setSpeed(Math.max(0.15F, swimSpeed));
+                if (source.isInWater()) {
+                    livingIdentity.setSwimming(true);
+                    setFloatFieldExact(livingIdentity, "tentacleMovement", (float) (source.tickCount * 0.12F));
+                    setFloatFieldExact(livingIdentity, "oldTentacleMovement", (float) ((source.tickCount - 1) * 0.12F));
+                    setFloatFieldExact(livingIdentity, "tentacleAngle", (float) Math.sin(source.tickCount * 0.15F) * 0.25F);
+                    setFloatFieldExact(livingIdentity, "oldTentacleAngle", (float) Math.sin((source.tickCount - 1) * 0.15F) * 0.25F);
+                }
+            }
         }
 
         identity.tickCount = source.tickCount;
@@ -110,6 +146,16 @@ public final class IdentityRenderStateHelper {
         if (identity instanceof Phantom) {
             identity.setXRot(-source.getXRot());
             identity.xRotO = -source.xRotO;
+        } else if (identity instanceof Goat goatIdentity) {
+            // TODO: Goat head anchoring is clamped here, but it still is not a perfect vanilla head/body binding.
+            float bodyYaw = source instanceof LivingEntity livingSource ? livingSource.yBodyRot : source.getYRot();
+            float headYaw = bodyYaw + net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(source.getYRot() - bodyYaw), -28.0F, 28.0F);
+            goatIdentity.yBodyRot = bodyYaw;
+            goatIdentity.yBodyRotO = bodyYaw;
+            goatIdentity.yHeadRot = headYaw;
+            goatIdentity.yHeadRotO = headYaw;
+            goatIdentity.setXRot(net.minecraft.util.Mth.clamp(source.getXRot(), -25.0F, 25.0F));
+            goatIdentity.xRotO = net.minecraft.util.Mth.clamp(source.xRotO, -25.0F, 25.0F);
         } else if (!(identity instanceof Shulker)) {
             identity.setXRot(source.getXRot());
             identity.xRotO = source.xRotO;
@@ -138,6 +184,7 @@ public final class IdentityRenderStateHelper {
         }
 
         syncEndermanCarriedBlock(source, identity);
+        syncEndermanAngryState(source, identity);
         syncWolfWetState(source, identity);
         syncEntityAnimationState(source, identity, tickDelta);
     }
@@ -158,14 +205,75 @@ public final class IdentityRenderStateHelper {
         enderMan.setCarriedBlock(carried);
     }
 
-    private static void syncWolfWetState(Entity source, Entity identity) {
-        if (!(identity instanceof Wolf) || source.isInWater()) {
+    private static void syncEndermanAngryState(Entity source, Entity identity) {
+        if (!(identity instanceof EnderMan enderMan)) {
             return;
         }
-        setBooleanFieldExact(identity, "isWet", false);
-        setBooleanFieldExact(identity, "isShaking", false);
-        setFloatFieldExact(identity, "shakeAnim", 0.0F);
-        setFloatFieldExact(identity, "shakeAnimO", 0.0F);
+
+        boolean angry = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                ((EntityAccessor) source).getCustomData(),
+                PredefIdentityAbilities.ENDERMAN_ANGRY_STATE_KEY,
+                false
+        );
+
+        enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), angry);
+        enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), angry);
+    }
+
+    private static void syncWolfWetState(Entity source, Entity identity) {
+        if (!(identity instanceof Wolf wolf)) {
+            return;
+        }
+
+        WolfAccessor accessor = (WolfAccessor) wolf;
+
+        int entityId = source.getId();
+        boolean inWater = source.isInWaterOrBubble();
+        boolean wasInWater = WOLF_WAS_IN_WATER.getOrDefault(entityId, inWater);
+        float shakeProgress = WOLF_SHAKE_PROGRESS.getOrDefault(entityId, 0.0F);
+
+        if (inWater) {
+            accessor.identity2$setWet(true);
+            accessor.identity2$setShaking(false);
+            accessor.identity2$setShakeAnim(0.0F);
+            accessor.identity2$setShakeAnimO(0.0F);
+
+            WOLF_SHAKE_PROGRESS.put(entityId, 0.0F);
+            WOLF_WAS_IN_WATER.put(entityId, true);
+            return;
+        }
+
+        if (wasInWater && shakeProgress <= 0.0F) {
+            accessor.identity2$setWet(true);
+            accessor.identity2$setShaking(true);
+            shakeProgress = 0.01F;
+        }
+
+        if (shakeProgress > 0.0F) {
+            float previous = shakeProgress;
+            shakeProgress = Math.min(1.0F, shakeProgress + 0.025F);
+
+            accessor.identity2$setShakeAnimO(previous);
+            accessor.identity2$setShakeAnim(shakeProgress);
+            accessor.identity2$setShaking(true);
+            accessor.identity2$setWet(true);
+
+            if (shakeProgress >= 1.0F) {
+                accessor.identity2$setShaking(false);
+                accessor.identity2$setWet(false);
+                accessor.identity2$setShakeAnim(0.0F);
+                accessor.identity2$setShakeAnimO(0.0F);
+                shakeProgress = 0.0F;
+            }
+        } else {
+            accessor.identity2$setShaking(false);
+            accessor.identity2$setWet(false);
+            accessor.identity2$setShakeAnim(0.0F);
+            accessor.identity2$setShakeAnimO(0.0F);
+        }
+
+        WOLF_SHAKE_PROGRESS.put(entityId, shakeProgress);
+        WOLF_WAS_IN_WATER.put(entityId, false);
     }
 
     private static void syncLivingHealthForRender(LivingEntity source, LivingEntity identity) {
@@ -222,6 +330,20 @@ public final class IdentityRenderStateHelper {
             int attackStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
             syncAnimationStateField(identity, "sonicBoomAnimationState", "sonicBoomAnimation", beamStart);
             syncAnimationStateField(identity, "attackAnimationState", "attackAnimation", attackStart);
+        }
+
+        if (identity instanceof Camel) {
+            int jumpStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_JUMP_TICKS_KEY);
+            syncAnimationStateField(identity, "jumpAnimationState", "jumpAnimation", jumpStart);
+            if (jumpStart > 0) {
+                setIntFieldMax(identity, "dashCooldown", 20);
+                setIntFieldMax(identity, "jumpCooldown", 20);
+            }
+        }
+
+        if (identity instanceof EnderMan enderMan && PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ANGRY_TICKS_KEY)) {
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), true);
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), true);
         }
 
         if (identity instanceof Pufferfish) {

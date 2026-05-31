@@ -26,6 +26,7 @@ import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.identity.WardenBurrowManager;
+import net.Gabou.identity2.mixin.BeeAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
@@ -54,6 +55,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -151,6 +153,32 @@ public final class Identity2Client {
             }
             return identity;
         }, new ResourceLocation("minecraft", "ender_dragon"));
+        addVisualPatch((identity, entity) -> {
+            if (identity instanceof Bee beeIdentity) {
+                identity2$syncBeeVisualState(beeIdentity, entity);
+            }
+            return identity;
+        }, new ResourceLocation("minecraft", "bee"));
+    }
+
+    private static void identity2$syncBeeVisualState(Bee beeIdentity, Entity source) {
+        if (beeIdentity == null || source == null) {
+            return;
+        }
+        Vec3 motion = source.getDeltaMovement();
+        boolean flying = !source.onGround() || motion.y > 0.0D || motion.horizontalDistanceSqr() > 1.0E-4D;
+        beeIdentity.setOnGround(!flying);
+        boolean rolling = PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY)
+                || PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ROLL_TICKS_KEY);
+        BeeAccessor beeAccessor = (BeeAccessor) beeIdentity;
+        beeAccessor.identity2$setRolling(rolling);
+        if (!rolling) {
+            beeAccessor.identity2$setRollAmount(0.0F);
+            beeAccessor.identity2$setRollAmountO(0.0F);
+        }
+        if (flying) {
+            beeIdentity.setRemainingPersistentAngerTime(0);
+        }
     }
 
     private static void identity2$syncEnderDragonVisualState(EnderDragon dragonIdentity, Entity source) {
@@ -404,7 +432,9 @@ public final class Identity2Client {
         }
 
         while (secondaryAbilityKeyBinding.consumeClick()) {
-            if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
+            if (identity.getType() == net.minecraft.world.entity.EntityType.WARDEN) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
+            } else if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
                 ((EntityAccessor) player).setSecondaryAbilityCooldown(secondaryCooldown);
                 sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
             }

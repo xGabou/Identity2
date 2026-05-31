@@ -12,7 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MobAmbientSoundMixin {
     @Inject(method = "playAmbientSound()V", at = @At("HEAD"), cancellable = true)
     private void identity2$cancelIdentityAmbientSound(CallbackInfo info) {
-        if (((EntityAccessor) (Object) this).getCurrentIdentity() instanceof LivingEntity) {
+        EntityAccessor accessor = (EntityAccessor) (Object) this;
+        if (accessor.getIdentityOwner() != null || accessor.getCurrentIdentity() instanceof LivingEntity) {
             info.cancel();
         }
     }

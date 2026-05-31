@@ -6,6 +6,7 @@ import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.NbtComponentAccessor;
@@ -41,9 +42,9 @@ public class ClientPlayerInteractionManagerMixin {
         }
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity != null && ((EntityAccessor) identity).canFly()) {
-            // Keep flight enabled for fly-capable identities.
-            info.setReturnValue(true);
+        if (identity != null && Boolean.TRUE.equals(IdentityTraitTags.resolveFlight(identity.getType()))) {
+            // Do not force "always flying" while grounded; mayfly still lets the player take off again.
+            info.setReturnValue(player.getAbilities().flying && !player.onGround());
         }
     }
 

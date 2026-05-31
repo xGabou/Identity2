@@ -22,6 +22,9 @@ public final class MorphAcquisitionEffectController {
     }
 
     public static void enqueue(MorphAcquisitionS2CPacketPayload payload) {
+        if (!net.Gabou.identity2.IdentitySettings.enableMorphAcquisitionTendrils) {
+            return;
+        }
         int maxTicks = Math.max(6, net.Gabou.identity2.IdentitySettings.morphAcquisitionAnimationTicks);
         EFFECTS.add(
             new AcquisitionEffect(
