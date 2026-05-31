@@ -45,6 +45,19 @@ public class HeldItemRendererMixin {
         "rightArm",
         "right_hand",
         "rightHand",
+        "right_arm",
+        "body.right_arm",
+        "body.rightArm",
+        "root.right_arm",
+        "root.rightArm",
+        "right_front_leg",
+        "right_front_foot",
+        "rightFrontLeg",
+        "rightFrontFoot",
+        "right_wing",
+        "rightWing",
+        "right_claw",
+        "rightClaw",
         "right"
     };
     private static final String[] LEFT_HAND_PART_CANDIDATES = new String[] {
@@ -52,6 +65,19 @@ public class HeldItemRendererMixin {
         "leftArm",
         "left_hand",
         "leftHand",
+        "left_arm",
+        "body.left_arm",
+        "body.leftArm",
+        "root.left_arm",
+        "root.leftArm",
+        "left_front_leg",
+        "left_front_foot",
+        "leftFrontLeg",
+        "leftFrontFoot",
+        "left_wing",
+        "leftWing",
+        "left_claw",
+        "leftClaw",
         "left"
     };
     private static Field modelPartChildrenField;

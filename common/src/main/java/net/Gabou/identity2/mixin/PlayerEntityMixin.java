@@ -34,6 +34,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.identity.WardenBurrowManager;
@@ -100,8 +101,14 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         livingIdentity.setPos(player.position());
         livingIdentity.setDeltaMovement(player.getDeltaMovement());
 
-        boolean attacked = livingIdentity.doHurtTarget(target);
-        if (!attacked) {
+        boolean attacked;
+        if (IdentitySettings.useIdentityAttackDamage) {
+            attacked = livingIdentity.doHurtTarget(target);
+        } else {
+            float playerDamage = Math.max(1.0F, (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE));
+            attacked = target.hurt(player.damageSources().playerAttack(player), playerDamage);
+        }
+        if (!attacked && IdentitySettings.useIdentityAttackDamage) {
             float damage = (float) livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE);
             if (damage <= 0.0F) {
                 damage = 1.0F;

@@ -3,11 +3,13 @@ package net.Gabou.identity2.client.screen;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.client.identity.IdentityVariantDiscovery;
@@ -193,6 +195,11 @@ public final class IdentitySelectionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+        if (refreshUnlockSnapshotIfNeeded()) {
+            buildEntries();
+            refreshEntries(false);
+        }
+
         ResourceLocation worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
@@ -413,12 +420,22 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         IdentityEntry entry = this.filteredEntries.get(index);
+        Identity2.LOGGER.info(
+                "[VariantDebug] identity clicked id={} unlocked={} filter={} row={} visibleIndex={}",
+                entry.id(),
+                entry.unlocked(),
+                this.filterMode,
+                rowIndex,
+                index
+        );
         if (isLockedForMorph(entry)) {
+            Identity2.LOGGER.info("[VariantDebug] identity click blocked by unlock gate id={}", entry.id());
             return;
         }
 
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
+            Identity2.LOGGER.info("[VariantDebug] morphing identity directly (no level) id={}", entry.id());
             Identity2Client.sendMorphRequest(entry.id().toString());
             this.onClose();
             return;
@@ -428,7 +445,9 @@ public final class IdentitySelectionScreen extends Screen {
             entry.id(),
             id -> discoverVariants(id, client)
         );
+        Identity2.LOGGER.info("[VariantDebug] identity {} has {} discovered variants", entry.id(), variants.size());
         if (variants.isEmpty()) {
+            Identity2.LOGGER.info("[VariantDebug] identity {} has no variants, morphing default", entry.id());
             Identity2Client.sendMorphRequest(entry.id().toString());
             this.onClose();
             return;
@@ -436,7 +455,14 @@ public final class IdentitySelectionScreen extends Screen {
 
         if (variants.size() == 1) {
             IdentityVariant variant = variants.get(0);
+            Identity2.LOGGER.info(
+                    "[VariantDebug] identity {} single variant={} nbt={}",
+                    entry.id(),
+                    variant.displayName(),
+                    IdentityProgression.serializeVariantNbt(variant.variantNbt())
+            );
             if (isVariantLockedForMorph(entry.id(), variant)) {
+                Identity2.LOGGER.info("[VariantDebug] identity {} single variant blocked by unlock gate", entry.id());
                 return;
             }
             Identity2Client.sendMorphRequest(entry.id().toString(), IdentityProgression.serializeVariantNbt(variant.variantNbt()));
@@ -448,6 +474,13 @@ public final class IdentitySelectionScreen extends Screen {
         boolean wildcardUnlocked = !IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
                 || IdentitySettings.unlockAllVariantsOnFirstUnlock
                 || unlockedTokensForType == null;
+        Identity2.LOGGER.info(
+                "[VariantDebug] opening variant picker id={} count={} wildcardUnlocked={} unlockedTokenCount={}",
+                entry.id(),
+                variants.size(),
+                wildcardUnlocked,
+                unlockedTokensForType == null ? -1 : unlockedTokensForType.size()
+        );
         client.setScreen(
             new IdentityVariantSelectionScreen(
                 this,
@@ -464,7 +497,9 @@ public final class IdentitySelectionScreen extends Screen {
         if (IdentityProgression.PLAYER_IDENTITY_ID.equals(id)) {
             return discoverUnlockedPlayerSkinVariants();
         }
-        return IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.get(id), client.level);
+        List<IdentityVariant> variants = IdentityVariantDiscovery.discover(BuiltInRegistries.ENTITY_TYPE.get(id), client.level);
+        Identity2.LOGGER.info("[VariantDebug] discovery returned {} variants for {}", variants.size(), id);
+        return variants;
     }
 
     private List<IdentityVariant> discoverUnlockedPlayerSkinVariants() {
@@ -498,6 +533,17 @@ public final class IdentitySelectionScreen extends Screen {
             this.allEntries.add(new IdentityEntry(id, isUnlocked, text.toLowerCase(Locale.ROOT), formatDisplayName(id)));
         }
         this.allEntries.sort(Comparator.comparing(IdentityEntry::displayName));
+    }
+
+    private boolean refreshUnlockSnapshotIfNeeded() {
+        Set<String> unlockedIds = readUnlockedIdentities();
+        Map<String, Set<String>> unlockedVariantTokens = readUnlockedVariantTokens();
+        if (this.unlockedIdentityIds.equals(unlockedIds) && this.unlockedVariantTokens.equals(unlockedVariantTokens)) {
+            return false;
+        }
+        this.unlockedIdentityIds = unlockedIds;
+        this.unlockedVariantTokens = unlockedVariantTokens;
+        return true;
     }
 
     private void refreshEntries(boolean resetScroll) {
@@ -602,23 +648,56 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     private static Set<String> readUnlockedIdentities() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return Set.of();
+        LinkedHashSet<String> unlocked = new LinkedHashSet<>();
+        for (ResourceLocation identityId : Identity2Client.getUnlockedIdentityIds()) {
+            if (identityId != null) {
+                unlocked.add(identityId.toString());
+            }
         }
-        return IdentityProgression.readUnlockedIdentityIdSet(
-            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-        );
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            unlocked.addAll(IdentityProgression.readUnlockedIdentityIdSet(
+                ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+            ));
+        }
+
+        return unlocked.isEmpty() ? Set.of() : Set.copyOf(unlocked);
     }
 
     private static Map<String, Set<String>> readUnlockedVariantTokens() {
+        LinkedHashMap<String, Set<String>> unlocked = new LinkedHashMap<>();
+        for (Map.Entry<ResourceLocation, Set<String>> entry : Identity2Client.getUnlockedIdentityVariantTokenMap().entrySet()) {
+            ResourceLocation identityId = entry.getKey();
+            Set<String> tokens = entry.getValue();
+            if (identityId == null || tokens == null || tokens.isEmpty()) {
+                continue;
+            }
+            unlocked.put(identityId.toString(), new LinkedHashSet<>(tokens));
+        }
+
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
+        if (client.player != null) {
+            Map<String, Set<String>> nbtTokens = IdentityProgression.readUnlockedIdentityVariantTokenSet(
+                ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+            );
+            for (Map.Entry<String, Set<String>> entry : nbtTokens.entrySet()) {
+                if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null || entry.getValue().isEmpty()) {
+                    continue;
+                }
+                unlocked.computeIfAbsent(entry.getKey(), ignored -> new LinkedHashSet<>()).addAll(entry.getValue());
+            }
+        }
+
+        if (unlocked.isEmpty()) {
             return Map.of();
         }
-        return IdentityProgression.readUnlockedIdentityVariantTokenSet(
-            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
-        );
+
+        Map<String, Set<String>> snapshot = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry : unlocked.entrySet()) {
+            snapshot.put(entry.getKey(), Set.copyOf(entry.getValue()));
+        }
+        return Map.copyOf(snapshot);
     }
 
     @Override

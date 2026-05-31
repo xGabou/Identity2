@@ -14,9 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Zombie.class)
 public abstract class ZombieEntityMixin {
-    @Unique
-    private static final float IDENTITY2_GIANT_REPLACE_CHANCE_HARD = 0.005F;
-
     @Inject(method = "tick", at = @At("HEAD"))
     private void identity2$maybeReplaceWithGiant(CallbackInfo info) {
         if (!IdentitySettings.enableGiantZombieAiAndHardSpawns) {
@@ -39,7 +36,8 @@ public abstract class ZombieEntityMixin {
         if (serverLevel.getDifficulty() != Difficulty.HARD) {
             return;
         }
-        if (zombie.getRandom().nextFloat() > IDENTITY2_GIANT_REPLACE_CHANCE_HARD) {
+        double chance = Math.max(0.0D, Math.min(1.0D, IdentitySettings.giantZombieSpawnReplacementChance));
+        if (chance <= 0.0D || zombie.getRandom().nextDouble() > chance) {
             return;
         }
 

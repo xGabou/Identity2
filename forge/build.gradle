@@ -8,8 +8,6 @@ loom {
         client {
             client()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             vmArg "-Ddevauth.enabled=true"
             vmArg "-Ddevauth.account=main"
             vmArg "-Dlog4j2.level=DEBUG"
@@ -18,16 +16,12 @@ loom {
         server {
             server()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             vmArg "-Dlog4j2.level=DEBUG"
         }
 
         data {
             data()
             runDir "run"
-            programArg "--mixin.config"
-            programArg "identity2.dev.mixins.json"
             programArgs "--mod", "identity2", "--all",
                     "--output", project(":common").file("src/generated/resources/").absolutePath,
                     "--existing", project(":common").file("src/main/resources/").absolutePath
@@ -45,7 +39,8 @@ configurations {
     shadowCommon
     compileClasspath.extendsFrom common
 //    runtimeClasspath.extendsFrom common
-    developmentForge.extendsFrom common
+    // Dev runtime needs the Forge-transformed common output so Mixin sees Forge mappings, not intermediary ones.
+    developmentForge.extendsFrom shadowCommon
 }
 
 
@@ -70,7 +65,7 @@ dependencies {
     compileOnly "curse.maven:patchouli-306770:7731017"
     compileOnly "curse.maven:apothic-attributes-898963:5634071"
     modImplementation "curse.maven:alexs-caves-924854:5848216"
-    modImplementation "curse.maven:sonicraft-490147:6120917"
+    //modImplementation "curse.maven:sonicraft-490147:6120917"
     modImplementation "curse.maven:curios-309927:6418456"
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:citadel-331936:7476570"
@@ -82,6 +77,12 @@ processResources {
     // Forge dev runtime reads this config from forge resources via -mixin.config.
     from(project(":common").file("src/main/resources")) {
         include "identity2.mixins.json"
+    }
+    // Also ship the Forge-remapped refmap into the Forge resource output so dev runs don't pick up the intermediary common refmap.
+    from({
+        zipTree(configurations.shadowCommon.singleFile)
+    }) {
+        include "identity2-common-refmap.json"
     }
 
     filesMatching("META-INF/mods.toml") {

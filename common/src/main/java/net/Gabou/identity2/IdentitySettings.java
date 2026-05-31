@@ -112,6 +112,12 @@ public class IdentitySettings {
     //@Comment(value = "If true, Giants gain zombie-like AI and can appear naturally in Hard difficulty.")
     public static boolean enableGiantZombieAiAndHardSpawns = false;
 
+    //@Comment(value = "Chance for an eligible hard-difficulty Zombie spawn to become a Giant when enableGiantZombieAiAndHardSpawns is true.")
+    public static double giantZombieSpawnReplacementChance = 0.02D;
+
+    //@Comment(value = "If true, unarmed morph melee attacks use the identity's attack damage instead of the vanilla player attack damage.")
+    public static boolean useIdentityAttackDamage = false;
+
     //@Comment(value = "Should player nametags render above players disguised with an identity? Note that the server is the authority for this config option.")
     public static boolean showPlayerNametag = false;
 

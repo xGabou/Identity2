@@ -35,23 +35,14 @@ public class LimbAnimatorMixin implements LimbAnimatorAccessor{
     @Deprecated
     @Unique
     private float positionScale;
-    public void setPrevSpeed(float lastSpeed){
-        this.speedOld=lastSpeed;
-    };
-    @Shadow
-	public void setSpeed(float speed){
-        this.speed=speed;
-    };
-	public float getPrevSpeed(){
-        return speedOld;
-    };
-    @Shadow
-	public float speed(){
-        return speed;
-    };
     @Override
-    public float getSpeed() {
-        return this.speed();
+    public void setPrevSpeed(float lastSpeed) {
+        this.speedOld = lastSpeed;
+    }
+
+    @Override
+    public float getPrevSpeed() {
+        return this.speedOld;
     }
 
     @Override

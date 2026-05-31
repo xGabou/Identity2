@@ -16,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.Gabou.identity2.ModEffects;
 import net.Gabou.identity2.identity.KeepInventoryHelper;
+import net.Gabou.identity2.util.EntityAccessor;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -38,9 +41,20 @@ import java.util.EnumMap;
 import net.minecraft.world.level.GameRules;
 @Mixin(LivingEntity.class)
 public class EntityEquipmentMixin{
+    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$noProxyDeathLoot(DamageSource source, CallbackInfo ci) {
+        if (((EntityAccessor) this).getIdentityOwner() != null) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "dropEquipment", at = @At("HEAD"), cancellable = true)
     private void identity2$dropEquipmentNoSoulbound(CallbackInfo ci) {
         LivingEntity self = (LivingEntity)(Object)this;
+        if (((EntityAccessor) self).getIdentityOwner() != null) {
+            ci.cancel();
+            return;
+        }
         if (KeepInventoryHelper.isKeepInventoryEnabled(self)) {
             return;
         }

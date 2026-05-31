@@ -296,6 +296,11 @@ public final class Identity2Client {
                 skinName
             );
         }
+        Identity2.LOGGER.info(
+                "[VariantDebug] sendMorphRequest identity={} variantNbt={}",
+                identityId,
+                variantNbt == null || variantNbt.isBlank() ? "<empty>" : variantNbt
+        );
         NetworkCompat.sendToServer(
                 new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
@@ -348,6 +353,7 @@ public final class Identity2Client {
                 if (!IdentitySettings.enableClientSwapMenu) {
                     continue;
                 }
+                Identity2.LOGGER.info("[VariantDebug] opening identity selection screen from G key");
                 client.setScreen(new IdentitySelectionScreen());
             }
         }
@@ -681,9 +687,11 @@ public final class Identity2Client {
             clientUnlockedIdentityIds.add(identityId);
             if (entry.replaceTokens()) {
                 Set<String> tokens = new LinkedHashSet<>();
-                for (String token : entry.variantTokens()) {
-                    if (token != null && !token.isBlank()) {
-                        tokens.add(token);
+                for (CompoundTag data : entry.variantData()) {
+                    if (data != null) {
+                        tokens.add(IdentityProgression.toVariantUnlockToken(
+                                IdentityProgression.normalizeVariantForUnlock(data)
+                        ));
                     }
                 }
                 if (tokens.isEmpty()) {
@@ -693,9 +701,11 @@ public final class Identity2Client {
                 }
             } else {
                 Set<String> tokens = clientUnlockedVariantTokens.computeIfAbsent(identityId, ignored -> new LinkedHashSet<>());
-                for (String token : entry.variantTokens()) {
-                    if (token != null && !token.isBlank()) {
-                        tokens.add(token);
+                for (CompoundTag data : entry.variantData()) {
+                    if (data != null) {
+                        tokens.add(IdentityProgression.toVariantUnlockToken(
+                                IdentityProgression.normalizeVariantForUnlock(data)
+                        ));
                     }
                 }
             }
@@ -718,6 +728,23 @@ public final class Identity2Client {
 
     public static Set<ResourceLocation> getUnlockedIdentityIds() {
         return Set.copyOf(clientUnlockedIdentityIds);
+    }
+
+    public static Map<ResourceLocation, Set<String>> getUnlockedIdentityVariantTokenMap() {
+        if (clientUnlockedVariantTokens.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<ResourceLocation, Set<String>> snapshot = new LinkedHashMap<>();
+        for (Map.Entry<ResourceLocation, Set<String>> entry : clientUnlockedVariantTokens.entrySet()) {
+            ResourceLocation identityId = entry.getKey();
+            Set<String> tokens = entry.getValue();
+            if (identityId == null || tokens == null || tokens.isEmpty()) {
+                continue;
+            }
+            snapshot.put(identityId, Set.copyOf(tokens));
+        }
+        return snapshot.isEmpty() ? Map.of() : Map.copyOf(snapshot);
     }
 
     public static Set<String> getUnlockedVariantTokens(ResourceLocation identityId) {

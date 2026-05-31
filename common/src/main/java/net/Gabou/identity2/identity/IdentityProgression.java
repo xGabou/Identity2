@@ -7,6 +7,7 @@ import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 import dev.architectury.event.events.common.PlayerEvent;
 
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.lang.reflect.Method;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
@@ -56,6 +58,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.animal.Cat;
+import net.minecraft.world.entity.animal.CatVariant;
+import net.minecraft.world.entity.animal.FrogVariant;
+import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
@@ -289,6 +295,10 @@ public final class IdentityProgression {
         double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width);
         double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height);
         Entity previousIdentity = ((EntityAccessor) player).getCurrentIdentity();
+        ResourceLocation previousIdentityId = previousIdentity == null ? null : EntityType.getKey(previousIdentity.getType());
+        if (previousIdentityId != null && previousIdentityId.equals(EntityType.getKey(EntityType.ILLUSIONER)) && !identityId.equals(previousIdentityId)) {
+            PredefIdentityAbilities.clearOwnedIllusionerClones(player);
+        }
         if (previousIdentity != null) {
             net.minecraft.world.entity.EntityDimensions previousIdentityDimensions = previousIdentity.getDimensions(previousIdentity.getPose());
             if (previousWidth <= 0.0D) {
@@ -393,6 +403,9 @@ public final class IdentityProgression {
         nbt.putDouble("width_override", 0.0);
         nbt.putDouble("height_override", 0.0);
         nbt.putDouble(MORPH_DAMAGE_GRACE_END_TICK_KEY, 0.0D);
+        if (((EntityAccessor) player).getCurrentIdentity() != null && ((EntityAccessor) player).getCurrentIdentity().getType() == EntityType.ILLUSIONER) {
+            PredefIdentityAbilities.clearOwnedIllusionerClones(player);
+        }
         ((EntityAccessor) player).setCurrentIdentity("");
         ((EntityAccessor) player).setEntityDimensions(player.getDimensions(player.getPose()));
         ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
@@ -890,7 +903,16 @@ public final class IdentityProgression {
             }
             try {
                 ResourceLocation parsed = new ResourceLocation(identityId);
-                entries.add(new IdentityUnlockSyncEntry(parsed, true, new ArrayList<>(variantUnlocks.getOrDefault(identityId, List.of()))));
+                List<CompoundTag> variantData = new ArrayList<>();
+                for (String token : variantUnlocks.getOrDefault(identityId, List.of())) {
+                    CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
+                    if (!decoded.isEmpty()) {
+                        variantData.add(decoded);
+                    } else if (token != null && !token.isBlank() && "-".equals(token.trim())) {
+                        variantData.add(new CompoundTag());
+                    }
+                }
+                entries.add(new IdentityUnlockSyncEntry(parsed, true, variantData));
             } catch (Exception ignored) {
             }
         }
@@ -1138,13 +1160,19 @@ public final class IdentityProgression {
         if (entry == null || entry.identityId() == null) {
             return 0;
         }
-        int size = unlockEntryBaseBytes(entry.identityId());
-        for (String token : entry.variantTokens()) {
-            if (token != null) {
-                size += token.length() + 1;
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            buffer.writeResourceLocation(entry.identityId());
+            buffer.writeBoolean(entry.replaceTokens());
+            List<CompoundTag> variantData = entry.variantData() == null ? List.of() : entry.variantData();
+            buffer.writeVarInt(variantData.size());
+            for (CompoundTag data : variantData) {
+                buffer.writeNbt(data == null ? new CompoundTag() : data);
             }
+            return buffer.readableBytes();
+        } finally {
+            buffer.release();
         }
-        return size;
     }
 
     private static CompoundTag resolveRandomUnlockedVariant(CompoundTag customData, ResourceLocation identityId, int seed) {
@@ -1364,10 +1392,6 @@ public final class IdentityProgression {
 
             Attribute attribute = sourceInstance.getAttribute();
             if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
-                continue;
-            }
-
-            if (attribute.equals(Attributes.MOVEMENT_SPEED)) {
                 continue;
             }
 
@@ -1615,7 +1639,8 @@ public final class IdentityProgression {
             return true;
         }
         return attribute.equals(Attributes.MAX_HEALTH)
-                || attribute.equals(Attributes.FLYING_SPEED);
+                || attribute.equals(Attributes.FLYING_SPEED)
+                || attribute.equals(Attributes.MOVEMENT_SPEED);
     }
 
     private static void applyHealthScaling(ServerPlayer player, @Nullable Entity identity) {
@@ -1703,6 +1728,10 @@ public final class IdentityProgression {
         CompoundTag dynamicVariant = IdentityVariantNbtHelper.computeVariantDiff(entity);
         if (dynamicVariant != null && !dynamicVariant.isEmpty()) {
             variant.merge(dynamicVariant);
+        }
+        CompoundTag vanillaVariant = IdentityVanillaVariantHelper.extractVariantData(entity);
+        if (vanillaVariant != null && !vanillaVariant.isEmpty()) {
+            variant.merge(vanillaVariant);
         }
         try {
             CompoundTag full = EntityNbtIoCompat.saveWithoutId(entity);
@@ -2045,19 +2074,20 @@ public final class IdentityProgression {
                 }
             }
         }
-        ResourceLocation catVariantId = resolveRegistryResourceLocation("CAT_VARIANT", variantValue);
-        if (catVariantId != null) {
-            variant.putString("CatVariant", catVariantId.toString());
+        if (entity instanceof Cat cat) {
+            CatVariant catVariant = cat.getVariant();
+            ResourceLocation catVariantId = BuiltInRegistries.CAT_VARIANT.getKey(catVariant);
+            if (catVariantId != null) {
+                variant.putString("CatVariant", catVariantId.toString());
+            }
         }
 
-        ResourceLocation wolfVariantId = resolveRegistryResourceLocation("WOLF_VARIANT", variantValue);
-        if (wolfVariantId != null) {
-            variant.putString("WolfVariant", wolfVariantId.toString());
-        }
-
-        ResourceLocation frogVariantId = resolveRegistryResourceLocation("FROG_VARIANT", variantValue);
-        if (frogVariantId != null) {
-            variant.putString("FrogVariant", frogVariantId.toString());
+        if (entity instanceof Frog frog) {
+            FrogVariant frogVariant = frog.getVariant();
+            ResourceLocation frogVariantId = BuiltInRegistries.FROG_VARIANT.getKey(frogVariant);
+            if (frogVariantId != null) {
+                variant.putString("FrogVariant", frogVariantId.toString());
+            }
         }
 
         Object collarColor = invokeNoArg(entity, "getCollarColor");

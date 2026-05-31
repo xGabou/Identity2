@@ -7,10 +7,12 @@ import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.*;
 
+import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
@@ -21,6 +23,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.DyeColor;
@@ -141,12 +144,14 @@ public final class IdentityVariantDiscovery {
 
     public static List<IdentityVariant> discover(EntityType<?> type, ClientLevel world) {
         if (type == null || world == null) {
+            Identity2.LOGGER.info("[VariantDebug] discover skipped: type={} world={}", type, world);
             return List.of(defaultVariant(type));
         }
 
         try {
             ResourceLocation typeId = EntityType.getKey(type);
             if (typeId == null) {
+                Identity2.LOGGER.info("[VariantDebug] discover missing type id for {}", type);
                 return List.of(defaultVariant(type));
             }
 
@@ -155,6 +160,12 @@ public final class IdentityVariantDiscovery {
             for (IdentityVariant variant : adapterVariants) {
                 addVariant(out, variant);
             }
+
+            List<IdentityVariant> known = discoverKnownVariants(type, typeId, world);
+            for (IdentityVariant variant : known) {
+                addVariant(out, variant);
+            }
+
             // If a custom adapter provides explicit variants for this entity type,
             // treat it as authoritative to avoid adapter + heuristic duplicate entries.
             if (!adapterVariants.isEmpty()) {
@@ -165,17 +176,6 @@ public final class IdentityVariantDiscovery {
                 return new ArrayList<>(out.values());
             }
 
-            List<IdentityVariant> known = discoverKnownVariants(type, typeId);
-            for (IdentityVariant variant : known) {
-                addVariant(out, variant);
-            }
-            for (IdentityVariant variant : discoverDataDrivenRegistryVariants(type, typeId, world)) {
-                addVariant(out, variant);
-            }
-
-            for (IdentityVariant variant : discoverReflectiveVariants(type, typeId, world)) {
-                addVariant(out, variant);
-            }
             for (IdentityVariant variant : discoverSampledVariants(type, typeId, world)) {
                 addVariant(out, variant);
             }
@@ -191,11 +191,19 @@ public final class IdentityVariantDiscovery {
             }
             ensureDefaultVariantWhenBabyPresent(typeId, out);
 
+            Identity2.LOGGER.info(
+                    "[VariantDebug] discovered {} variants for {} (adapter={}, world={})",
+                    out.size(),
+                    typeId,
+                    adapterVariants.size(),
+                    world.dimension().location()
+            );
             if (out.isEmpty()) {
                 return List.of(defaultVariant(typeId));
             }
             return new ArrayList<>(out.values());
         } catch (Throwable ignored) {
+            Identity2.LOGGER.warn("[VariantDebug] discover failed for {}", type, ignored);
             return List.of(defaultVariant(type));
         }
     }
@@ -238,30 +246,11 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId) {
-//        if (type == EntityType.SHEEP) {
-//            List<IdentityVariant> variants = new ArrayList<>(16);
-//            for (int i = 0; i < 16; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putByte("Color", (byte) i);
-//                DyeColor color = DyeColor.byId(i);
-//                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
-//            }
-//            return variants;
-//        }
-//
-//        if (type == EntityType.AXOLOTL) {
-//            List<IdentityVariant> variants = new ArrayList<>(5);
-//            String[] names = {"Lucy", "Wild", "Gold", "Cyan", "Blue"};
-//            for (int i = 0; i < names.length; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putInt("Variant", i);
-//                variants.add(new IdentityVariant(typeId, "Axolotl " + names[i], nbt));
-//            }
-//            return variants;
-//        }
-//
-        return List.of();
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+        if (type == null || typeId == null) {
+            return List.of();
+        }
+        return IdentityVanillaVariantHelper.discoverVariants(type, world);
     }
 
     private static List<IdentityVariant> discoverDataDrivenRegistryVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
@@ -839,16 +828,23 @@ public final class IdentityVariantDiscovery {
         }
 
         Entity probe = createEntity(type, world);
-        if (probe == null) return List.of();
-
-        List<Method> methods = getAllMethods(probe.getClass());
-        Method isBabyMethod = findZeroArgBooleanMethod(methods, "isBaby");
-        Method setBabyMethod = findBooleanSetter(methods, "setBaby");
-        Method setAgeMethod = findIntSetter(methods, "setAge");
-
-        if (isBabyMethod == null || (setBabyMethod == null && setAgeMethod == null)) {
+        if (probe == null) {
+            Identity2.LOGGER.info("[VariantDebug] baby discovery probe creation failed for {}", typeId);
             return List.of();
         }
+
+        logObjectStructure("[VariantDebug] baby discovery probe", probe);
+
+        if (!(probe instanceof AgeableMob)) {
+            Identity2.LOGGER.info(
+                    "[VariantDebug] baby discovery probe is not ageable for {} class={}",
+                    typeId,
+                    probe.getClass().getName()
+            );
+            return List.of();
+        }
+
+        AgeableMob babyProbe = (AgeableMob) probe;
 
         List<IdentityVariant> out = new ArrayList<>();
 
@@ -867,47 +863,24 @@ public final class IdentityVariantDiscovery {
 
             CompoundTag combined = baseNbt.copy();
 
-            boolean applied = false;
-
-            // Prefer using the real setters when possible by validating the result
-            Entity babyEntity = createEntity(type, world);
-            if (babyEntity != null && IdentityVariantNbtHelper.loadEntityData(babyEntity, combined)) {
-                if (setBabyMethod != null) applied = invokeBooleanSetter(babyEntity, setBabyMethod, true);
-                if (!applied && setAgeMethod != null) applied = invokeIntSetter(babyEntity, setAgeMethod, -24000);
-
-                if (applied) {
-                    Object state = invokeNoArg(babyEntity, isBabyMethod);
-                    if (state instanceof Boolean b && b) {
-                        // We still store something in nbt so your unlock token stays stable
-                        if (!combined.contains("IsBaby") && !combined.contains("Baby")) {
-                            combined.putBoolean("IsBaby", true);
-                        }
-                        if (!combined.contains("Age")) {
-                            combined.putInt("Age", -24000);
-                        }
-                    } else {
-                        applied = false;
-                    }
-                }
+            if (!combined.contains("IsBaby") && !combined.contains("Baby")) {
+                combined.putBoolean("IsBaby", true);
+            }
+            if (!combined.contains("Age")) {
+                combined.putInt("Age", -24000);
             }
 
-            // Fallback, purely nbt based
-            if (!applied) {
-                if (!combined.contains("IsBaby") && !combined.contains("Baby")) {
-                    combined.putBoolean("IsBaby", true);
-                }
-                if (!combined.contains("Age")) {
-                    combined.putInt("Age", -24000);
-                }
-
-                Entity verify = createEntity(type, world);
-                if (verify == null || !IdentityVariantNbtHelper.loadEntityData(verify, combined)) {
-                    continue;
-                }
-                Object state = invokeNoArg(verify, isBabyMethod);
-                if (!(state instanceof Boolean b && b)) {
-                    continue;
-                }
+            Entity babyEntity = createEntity(type, world);
+            if (babyEntity == null || !IdentityVariantNbtHelper.loadEntityData(babyEntity, combined)) {
+                continue;
+            }
+            if (!(babyEntity instanceof AgeableMob babyAgeable)) {
+                continue;
+            }
+            babyAgeable.setBaby(true);
+            babyAgeable.setAge(-24000);
+            if (!babyAgeable.isBaby()) {
+                continue;
             }
 
             String name = baseVariant.displayName() + " Baby";
@@ -920,13 +893,16 @@ public final class IdentityVariantDiscovery {
     private static List<IdentityVariant> discoverBabyVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
+            Identity2.LOGGER.info("[VariantDebug] baby baseline creation failed for {}", typeId);
             return List.of();
         }
-        List<Method> methods = getAllMethods(baselineEntity.getClass());
-        Method isBabyMethod = findZeroArgBooleanMethod(methods, "isBaby");
-        Method setBabyMethod = findBooleanSetter(methods, "setBaby");
-        Method setAgeMethod = findIntSetter(methods, "setAge");
-        if (isBabyMethod == null || (setBabyMethod == null && setAgeMethod == null)) {
+        logObjectStructure("[VariantDebug] baby baseline entity", baselineEntity);
+        if (!(baselineEntity instanceof AgeableMob)) {
+            Identity2.LOGGER.info(
+                    "[VariantDebug] baby discovery baseline entity is not ageable for {} class={}",
+                    typeId,
+                    baselineEntity.getClass().getName()
+            );
             return List.of();
         }
 
@@ -934,18 +910,12 @@ public final class IdentityVariantDiscovery {
         if (babyProbe == null) {
             return List.of();
         }
-        boolean applied = false;
-        if (setBabyMethod != null) {
-            applied = invokeBooleanSetter(babyProbe, setBabyMethod, true);
-        }
-        if (!applied && setAgeMethod != null) {
-            applied = invokeIntSetter(babyProbe, setAgeMethod, -24000);
-        }
-        if (!applied) {
+        if (!(babyProbe instanceof AgeableMob babyAgeable)) {
             return List.of();
         }
-        Object probeState = invokeNoArg(babyProbe, isBabyMethod);
-        if (!(probeState instanceof Boolean probeIsBaby) || !probeIsBaby) {
+        babyAgeable.setBaby(true);
+        babyAgeable.setAge(-24000);
+        if (!babyAgeable.isBaby()) {
             return List.of();
         }
 
@@ -1622,5 +1592,43 @@ public final class IdentityVariantDiscovery {
             }
         }
         return out.toString();
+    }
+
+    private static void logObjectStructure(String label, Object obj) {
+        if (obj == null) {
+            Identity2.LOGGER.info("{}: <null>", label);
+            return;
+        }
+
+        Class<?> clazz = obj.getClass();
+        String methods = Arrays.stream(clazz.getDeclaredMethods())
+                .map(IdentityVariantDiscovery::formatMethodSignature)
+                .sorted()
+                .limit(80)
+                .collect(java.util.stream.Collectors.joining(", "));
+        String fields = Arrays.stream(clazz.getDeclaredFields())
+                .map(field -> field.getName() + ":" + field.getType().getSimpleName())
+                .sorted()
+                .limit(80)
+                .collect(java.util.stream.Collectors.joining(", "));
+
+        Identity2.LOGGER.info(
+                "{} class={} super={} methods=[{}] fields=[{}]",
+                label,
+                clazz.getName(),
+                clazz.getSuperclass() == null ? "<none>" : clazz.getSuperclass().getName(),
+                methods,
+                fields
+        );
+    }
+
+    private static String formatMethodSignature(Method method) {
+        if (method == null) {
+            return "<null>";
+        }
+        String params = Arrays.stream(method.getParameterTypes())
+                .map(Class::getSimpleName)
+                .collect(java.util.stream.Collectors.joining(","));
+        return method.getName() + "(" + params + "):" + method.getReturnType().getSimpleName();
     }
 }

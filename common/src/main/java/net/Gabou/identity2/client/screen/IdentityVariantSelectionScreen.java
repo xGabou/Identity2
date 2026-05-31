@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -414,10 +415,29 @@ public final class IdentityVariantSelectionScreen extends Screen {
         }
 
         IdentityVariant variant = this.variants.get(index);
+        Identity2.LOGGER.info(
+                "[VariantDebug] variant clicked entity={} variant={} index={} locked={}",
+                this.entityTypeId,
+                variant.displayName(),
+                index,
+                isVariantLocked(variant)
+        );
         if (isVariantLocked(variant)) {
+            Identity2.LOGGER.info(
+                    "[VariantDebug] variant blocked entity={} variant={} token={}",
+                    this.entityTypeId,
+                    variant.displayName(),
+                    IdentityProgression.toVariantUnlockToken(variant.variantNbt())
+            );
             return;
         }
         String variantData = IdentityProgression.serializeVariantNbt(variant.variantNbt());
+        Identity2.LOGGER.info(
+                "[VariantDebug] sending variant morph entity={} variant={} data={}",
+                this.entityTypeId,
+                variant.displayName(),
+                variantData
+        );
         Identity2Client.sendMorphRequest(this.entityTypeId.toString(), variantData);
         this.onClose();
     }
@@ -434,6 +454,12 @@ public final class IdentityVariantSelectionScreen extends Screen {
         }
         for (String storedToken : this.unlockedVariantTokens) {
             if (IdentityProgression.matchesStoredVariantToken(variant.variantNbt(), storedToken)) {
+                Identity2.LOGGER.info(
+                        "[VariantDebug] variant unlocked entity={} variant={} matchedToken={}",
+                        this.entityTypeId,
+                        variant.displayName(),
+                        storedToken
+                );
                 return false;
             }
         }

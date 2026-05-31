@@ -48,6 +48,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -276,10 +277,6 @@ private void getDeathSoundIdentity(CallbackInfoReturnable info){
     }
     }
 }
-
-
-
-
 
 @Inject(method = "aiStep()V", at=@At("HEAD"),cancellable=true)
 private void tickMovementIdentity(CallbackInfo info){
@@ -514,22 +511,22 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
     }
 }
 
-@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
-private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
-    if(this.currentIdentity!=null){
-        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
-                info.setReturnValue(false);
-                return;
-            }
-            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
-                info.setReturnValue(false);
-                return;
-            }
-            info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
-        }
-    }
-}
+//@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
+//private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
+//    if(this.currentIdentity!=null){
+//        if(this.currentIdentity instanceof LivingEntity livingIdentity){
+//            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+//                info.setReturnValue(false);
+//                return;
+//            }
+//            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+//                info.setReturnValue(false);
+//                return;
+//            }
+//            info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
+//        }
+//    }
+//}
 
     @Inject(method = "getLastHurtByMobTimestamp", at = @At("HEAD"), cancellable = true)
     private void identity2$getLastHurtTimestamp(CallbackInfoReturnable<Integer> cir) {
@@ -583,6 +580,19 @@ private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info)
 
     @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {
+        if (entity instanceof EntityAccessor targetAccessor
+                && targetAccessor.getIdentityOwner() instanceof LivingEntity owner
+                && owner.isAlive()
+                && owner != (Entity) (Object) this) {
+            LivingEntity attacker = (LivingEntity) (Object) this;
+            float damage = Math.max(1.0F, (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE));
+            boolean hurt = owner.hurt(owner.damageSources().mobAttack(attacker), damage);
+            if (hurt) {
+                owner.knockback(0.4D, attacker.getX() - owner.getX(), attacker.getZ() - owner.getZ());
+            }
+            info.setReturnValue(hurt);
+            return;
+        }
         if ((Entity)(Object)this instanceof Player) {
             // Keep vanilla player attack pipeline so item/enchant bonuses are applied.
             return;

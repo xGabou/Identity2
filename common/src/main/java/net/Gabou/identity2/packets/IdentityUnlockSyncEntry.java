@@ -1,7 +1,8 @@
 package net.Gabou.identity2.packets;
 
 import java.util.List;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 
-public record IdentityUnlockSyncEntry(ResourceLocation identityId, boolean replaceTokens, List<String> variantTokens) {
+public record IdentityUnlockSyncEntry(ResourceLocation identityId, boolean replaceTokens, List<CompoundTag> variantData) {
 }
