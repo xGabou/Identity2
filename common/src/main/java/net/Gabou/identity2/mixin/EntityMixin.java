@@ -1859,11 +1859,18 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "playSound(Lnet/minecraft/sounds/SoundEvent;FF)V", at = @At("HEAD"), cancellable = true)
     private void identity2$cancelOwnedIdentityAmbientSound(SoundEvent sound, float volume, float pitch, CallbackInfo info) {
         Entity self = (Entity) (Object) this;
-        if (!(self instanceof LivingEntity) || this.identityOf == null || sound == null) {
+
+        if (this.identityOf == null || sound == null) {
             return;
         }
-        Object ambientSoundValue = identity2$invokeNoArg(self, "getAmbientSound");
-        if (ambientSoundValue instanceof SoundEvent ambientSound && ambientSound.equals(sound)) {
+
+        if (!(self instanceof Mob mob)) {
+            return;
+        }
+
+        SoundEvent ambientSound = ((MobAccessor) mob).identity2$invokeGetAmbientSound();
+
+        if (ambientSound != null && ambientSound.equals(sound)) {
             info.cancel();
         }
     }

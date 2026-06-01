@@ -46,6 +46,7 @@
     "LivingEntityEquipSoundMixin",
     "LivingEntityMixin",
     "MinecraftServerMixin",
+    "MobAccessor",
     "MobAmbientSoundMixin",
     "MobEquipmentMixin",
     "MobGoalSelectorAccessorMixin",
