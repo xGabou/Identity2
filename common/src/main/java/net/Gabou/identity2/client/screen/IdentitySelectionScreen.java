@@ -15,6 +15,7 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.client.identity.IdentityVariantDiscovery;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
+import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
@@ -156,21 +157,27 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         int footerButtonGap = 8;
-        int footerButtonWidth = (this.panelWidth - 24 - footerButtonGap * 2) / 3;
+        boolean showProgressionButton = ProgressionConfig.enableMorphCharges()
+                || ProgressionConfig.enableSoulJars()
+                || ProgressionConfig.enableSoulAbsorption();
+        int footerButtonCount = showProgressionButton ? 3 : 2;
+        int footerButtonWidth = (this.panelWidth - 24 - footerButtonGap * (footerButtonCount - 1)) / footerButtonCount;
         this.addRenderableWidget(
             Button.builder(Component.literal("Return to Original"), button -> {
                 Identity2Client.sendMorphRequest("");
                 this.onClose();
             }).bounds(searchLeft, footerY, footerButtonWidth, 20).build()
         );
-        this.addRenderableWidget(
-            Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().setScreen(new IdentityProgressionScreen()))
-                .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
-                .build()
-        );
+        if (showProgressionButton) {
+            this.addRenderableWidget(
+                Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().setScreen(new IdentityProgressionScreen()))
+                    .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
+                    .build()
+            );
+        }
         this.addRenderableWidget(
             Button.builder(Component.literal("Close"), button -> this.onClose())
-                .bounds(searchLeft + (footerButtonWidth + footerButtonGap) * 2, footerY, footerButtonWidth, 20)
+                .bounds(searchLeft + (footerButtonWidth + footerButtonGap) * (footerButtonCount - 1), footerY, footerButtonWidth, 20)
                 .build()
         );
 

@@ -40,6 +40,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.horse.Llama;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.EnderMan;
@@ -47,6 +48,7 @@ import net.minecraft.world.entity.monster.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
@@ -73,6 +75,10 @@ public final class PredefIdentityAbilities {
     private static final double GENERIC_DASH_STRENGTH = 0.75D;
     private static final double GENERIC_DASH_UP = 0.18D;
     public static final String SHULKER_OPEN_STATE_KEY = "identity2.shulker_open";
+    private static final String SHULKER_LOCK_X_KEY = "identity2.shulker_lock_x";
+    private static final String SHULKER_LOCK_Y_KEY = "identity2.shulker_lock_y";
+    private static final String SHULKER_LOCK_Z_KEY = "identity2.shulker_lock_z";
+    public static final String CAMEL_SITTING_STATE_KEY = "identity2.camel_sitting";
     public static final String ENDERMAN_ANGRY_STATE_KEY = "identity2.enderman_angry";
     public static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
     public static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
@@ -278,6 +284,7 @@ public final class PredefIdentityAbilities {
                 Entity identity = ((EntityAccessor) player).getCurrentIdentity();
                 if (identity instanceof EnderMan enderMan) {
                     enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), angry);
+                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), angry);
                 }
                 serverPlayer.displayClientMessage(
                         Component.literal(angry ? "Enderman morph is now agitated." : "Enderman morph calmed down."),
@@ -289,7 +296,9 @@ public final class PredefIdentityAbilities {
             public void passivetick(Entity player, boolean used) {
                 Entity identity = ((EntityAccessor) player).getCurrentIdentity();
                 if (identity instanceof EnderMan enderMan) {
-                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), identity2$isEndermanAngry(player));
+                    boolean angry = identity2$isEndermanAngry(player);
+                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), angry);
+                    enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), angry);
                 }
             }
 
@@ -311,8 +320,11 @@ public final class PredefIdentityAbilities {
                 setShulkerOpenState(serverPlayer, open);
                 ((ShulkerEntityAccessor) shulker).setPeekAmount(open ? 100 : 0);
                 if (open) {
+                    setShulkerLockAnchor(serverPlayer, player.position());
                     Vec3 motion = player.getDeltaMovement();
                     player.setDeltaMovement(0.0D, motion.y, 0.0D);
+                } else {
+                    clearShulkerLockAnchor(serverPlayer);
                 }
             }
 
@@ -321,7 +333,9 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
-                tryTeleportShulkerToNewAnchor(player, shulker);
+                if (tryTeleportShulkerToNewAnchor(player, shulker) && player instanceof ServerPlayer serverPlayer && isShulkerOpen(player)) {
+                    setShulkerLockAnchor(serverPlayer, player.position());
+                }
             }
 
             @Override
@@ -336,12 +350,25 @@ public final class PredefIdentityAbilities {
             }
             @Override
             public void passivetick(Entity player,boolean usedLastTick){
-                Identity2.LOGGER.info("Passive Tick");
                 Shulker shulker=(Shulker)((EntityAccessor)player).getCurrentIdentity();
                 int desiredPeekAmount = isShulkerOpen(player) ? 100 : 0;
                 if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=desiredPeekAmount){
                     ((ShulkerEntityAccessor)shulker).setPeekAmount(desiredPeekAmount);
                 }
+                if (!isShulkerOpen(player)) {
+                    return;
+                }
+                if (player instanceof ServerPlayer serverPlayer) {
+                    Vec3 anchor = getShulkerLockAnchor(serverPlayer);
+                    if (anchor == null) {
+                        anchor = player.position();
+                        setShulkerLockAnchor(serverPlayer, anchor);
+                    }
+                    serverPlayer.connection.teleport(anchor.x, anchor.y, anchor.z, player.getYRot(), player.getXRot());
+                    serverPlayer.setPos(anchor.x, anchor.y, anchor.z);
+                }
+                player.setDeltaMovement(Vec3.ZERO);
+                player.hasImpulse = true;
                 if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(),shulker)) {
                     BlockPos pos=shulker.blockPosition();
                     ((ShulkerEntityAccessor)shulker).runTryAttachOrTeleport();
@@ -438,7 +465,7 @@ public final class PredefIdentityAbilities {
                         player.getX(),
                         player.getY(),
                         player.getZ(),
-                        SoundEvents.MOOSHROOM_SHEAR,
+                        SoundEvents.MOOSHROOM_MILK,
                         SoundSource.PLAYERS,
                         1.0F,
                         1.0F
@@ -471,6 +498,27 @@ public final class PredefIdentityAbilities {
 
         map.put(new ResourceLocation("camel"), new IdentityAbility() {
             @Override
+            public void execute(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                boolean sitting = !net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                        ((EntityAccessor) player).getCustomData(),
+                        CAMEL_SITTING_STATE_KEY,
+                        false
+                );
+                ((EntityAccessor) player).getCustomData().putBoolean(CAMEL_SITTING_STATE_KEY, sitting);
+                IdentityApi.syncBoolean(serverPlayer, CAMEL_SITTING_STATE_KEY, sitting);
+                if (((EntityAccessor) player).getCurrentIdentity() instanceof Camel camel) {
+                    if (sitting) {
+                        camel.sitDown();
+                    } else {
+                        camel.standUp();
+                    }
+                }
+            }
+
+            @Override
             public void executeSecondary(Entity player) {
                 if (!(player instanceof LivingEntity livingPlayer)) {
                     return;
@@ -497,6 +545,23 @@ public final class PredefIdentityAbilities {
                 identity2$setSyncedTicks(player, ANIM_JUMP_TICKS_KEY, 24);
             }
         });
+
+        map.put(new ResourceLocation("sniffer"), new IdentityAbility() {
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                ItemStack find = serverPlayer.getRandom().nextBoolean()
+                        ? new ItemStack(Items.TORCHFLOWER_SEEDS)
+                        : new ItemStack(Items.PITCHER_POD);
+                if (!serverPlayer.getInventory().add(find)) {
+                    serverPlayer.drop(find, false);
+                }
+                player.level().playSound(null, player.blockPosition(), SoundEvents.SNIFFER_DIGGING, SoundSource.NEUTRAL, 1.0F, 1.0F);
+            }
+        });
+        map.put(new ResourceLocation("minecraft", "sniffer"), map.get(new ResourceLocation("sniffer")));
 
         map.put(new ResourceLocation("villager"), new IdentityAbility() {
             @Override
@@ -1292,6 +1357,43 @@ public final class PredefIdentityAbilities {
         syncBoolData(player, SHULKER_OPEN_STATE_KEY, open);
     }
 
+    private static void setShulkerLockAnchor(ServerPlayer player, Vec3 anchor) {
+        if (player == null || anchor == null) {
+            return;
+        }
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        customData.putDouble(SHULKER_LOCK_X_KEY, anchor.x);
+        customData.putDouble(SHULKER_LOCK_Y_KEY, anchor.y);
+        customData.putDouble(SHULKER_LOCK_Z_KEY, anchor.z);
+    }
+
+    private static Vec3 getShulkerLockAnchor(ServerPlayer player) {
+        if (player == null) {
+            return null;
+        }
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        if (!customData.contains(SHULKER_LOCK_X_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)
+                || !customData.contains(SHULKER_LOCK_Y_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)
+                || !customData.contains(SHULKER_LOCK_Z_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)) {
+            return null;
+        }
+        return new Vec3(
+                customData.getDouble(SHULKER_LOCK_X_KEY),
+                customData.getDouble(SHULKER_LOCK_Y_KEY),
+                customData.getDouble(SHULKER_LOCK_Z_KEY)
+        );
+    }
+
+    private static void clearShulkerLockAnchor(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        CompoundTag customData = ((EntityAccessor) player).getCustomData();
+        customData.remove(SHULKER_LOCK_X_KEY);
+        customData.remove(SHULKER_LOCK_Y_KEY);
+        customData.remove(SHULKER_LOCK_Z_KEY);
+    }
+
     private static void syncBoolData(ServerPlayer player, String key, boolean value) {
         IdentityApi.syncBoolean(player, key, value);
     }
@@ -1314,12 +1416,17 @@ public final class PredefIdentityAbilities {
         if (target instanceof EntityHitResult entityTarget) {
             targetEntity = entityTarget.getEntity();
         } else {
-            targetEntity = findNearestForwardLivingTarget(player, range);
+            targetEntity = findNearestLivingTarget(player, range);
         }
-        if (!(targetEntity instanceof LivingEntity)) {
-            return false;
+        ShulkerBullet bullet;
+        if (targetEntity instanceof LivingEntity) {
+            bullet = new ShulkerBullet(shulker.level(), shulker, targetEntity, shulker.getAttachFace().getAxis());
+        } else {
+            bullet = new ShulkerBullet(EntityType.SHULKER_BULLET, shulker.level());
+            bullet.setOwner(shulker);
+            bullet.moveTo(start.x, start.y, start.z, player.getYRot(), player.getXRot());
+            bullet.setDeltaMovement(look.normalize().scale(0.7D));
         }
-        ShulkerBullet bullet = new ShulkerBullet(shulker.level(), shulker, targetEntity, shulker.getAttachFace().getAxis());
         boolean spawned = shulker.level().addFreshEntity(bullet);
         if (spawned) {
             shulker.playSound(SoundEvents.SHULKER_SHOOT, 2.0F, 1.0F);
@@ -1327,23 +1434,16 @@ public final class PredefIdentityAbilities {
         return spawned;
     }
 
-    private static LivingEntity findNearestForwardLivingTarget(Entity player, double range) {
+    private static LivingEntity findNearestLivingTarget(Entity player, double range) {
         if (!(player.level() instanceof ServerLevel serverLevel)) {
             return null;
         }
-        Vec3 eye = player.getEyePosition(1.0F);
-        Vec3 look = player.getViewVector(1.0F).normalize();
-        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(2.0D);
+        AABB box = player.getBoundingBox().inflate(range);
         double bestDistance = Double.MAX_VALUE;
         LivingEntity best = null;
         for (LivingEntity candidate : serverLevel.getEntitiesOfClass(LivingEntity.class, box, entity -> entity != player && entity.isAlive() && entity.isPickable())) {
-            Vec3 toCandidate = candidate.getEyePosition(1.0F).subtract(eye);
-            double distanceSq = toCandidate.lengthSqr();
+            double distanceSq = candidate.distanceToSqr(player);
             if (distanceSq > (range * range) || distanceSq < 1.0E-6D) {
-                continue;
-            }
-            double forward = toCandidate.normalize().dot(look);
-            if (forward < 0.75D) {
                 continue;
             }
             if (distanceSq < bestDistance) {
@@ -1931,7 +2031,7 @@ public final class PredefIdentityAbilities {
     private static void identity2$setEndermanAngry(ServerPlayer player, boolean angry) {
         ((EntityAccessor) player).getCustomData().putBoolean(ENDERMAN_ANGRY_STATE_KEY, angry);
         syncBoolData(player, ENDERMAN_ANGRY_STATE_KEY, angry);
-        identity2$setSyncedTicks(player, ANIM_ANGRY_TICKS_KEY, angry ? 200 : 0);
+        identity2$setSyncedTicks(player, ANIM_ANGRY_TICKS_KEY, angry ? 600 : 0);
     }
 
     private static void executeGoatRamAttack(Entity player) {
@@ -2329,44 +2429,10 @@ public final class PredefIdentityAbilities {
             return false;
         }
 
-        Object villagerData = invokeNoArg(villagerIdentity, "getVillagerData");
-        if (villagerData == null) {
-            return false;
-        }
-
-        Object updatedVillagerData = null;
-        Holder<VillagerProfession> professionHolder = null;
-        try {
-            professionHolder = BuiltInRegistries.VILLAGER_PROFESSION.wrapAsHolder(profession);
-        } catch (Throwable ignored) {
-        }
-        if (professionHolder != null) {
-            updatedVillagerData = invokeOneArg(villagerData, "setProfession", professionHolder);
-        }
-        if (updatedVillagerData == null) {
-            updatedVillagerData = invokeOneArg(villagerData, "setProfession", profession);
-        }
-        if (updatedVillagerData == null) {
-            if (professionHolder != null) {
-                updatedVillagerData = invokeOneArg(villagerData, "withProfession", professionHolder);
-            }
-        }
-        if (updatedVillagerData == null) {
-            updatedVillagerData = invokeOneArg(villagerData, "withProfession", profession);
-        }
-        if (updatedVillagerData == null) {
-            return false;
-        }
-
-        Object levelOneData = invokeIntArg(updatedVillagerData, "setLevel", 1);
-        if (levelOneData != null) {
-            updatedVillagerData = levelOneData;
-        }
-
-        Object applied = invokeOneArg(villagerIdentity, "setVillagerData", updatedVillagerData);
-        if (applied == null) {
-            return false;
-        }
+        VillagerData updatedVillagerData = villagerIdentity.getVillagerData()
+                .setProfession(profession)
+                .setLevel(1);
+        villagerIdentity.setVillagerData(updatedVillagerData);
 
         invokeIntArg(villagerIdentity, "setVillagerXp", 0);
         invokeIntArg(villagerIdentity, "setExperience", 0);

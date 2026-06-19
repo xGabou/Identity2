@@ -16,12 +16,12 @@ public final class IdentityEquipmentHelper {
         if (host == null || slot == null) {
             return null;
         }
+        if (slot.getType() == EquipmentSlot.Type.HAND) {
+            return null;
+        }
         Entity identity = ((EntityAccessor) host).getCurrentIdentity();
         if (!(identity instanceof LivingEntity livingIdentity)) {
             return null;
-        }
-        if (slot.getType() == EquipmentSlot.Type.HAND) {
-            return IdentitySettings.identitiesEquipItems ? null : Items.AIR.getDefaultInstance();
         }
         if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
             return Items.AIR.getDefaultInstance();

@@ -43,8 +43,8 @@ public class ClientPlayerInteractionManagerMixin {
 
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity != null && Boolean.TRUE.equals(IdentityTraitTags.resolveFlight(identity.getType()))) {
-            // Do not force "always flying" while grounded; mayfly still lets the player take off again.
-            info.setReturnValue(player.getAbilities().flying && !player.onGround());
+            // Mayfly grants normal takeoff/landing; forcing "always flying" can freeze survival flyers in midair.
+            info.setReturnValue(false);
         }
     }
 

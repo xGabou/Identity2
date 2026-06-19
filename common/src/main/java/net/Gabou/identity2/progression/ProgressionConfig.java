@@ -22,19 +22,19 @@ public final class ProgressionConfig {
     }
 
     public static boolean enableMorphCharges() {
-        return IdentitySettings.enableMorphChargeSystem;
+        return false;
     }
 
     public static boolean enableSoulJars() {
-        return IdentitySettings.enableSoulJarSystem;
+        return false;
     }
 
     public static boolean enablePermanentJarMorphs() {
-        return IdentitySettings.enablePermanentMorphs;
+        return false;
     }
 
     public static boolean enableSoulAbsorption() {
-        return IdentitySettings.enableSoulAbsorption;
+        return false;
     }
 
     public static boolean requireChargeForMorphing() {

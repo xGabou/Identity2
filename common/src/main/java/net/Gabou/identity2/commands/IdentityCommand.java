@@ -9,6 +9,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -672,7 +673,7 @@ public final class IdentityCommand {
             return Suggestions.empty();
         }
 
-        List<String> suggestions = new ArrayList<>();
+        Set<String> suggestions = new LinkedHashSet<>();
         for (IdentityVariant variant : IdentityApi.discoverVariants(type, context.getSource().getLevel())) {
             CompoundTag variantNbt = variant.variantNbt();
             if (variantNbt == null || variantNbt.isEmpty()) {
@@ -684,10 +685,11 @@ public final class IdentityCommand {
                     && !IdentityProgression.isVariantUnlocked(player, identityId, variantNbt)) {
                 continue;
             }
-            suggestions.add(IdentityProgression.serializeVariantNbt(variantNbt));
             String displayName = variant.displayName();
             if (displayName != null && !displayName.isBlank()) {
                 suggestions.add(displayName);
+            } else {
+                suggestions.add(IdentityProgression.serializeVariantNbt(variantNbt));
             }
         }
 

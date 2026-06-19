@@ -26,6 +26,8 @@ import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.axolotl.Axolotl.Variant;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -140,7 +142,15 @@ public final class IdentityApi {
             return List.of();
         }
         List<IdentityVariant> variants = new ArrayList<>();
-        if (type == EntityType.CAT) {
+        if (type == EntityType.SHEEP) {
+            variants.addAll(discoverSheepVariants(typeId));
+        } else if (type == EntityType.SLIME || type == EntityType.MAGMA_CUBE) {
+            variants.addAll(discoverSlimeSizeVariants(typeId));
+        } else if (type == EntityType.VILLAGER) {
+            variants.addAll(discoverRegistryBackedVariants(typeId, "VILLAGER_TYPE", "VillagerType", "Villager"));
+        } else if (type == EntityType.AXOLOTL) {
+            variants.addAll(discoverAxolotlVariants(typeId));
+        } else if (type == EntityType.CAT) {
             variants.addAll(discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat"));
         } else if (type == EntityType.WOLF) {
             variants.addAll(discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
@@ -150,8 +160,74 @@ public final class IdentityApi {
         IdentityVariant baby = discoverBabyVariant(type, typeId, level);
         if (baby != null) {
             variants.add(baby);
+            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL) {
+                variants.addAll(discoverBabyCopies(variants, " Baby"));
+            }
+        } else if (type == EntityType.AXOLOTL) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putBoolean("IsBaby", true);
+            nbt.putInt("Age", -24000);
+            variants.add(new IdentityVariant(typeId, "Axolotl Baby", nbt));
+            variants.addAll(discoverBabyCopies(variants, " Baby"));
+        } else if (type == EntityType.ZOMBIE || type == EntityType.ZOMBIE_VILLAGER || type == EntityType.HUSK || type == EntityType.DROWNED) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putBoolean("IsBaby", true);
+            variants.add(new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", nbt));
         }
         return variants.isEmpty() ? List.of() : variants;
+    }
+
+    private static List<IdentityVariant> discoverSheepVariants(ResourceLocation typeId) {
+        List<IdentityVariant> variants = new ArrayList<>(16);
+        for (int i = 0; i < 16; i++) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putByte("Color", (byte) i);
+            DyeColor color = DyeColor.byId(i);
+            variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverSlimeSizeVariants(ResourceLocation typeId) {
+        String prefix = capitalize(typeId.getPath().replace('_', ' '));
+        List<IdentityVariant> variants = new ArrayList<>();
+        int[] sizes = new int[] {1, 2, 4};
+        String[] labels = new String[] {"Small", "Medium", "Large"};
+        for (int i = 0; i < sizes.length; i++) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("Size", sizes[i]);
+            variants.add(new IdentityVariant(typeId, prefix + " " + labels[i], nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverAxolotlVariants(ResourceLocation typeId) {
+        List<IdentityVariant> variants = new ArrayList<>();
+        Variant[] values = Variant.values();
+        for (int i = 0; i < values.length; i++) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("Variant", i);
+            variants.add(new IdentityVariant(typeId, "Axolotl " + capitalize(values[i].name()), nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverBabyCopies(List<IdentityVariant> variants, String suffix) {
+        if (variants == null || variants.isEmpty()) {
+            return List.of();
+        }
+        List<IdentityVariant> out = new ArrayList<>();
+        for (IdentityVariant variant : variants) {
+            if (variant == null || variant.variantNbt() == null || variant.variantNbt().isEmpty()
+                    || variant.variantNbt().contains("IsBaby")) {
+                continue;
+            }
+            CompoundTag nbt = variant.variantNbt().copy();
+            nbt.putBoolean("IsBaby", true);
+            nbt.putInt("Age", -24000);
+            out.add(new IdentityVariant(variant.entityTypeId(), variant.displayName() + suffix, nbt));
+        }
+        return out;
     }
 
     private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, Level level) {
@@ -318,9 +394,10 @@ public final class IdentityApi {
     }
 
     public static void syncBoolean(ServerPlayer player, String key, boolean value) {
-        if (!shouldWriteBoolean(player, key, value)) {
+        if (player == null || key == null || key.isBlank()) {
             return;
         }
+        getCustomDataTag(player).putBoolean(key, value);
         CustomEntityBoolDataS2CPacketPayload payload = new CustomEntityBoolDataS2CPacketPayload(
             player.getId(),
             List.of(new CustomEntityDataS2CPacket.EntryBool(key, value))
@@ -329,9 +406,10 @@ public final class IdentityApi {
     }
 
     public static void syncDouble(ServerPlayer player, String key, double value) {
-        if (!shouldWriteDouble(player, key, value)) {
+        if (player == null || key == null || key.isBlank()) {
             return;
         }
+        getCustomDataTag(player).putDouble(key, value);
         CustomEntityDataS2CPacketPayload payload = new CustomEntityDataS2CPacketPayload(
             player.getId(),
             List.of(new CustomEntityDataS2CPacket.Entry(key, value))

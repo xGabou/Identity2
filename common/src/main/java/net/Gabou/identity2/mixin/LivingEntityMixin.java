@@ -257,6 +257,16 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
         if (this.currentIdentity != null && ((EntityAccessor) this.currentIdentity).canFly()) {
             cir.setReturnValue(false);
+            return;
+        }
+        if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.CAMEL) {
+            cir.setReturnValue(false);
+            return;
+        }
+        if (this.currentIdentity != null
+                && (this.currentIdentity.getType() == EntityType.CAT
+                || this.currentIdentity.getType() == EntityType.IRON_GOLEM)) {
+            cir.setReturnValue(false);
         }
     }
 
@@ -315,8 +325,12 @@ private void identity2$playAmbientSound(CallbackInfo info) {
         return;
     }
 
-    Object ambientSoundValue = identity2$invokeNoArg(livingIdentity, "getAmbientSound");
-    if (!(ambientSoundValue instanceof SoundEvent ambientSound)) {
+    if (!(livingIdentity instanceof Mob mobIdentity)) {
+        return;
+    }
+
+    SoundEvent ambientSound = ((MobAccessor) mobIdentity).identity2$invokeGetAmbientSound();
+    if (ambientSound == null) {
         return;
     }
 
@@ -351,7 +365,7 @@ private void identity2$playAmbientSound(CallbackInfo info) {
             IdentitySettings.hearSelfAmbient ? null : hostPlayer,
             hostPlayer.blockPosition(),
             ambientSound,
-            livingIdentity.getSoundSource(),
+            mobIdentity.getSoundSource(),
             volume,
             pitch
     );
@@ -560,20 +574,25 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
 
     @Inject(method = "getMainHandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getMainHandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, EquipmentSlot.MAINHAND)) {
-            info.setReturnValue(Items.AIR.getDefaultInstance());
-        }
+        return;
     }
 
     @Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, EquipmentSlot.OFFHAND)) {
-            info.setReturnValue(Items.AIR.getDefaultInstance());
-        }
+        return;
     }
 
     @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
     private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
+        if (slot.getType() == EquipmentSlot.Type.HAND) {
+            return;
+        }
+        if (slot.getType() == EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipItems) {
+            return;
+        }
+        if (slot.getType() != EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipArmor) {
+            return;
+        }
         if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
             info.setReturnValue(false);
         }

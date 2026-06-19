@@ -35,6 +35,11 @@ import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
 import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
+import net.Gabou.identity2.mixin.EnderManAccessor;
+import net.Gabou.identity2.mixin.HoglinAccessor;
+import net.Gabou.identity2.mixin.IronGolemAccessor;
+import net.Gabou.identity2.mixin.RavagerAccessor;
+import net.Gabou.identity2.mixin.ZoglinAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.Gabou.identity2.util.NbtCompat;
@@ -61,7 +66,13 @@ import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.entity.animal.FrogVariant;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.animal.frog.Frog;
+import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.monster.Ravager;
+import net.minecraft.world.entity.monster.Zoglin;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
@@ -472,6 +483,7 @@ public final class IdentityProgression {
             applyHealthScaling(player, null);
             return;
         }
+        resetRestoredIdentityAnimationState(player, identity);
 
         net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
         double widthOverride = identityDimensions.width;
@@ -513,6 +525,66 @@ public final class IdentityProgression {
         double transitionStart = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, TRANSITION_START_TICK_KEY, 0.0);
         double transitionDuration = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, TRANSITION_DURATION_TICKS_KEY, 0.0);
         syncMorphData(player, modelOverride, variant, widthOverride, heightOverride, previousType, previousVariant, transitionStart, transitionDuration);
+    }
+
+    private static void resetRestoredIdentityAnimationState(ServerPlayer player, Entity identity) {
+        if (player == null || identity == null) {
+            return;
+        }
+
+        player.swinging = false;
+        player.swingTime = 0;
+        player.attackAnim = 0.0F;
+        player.oAttackAnim = 0.0F;
+        player.resetAttackStrengthTicker();
+
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_JUMP_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_ROLL_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.ANIM_ANGRY_TICKS_KEY);
+        resetSyncedAnimationTick(player, PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY);
+        CompoundTag data = ((EntityAccessor) player).getCustomData();
+        data.putBoolean(PredefIdentityAbilities.ENDERMAN_ANGRY_STATE_KEY, false);
+        IdentityApi.syncBoolean(player, PredefIdentityAbilities.ENDERMAN_ANGRY_STATE_KEY, false);
+
+        if (identity instanceof LivingEntity livingIdentity) {
+            livingIdentity.swinging = false;
+            livingIdentity.swingTime = 0;
+            livingIdentity.attackAnim = 0.0F;
+            livingIdentity.oAttackAnim = 0.0F;
+            livingIdentity.yBodyRot = player.yBodyRot;
+            livingIdentity.yBodyRotO = player.yBodyRotO;
+            livingIdentity.yHeadRot = player.yHeadRot;
+            livingIdentity.yHeadRotO = player.yHeadRotO;
+        }
+        if (identity instanceof IronGolem ironGolem) {
+            ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(0);
+        } else if (identity instanceof Hoglin hoglin) {
+            ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(0);
+        } else if (identity instanceof Zoglin zoglin) {
+            ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(0);
+        } else if (identity instanceof Ravager ravager) {
+            ((RavagerAccessor) ravager).identity2$setAttackTick(0);
+        } else if (identity instanceof EnderMan enderMan) {
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), false);
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), false);
+        } else if (identity instanceof Warden warden) {
+            warden.attackAnimationState.stop();
+            warden.sonicBoomAnimationState.stop();
+        }
+    }
+
+    private static void resetSyncedAnimationTick(ServerPlayer player, String key) {
+        if (player == null || key == null || key.isBlank()) {
+            return;
+        }
+        CompoundTag data = ((EntityAccessor) player).getCustomData();
+        data.putDouble(key, 0.0D);
+        data.putDouble(key + ".start", 0.0D);
+        IdentityApi.syncDouble(player, key, 0.0D);
+        IdentityApi.syncDouble(player, key + ".start", 0.0D);
     }
 
     public static void updateCurrentVariantAndSync(ServerPlayer player, CompoundTag variantNbt) {
@@ -1489,7 +1561,7 @@ public final class IdentityProgression {
             }
 
             Attribute attribute = instance.getAttribute();
-            if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
+            if (attribute == null || (identity2$shouldSkipPlayerMorphAttribute(attribute) && !attribute.equals(Attributes.ATTACK_DAMAGE))) {
                 continue;
             }
 
@@ -1644,6 +1716,7 @@ public final class IdentityProgression {
             return true;
         }
         return attribute.equals(Attributes.MAX_HEALTH)
+                || attribute.equals(Attributes.ATTACK_DAMAGE)
                 || attribute.equals(Attributes.FLYING_SPEED)
                 || attribute.equals(Attributes.MOVEMENT_SPEED);
     }

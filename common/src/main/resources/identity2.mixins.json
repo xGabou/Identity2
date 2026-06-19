@@ -31,6 +31,7 @@
     "BeeAccessor",
     "BlockPosMixin",
     "ChickenEntityMixin",
+    "CamelAccessor",
     "CreeperAccessor",
     "DefaultAttributeContainerMixin",
     "EnderDragonEntityMixin",
@@ -42,6 +43,8 @@
     "EntityTrackingSectionMixin",
     "FishingBobberEntityMixin",
     "GiantEntityMixin",
+    "HoglinAccessor",
+    "IronGolemAccessor",
     "LimbAnimatorMixin",
     "LivingEntityEquipSoundMixin",
     "LivingEntityMixin",
@@ -56,6 +59,7 @@
     "PlayerInventoryMixin",
     "PlayerManagerMixin",
     "PlayerPersistenceMixin",
+    "RavagerAccessor",
     "RegistriesMixin",
     "ServerPlayerDimensionMixin",
     "ShulkerEntityMixin",
@@ -64,7 +68,8 @@
     "WolfAccessor",
     "WorldBorderMixin",
     "WorldBorderMixin$SettingsMixin",
-    "ZombieEntityMixin"
+    "ZombieEntityMixin",
+    "ZoglinAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

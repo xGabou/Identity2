@@ -44,12 +44,15 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Fireball;
@@ -993,7 +996,10 @@ public class EntityMixin implements EntityAccessor {
 
     @Unique
     private void identity2$landFlyingIdentityIfRequested(Player player) {
-        if (player == null || !player.onGround() || !player.isShiftKeyDown() || !player.getAbilities().flying) {
+        if (player == null || !player.isShiftKeyDown() || !player.getAbilities().flying) {
+            return;
+        }
+        if (!player.onGround() && !identity2$isCloseToLandingSurface(player)) {
             return;
         }
         player.getAbilities().flying = false;
@@ -1001,6 +1007,19 @@ public class EntityMixin implements EntityAccessor {
         if (player instanceof ServerPlayer serverPlayer) {
             serverPlayer.onUpdateAbilities();
         }
+    }
+
+    @Unique
+    private static boolean identity2$isCloseToLandingSurface(Player player) {
+        if (player == null || player.level() == null) {
+            return false;
+        }
+        for (double distance = 0.05D; distance <= 1.25D; distance += 0.2D) {
+            if (!player.level().noCollision(player, player.getBoundingBox().move(0.0D, -distance, 0.0D))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Unique
@@ -1242,6 +1261,7 @@ public class EntityMixin implements EntityAccessor {
             ((EntityAccessor) entity).fixAttributes((Entity) (Object) this, entity);
             this.currentIdentity = entity;
             ((EntityAccessor) this.currentIdentity).setIdentityOf((Entity) (Object) this);
+            this.identity2$resetNewIdentityAnimationState(this.currentIdentity);
         } catch (Throwable throwable) {
             String reason = throwable.getClass().getSimpleName();
             IdentityProgression.disableIdentity(identityId, reason);
@@ -1263,6 +1283,38 @@ public class EntityMixin implements EntityAccessor {
             }
         }
 
+    }
+
+    @Unique
+    private void identity2$resetNewIdentityAnimationState(Entity identity) {
+        if (identity == null) {
+            return;
+        }
+        if (identity instanceof LivingEntity livingIdentity) {
+            livingIdentity.swinging = false;
+            livingIdentity.swingTime = 0;
+            livingIdentity.attackAnim = 0.0F;
+            livingIdentity.oAttackAnim = 0.0F;
+            livingIdentity.yBodyRot = ((Entity) (Object) this).getYRot();
+            livingIdentity.yBodyRotO = ((Entity) (Object) this).getYRot();
+            livingIdentity.yHeadRot = ((Entity) (Object) this).getYRot();
+            livingIdentity.yHeadRotO = ((Entity) (Object) this).getYRot();
+        }
+        if (identity instanceof IronGolem ironGolem) {
+            ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(0);
+        } else if (identity instanceof Hoglin hoglin) {
+            ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(0);
+        } else if (identity instanceof Zoglin zoglin) {
+            ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(0);
+        } else if (identity instanceof Ravager ravager) {
+            ((RavagerAccessor) ravager).identity2$setAttackTick(0);
+        } else if (identity instanceof EnderMan enderMan) {
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), false);
+            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), false);
+        } else if (identity instanceof Warden warden) {
+            warden.attackAnimationState.stop();
+            warden.sonicBoomAnimationState.stop();
+        }
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
@@ -2112,7 +2164,11 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     @Inject(method = "getEyeHeight()F", at = @At("HEAD"), cancellable = true)
     private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getEyeHeight());
+            float eyeHeight = this.currentIdentity.getEyeHeight();
+            if (this.currentIdentity.getBbHeight() < 0.7F) {
+                eyeHeight = Math.max(eyeHeight, 0.6F);
+            }
+            info.setReturnValue(eyeHeight);
         }
     }
 

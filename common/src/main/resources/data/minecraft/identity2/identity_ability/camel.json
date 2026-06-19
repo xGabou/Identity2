@@ -1,0 +1,6 @@
+{
+  "icon": "minecraft:saddle",
+  "cooldown": 20,
+  "use_duration": 0,
+  "predef": "minecraft:camel"
+}

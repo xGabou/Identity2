@@ -1,13 +1,17 @@
 package net.Gabou.identity2.client;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import net.Gabou.identity2.PredefIdentityAbilities;
+import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.mixin.BeeAccessor;
+import net.Gabou.identity2.mixin.CamelAccessor;
 import net.Gabou.identity2.mixin.EnderManAccessor;
+import net.Gabou.identity2.mixin.HoglinAccessor;
+import net.Gabou.identity2.mixin.IronGolemAccessor;
+import net.Gabou.identity2.mixin.RavagerAccessor;
 import net.Gabou.identity2.mixin.WolfAccessor;
+import net.Gabou.identity2.mixin.ZoglinAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.LimbAnimatorAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
@@ -21,10 +25,13 @@ import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.Squid;
+import net.minecraft.world.entity.animal.Turtle;
+import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.effect.MobEffects;
@@ -34,12 +41,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 public final class IdentityRenderStateHelper {
+    private static final float ENDER_DRAGON_MORPH_FLAP_SPEED = 1.0F / 10.0F;
     private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
     private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
     private static final Map<Integer, Boolean> WOLF_WAS_IN_WATER = new HashMap<>();
     private static final Map<Integer, Float> WOLF_SHAKE_PROGRESS = new HashMap<>();
-    private static final String HOGLIN_BASE_CLASS_NAME = "net.minecraft.world.entity.monster.hoglin.HoglinBase";
 
     private IdentityRenderStateHelper() {
     }
@@ -49,9 +56,13 @@ public final class IdentityRenderStateHelper {
     }
 
     public static void syncIdentityVisualState(Entity source, Entity identity, float tickDelta) {
-        identity.setPosRaw(source.position().x, source.position().y, source.position().z);
+        Vec3 renderPos = (identity instanceof Warden && WardenBurrowManager.isHidden(source))
+                ? WardenBurrowManager.resolveVisualBurrowPosition(source)
+                : source.position();
+        identity.setPosRaw(renderPos.x, renderPos.y, renderPos.z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
+            syncEnderDragonFlapAnimation(source, (EnderDragon) identity);
         } else {
             identity.setYRot(source.getYRot());
         }
@@ -99,8 +110,6 @@ public final class IdentityRenderStateHelper {
 
             if (livingIdentity instanceof Bat batIdentity) {
                 batIdentity.setResting(false);
-                syncAnimationStateField(batIdentity, "flyAnimationState", null, source.tickCount);
-                syncAnimationStateField(batIdentity, "restAnimationState", null, 0);
             }
 
             if (livingIdentity instanceof Bee beeIdentity) {
@@ -118,17 +127,35 @@ public final class IdentityRenderStateHelper {
                 }
             }
 
-            if (livingIdentity instanceof Squid || livingIdentity instanceof GlowSquid) {
+            if (livingIdentity instanceof Squid squidIdentity) {
                 // TODO: The squid/glow squid swim loop is serviceable but still not a perfect vanilla match.
                 float swimSpeed = livingSource.walkAnimation.speed();
                 livingIdentity.walkAnimation.setSpeed(Math.max(0.15F, swimSpeed));
                 if (source.isInWater()) {
                     livingIdentity.setSwimming(true);
-                    setFloatFieldExact(livingIdentity, "tentacleMovement", (float) (source.tickCount * 0.12F));
-                    setFloatFieldExact(livingIdentity, "oldTentacleMovement", (float) ((source.tickCount - 1) * 0.12F));
-                    setFloatFieldExact(livingIdentity, "tentacleAngle", (float) Math.sin(source.tickCount * 0.15F) * 0.25F);
-                    setFloatFieldExact(livingIdentity, "oldTentacleAngle", (float) Math.sin((source.tickCount - 1) * 0.15F) * 0.25F);
+                    squidIdentity.tentacleMovement = (float) (source.tickCount * 0.12F);
+                    squidIdentity.oldTentacleMovement = (float) ((source.tickCount - 1) * 0.12F);
+                    squidIdentity.tentacleAngle = (float) Math.sin(source.tickCount * 0.15F) * 0.25F;
+                    squidIdentity.oldTentacleAngle = (float) Math.sin((source.tickCount - 1) * 0.15F) * 0.25F;
                 }
+            }
+
+            if (livingIdentity instanceof Turtle) {
+                LimbAnimatorAccessor targetTurtle = (LimbAnimatorAccessor) livingIdentity.walkAnimation;
+                LimbAnimatorAccessor originTurtle = (LimbAnimatorAccessor) livingSource.walkAnimation;
+                float turtleScale = 0.12F;
+                float slowedPosition = originTurtle.getPosition() * turtleScale;
+                targetTurtle.setPrevSpeed(originTurtle.getPrevSpeed() * turtleScale);
+                targetTurtle.setPosition(slowedPosition);
+                targetTurtle.setPositionScale(originTurtle.getPositionScale() * turtleScale);
+                livingIdentity.walkAnimation.setSpeed(livingSource.walkAnimation.speed() * turtleScale);
+            }
+
+            if (livingIdentity instanceof Axolotl && !source.isInWater()) {
+                livingIdentity.setSwimming(false);
+                float horizontalSpeed = (float) source.getDeltaMovement().horizontalDistance();
+                float landSpeed = horizontalSpeed > 0.01F ? Math.max(livingSource.walkAnimation.speed(), horizontalSpeed * 6.0F) : 0.0F;
+                livingIdentity.walkAnimation.setSpeed(landSpeed);
             }
         }
 
@@ -286,6 +313,12 @@ public final class IdentityRenderStateHelper {
         identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
     }
 
+    private static void syncEnderDragonFlapAnimation(Entity source, EnderDragon dragonIdentity) {
+        float flapTime = source.tickCount * ENDER_DRAGON_MORPH_FLAP_SPEED;
+        dragonIdentity.oFlapTime = (source.tickCount - 1) * ENDER_DRAGON_MORPH_FLAP_SPEED;
+        dragonIdentity.flapTime = flapTime;
+    }
+
     public static void syncEntityAnimationState(Entity source, Entity identity, float tickDelta) {
         if (source == null || identity == null) {
             return;
@@ -296,58 +329,61 @@ public final class IdentityRenderStateHelper {
                 PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_CHARGE_TICKS_KEY)
         );
 
-        if (identity instanceof IronGolem) {
+        if (identity instanceof IronGolem ironGolem) {
             int golemAttackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
             if (golemAttackTicks > 0) {
-                setIntFieldExact(identity, "attackAnimationTick", golemAttackTicks);
+                ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(golemAttackTicks);
             }
-        } else if (identity instanceof Ravager) {
+        } else if (identity instanceof Ravager ravager) {
             int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
             if (attackTicks > 0) {
-                setIntFieldExact(identity, "attackTick", attackTicks);
-                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
-                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
-                setFloatFieldMax(identity, "attackTicksRemaining", attackTicks);
+                ((RavagerAccessor) ravager).identity2$setAttackTick(attackTicks);
             }
-        } else if (isHoglinFamily(identity)) {
+        } else if (identity instanceof Hoglin hoglin) {
             int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
             if (attackTicks > 0) {
-                setIntFieldExact(identity, "attackAnimationRemainingTicks", attackTicks);
-                setIntFieldExact(identity, "attackAnimationTick", attackTicks);
-                setIntFieldExact(identity, "attackTick", attackTicks);
-                setFloatFieldMax(identity, "attackTicksRemaining", attackTicks);
+                ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
+            }
+        } else if (identity instanceof Zoglin zoglin) {
+            int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
+            if (attackTicks > 0) {
+                ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
             }
         } else if (abilityAttackTicks > 0) {
             ensureVanillaAttackAnimation(identity);
-            setIntFieldMax(identity, "attackAnimationTick", abilityAttackTicks);
-            setIntFieldMax(identity, "attackTick", abilityAttackTicks);
-            setIntFieldMax(identity, "attackAnimationRemainingTicks", abilityAttackTicks);
-            setFloatFieldMax(identity, "attackTicksRemaining", abilityAttackTicks);
         }
 
-        if (identity instanceof Warden) {
+        if (identity instanceof Warden warden) {
             int beamStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_BEAM_TICKS_KEY);
             int attackStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
-            syncAnimationStateField(identity, "sonicBoomAnimationState", "sonicBoomAnimation", beamStart);
-            syncAnimationStateField(identity, "attackAnimationState", "attackAnimation", attackStart);
+            syncAnimationState(warden.sonicBoomAnimationState, beamStart);
+            syncAnimationState(warden.attackAnimationState, attackStart);
         }
 
-        if (identity instanceof Camel) {
+        if (identity instanceof Camel camel) {
+            boolean sitting = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                    ((EntityAccessor) source).getCustomData(),
+                    PredefIdentityAbilities.CAMEL_SITTING_STATE_KEY,
+                    false
+            );
+            if (sitting && camel.getPose() != Pose.SITTING) {
+                camel.sitDown();
+            } else if (!sitting && camel.getPose() == Pose.SITTING) {
+                camel.standUp();
+            }
             int jumpStart = (int) PredefIdentityAbilities.getSyncedAnimationStartTick(source, PredefIdentityAbilities.ANIM_JUMP_TICKS_KEY);
-            syncAnimationStateField(identity, "jumpAnimationState", "jumpAnimation", jumpStart);
+            syncAnimationState(camel.dashAnimationState, jumpStart);
+            camel.setDashing(jumpStart > 0);
             if (jumpStart > 0) {
-                setIntFieldMax(identity, "dashCooldown", 20);
-                setIntFieldMax(identity, "jumpCooldown", 20);
+                CamelAccessor accessor = (CamelAccessor) camel;
+                if (accessor.identity2$getDashCooldown() < 24) {
+                    accessor.identity2$setDashCooldown(24);
+                }
             }
         }
 
-        if (identity instanceof EnderMan enderMan && PredefIdentityAbilities.isSyncedAnimationActive(source, PredefIdentityAbilities.ANIM_ANGRY_TICKS_KEY)) {
-            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataCreepy(), true);
-            enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), true);
-        }
-
-        if (identity instanceof Pufferfish) {
-            invokeOneArg(identity, "setPuffState", PredefIdentityAbilities.isSyncedAnimationActive(
+        if (identity instanceof Pufferfish pufferfish) {
+            pufferfish.setPuffState(PredefIdentityAbilities.isSyncedAnimationActive(
                     source,
                     PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY
             ) ? 2 : 0);
@@ -379,64 +415,6 @@ public final class IdentityRenderStateHelper {
         return Math.min(IRON_GOLEM_ATTACK_ANIMATION_TICKS, (int) Math.ceil(remaining));
     }
 
-    private static boolean isHoglinFamily(Entity identity) {
-        if (identity instanceof Hoglin) {
-            return true;
-        }
-        try {
-            Class<?> hoglinBase = Class.forName(HOGLIN_BASE_CLASS_NAME);
-            return hoglinBase.isInstance(identity);
-        } catch (ClassNotFoundException ignored) {
-            return false;
-        }
-    }
-
-    private static void setIntFieldMax(Object target, String fieldName, int minValue) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != int.class && field.getType() != Integer.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                int currentValue = field.getInt(target);
-                if (currentValue < minValue) {
-                    field.setInt(target, minValue);
-                }
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static void setFloatFieldMax(Object target, String fieldName, float minValue) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != float.class && field.getType() != Float.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                float currentValue = field.getFloat(target);
-                if (currentValue < minValue) {
-                    field.setFloat(target, minValue);
-                }
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
     private static boolean ensureVanillaAttackAnimation(Entity identity) {
         if (!(identity instanceof IronGolem || identity instanceof Ravager || isHoglinFamily(identity))) {
             return false;
@@ -444,224 +422,35 @@ public final class IdentityRenderStateHelper {
         if (hasActiveAttackAnimation(identity)) {
             return false;
         }
-        return invokeHandleEntityEvent(identity, (byte) 4);
+        identity.handleEntityEvent((byte) 4);
+        return true;
     }
 
-    private static void syncAnimationStateField(Object owner, String fieldName, String fallbackFieldName, int startTick) {
-        Object state = getFieldValue(owner, fieldName);
-        if (state == null && fallbackFieldName != null) {
-            state = getFieldValue(owner, fallbackFieldName);
-        }
-        if (state == null) {
-            return;
-        }
+    private static void syncAnimationState(AnimationState state, int startTick) {
         if (startTick > 0) {
-            invokeOneArg(state, "start", startTick);
+            state.startIfStopped(startTick);
         } else {
-            invokeNoArg(state, "stop");
+            state.stop();
         }
     }
 
-    private static Object getFieldValue(Object target, String fieldName) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return null;
+    private static boolean hasActiveAttackAnimation(Entity identity) {
+        if (identity instanceof IronGolem ironGolem) {
+            return ((IronGolemAccessor) ironGolem).identity2$getAttackAnimationTick() > 0;
         }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                return field.get(target);
-            } catch (Throwable ignored) {
-            }
+        if (identity instanceof Ravager ravager) {
+            return ((RavagerAccessor) ravager).identity2$getAttackTick() > 0;
         }
-        return null;
-    }
-
-    private static boolean hasActiveAttackAnimation(Object target) {
-        return getIntFieldValue(target, "attackAnimationTick") > 0
-                || getIntFieldValue(target, "attackTick") > 0
-                || getIntFieldValue(target, "attackAnimationRemainingTicks") > 0
-                || getFloatFieldValue(target, "attackTicksRemaining") > 0.0F;
-    }
-
-    private static int getIntFieldValue(Object target, String fieldName) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return 0;
+        if (identity instanceof Hoglin hoglin) {
+            return ((HoglinAccessor) hoglin).identity2$getAttackAnimationRemainingTicks() > 0;
         }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != int.class && field.getType() != Integer.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                return field.getInt(target);
-            } catch (Throwable ignored) {
-            }
-        }
-        Object viaGetter = invokeNoArg(target, getterNameForField(fieldName));
-        if (viaGetter instanceof Number number) {
-            return number.intValue();
-        }
-        return 0;
-    }
-
-    private static float getFloatFieldValue(Object target, String fieldName) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return 0.0F;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != float.class && field.getType() != Float.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                return field.getFloat(target);
-            } catch (Throwable ignored) {
-            }
-        }
-        Object viaGetter = invokeNoArg(target, getterNameForField(fieldName));
-        if (viaGetter instanceof Number number) {
-            return number.floatValue();
-        }
-        return 0.0F;
-    }
-
-    private static String getterNameForField(String fieldName) {
-        if (fieldName == null || fieldName.isBlank()) {
-            return "";
-        }
-        return switch (fieldName) {
-            case "attackAnimationTick" -> "getAttackAnimationTick";
-            case "attackTick" -> "getAttackTick";
-            case "attackAnimationRemainingTicks" -> "getAttackAnimationRemainingTicks";
-            case "attackTicksRemaining" -> "getAttackTicksRemaining";
-            default -> "";
-        };
-    }
-
-    private static boolean invokeHandleEntityEvent(Object target, byte eventId) {
-        if (target == null) {
-            return false;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (!method.getName().equals("handleEntityEvent") || method.getParameterCount() != 1) {
-                    continue;
-                }
-                Class<?> param = method.getParameterTypes()[0];
-                if (param != byte.class && param != Byte.class) {
-                    continue;
-                }
-                try {
-                    if (!method.canAccess(target)) {
-                        method.setAccessible(true);
-                    }
-                    method.invoke(target, eventId);
-                    return true;
-                } catch (Throwable ignored) {
-                }
-            }
+        if (identity instanceof Zoglin zoglin) {
+            return ((ZoglinAccessor) zoglin).identity2$getAttackAnimationRemainingTicks() > 0;
         }
         return false;
     }
 
-    private static Object invokeOneArg(Object target, String methodName, Object value) {
-        if (target == null) {
-            return null;
-        }
-        for (Method method : target.getClass().getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
-                continue;
-            }
-            try {
-                return method.invoke(target, value);
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
-
-    private static Object invokeNoArg(Object target, String methodName) {
-        if (target == null) {
-            return null;
-        }
-        for (Method method : target.getClass().getMethods()) {
-            if (!method.getName().equals(methodName) || method.getParameterCount() != 0) {
-                continue;
-            }
-            try {
-                return method.invoke(target);
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
-
-    private static void setIntFieldExact(Object target, String fieldName, int value) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != int.class && field.getType() != Integer.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                field.setInt(target, value);
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static void setFloatFieldExact(Object target, String fieldName, float value) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != float.class && field.getType() != Float.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                field.setFloat(target, value);
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static void setBooleanFieldExact(Object target, String fieldName, boolean value) {
-        if (target == null || fieldName == null || fieldName.isBlank()) {
-            return;
-        }
-        for (Class<?> current = target.getClass(); current != null; current = current.getSuperclass()) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                if (field.getType() != boolean.class && field.getType() != Boolean.class) {
-                    continue;
-                }
-                if (!field.canAccess(target)) {
-                    field.setAccessible(true);
-                }
-                field.setBoolean(target, value);
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
+    private static boolean isHoglinFamily(Entity identity) {
+        return identity instanceof Hoglin || identity instanceof Zoglin;
     }
 }

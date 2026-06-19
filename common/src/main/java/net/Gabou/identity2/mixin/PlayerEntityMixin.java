@@ -1,5 +1,6 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import net.minecraft.server.level.ServerLevel;
@@ -44,6 +45,7 @@ import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 @Mixin(Player.class)
 public abstract class PlayerEntityMixin extends LivingEntityMixin{
@@ -79,6 +81,24 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         }
     }
 
+    @Inject(method = "playStepSound(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$playIdentityStepSound(BlockPos pos, BlockState state, CallbackInfo ci) {
+        if (!IdentitySettings.useIdentitySounds) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (identity == null || !((Entity) (Object) this).onGround()) {
+            return;
+        }
+        try {
+            Method method = identity.getClass().getDeclaredMethod("playStepSound", BlockPos.class, BlockState.class);
+            method.setAccessible(true);
+            method.invoke(identity, pos, state);
+            ci.cancel();
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getItemBySlot(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> cir) {
         ItemStack blocked = IdentityEquipmentHelper.getBlockedSlotStack((Entity) (Object) this, slot);
@@ -99,6 +119,9 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         if (!player.getMainHandItem().isEmpty()) {
             return;
         }
+        if (!IdentitySettings.useIdentityAttackDamage) {
+            return;
+        }
 
         Entity identity = getCurrentIdentity();
         if (!(identity instanceof LivingEntity livingIdentity)) {
@@ -116,13 +139,10 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
                 Vec3 look = player.getViewVector(1.0F).normalize();
                 target.push(look.x * 1.6D, 0.55D, look.z * 1.6D);
             }
-        } else if (IdentitySettings.useIdentityAttackDamage) {
-            attacked = livingIdentity.doHurtTarget(target);
         } else {
-            float playerDamage = Math.max(1.0F, (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE));
-            attacked = target.hurt(player.damageSources().playerAttack(player), playerDamage);
+            attacked = livingIdentity.doHurtTarget(target);
         }
-        if (!attacked && IdentitySettings.useIdentityAttackDamage) {
+        if (!attacked) {
             float damage = (float) livingIdentity.getAttributeValue(Attributes.ATTACK_DAMAGE);
             if (damage <= 0.0F) {
                 damage = 1.0F;

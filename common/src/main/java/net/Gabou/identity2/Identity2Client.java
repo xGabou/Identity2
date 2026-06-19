@@ -26,6 +26,7 @@ import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.identity.WardenBurrowManager;
+import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.mixin.BeeAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -367,6 +368,11 @@ public final class Identity2Client {
         if (client == null || client.player == null) {
             return;
         }
+        if (!ProgressionConfig.enableMorphCharges()
+                && !ProgressionConfig.enableSoulJars()
+                && !ProgressionConfig.enableSoulAbsorption()) {
+            return;
+        }
         client.setScreen(new IdentityProgressionScreen());
     }
 
@@ -397,17 +403,33 @@ public final class Identity2Client {
             return;
         }
 
+        if (identity.getType() == net.minecraft.world.entity.EntityType.SHULKER
+                && PredefIdentityAbilities.isShulkerOpen(player)) {
+            while (primaryAbilityKeyBinding.consumeClick()) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PRIMARY);
+            }
+            while (client.options.keyAttack.consumeClick()) {
+                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+            }
+            while (secondaryAbilityKeyBinding.consumeClick()) {
+                if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
+                    ((EntityAccessor) player).setSecondaryAbilityCooldown(resolveSecondaryCooldown(identity, ModRegistries.resolveIdentityAbility(identity.getType())));
+                    sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
+                }
+            }
+            disableMovementInputs(client, player);
+            player.setDeltaMovement(Vec3.ZERO);
+            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
+            return;
+        }
+
         boolean wardenHidden = WardenBurrowManager.isHidden(player);
         if (wardenHidden) {
             boolean exitRequested = identity2$shouldExitWardenBurrow(client);
-            disableMovementInputs(client, player);
-            player.noPhysics = true;
-            player.setDeltaMovement(Vec3.ZERO);
+            player.noPhysics = false;
             if (exitRequested) {
                 sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
             }
-            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
-            return;
         } else if (player.noPhysics) {
             player.noPhysics = false;
         }

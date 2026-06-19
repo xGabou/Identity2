@@ -64,6 +64,9 @@ public class IdentitySettings {
     //@Comment(value = "Whether disguised players should hear their own ambient sounds (only if playAmbientSounds is true).")
     public static boolean hearSelfAmbient = false;
 
+    //@Comment(value = "Whether to show the chat hint explaining how to keep morphs after death.")
+    public static boolean showDeathMorphRuleWarning = true;
+
     //@Comment(value = "Whether mobs in the flying entity tag can fly.")
     public static boolean enableFlight = true;
 
@@ -157,7 +160,7 @@ public class IdentitySettings {
     public static boolean requireUnlockedIdentityForMorph = true;
 
     //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
-    public static boolean enableMorphChargeSystem = true;
+    public static boolean enableMorphChargeSystem = false;
     //@Comment(value = "Default number of charges gained per qualifying kill.")
     public static int defaultChargeGainPerKill = 1;
 
@@ -218,7 +221,7 @@ public class IdentitySettings {
     public static boolean trueSoulJarPreventsDeathPenalty = true;
 
     //@Comment(value = "If true, soul jars can randomly drop into the world on mob death.")
-    public static boolean enableRandomSoulJarWorldDrops = true;
+    public static boolean enableRandomSoulJarWorldDrops = false;
 
     //@Comment(value = "Chance per non-player mob death to drop a random soul jar. Range: 0.0 to 1.0.")
     public static double soulJarWorldDropChance = 0.005D;

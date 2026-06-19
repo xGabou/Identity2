@@ -48,6 +48,10 @@ public final class IdentityVanillaVariantHelper {
         Map<String, IdentityVariant> out = new LinkedHashMap<>();
         if (type == EntityType.SHEEP) {
             addVariants(out, discoverSheepVariants(typeId));
+        } else if (type == EntityType.SLIME || type == EntityType.MAGMA_CUBE) {
+            addVariants(out, discoverSlimeSizeVariants(typeId));
+        } else if (type == EntityType.VILLAGER) {
+            addVariants(out, discoverRegistryBackedVariants(typeId, "VILLAGER_TYPE", "VillagerType", "Villager"));
         } else if (type == EntityType.AXOLOTL) {
             addVariants(out, discoverAxolotlVariants(typeId));
         } else if (type == EntityType.CAT) {
@@ -61,6 +65,19 @@ public final class IdentityVanillaVariantHelper {
         IdentityVariant babyVariant = discoverBabyVariant(type, typeId, level);
         if (babyVariant != null) {
             addVariant(out, babyVariant);
+            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL) {
+                addVariants(out, discoverBabyCopies(new ArrayList<>(out.values()), " Baby"));
+            }
+        } else if (type == EntityType.AXOLOTL) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putBoolean("IsBaby", true);
+            nbt.putInt("Age", -24000);
+            addVariant(out, new IdentityVariant(typeId, "Axolotl Baby", nbt));
+            addVariants(out, discoverBabyCopies(new ArrayList<>(out.values()), " Baby"));
+        } else if (type == EntityType.ZOMBIE || type == EntityType.ZOMBIE_VILLAGER || type == EntityType.HUSK || type == EntityType.DROWNED) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putBoolean("IsBaby", true);
+            addVariant(out, new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", nbt));
         }
 
         if (out.isEmpty() && isSupportedVanillaVariantType(type)) {
@@ -338,6 +355,9 @@ public final class IdentityVanillaVariantHelper {
 
     private static boolean isSupportedVanillaVariantType(EntityType<?> type) {
         return type == EntityType.SHEEP
+                || type == EntityType.SLIME
+                || type == EntityType.MAGMA_CUBE
+                || type == EntityType.VILLAGER
                 || type == EntityType.AXOLOTL
                 || type == EntityType.CAT
                 || type == EntityType.WOLF
@@ -351,6 +371,19 @@ public final class IdentityVanillaVariantHelper {
             nbt.putByte("Color", (byte) i);
             DyeColor color = DyeColor.byId(i);
             variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverSlimeSizeVariants(ResourceLocation typeId) {
+        String prefix = capitalize(typeId.getPath().replace('_', ' '));
+        List<IdentityVariant> variants = new ArrayList<>();
+        int[] sizes = new int[] {1, 2, 4};
+        String[] labels = new String[] {"Small", "Medium", "Large"};
+        for (int i = 0; i < sizes.length; i++) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("Size", sizes[i]);
+            variants.add(new IdentityVariant(typeId, prefix + " " + labels[i], nbt));
         }
         return variants;
     }
@@ -399,13 +432,30 @@ public final class IdentityVanillaVariantHelper {
         }
 
         CompoundTag diff = IdentityVariantNbtHelper.computeVariantDiff(baselineData, babyData);
-        if (diff.isEmpty()) {
-            diff.putBoolean("IsBaby", true);
-        }
+        diff.putBoolean("IsBaby", true);
+        diff.putInt("Age", -24000);
         if (diff.isEmpty()) {
             return null;
         }
         return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", diff);
+    }
+
+    private static List<IdentityVariant> discoverBabyCopies(List<IdentityVariant> variants, String suffix) {
+        if (variants == null || variants.isEmpty()) {
+            return List.of();
+        }
+        List<IdentityVariant> out = new ArrayList<>();
+        for (IdentityVariant variant : variants) {
+            if (variant == null || variant.variantNbt() == null || variant.variantNbt().isEmpty()
+                    || variant.variantNbt().contains("IsBaby")) {
+                continue;
+            }
+            CompoundTag nbt = variant.variantNbt().copy();
+            nbt.putBoolean("IsBaby", true);
+            nbt.putInt("Age", -24000);
+            out.add(new IdentityVariant(variant.entityTypeId(), variant.displayName() + suffix, nbt));
+        }
+        return out;
     }
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(

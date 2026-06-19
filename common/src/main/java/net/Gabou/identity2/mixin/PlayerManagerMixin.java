@@ -148,12 +148,14 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
             }
         }
 
-        player.displayClientMessage(
-            net.minecraft.network.chat.Component.literal(
-                "To keep your morph after death, use: /identity config set deathMorphRule none"
-            ),
-            false
-        );
+        if (net.Gabou.identity2.IdentitySettings.showDeathMorphRuleWarning) {
+            player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal(
+                    "To keep your morph after death, use: /identity config set deathMorphRule none"
+                ),
+                false
+            );
+        }
     }
 
     @Inject(method = "tick", at = @At("TAIL"))
