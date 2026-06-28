@@ -101,7 +101,7 @@ public class IdentitySettings {
     //@Comment(value = "If set to false, only operators can switch identities. Used on the server; guaranteed to be authoritative.")
     public static boolean enableSwaps = true;
     //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
-    public final static boolean authStrictOfflineUuidReject = true;
+    public static boolean authStrictOfflineUuidReject = true;
 
     //@Comment(value = "If true, players who fail the auth challenge are kicked instead of being banned/left in a suspicious state.")
     public final static boolean authKickOnFailure = true;
