@@ -39,7 +39,7 @@ public final class MorphAcquisitionEffectController {
 
     public static void tick(Minecraft client) {
         ClientLevel level = client.level;
-        if (level == null || EFFECTS.isEmpty()) {
+        if (level == null || client.isPaused() || EFFECTS.isEmpty()) {
             return;
         }
 

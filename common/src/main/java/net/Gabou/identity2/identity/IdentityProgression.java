@@ -278,12 +278,9 @@ public final class IdentityProgression {
         ) {
             return true;
         }
-        if (entityType.getCategory() == MobCategory.MISC) {
-            return false;
-        }
+        return entityType.getCategory() != MobCategory.MISC;
         // 1.21.11 mappings return Entity.class from EntityType#getBaseClass(),
         // so class-based living checks are unreliable here.
-        return true;
     }
 
     public static boolean morph(ServerPlayer player, ResourceLocation identityId) {
@@ -847,7 +844,7 @@ public final class IdentityProgression {
             CompoundTag selectedVariant = parseVariantNbt(net.Gabou.identity2.util.NbtCompat.getStringOr(killedCustomData, SELECTED_IDENTITY_VARIANT_KEY, ""));
             if (activeIdentity != null) {
                 ResourceLocation morphedIdentityId = BuiltInRegistries.ENTITY_TYPE.getKey(activeIdentity.getType());
-                if (morphedIdentityId != null && isMorphableIdentity(morphedIdentityId)) {
+                if (isMorphableIdentity(morphedIdentityId)) {
                     return new UnlockTarget(morphedIdentityId, selectedVariant);
                 }
             }

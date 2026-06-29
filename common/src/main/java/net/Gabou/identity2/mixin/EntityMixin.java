@@ -6,14 +6,15 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
+import net.Gabou.identity2.identity.KeepInventoryHelper;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
+import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -27,6 +28,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -42,6 +44,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
@@ -58,6 +61,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Fireball;
 import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.GameRules;
@@ -128,7 +132,6 @@ public class EntityMixin implements EntityAccessor {
 
     @Shadow
     public void setAirSupply(int air) {
-        return;
     }
 
     @Shadow
@@ -138,12 +141,10 @@ public class EntityMixin implements EntityAccessor {
 
     @Shadow
     public final void setPos(Vec3 v) {
-        return;
     }
 
     @Shadow
     public void setDeltaMovement(Vec3 v) {
-        return;
     }
 
     //    @ModifyConstant(constant=@Constant(doubleValue=3.0E7),method="absSnapTo(DDD)V")
@@ -173,11 +174,11 @@ public class EntityMixin implements EntityAccessor {
         //this.identity2$applyShulkerOpenVisualState();
         //this.identity2$applyMorphPassiveTraits();
         if (this.identityOf != null) {
-            if (this.entityCanFlyTickEvaluated == false) {
+            if (!this.entityCanFlyTickEvaluated) {
                 this.entityCanFlyTickEvaluated = true;
                 this.entityCanFlyEvaluated = false;
             }
-            if (this.entityCanFlyEvaluated == false) {
+            if (!this.entityCanFlyEvaluated) {
                 //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
                 this.canFly();
             }
@@ -313,6 +314,9 @@ public class EntityMixin implements EntityAccessor {
     private void identityFix(CallbackInfo info) {
         if (this.currentIdentity != null) {
             if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && serverPlayer.isDeadOrDying()) {
+                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
+                    identity2$copyIdentityEquipmentToPlayerOnDeath(serverPlayer, livingIdentity);
+                }
                 this.currentIdentity.discard();
                 this.currentIdentity = null;
                 return;
@@ -375,7 +379,7 @@ public class EntityMixin implements EntityAccessor {
                         && IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType())
                 ) {
                     Vec3 motion = hostEntity.getDeltaMovement();
-                    if (hostEntity.isShiftKeyDown()) {
+                    if (identity2$shouldSlowFallingFastFall(hostEntity)) {
                         if (motion.y > -0.45D) {
                             hostEntity.setDeltaMovement(motion.x, -0.45D, motion.z);
                         }
@@ -650,7 +654,7 @@ public class EntityMixin implements EntityAccessor {
             identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
         } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
             identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
-        } else if (activeIdentity.getType() == EntityType.STRIDER && player.isInLava()) {
+        } else if (activeIdentity.getType() == EntityType.STRIDER && identity2$shouldStriderRiseInLava(player)) {
             identity2$applyStriderLavaMovement(player);
         } else {
             identity2$clearMorphZombificationTicks();
@@ -660,10 +664,8 @@ public class EntityMixin implements EntityAccessor {
     @Unique
     private static void identity2$applyStriderLavaMovement(Player player) {
         Vec3 motion = player.getDeltaMovement();
-        double surfaceY = player.getY() + player.getEyeHeight() - 0.2D;
-        boolean submerged = player.level().getFluidState(player.blockPosition()).isSource()
-                && surfaceY < player.blockPosition().getY() + 1.0D;
-        if (submerged && !player.isShiftKeyDown()) {
+        boolean jumpInput = player instanceof LivingEntityAccessor accessor && accessor.identity2$isJumping();
+        if (jumpInput && identity2$shouldStriderRiseInLava(player)) {
             player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
         } else if (player.isShiftKeyDown()) {
             player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
@@ -677,7 +679,7 @@ public class EntityMixin implements EntityAccessor {
         if (!(player instanceof ServerPlayer serverPlayer) || identity == null || convertedType == null) {
             return;
         }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) this.getCustomData()).getNbt();
         boolean shouldConvert = !player.level().dimensionType().piglinSafe();
         Object immune = identity2$invokeNoArg(identity, "isImmuneToZombification");
         if (immune instanceof Boolean immuneToZombification && immuneToZombification) {
@@ -704,7 +706,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Unique
     private void identity2$clearMorphZombificationTicks() {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) this.getCustomData()).getNbt();
         if (net.Gabou.identity2.util.NbtCompat.getIntOr(nbt, IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0) != 0) {
             nbt.putInt(IDENTITY2_ZOMBIFICATION_TICKS_KEY, 0);
         }
@@ -726,7 +728,7 @@ public class EntityMixin implements EntityAccessor {
     @Redirect(method = "move",
               at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
     private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) this.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) this.getCustomData()).getNbt();
         double multiplier = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "horizontal_collision_speed_multiplier_override", Double.NaN);
         if (this.currentIdentity != null &&!Double.isNaN(multiplier) && multiplier != 0.0D) {
             Vec3 baseDelta = entity.getDeltaMovement();
@@ -768,7 +770,6 @@ public class EntityMixin implements EntityAccessor {
             this.secondaryAbilityCooldown -= 1;
         }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
-            WardenBurrowManager.serverTick(serverPlayer);
             SilverfishBurrowManager.serverTick(serverPlayer);
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
             identity2$tickMorphFear(serverPlayer);
@@ -965,7 +966,8 @@ public class EntityMixin implements EntityAccessor {
             return false;
         }
         if (Float.isNaN(this.identity2$storedFlyingSpeed)) {
-            this.identity2$storedFlyingSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+            float currentSpeed = ((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed();
+            this.identity2$storedFlyingSpeed = Math.abs(currentSpeed - IdentitySettings.flySpeed) < 1.0E-5F ? 0.05F : currentSpeed;
         }
         float configuredFlyingSpeed = Math.max(0.0F, IdentitySettings.flySpeed);
         if (((AbilitiesAccessor) player.getAbilities()).identity2$getFlyingSpeed() == configuredFlyingSpeed) {
@@ -1009,6 +1011,28 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
+    /**
+     * Returns true when a slow falling morph should accelerate downward.
+     *
+     * @param entity the entity using the morph
+     * @return true if crouching and currently moving downward
+     */
+    @Unique
+    private static boolean identity2$shouldSlowFallingFastFall(Entity entity) {
+        return entity.isShiftKeyDown() && entity.getDeltaMovement().y < 0.0D;
+    }
+
+    /**
+     * Returns true when a strider morph should rise in lava.
+     *
+     * @param entity the morphed entity
+     * @return true if the entity is inside lava enough to swim upward
+     */
+    @Unique
+    private static boolean identity2$shouldStriderRiseInLava(Entity entity) {
+        return entity.isInLava() || entity.getFluidHeight(FluidTags.LAVA) > 0.0D;
+    }
+
     @Unique
     private static boolean identity2$isCloseToLandingSurface(Player player) {
         if (player == null || player.level() == null) {
@@ -1039,7 +1063,7 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "isControlledByLocalInstance", at = @At("HEAD"), cancellable = true)
     private void isControlledByPlayerOverride(CallbackInfoReturnable info) {
         if (this.identityOf != null) {
-            info.setReturnValue(((Entity) this.identityOf).isControlledByLocalInstance());
+            info.setReturnValue(this.identityOf.isControlledByLocalInstance());
         }
     }
 
@@ -1089,7 +1113,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "setBoundingBox", at = @At("TAIL"))
     private void getBoundingBoxModification(CallbackInfo info) {
-        AABB box = ((AABB) this.bb);
+        AABB box = this.bb;
         double old_width = box.maxX - box.minX;
         double old_height = box.maxY - box.minY;
         double center_x = (box.maxX + box.minX) / 2;
@@ -1155,7 +1179,7 @@ public class EntityMixin implements EntityAccessor {
 
     public void setCurrentIdentity(String id, CompoundTag data) {
         if (data != null && !data.isEmpty()) {
-            this.setCurrentIdentity(id + data.toString());
+            this.setCurrentIdentity(id + data);
             return;
         }
         this.setCurrentIdentity(id);
@@ -1175,7 +1199,6 @@ public class EntityMixin implements EntityAccessor {
             this.currentIdentity = null;
         }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
-            WardenBurrowManager.stop(serverPlayer, true);
             SilverfishBurrowManager.stop(serverPlayer, true);
         }
         ResourceLocation forcedIdentity = null;
@@ -1248,7 +1271,7 @@ public class EntityMixin implements EntityAccessor {
         nbtCompound.putString("id", identityId.toString());
         Vec3 pos = new Vec3(0, 0, 0);
         try {
-            Level serverWorld = (Level) ((Entity) (Object) this).level();
+            Level serverWorld = ((Entity) (Object) this).level();
             Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, entityx -> {
                 entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
@@ -1668,10 +1691,7 @@ public class EntityMixin implements EntityAccessor {
         if (paramType == float.class && argType == Float.class) {
             return true;
         }
-        if (paramType == double.class && argType == Double.class) {
-            return true;
-        }
-        return false;
+        return paramType == double.class && argType == Double.class;
     }
 
     private void deactivateIdentityAfterFailure(@Nullable ResourceLocation identityId, String reason) {
@@ -1746,6 +1766,20 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
+    @Unique
+    private static void identity2$copyIdentityEquipmentToPlayerOnDeath(ServerPlayer player, LivingEntity identity) {
+        if (identity == null || !KeepInventoryHelper.isKeepInventoryEnabled(player)) {
+            return;
+        }
+
+        player.setItemSlot(EquipmentSlot.MAINHAND, identity.getMainHandItem().copy());
+        player.setItemSlot(EquipmentSlot.OFFHAND, identity.getOffhandItem().copy());
+        player.setItemSlot(EquipmentSlot.HEAD, identity.getItemBySlot(EquipmentSlot.HEAD).copy());
+        player.setItemSlot(EquipmentSlot.CHEST, identity.getItemBySlot(EquipmentSlot.CHEST).copy());
+        player.setItemSlot(EquipmentSlot.LEGS, identity.getItemBySlot(EquipmentSlot.LEGS).copy());
+        player.setItemSlot(EquipmentSlot.FEET, identity.getItemBySlot(EquipmentSlot.FEET).copy());
+    }
+
     @Shadow
     protected boolean wasTouchingWater;
     @Shadow
@@ -1789,8 +1823,6 @@ public class EntityMixin implements EntityAccessor {
     public void processFlappingMovement() {
     }
 
-    ;
-
     public void runAddAirTravelEffects() {
         this.processFlappingMovement();
     }
@@ -1804,21 +1836,15 @@ public class EntityMixin implements EntityAccessor {
         return this.dimensions;
     }
 
-    ;
-
     public void setEntityDimensions(EntityDimensions dimensions) {
         this.dimensions = dimensions;
         ((Entity) (Object) this).refreshDimensions();
     }
 
-    ;
-
     @Shadow
     public float getEyeHeight() {
         return this.eyeHeight;
     }
-
-    ;
 
     @Override
     public float getStandingEyeHeight() {
@@ -1828,8 +1854,6 @@ public class EntityMixin implements EntityAccessor {
     public void setStandingEyeHeight(float standingEyeHeight) {
         this.eyeHeight = standingEyeHeight;
     }
-
-    ;
 
 
     //Tons of Redirects - Begin!
@@ -2059,6 +2083,42 @@ public class EntityMixin implements EntityAccessor {
         cir.setReturnValue(self.getPassengers().isEmpty());
     }
 
+    @Inject(
+            method = "positionRider(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/Entity$MoveFunction;)V",
+            at = @At("TAIL"),
+            require = 0
+    )
+    private void identity2$adjustMorphedPassengerPosition(Entity passenger, Entity.MoveFunction moveFunction, CallbackInfo ci) {
+        if (!(passenger instanceof Player player)) {
+            return;
+        }
+        double offset = identity2$getMorphPassengerYOffset(player, (Entity) (Object) this);
+        if (offset <= 0.0D) {
+            return;
+        }
+        passenger.setPos(passenger.getX(), passenger.getY() + offset, passenger.getZ());
+    }
+
+    /**
+     * Returns the extra Y offset required when a morphed player rides another entity.
+     *
+     * @param player the morphed player
+     * @param vehicle the vehicle being ridden
+     * @return the extra vertical offset
+     */
+    @Unique
+    private static double identity2$getMorphPassengerYOffset(Player player, Entity vehicle) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity == null) {
+            return 0.0D;
+        }
+        double heightDifference = identity.getBbHeight() - player.getBbHeight();
+        if (heightDifference <= 0.0D) {
+            return 0.0D;
+        }
+        return Math.max(0.0D, heightDifference * (vehicle instanceof Boat ? 0.5D : 0.35D));
+    }
+
     @Inject(method = "canCollideWith(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void collidesWithIdentity(Entity other, CallbackInfoReturnable info) {
         if (((EntityAccessor) other).getIdentityOwner() != null) {
@@ -2073,7 +2133,9 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "getMaxAirSupply()I", at = @At("HEAD"), cancellable = true)
     private void getMaxAirIdentity(CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getMaxAirSupply());
+            info.setReturnValue(this.currentIdentity.getType() == EntityType.DOLPHIN
+                    ? 2400
+                    : this.currentIdentity.getMaxAirSupply());
         }
     }
 
@@ -2164,11 +2226,25 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     @Inject(method = "getEyeHeight()F", at = @At("HEAD"), cancellable = true)
     private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
-            float eyeHeight = this.currentIdentity.getEyeHeight();
-            if (this.currentIdentity.getBbHeight() < 0.7F) {
-                eyeHeight = Math.max(eyeHeight, 0.6F);
+            info.setReturnValue(this.currentIdentity.getEyeHeight());
+        }
+    }
+
+    @Inject(method = "getEyeHeight(Lnet/minecraft/world/entity/Pose;)F", at = @At("HEAD"), cancellable = true)
+    private void identity2$getPoseEyeHeightIdentity(Pose pose, CallbackInfoReturnable<Float> info) {
+        if (this.currentIdentity != null) {
+            if (pose == Pose.CROUCHING || pose == Pose.STANDING) {
+                info.setReturnValue(this.currentIdentity.getEyeHeight());
+                return;
             }
-            info.setReturnValue(eyeHeight);
+            info.setReturnValue(this.currentIdentity.getEyeHeight(pose));
+        }
+    }
+
+    @Inject(method = "getMyRidingOffset()D", at = @At("HEAD"), cancellable = true)
+    private void identity2$getMorphRidingOffset(CallbackInfoReturnable<Double> info) {
+        if ((Object) this instanceof Player && this.currentIdentity != null) {
+            info.setReturnValue(this.currentIdentity.getMyRidingOffset() + 0.35D);
         }
     }
 
@@ -2221,10 +2297,6 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
             return;
         }
         if ((Object) this instanceof Player player && source != null) {
-            if (WardenBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
-                info.setReturnValue(true);
-                return;
-            }
             if (SilverfishBurrowManager.isHidden(player) && source.is(DamageTypes.IN_WALL)) {
                 info.setReturnValue(true);
                 return;

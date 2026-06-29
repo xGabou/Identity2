@@ -23,19 +23,7 @@ public class IdentitySettings {
 
     public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
         IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
-
-        if (rule != IdentitySettings.DeathMorphRule.NONE) {
-            return rule;
-        }
-
-        boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_SENDCOMMANDFEEDBACK);
-        // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
-
-        if (cheatsEnabled) {
-            return IdentitySettings.DeathMorphRule.NONE;
-        }
-
-        return IdentitySettings.DeathMorphRule.WIPE_ALL;
+        return rule == null ? IdentitySettings.DeathMorphRule.NONE : rule;
     }
 
     //@Comment(value = "If true, unlocking an identity also unlocks all of its variants.")

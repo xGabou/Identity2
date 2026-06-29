@@ -1,6 +1,5 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
-import java.lang.reflect.Method;
 import java.util.List;
 
 import net.minecraft.server.level.ServerLevel;
@@ -39,11 +38,11 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.IdentityEquipmentHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -59,7 +58,7 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
     }
     @Inject(method = "freeAt", at=@At("HEAD"), cancellable = true)
     protected void disableNoClipSuffocate(BlockPos pos,CallbackInfoReturnable info) {
-		if(this.noPhysics || WardenBurrowManager.isHidden((Entity) (Object) this) || SilverfishBurrowManager.isHidden((Entity) (Object) this)){
+		if(this.noPhysics || SilverfishBurrowManager.isHidden((Entity) (Object) this)){
             info.setReturnValue(true);
             return;
         }
@@ -72,9 +71,6 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
     @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
     private void identity2$exitBurrowOnAttack(Entity target, CallbackInfo ci) {
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
-            if (WardenBurrowManager.isHidden(serverPlayer)) {
-                WardenBurrowManager.stop(serverPlayer, true);
-            }
             if (SilverfishBurrowManager.isHidden(serverPlayer)) {
                 SilverfishBurrowManager.stop(serverPlayer, true);
             }
@@ -90,13 +86,8 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         if (identity == null || !((Entity) (Object) this).onGround()) {
             return;
         }
-        try {
-            Method method = identity.getClass().getDeclaredMethod("playStepSound", BlockPos.class, BlockState.class);
-            method.setAccessible(true);
-            method.invoke(identity, pos, state);
-            ci.cancel();
-        } catch (Throwable ignored) {
-        }
+        ((EntitySoundInvoker) identity).identity2$invokePlayStepSound(pos, state);
+        ci.cancel();
     }
 
     @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
@@ -168,7 +159,7 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         if (livingTarget.isDeadOrDying()) {
             return;
         }
-        if (livingTarget.getLastHurtByMob() != (LivingEntity)(Object)this) {
+        if (livingTarget.getLastHurtByMob() != (Object)this) {
             return;
         }
 
@@ -187,6 +178,45 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
 
         if (identityType == EntityType.WITHER_SKELETON && ((Entity)(Object)this).level().getDifficulty() != Difficulty.PEACEFUL) {
             livingTarget.addEffect(new MobEffectInstance(MobEffects.WITHER, 200), (Entity)(Object)this);
+        }
+    }
+
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+    private void identity2$animateVanillaDamageUnarmedMorphAttack(Entity target, CallbackInfo info) {
+        Player player = (Player) (Object) this;
+        if (player.level().isClientSide()
+                || IdentitySettings.useIdentityAttackDamage
+                || !player.getMainHandItem().isEmpty()) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (identity == null) {
+            return;
+        }
+        if (target instanceof LivingEntity livingTarget && livingTarget.getLastHurtByMob() != player) {
+            return;
+        }
+        PredefIdentityAbilities.triggerMorphAttackAnimation(
+                player,
+                identity.getType() == EntityType.WARDEN ? 20 : 10
+        );
+    }
+
+    @Inject(method = "updatePlayerPose()V", at = @At("TAIL"))
+    private void identity2$avoidUnneededSmallMorphCrawl(CallbackInfo info) {
+        Player player = (Player) (Object) this;
+        Entity identity = getCurrentIdentity();
+        if (identity == null
+                || identity.getBbHeight() >= 1.0F
+                || player.getPose() != Pose.SWIMMING
+                || player.isSwimming()
+                || player.isFallFlying()
+                || player.isAutoSpinAttack()
+                || player.isSleeping()) {
+            return;
+        }
+        if (player.level().noCollision(player, player.getBoundingBox())) {
+            player.setPose(Pose.STANDING);
         }
     }
 }

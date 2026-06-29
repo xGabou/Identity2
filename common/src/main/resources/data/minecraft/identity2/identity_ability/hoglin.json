@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:crimson_fungus",
+  "cooldown": 120,
+  "predef": "minecraft:hoglin"
+}

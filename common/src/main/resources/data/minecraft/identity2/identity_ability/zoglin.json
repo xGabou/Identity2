@@ -1,0 +1,5 @@
+{
+  "icon": "minecraft:rotten_flesh",
+  "cooldown": 120,
+  "predef": "minecraft:zoglin"
+}

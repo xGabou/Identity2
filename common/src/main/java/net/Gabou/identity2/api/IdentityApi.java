@@ -27,6 +27,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.axolotl.Axolotl.Variant;
+import net.minecraft.world.entity.animal.horse.Markings;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
@@ -34,12 +35,41 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class IdentityApi {
     private static final Map<EntityType<?>, IdentityVariantAdapter> VARIANT_ADAPTERS = new ConcurrentHashMap<>();
     private static final Map<EntityType<?>, CopyOnWriteArrayList<IdentityMorphTickHandler>> MORPH_TICK_HANDLERS = new ConcurrentHashMap<>();
+    private static final Set<EntityType<?>> GENERIC_COMMAND_BABY_VARIANTS = Set.of(
+            EntityType.BEE,
+            EntityType.CAMEL,
+            EntityType.CAT,
+            EntityType.CHICKEN,
+            EntityType.COW,
+            EntityType.DONKEY,
+            EntityType.FOX,
+            EntityType.GOAT,
+            EntityType.HOGLIN,
+            EntityType.HORSE,
+            EntityType.LLAMA,
+            EntityType.MOOSHROOM,
+            EntityType.MULE,
+            EntityType.OCELOT,
+            EntityType.PANDA,
+            EntityType.PIG,
+            EntityType.POLAR_BEAR,
+            EntityType.RABBIT,
+            EntityType.SHEEP,
+            EntityType.SKELETON_HORSE,
+            EntityType.SNIFFER,
+            EntityType.TRADER_LLAMA,
+            EntityType.TURTLE,
+            EntityType.VILLAGER,
+            EntityType.WOLF,
+            EntityType.ZOMBIE_HORSE
+    );
 
     private IdentityApi() {
     }
@@ -133,6 +163,26 @@ public final class IdentityApi {
         return List.of();
     }
 
+    /**
+     * Discovers variants available from commands.
+     *
+     * @param type the entity type
+     * @return the command visible variants
+     */
+    public static List<IdentityVariant> discoverCommandVariants(EntityType<?> type) {
+        return discoverVariants(type, null);
+    }
+
+    /**
+     * Returns true when a baby variant should be blocked.
+     *
+     * @param type the entity type being checked
+     * @return true if the baby variant is invalid
+     */
+    public static boolean isBabyVariantBlocked(EntityType<?> type) {
+        return type == EntityType.FROG || type == EntityType.WANDERING_TRADER;
+    }
+
     private static List<IdentityVariant> discoverBuiltInVariants(EntityType<?> type, Level level) {
         if (type == null) {
             return List.of();
@@ -152,6 +202,8 @@ public final class IdentityApi {
             variants.addAll(discoverAxolotlVariants(typeId));
         } else if (type == EntityType.CAT) {
             variants.addAll(discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat"));
+        } else if (type == EntityType.HORSE) {
+            variants.addAll(discoverHorseVariants(typeId));
         } else if (type == EntityType.WOLF) {
             variants.addAll(discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
         } else if (type == EntityType.FROG) {
@@ -160,7 +212,7 @@ public final class IdentityApi {
         IdentityVariant baby = discoverBabyVariant(type, typeId, level);
         if (baby != null) {
             variants.add(baby);
-            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL) {
+            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL || type == EntityType.CAT || type == EntityType.HORSE) {
                 variants.addAll(discoverBabyCopies(variants, " Baby"));
             }
         } else if (type == EntityType.AXOLOTL) {
@@ -191,12 +243,32 @@ public final class IdentityApi {
     private static List<IdentityVariant> discoverSlimeSizeVariants(ResourceLocation typeId) {
         String prefix = capitalize(typeId.getPath().replace('_', ' '));
         List<IdentityVariant> variants = new ArrayList<>();
-        int[] sizes = new int[] {1, 2, 4};
+        // Slime NBT stores actual size minus one.
+        int[] sizes = new int[] {0, 1, 3};
         String[] labels = new String[] {"Small", "Medium", "Large"};
         for (int i = 0; i < sizes.length; i++) {
             CompoundTag nbt = new CompoundTag();
             nbt.putInt("Size", sizes[i]);
             variants.add(new IdentityVariant(typeId, prefix + " " + labels[i], nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverHorseVariants(ResourceLocation typeId) {
+        List<IdentityVariant> variants = new ArrayList<>(
+                net.minecraft.world.entity.animal.horse.Variant.values().length * Markings.values().length
+        );
+        for (net.minecraft.world.entity.animal.horse.Variant coat : net.minecraft.world.entity.animal.horse.Variant.values()) {
+            for (Markings markings : Markings.values()) {
+                CompoundTag nbt = new CompoundTag();
+                int packed = (coat.getId() & 255) | ((markings.getId() << 8) & 65280);
+                nbt.putInt("Variant", packed);
+                String label = "Horse " + capitalize(coat.getSerializedName().replace('_', ' '));
+                if (markings != Markings.NONE) {
+                    label += " " + capitalize(markings.name().replace('_', ' '));
+                }
+                variants.add(new IdentityVariant(typeId, label, nbt));
+            }
         }
         return variants;
     }
@@ -231,7 +303,19 @@ public final class IdentityApi {
     }
 
     private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, Level level) {
-        if (type == null || typeId == null || level == null) {
+        if (type == null || typeId == null || isBabyVariantBlocked(type)) {
+            return null;
+        }
+        if (level == null) {
+            if (!isGenericAgeableBabyVariantAllowed(type)) {
+                return null;
+            }
+            CompoundTag nbt = new CompoundTag();
+            nbt.putBoolean("IsBaby", true);
+            nbt.putInt("Age", -24000);
+            return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", nbt);
+        }
+        if (level == null) {
             return null;
         }
         Entity probe;
@@ -247,6 +331,10 @@ public final class IdentityApi {
         nbt.putBoolean("IsBaby", true);
         nbt.putInt("Age", -24000);
         return new IdentityVariant(typeId, capitalize(typeId.getPath().replace('_', ' ')) + " Baby", nbt);
+    }
+
+    private static boolean isGenericAgeableBabyVariantAllowed(EntityType<?> type) {
+        return !isBabyVariantBlocked(type) && GENERIC_COMMAND_BABY_VARIANTS.contains(type);
     }
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(

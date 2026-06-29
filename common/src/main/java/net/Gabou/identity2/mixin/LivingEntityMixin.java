@@ -57,7 +57,6 @@ import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.nbt.CompoundTag;
@@ -73,6 +72,9 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
     @Shadow
     @Nullable
     public abstract SoundEvent getDeathSound();
+
+    @Shadow
+    protected abstract float getSoundVolume();
 
     @Override
     public boolean identity2$isJumping() {
@@ -221,6 +223,11 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
 
         if (identity2$isAquaticMorph(livingIdentity)) {
             int nextAir = air - 1;
+            if (livingIdentity.getType() == EntityType.DOLPHIN && air > 0 && nextAir <= 0) {
+                host.hurt(host.damageSources().dryOut(), 2.0F);
+                info.setReturnValue(0);
+                return;
+            }
             if (nextAir <= -20) {
                 nextAir = 0;
                 host.hurt(host.damageSources().dryOut(), 2.0F);
@@ -281,6 +288,33 @@ private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable inf
     }
     }
 }
+
+@Inject(method = "playHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo info) {
+    if (!IdentitySettings.useIdentitySounds || this.currentIdentity == null) {
+        return;
+    }
+    if (!(this.currentIdentity instanceof LivingEntity)) {
+        return;
+    }
+    SoundEvent hurtSound = ((LivingEntityAccessor) this.currentIdentity).getHurtSound(source);
+    if (hurtSound == null) {
+        return;
+    }
+    LivingEntity self = (LivingEntity) (Object) this;
+    self.level().playSound(
+            null,
+            self.getX(),
+            self.getY(),
+            self.getZ(),
+            hurtSound,
+            self.getSoundSource(),
+            this.getSoundVolume(),
+            self.getVoicePitch()
+    );
+    info.cancel();
+}
+
 @Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getDeathSoundIdentity(CallbackInfoReturnable info){
     if(IdentitySettings.useIdentitySounds){
@@ -574,12 +608,10 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
 
     @Inject(method = "getMainHandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getMainHandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        return;
     }
 
     @Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-        return;
     }
 
     @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
@@ -612,7 +644,7 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
         if (entity instanceof EntityAccessor targetAccessor
                 && targetAccessor.getIdentityOwner() instanceof LivingEntity owner
                 && owner.isAlive()
-                && owner != (Entity) (Object) this) {
+                && owner != (Object) this) {
             LivingEntity attacker = (LivingEntity) (Object) this;
             float damage = Math.max(1.0F, (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE));
             boolean hurt = owner.hurt(owner.damageSources().mobAttack(attacker), damage);
@@ -635,7 +667,7 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
 
     @Inject(method = "dropAllDeathLoot(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
     private void identity2$suppressOwnedIdentityDeathLoot(DamageSource source, CallbackInfo ci) {
-        if (((EntityAccessor) (Object) this).getIdentityOwner() != null) {
+        if (((EntityAccessor) this).getIdentityOwner() != null) {
             ci.cancel();
         }
     }

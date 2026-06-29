@@ -19,7 +19,7 @@ public class AttributeContainerMixin implements AttributeContainerAccessor{
     public AttributeSupplier supplier;
     public AttributeSupplier getDefaultAttributes(){
         return this.supplier;
-   };
+   }
 
     @Override
     public void setDefaultAttributes(AttributeSupplier supplier) {

@@ -30,7 +30,7 @@ public abstract class PlayerPersistenceMixin {
             return;
         }
 
-        CompoundTag customData = ((EntityAccessor) (Object) this).getCustomData();
+        CompoundTag customData = ((EntityAccessor) this).getCustomData();
         if (customData == null || customData.isEmpty()) {
             compoundTag.remove(CUSTOM_DATA_TAG_KEY);
             return;
@@ -40,7 +40,7 @@ public abstract class PlayerPersistenceMixin {
     }
 
     private void identity2$readCustomData(CompoundTag compoundTag) {
-        EntityAccessor accessor = (EntityAccessor) (Object) this;
+        EntityAccessor accessor = (EntityAccessor) this;
         if (compoundTag != null && compoundTag.contains(CUSTOM_DATA_TAG_KEY, Tag.TAG_COMPOUND)) {
             accessor.getCustomData().merge(compoundTag.getCompound(CUSTOM_DATA_TAG_KEY).copy());
             return;

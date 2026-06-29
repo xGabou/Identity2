@@ -517,7 +517,7 @@ public final class IdentityProgressionScreen extends Screen {
             return Set.of();
         }
         return IdentityProgression.readUnlockedIdentityIdSet(
-            ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+            ((NbtComponentAccessor) ((EntityAccessor) client.player).getCustomData()).getNbt()
         );
     }
 

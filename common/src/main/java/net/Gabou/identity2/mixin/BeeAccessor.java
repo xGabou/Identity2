@@ -14,6 +14,12 @@ public interface BeeAccessor {
     @Accessor("rollAmount")
     void identity2$setRollAmount(float value);
 
+    @Accessor("rollAmount")
+    float identity2$getRollAmount();
+
     @Accessor("rollAmountO")
     void identity2$setRollAmountO(float value);
+
+    @Accessor("rollAmountO")
+    float identity2$getRollAmountO();
 }

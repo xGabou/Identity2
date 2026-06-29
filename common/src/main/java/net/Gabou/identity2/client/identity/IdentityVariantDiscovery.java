@@ -538,9 +538,7 @@ public final class IdentityVariantDiscovery {
         if (baseline.getClass().isEnum()) {
             Object[] constants = baseline.getClass().getEnumConstants();
             if (constants != null) {
-                for (Object constant : constants) {
-                    out.add(constant);
-                }
+                Collections.addAll(out, constants);
             }
             return out;
         }
@@ -606,7 +604,7 @@ public final class IdentityVariantDiscovery {
             System.out.println("Param type: " + setter.getParameterTypes()[0].getName());
             System.out.println("Candidate class: " + (candidate == null ? "null" : candidate.getClass().getName()));
             System.out.println("Converted class: " + (converted == null ? "null" : converted.getClass().getName()));
-            System.out.println("Converted value: " + String.valueOf(converted));
+            System.out.println("Converted value: " + converted);
             if (cause != null) {
                 System.out.println("Cause: " + cause.getClass().getName() + " " + cause.getMessage());
                 cause.printStackTrace();
@@ -661,9 +659,7 @@ public final class IdentityVariantDiscovery {
 
         if (axis.registry() != null) {
             Object wrapped = wrapAsHolder(axis.registry(), candidate, param);
-            if (wrapped != null) {
-                return wrapped;
-            }
+            return wrapped;
         }
 
         return null;
@@ -798,7 +794,7 @@ public final class IdentityVariantDiscovery {
                 putNumeric(probe, key, numericKind, value);
 
                 Entity candidate = createEntity(type, world);
-                if (candidate == null || !IdentityVariantNbtHelper.loadEntityData(candidate, probe)) {
+                if (!IdentityVariantNbtHelper.loadEntityData(candidate, probe)) {
                     continue;
                 }
 
@@ -823,6 +819,9 @@ public final class IdentityVariantDiscovery {
             ClientLevel world,
             List<IdentityVariant> existing
     ) {
+        if (IdentityApi.isBabyVariantBlocked(type)) {
+            return List.of();
+        }
         if (type == null || typeId == null || world == null || existing == null || existing.isEmpty()) {
             return List.of();
         }
@@ -835,7 +834,7 @@ public final class IdentityVariantDiscovery {
 
         logObjectStructure("[VariantDebug] baby discovery probe", probe);
 
-        if (!(probe instanceof AgeableMob)) {
+        if (!(probe instanceof AgeableMob babyProbe)) {
             Identity2.LOGGER.info(
                     "[VariantDebug] baby discovery probe is not ageable for {} class={}",
                     typeId,
@@ -843,8 +842,6 @@ public final class IdentityVariantDiscovery {
             );
             return List.of();
         }
-
-        AgeableMob babyProbe = (AgeableMob) probe;
 
         List<IdentityVariant> out = new ArrayList<>();
 
@@ -871,7 +868,7 @@ public final class IdentityVariantDiscovery {
             }
 
             Entity babyEntity = createEntity(type, world);
-            if (babyEntity == null || !IdentityVariantNbtHelper.loadEntityData(babyEntity, combined)) {
+            if (!IdentityVariantNbtHelper.loadEntityData(babyEntity, combined)) {
                 continue;
             }
             if (!(babyEntity instanceof AgeableMob babyAgeable)) {
@@ -891,6 +888,9 @@ public final class IdentityVariantDiscovery {
     }
 
     private static List<IdentityVariant> discoverBabyVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+        if (IdentityApi.isBabyVariantBlocked(type)) {
+            return List.of();
+        }
         Entity baselineEntity = createEntity(type, world);
         if (baselineEntity == null) {
             Identity2.LOGGER.info("[VariantDebug] baby baseline creation failed for {}", typeId);
@@ -1418,10 +1418,7 @@ public final class IdentityVariantDiscovery {
         if (paramType == float.class && argType == Float.class) {
             return true;
         }
-        if (paramType == double.class && argType == Double.class) {
-            return true;
-        }
-        return false;
+        return paramType == double.class && argType == Double.class;
     }
 
     private static boolean isLikelyVariantDiff(CompoundTag diff) {

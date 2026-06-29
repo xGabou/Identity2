@@ -10,9 +10,7 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.client.platform.ModClientPlatform;
-import net.Gabou.identity2.ModNetworking;
+import net.Gabou.gaboulibs.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -25,7 +23,6 @@ import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
 import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.mixin.BeeAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
@@ -220,8 +217,10 @@ public final class Identity2Client {
             }
         }
 
-        dragonIdentity.positions[dragonIdentity.posPointer][0] = dragonIdentity.getYRot();
-        dragonIdentity.positions[dragonIdentity.posPointer][1] = source.getY();
+        for (int i = 0; i < dragonIdentity.positions.length; i++) {
+            dragonIdentity.positions[i][0] = dragonIdentity.getYRot();
+            dragonIdentity.positions[i][1] = source.getY();
+        }
     }
 
     private Identity2Client() {
@@ -232,7 +231,6 @@ public final class Identity2Client {
             return;
         }
 
-        ClientLauncherGuards.enforce();
         platform = platformImpl;
         initialized = true;
 
@@ -250,7 +248,6 @@ public final class Identity2Client {
             platform.logClientRegistries();
         }
 
-        ModNetworking.initClient();
 
         NetworkCompat.registerReceiver(
                 NetworkManager.s2c(),
@@ -405,32 +402,12 @@ public final class Identity2Client {
 
         if (identity.getType() == net.minecraft.world.entity.EntityType.SHULKER
                 && PredefIdentityAbilities.isShulkerOpen(player)) {
-            while (primaryAbilityKeyBinding.consumeClick()) {
-                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PRIMARY);
-            }
             while (client.options.keyAttack.consumeClick()) {
                 sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
             }
-            while (secondaryAbilityKeyBinding.consumeClick()) {
-                if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
-                    ((EntityAccessor) player).setSecondaryAbilityCooldown(resolveSecondaryCooldown(identity, ModRegistries.resolveIdentityAbility(identity.getType())));
-                    sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
-                }
-            }
-            disableMovementInputs(client, player);
-            player.setDeltaMovement(Vec3.ZERO);
-            sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_PASSIVE);
-            return;
         }
 
-        boolean wardenHidden = WardenBurrowManager.isHidden(player);
-        if (wardenHidden) {
-            boolean exitRequested = identity2$shouldExitWardenBurrow(client);
-            player.noPhysics = false;
-            if (exitRequested) {
-                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
-            }
-        } else if (player.noPhysics) {
+        if (player.noPhysics) {
             player.noPhysics = false;
         }
 
@@ -455,8 +432,9 @@ public final class Identity2Client {
 
         while (secondaryAbilityKeyBinding.consumeClick()) {
             if (identity.getType() == net.minecraft.world.entity.EntityType.WARDEN) {
-                sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
-            } else if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
+                continue;
+            }
+            if (((EntityAccessor) player).getSecondaryAbilityCooldown() == 0) {
                 ((EntityAccessor) player).setSecondaryAbilityCooldown(secondaryCooldown);
                 sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_SECONDARY);
             }
@@ -919,7 +897,7 @@ public final class Identity2Client {
     }
 
     private static void tickMorphTransitionEffects(Minecraft client) {
-        if (client.level == null || !IdentitySettings.enableMorphTransitionParticles) {
+        if (client.level == null || client.isPaused() || !IdentitySettings.enableMorphTransitionParticles) {
             return;
         }
 
@@ -1137,7 +1115,7 @@ public final class Identity2Client {
             }
         }
         if (idrenderer instanceof EnderDragonRenderer) {
-            eModel = ((EnderDragonEntityRendererAccessor) (EnderDragonRenderer) idrenderer).getModel();
+            eModel = ((EnderDragonEntityRendererAccessor) idrenderer).getModel();
         }
         return eModel;
     }

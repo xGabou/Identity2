@@ -1,11 +1,12 @@
 package net.Gabou.identity2.client;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import net.Gabou.identity2.PredefIdentityAbilities;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.mixin.BeeAccessor;
 import net.Gabou.identity2.mixin.CamelAccessor;
+import net.Gabou.identity2.mixin.CreeperAccessor;
 import net.Gabou.identity2.mixin.EnderManAccessor;
 import net.Gabou.identity2.mixin.HoglinAccessor;
 import net.Gabou.identity2.mixin.IronGolemAccessor;
@@ -19,15 +20,20 @@ import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.animal.Pufferfish;
+import net.minecraft.world.entity.animal.Parrot;
 import net.minecraft.world.entity.animal.goat.Goat;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.animal.Bee;
+import net.minecraft.world.entity.animal.Rabbit;
 import net.minecraft.world.entity.animal.camel.Camel;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.animal.Squid;
+import net.minecraft.world.entity.animal.SnowGolem;
 import net.minecraft.world.entity.animal.Turtle;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
@@ -38,6 +44,8 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class IdentityRenderStateHelper {
@@ -47,6 +55,7 @@ public final class IdentityRenderStateHelper {
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
     private static final Map<Integer, Boolean> WOLF_WAS_IN_WATER = new HashMap<>();
     private static final Map<Integer, Float> WOLF_SHAKE_PROGRESS = new HashMap<>();
+    private static final Map<AnimationState, Integer> ANIMATION_START_TICKS = new IdentityHashMap<>();
 
     private IdentityRenderStateHelper() {
     }
@@ -56,9 +65,7 @@ public final class IdentityRenderStateHelper {
     }
 
     public static void syncIdentityVisualState(Entity source, Entity identity, float tickDelta) {
-        Vec3 renderPos = (identity instanceof Warden && WardenBurrowManager.isHidden(source))
-                ? WardenBurrowManager.resolveVisualBurrowPosition(source)
-                : source.position();
+        net.minecraft.world.phys.Vec3 renderPos = source.position();
         identity.setPosRaw(renderPos.x, renderPos.y, renderPos.z);
         if (identity instanceof EnderDragon) {
             identity.setYRot(source.getYRot() + 180.0F);
@@ -101,6 +108,7 @@ public final class IdentityRenderStateHelper {
             }
             livingIdentity.yHeadRot = livingSource.yHeadRot;
             livingIdentity.yHeadRotO = livingSource.yHeadRotO;
+            syncSpeciesHeadRotation(livingSource, livingIdentity);
             livingIdentity.swingingArm = livingSource.swingingArm;
             if (livingSource.isUsingItem()) {
                 livingIdentity.startUsingItem(livingSource.getUsedItemHand());
@@ -118,13 +126,22 @@ public final class IdentityRenderStateHelper {
                 BeeAccessor beeAccessor = (BeeAccessor) beeIdentity;
                 beeAccessor.identity2$setRolling(rolling);
                 if (!rolling) {
-                    beeAccessor.identity2$setRollAmount(0.0F);
-                    beeAccessor.identity2$setRollAmountO(0.0F);
+                    float currentRoll = beeAccessor.identity2$getRollAmount();
+                    float recoveredRoll = recoverBeeRoll(currentRoll);
+                    if (Math.abs(recoveredRoll) < 0.01F) {
+                        recoveredRoll = 0.0F;
+                    }
+                    beeAccessor.identity2$setRollAmountO(currentRoll);
+                    beeAccessor.identity2$setRollAmount(recoveredRoll);
                 }
                 beeIdentity.setStayOutOfHiveCountdown(0);
                 if (!source.onGround() || source.getDeltaMovement().y > 0.0D) {
                     beeIdentity.setRemainingPersistentAngerTime(0);
                 }
+            }
+
+            if (livingIdentity instanceof Creeper creeperIdentity) {
+                syncCreeperHissState(source, creeperIdentity);
             }
 
             if (livingIdentity instanceof Squid squidIdentity) {
@@ -133,10 +150,13 @@ public final class IdentityRenderStateHelper {
                 livingIdentity.walkAnimation.setSpeed(Math.max(0.15F, swimSpeed));
                 if (source.isInWater()) {
                     livingIdentity.setSwimming(true);
-                    squidIdentity.tentacleMovement = (float) (source.tickCount * 0.12F);
-                    squidIdentity.oldTentacleMovement = (float) ((source.tickCount - 1) * 0.12F);
-                    squidIdentity.tentacleAngle = (float) Math.sin(source.tickCount * 0.15F) * 0.25F;
-                    squidIdentity.oldTentacleAngle = (float) Math.sin((source.tickCount - 1) * 0.15F) * 0.25F;
+                    float speed = Math.max(0.2F, livingSource.walkAnimation.speed() * 2.5F);
+                    float phase = source.tickCount * (0.18F + speed * 0.08F);
+                    float previousPhase = (source.tickCount - 1) * (0.18F + speed * 0.08F);
+                    squidIdentity.tentacleMovement = phase;
+                    squidIdentity.oldTentacleMovement = previousPhase;
+                    squidIdentity.tentacleAngle = Mth.sin(phase) * Mth.sin(phase) * 0.65F;
+                    squidIdentity.oldTentacleAngle = Mth.sin(previousPhase) * Mth.sin(previousPhase) * 0.65F;
                 }
             }
 
@@ -156,6 +176,10 @@ public final class IdentityRenderStateHelper {
                 float horizontalSpeed = (float) source.getDeltaMovement().horizontalDistance();
                 float landSpeed = horizontalSpeed > 0.01F ? Math.max(livingSource.walkAnimation.speed(), horizontalSpeed * 6.0F) : 0.0F;
                 livingIdentity.walkAnimation.setSpeed(landSpeed);
+            }
+
+            if (livingIdentity instanceof Rabbit) {
+                applyRabbitMovementAnimation(livingIdentity, livingSource);
             }
         }
 
@@ -212,6 +236,7 @@ public final class IdentityRenderStateHelper {
 
         syncEndermanCarriedBlock(source, identity);
         syncEndermanAngryState(source, identity);
+        syncParrotDanceState(source, identity);
         syncWolfWetState(source, identity);
         syncEntityAnimationState(source, identity, tickDelta);
     }
@@ -247,6 +272,49 @@ public final class IdentityRenderStateHelper {
         enderMan.getEntityData().set(EnderManAccessor.identity2$getDataStaredAt(), angry);
     }
 
+    private static void syncCreeperHissState(Entity source, Creeper creeper) {
+        CreeperAccessor accessor = (CreeperAccessor) creeper;
+        int remaining = PredefIdentityAbilities.getSyncedTicksRemaining(
+                source,
+                PredefIdentityAbilities.CREEPER_HISS_TICKS_KEY
+        );
+        if (remaining <= 0) {
+            accessor.identity2$setSwellDir(-1);
+            accessor.identity2$setOldSwell(0);
+            accessor.identity2$setSwell(0);
+            return;
+        }
+        int elapsed = Math.min(
+                PredefIdentityAbilities.CREEPER_HISS_DURATION_TICKS - 1,
+                PredefIdentityAbilities.CREEPER_HISS_DURATION_TICKS - remaining
+        );
+        accessor.identity2$setSwellDir(1);
+        accessor.identity2$setOldSwell(Math.max(0, elapsed - 1));
+        accessor.identity2$setSwell(Math.max(0, elapsed));
+    }
+
+    private static void syncParrotDanceState(Entity source, Entity identity) {
+        if (!(identity instanceof Parrot parrot) || source.level() == null) {
+            return;
+        }
+        net.minecraft.core.BlockPos origin = source.blockPosition();
+        net.minecraft.core.BlockPos playingJukebox = null;
+        outer:
+        for (int x = -3; x <= 3; x++) {
+            for (int y = -3; y <= 3; y++) {
+                for (int z = -3; z <= 3; z++) {
+                    net.minecraft.core.BlockPos candidate = origin.offset(x, y, z);
+                    if (source.level().getBlockEntity(candidate) instanceof JukeboxBlockEntity jukebox
+                            && jukebox.isRecordPlaying()) {
+                        playingJukebox = candidate;
+                        break outer;
+                    }
+                }
+            }
+        }
+        parrot.setRecordPlayingNearby(playingJukebox == null ? origin : playingJukebox, playingJukebox != null);
+    }
+
     private static void syncWolfWetState(Entity source, Entity identity) {
         if (!(identity instanceof Wolf wolf)) {
             return;
@@ -255,7 +323,7 @@ public final class IdentityRenderStateHelper {
         WolfAccessor accessor = (WolfAccessor) wolf;
 
         int entityId = source.getId();
-        boolean inWater = source.isInWaterOrBubble();
+        boolean inWater = isWolfMorphWet(source);
         boolean wasInWater = WOLF_WAS_IN_WATER.getOrDefault(entityId, inWater);
         float shakeProgress = WOLF_SHAKE_PROGRESS.getOrDefault(entityId, 0.0F);
 
@@ -278,7 +346,7 @@ public final class IdentityRenderStateHelper {
 
         if (shakeProgress > 0.0F) {
             float previous = shakeProgress;
-            shakeProgress = Math.min(1.0F, shakeProgress + 0.025F);
+            shakeProgress = Math.min(1.0F, shakeProgress + 0.018F);
 
             accessor.identity2$setShakeAnimO(previous);
             accessor.identity2$setShakeAnim(shakeProgress);
@@ -311,6 +379,109 @@ public final class IdentityRenderStateHelper {
         }
         float scaledHealth = source.getHealth() * (identityMaxHealth / sourceMaxHealth);
         identity.setHealth(Math.max(0.0F, Math.min(identityMaxHealth, scaledHealth)));
+    }
+
+    /**
+     * Smoothly recovers bee roll after ability use.
+     *
+     * @param currentRoll the current roll value
+     * @return the smoothed roll value
+     */
+    private static float recoverBeeRoll(float currentRoll) {
+        return net.minecraft.util.Mth.lerp(0.18F, currentRoll, 0.0F);
+    }
+
+    /**
+     * Returns true when a wolf morph should be considered wet.
+     *
+     * @param wolf the wolf morph entity
+     * @return true if wet from water or rain
+     */
+    private static boolean isWolfMorphWet(Entity wolf) {
+        return wolf.isInWaterRainOrBubble();
+    }
+
+    /**
+     * Applies rabbit movement animation state.
+     *
+     * @param renderState the rabbit render state
+     * @param source the morphed player
+     */
+    private static void applyRabbitMovementAnimation(LivingEntity renderState, LivingEntity source) {
+        boolean moving = source.getDeltaMovement().horizontalDistanceSqr() > 0.0025D;
+        renderState.setJumping(moving && source.onGround());
+        if (moving && source.onGround()) {
+            renderState.walkAnimation.setSpeed(Math.max(0.35F, source.walkAnimation.speed()));
+        }
+    }
+
+    private static void syncSpeciesHeadRotation(LivingEntity source, LivingEntity renderState) {
+        if (renderState instanceof Hoglin || renderState instanceof Zoglin) {
+            fixHoglinLikeHeadRotation(renderState, source);
+        } else if (renderState instanceof Ravager) {
+            fixRavagerHeadRotation(renderState, source);
+        } else if (renderState instanceof AbstractHorse) {
+            fixHorseHeadRotation(renderState, source);
+        } else if (renderState instanceof SnowGolem) {
+            fixSnowGolemRotation(renderState, source);
+        }
+    }
+
+    private static void fixSnowGolemRotation(LivingEntity renderState, LivingEntity source) {
+        float facing = source.getYRot();
+        copyBodyYaw(renderState, facing, source.yRotO);
+        copyHeadYaw(renderState, facing, source.yRotO);
+        copyPitch(renderState, source.getXRot(), source.xRotO);
+    }
+
+    /**
+     * Applies hoglin and zoglin head rotation correction.
+     *
+     * @param renderState the copied render state
+     * @param source the source entity
+     */
+    private static void fixHoglinLikeHeadRotation(LivingEntity renderState, LivingEntity source) {
+        copyBodyYaw(renderState, source.yBodyRot, source.yBodyRotO);
+        copyHeadYaw(renderState, source.getYHeadRot(), source.yHeadRotO);
+        copyPitch(renderState, source.getXRot(), source.xRotO);
+    }
+
+    /**
+     * Applies ravager specific head rotation sync.
+     *
+     * @param renderState the ravager render state
+     * @param source the morphed player
+     */
+    private static void fixRavagerHeadRotation(LivingEntity renderState, LivingEntity source) {
+        copyHeadYaw(renderState, source.getYHeadRot(), source.yHeadRotO);
+        copyPitch(renderState, source.getXRot(), source.xRotO);
+    }
+
+    /**
+     * Applies horse family head and neck rotation sync.
+     *
+     * @param renderState the horse render state
+     * @param source the morphed player
+     */
+    private static void fixHorseHeadRotation(LivingEntity renderState, LivingEntity source) {
+        copyBodyYaw(renderState, source.yBodyRot, source.yBodyRotO);
+        copyHeadYaw(renderState, source.getYHeadRot(), source.yHeadRotO);
+        copyPitch(renderState, source.getXRot(), source.xRotO);
+    }
+
+    private static void copyBodyYaw(LivingEntity renderState, float yaw, float previousYaw) {
+        renderState.yBodyRot = yaw;
+        renderState.yBodyRotO = previousYaw;
+    }
+
+    private static void copyHeadYaw(LivingEntity renderState, float yaw, float previousYaw) {
+        renderState.yHeadRot = yaw;
+        renderState.yHeadRotO = previousYaw;
+    }
+
+    private static void copyPitch(LivingEntity renderState, float pitch, float previousPitch) {
+        renderState.setXRot(pitch);
+        renderState.xRotO = previousPitch;
     }
 
     private static void syncEnderDragonFlapAnimation(Entity source, EnderDragon dragonIdentity) {
@@ -428,9 +599,15 @@ public final class IdentityRenderStateHelper {
 
     private static void syncAnimationState(AnimationState state, int startTick) {
         if (startTick > 0) {
-            state.startIfStopped(startTick);
+            Integer previousStartTick = ANIMATION_START_TICKS.get(state);
+            if (previousStartTick == null || previousStartTick != startTick) {
+                state.stop();
+                state.start(startTick);
+                ANIMATION_START_TICKS.put(state, startTick);
+            }
         } else {
             state.stop();
+            ANIMATION_START_TICKS.remove(state);
         }
     }
 

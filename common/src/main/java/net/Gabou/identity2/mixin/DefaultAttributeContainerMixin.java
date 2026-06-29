@@ -23,6 +23,6 @@ public class DefaultAttributeContainerMixin implements DefaultAttributeContainer
     public Map<Holder<Attribute>, AttributeInstance> instances;
     public Map<Holder<Attribute>, AttributeInstance> getInstances(){
         return instances;
-    };
+    }
 }
 

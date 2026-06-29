@@ -34,7 +34,7 @@ public final class SilverfishBurrowManager {
         if (!(entity instanceof EntityAccessor accessor)) {
             return false;
         }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) accessor.getCustomData()).getNbt();
         return nbt.contains(HIDDEN_KEY, Tag.TAG_BYTE) && nbt.getBoolean(HIDDEN_KEY);
     }
 
@@ -205,7 +205,7 @@ public final class SilverfishBurrowManager {
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {
-        return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        return ((NbtComponentAccessor) ((EntityAccessor) player).getCustomData()).getNbt();
     }
 
     @Nullable

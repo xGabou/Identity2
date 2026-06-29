@@ -35,6 +35,18 @@ public class TargetPredicateMixin {
             at = @At("HEAD"),
             cancellable = true
     )
+    private void identity2$skipCreativeMorphTargets(@Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
+        if (target instanceof Player player && (player.isSpectator() || player.getAbilities().instabuild)) {
+            identity2$replaceTargetWithIdentity.set(Boolean.FALSE);
+            info.setReturnValue(false);
+        }
+    }
+
+    @Inject(
+            method = "test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
     private void identity2$skipHostileVsHostileMorph( @Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
         identity2$replaceTargetWithIdentity.set(Boolean.FALSE);
 
@@ -108,9 +120,9 @@ public class TargetPredicateMixin {
         }
         if (((EntityAccessor) target).getCurrentIdentity() instanceof LivingEntity identity) {
             identity.setPosRaw(
-                    ((Entity) target).position().x,
-                    ((Entity) target).position().y,
-                    ((Entity) target).position().z
+                    target.position().x,
+                    target.position().y,
+                    target.position().z
             );
             ((EntityAccessor) identity).setIdentityOf(target);
             return identity;

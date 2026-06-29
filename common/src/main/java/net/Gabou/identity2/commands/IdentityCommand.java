@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import net.Gabou.identity2.auth.AuthGuards;
+import net.Gabou.gaboulibs.auth.AuthGuards;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.PredefIdentityAbilities;
@@ -754,7 +754,7 @@ public final class IdentityCommand {
 
         EntityType<?> resolvedType = BuiltInRegistries.ENTITY_TYPE.get(identityId);
         if (resolvedType != null) {
-            for (IdentityVariant variant : IdentityApi.discoverVariants(resolvedType, null)) {
+            for (IdentityVariant variant : IdentityApi.discoverCommandVariants(resolvedType)) {
                 if (variant.displayName() != null && trimmed.equalsIgnoreCase(variant.displayName().trim())) {
                     CompoundTag discovered = variant.variantNbt() == null ? new CompoundTag() : variant.variantNbt().copy();
                     return new MorphVariantParseResult(discovered, trimmed, false, null);
@@ -808,6 +808,9 @@ public final class IdentityCommand {
             List<String> labelParts
     ) {
         if ("baby".equals(token)) {
+            if (isBabyVariantBlocked(identityId)) {
+                return false;
+            }
             variantNbt.putBoolean("IsBaby", true);
             variantNbt.putInt("Age", -24000);
             labelParts.add("baby");
@@ -843,6 +846,9 @@ public final class IdentityCommand {
         String normalizedValue = normalizeVariantToken(value);
         if ("baby".equals(key)) {
             boolean baby = parseBooleanVariantValue(normalizedValue);
+            if (baby && isBabyVariantBlocked(identityId)) {
+                return false;
+            }
             variantNbt.putBoolean("IsBaby", baby);
             variantNbt.putInt("Age", baby ? -24000 : 0);
             labelParts.add(baby ? "baby" : "adult");
@@ -852,6 +858,9 @@ public final class IdentityCommand {
         if ("age".equals(key)) {
             try {
                 int age = Integer.parseInt(value.trim());
+                if (age < 0 && isBabyVariantBlocked(identityId)) {
+                    return false;
+                }
                 variantNbt.putInt("Age", age);
                 variantNbt.putBoolean("IsBaby", age < 0);
                 labelParts.add("age=" + age);
@@ -896,6 +905,11 @@ public final class IdentityCommand {
         }
 
         return false;
+    }
+
+    private static boolean isBabyVariantBlocked(ResourceLocation identityId) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(identityId);
+        return IdentityApi.isBabyVariantBlocked(type);
     }
 
     private static boolean isColorMorph(ResourceLocation identityId) {

@@ -1,30 +1,17 @@
 package net.Gabou.identity2.mixin;
 
-import dev.architectury.networking.NetworkManager;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import net.Gabou.gaboulibs.auth.PendingAuthManager;
+import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.TLauncherDetectedHandler;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.identity.WardenBurrowManager;
-import net.Gabou.identity2.progression.MorphChargeManager;
-import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
-import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.util.MinecraftServerAccessor;
-import net.Gabou.identity2.util.NetworkCompat;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.Gabou.identity2.util.PlayerManagerAccessor;
-import net.minecraft.commands.CommandSourceStack;
+import net.Gabou.identity2.progression.MorphChargeManager;
+import net.Gabou.identity2.util.*;
 import net.minecraft.commands.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -34,7 +21,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
-import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -42,6 +28,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.*;
 
 @Mixin(PlayerList.class)
 public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
@@ -57,24 +45,10 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         return null;
     }
 
-    @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
-    private void identity2$authOnLogin(Connection connection, ServerPlayer player, CallbackInfo info) {
-        if (!net.Gabou.identity2.auth.ServerAuth.onLogin(connection, player)) {
-            info.cancel();
-            return;
-        }
-
-        String launcherReason = ClientLauncherGuards.getDetectedReason();
-        if (launcherReason != null && player.level() instanceof ServerLevel serverLevel) {
-            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
-            info.cancel();
-            return;
-        }
-    }
 
     @Inject(method = "remove", at = @At("HEAD"))
     private void removeInject(ServerPlayer player, CallbackInfo info) {
-        net.Gabou.identity2.auth.ServerAuth.onLogout(player);
+        ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -90,9 +64,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
     private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
-        boolean pendingAuth = net.Gabou.identity2.auth.PendingAuthManager.isPending(player.getUUID());
+        boolean pendingAuth = PendingAuthManager.isPending(player.getUUID());
         if (pendingAuth) {
-            net.Gabou.identity2.auth.ServerAuth.sendChallenge(player);
+            ServerAuth.sendChallenge(player);
         }
 
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
@@ -160,7 +134,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void identity2$delayedMorphReapply(CallbackInfo info) {
-        net.Gabou.identity2.auth.ServerAuth.onTick(this.server);
+        PredefIdentityAbilities.tickPendingSonicBooms(this.server);
         if (DELAYED_MORPH_REAPPLY.isEmpty()) {
             return;
         }
@@ -191,7 +165,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
             return;
         }
         identity2$copyCustomData(player, respawned);
-        WardenBurrowManager.stop(respawned, false);
         boolean alive = !player.isDeadOrDying();
 
         if (alive) {

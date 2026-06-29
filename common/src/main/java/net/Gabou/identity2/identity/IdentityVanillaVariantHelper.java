@@ -1,6 +1,9 @@
 package net.Gabou.identity2.identity;
 
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.api.IdentityApi;
+import net.Gabou.identity2.mixin.GoatAccessor;
+import net.Gabou.identity2.mixin.HorseAccessor;
 import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Registry;
@@ -21,6 +24,11 @@ import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.axolotl.Axolotl.Variant;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.FrogVariant;
+import net.minecraft.world.entity.animal.goat.Goat;
+import net.minecraft.world.entity.animal.horse.Horse;
+import net.minecraft.world.entity.animal.horse.Markings;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.item.DyeColor;
 import org.jetbrains.annotations.Nullable;
 
@@ -56,6 +64,8 @@ public final class IdentityVanillaVariantHelper {
             addVariants(out, discoverAxolotlVariants(typeId));
         } else if (type == EntityType.CAT) {
             addVariants(out, discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat"));
+        } else if (type == EntityType.HORSE) {
+            addVariants(out, discoverHorseVariants(typeId));
         } else if (type == EntityType.WOLF) {
             addVariants(out, discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
         } else if (type == EntityType.FROG) {
@@ -65,7 +75,7 @@ public final class IdentityVanillaVariantHelper {
         IdentityVariant babyVariant = discoverBabyVariant(type, typeId, level);
         if (babyVariant != null) {
             addVariant(out, babyVariant);
-            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL) {
+            if (type == EntityType.VILLAGER || type == EntityType.AXOLOTL || type == EntityType.CAT || type == EntityType.HORSE) {
                 addVariants(out, discoverBabyCopies(new ArrayList<>(out.values()), " Baby"));
             }
         } else if (type == EntityType.AXOLOTL) {
@@ -131,11 +141,28 @@ public final class IdentityVanillaVariantHelper {
             }
         }
 
+        if (entity instanceof Horse horse) {
+            variant.putInt("Variant", packHorseVariant(horse.getVariant(), horse.getMarkings()));
+        }
+
+        if (entity instanceof Goat goat) {
+            variant.putBoolean("HasLeftHorn", goat.hasLeftHorn());
+            variant.putBoolean("HasRightHorn", goat.hasRightHorn());
+            variant.putBoolean("IsScreamingGoat", goat.isScreamingGoat());
+        }
+
+        if (entity instanceof Villager villager) {
+            VillagerData data = villager.getVillagerData();
+            putRegistryKey(variant, "VillagerType", BuiltInRegistries.VILLAGER_TYPE.getKey(data.getType()));
+            putRegistryKey(variant, "VillagerProfession", BuiltInRegistries.VILLAGER_PROFESSION.getKey(data.getProfession()));
+            variant.putInt("VillagerLevel", data.getLevel());
+        }
+
         return variant;
     }
 
     public static void applyVariantData(Entity entity, CompoundTag variantNbt) {
-        if (entity == null || variantNbt == null || variantNbt.isEmpty()) {
+        if (entity == null || variantNbt == null) {
             return;
         }
 
@@ -167,6 +194,14 @@ public final class IdentityVanillaVariantHelper {
 
         if (entity instanceof Axolotl axolotl) {
             applyAxolotlState(axolotl, variantNbt);
+        }
+
+        if (entity instanceof Horse horse) {
+            applyHorseState(horse, variantNbt);
+        }
+
+        if (entity instanceof Goat goat) {
+            applyGoatState(goat, variantNbt);
         }
 
         applyVillagerVariantData(entity, variantNbt);
@@ -225,8 +260,42 @@ public final class IdentityVanillaVariantHelper {
         axolotl.setVariant(values[index]);
     }
 
+    private static void applyHorseState(Horse horse, CompoundTag variantNbt) {
+        if (horse == null || variantNbt == null || !variantNbt.contains("Variant", Tag.TAG_ANY_NUMERIC)) {
+            return;
+        }
+        int packed = variantNbt.getInt("Variant");
+        net.minecraft.world.entity.animal.horse.Variant coat = net.minecraft.world.entity.animal.horse.Variant.byId(packed & 255);
+        Markings markings = Markings.byId((packed >> 8) & 255);
+        ((HorseAccessor) horse).identity2$setVariantAndMarkings(coat, markings);
+    }
+
+    private static void applyGoatState(Goat goat, CompoundTag variantNbt) {
+        if (goat == null || variantNbt == null) {
+            return;
+        }
+        boolean hasExplicitHornState = variantNbt.contains("HasLeftHorn", Tag.TAG_BYTE)
+                || variantNbt.contains("HasRightHorn", Tag.TAG_BYTE);
+        boolean leftHorn = hasExplicitHornState
+                ? NbtCompat.getBooleanOr(variantNbt, "HasLeftHorn", true)
+                : true;
+        boolean rightHorn = hasExplicitHornState
+                ? NbtCompat.getBooleanOr(variantNbt, "HasRightHorn", true)
+                : true;
+        goat.getEntityData().set(GoatAccessor.identity2$getHasLeftHornData(), leftHorn);
+        goat.getEntityData().set(GoatAccessor.identity2$getHasRightHornData(), rightHorn);
+        if (variantNbt.contains("IsScreamingGoat", Tag.TAG_BYTE)) {
+            goat.setScreamingGoat(NbtCompat.getBooleanOr(variantNbt, "IsScreamingGoat", false));
+        }
+    }
+
     private static void applyVillagerVariantData(Entity entity, CompoundTag variantNbt) {
         if (entity == null || variantNbt == null || variantNbt.isEmpty()) {
+            return;
+        }
+
+        if (entity instanceof Villager villager) {
+            applyDirectVillagerVariantData(villager, variantNbt);
             return;
         }
 
@@ -288,6 +357,36 @@ public final class IdentityVanillaVariantHelper {
         if (invokeOneArg(entity, "setVillagerData", villagerData) != null) {
             clearVillagerOffers(entity);
         }
+    }
+
+    private static void applyDirectVillagerVariantData(Villager villager, CompoundTag variantNbt) {
+        VillagerData data = villager.getVillagerData();
+        CompoundTag nested = NbtCompat.getCompoundOrNull(variantNbt, "VillagerData");
+
+        String professionRaw = readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
+        if ((professionRaw == null || professionRaw.isBlank()) && nested != null) {
+            professionRaw = NbtCompat.getStringOr(nested, "profession", "");
+        }
+        ResourceLocation professionId = parseResourceLocation(professionRaw);
+        if (professionId != null && BuiltInRegistries.VILLAGER_PROFESSION.containsKey(professionId)) {
+            data = data.setProfession(BuiltInRegistries.VILLAGER_PROFESSION.get(professionId));
+        }
+
+        String typeRaw = readVariantString(variantNbt, "VillagerType", "Type", "type");
+        if ((typeRaw == null || typeRaw.isBlank()) && nested != null) {
+            typeRaw = NbtCompat.getStringOr(nested, "type", "");
+        }
+        ResourceLocation typeId = parseResourceLocation(typeRaw);
+        if (typeId != null && BuiltInRegistries.VILLAGER_TYPE.containsKey(typeId)) {
+            data = data.setType(BuiltInRegistries.VILLAGER_TYPE.get(typeId));
+        }
+
+        int level = variantNbt.contains("VillagerLevel", Tag.TAG_ANY_NUMERIC)
+                ? variantNbt.getInt("VillagerLevel")
+                : nested != null ? nested.getInt("level") : data.getLevel();
+        data = data.setLevel(Math.max(1, level));
+        villager.setVillagerData(data);
+        villager.setOffers(new net.minecraft.world.item.trading.MerchantOffers());
     }
 
     private static void clearVillagerOffers(Object villager) {
@@ -360,6 +459,8 @@ public final class IdentityVanillaVariantHelper {
                 || type == EntityType.VILLAGER
                 || type == EntityType.AXOLOTL
                 || type == EntityType.CAT
+                || type == EntityType.HORSE
+                || type == EntityType.GOAT
                 || type == EntityType.WOLF
                 || type == EntityType.FROG;
     }
@@ -378,7 +479,8 @@ public final class IdentityVanillaVariantHelper {
     private static List<IdentityVariant> discoverSlimeSizeVariants(ResourceLocation typeId) {
         String prefix = capitalize(typeId.getPath().replace('_', ' '));
         List<IdentityVariant> variants = new ArrayList<>();
-        int[] sizes = new int[] {1, 2, 4};
+        // Slime NBT stores actual size minus one.
+        int[] sizes = new int[] {0, 1, 3};
         String[] labels = new String[] {"Small", "Medium", "Large"};
         for (int i = 0; i < sizes.length; i++) {
             CompoundTag nbt = new CompoundTag();
@@ -386,6 +488,28 @@ public final class IdentityVanillaVariantHelper {
             variants.add(new IdentityVariant(typeId, prefix + " " + labels[i], nbt));
         }
         return variants;
+    }
+
+    private static List<IdentityVariant> discoverHorseVariants(ResourceLocation typeId) {
+        List<IdentityVariant> variants = new ArrayList<>(
+                net.minecraft.world.entity.animal.horse.Variant.values().length * Markings.values().length
+        );
+        for (net.minecraft.world.entity.animal.horse.Variant coat : net.minecraft.world.entity.animal.horse.Variant.values()) {
+            for (Markings markings : Markings.values()) {
+                CompoundTag nbt = new CompoundTag();
+                nbt.putInt("Variant", packHorseVariant(coat, markings));
+                String label = "Horse " + capitalize(coat.getSerializedName().replace('_', ' '));
+                if (markings != Markings.NONE) {
+                    label += " " + capitalize(markings.name().replace('_', ' '));
+                }
+                variants.add(new IdentityVariant(typeId, label, nbt));
+            }
+        }
+        return variants;
+    }
+
+    private static int packHorseVariant(net.minecraft.world.entity.animal.horse.Variant coat, Markings markings) {
+        return (coat.getId() & 255) | ((markings.getId() << 8) & 65280);
     }
 
     private static List<IdentityVariant> discoverAxolotlVariants(ResourceLocation typeId) {
@@ -400,7 +524,7 @@ public final class IdentityVanillaVariantHelper {
     }
 
     private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, ClientLevel level) {
-        if (type == null || typeId == null || level == null) {
+        if (type == null || typeId == null || level == null || IdentityApi.isBabyVariantBlocked(type)) {
             return null;
         }
         Entity baseline;

@@ -9,11 +9,14 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 @Mixin(EnderDragon.class)
 public class EnderDragonEntityMixin implements net.Gabou.identity2.util.EnderDragonEntityAccessor{
     @Shadow
-    public void checkCrystals(){};
+    public void checkCrystals(){}
+
     @Shadow
     private int growlTime;
-	public int setTicksUntilNextGrowl(int ticks){return this.growlTime=ticks;};
-    public int getTicksUntilNextGrowl(){return this.growlTime;};
-    public void runTickWithEndCrystals(){this.checkCrystals();};
+	public int setTicksUntilNextGrowl(int ticks){return this.growlTime=ticks;}
+
+    public int getTicksUntilNextGrowl(){return this.growlTime;}
+
+    public void runTickWithEndCrystals(){this.checkCrystals();}
 }
 

@@ -54,19 +54,22 @@ This document lists what is **currently implemented and wired** in the active Id
 - `minecraft:cow` (100): clears own effects + drink sound
 - `minecraft:creeper` (200): self explosion (powered morph stronger)
 - `minecraft:elder_guardian` (600): guardian beam behavior (elder effects)
-- `minecraft:ender_dragon` (120): launches dragon fireball projectile
+- `minecraft:ender_dragon` (120): launches dragon fireball projectile; secondary triggers cosmetic backflip
 - `minecraft:enderman` (100): targeted teleport
-- `minecraft:endermite` (80): chorus-style random teleport
 - `minecraft:evoker` (120): evoker fangs line attack
 - `minecraft:ghast` (40, use_duration 20): large fireball + charge/warning timing
 - `minecraft:guardian` (600): beam-like hit, fatigue + damage
+- `minecraft:hoglin` (120): ram attack with attack animation
 - `minecraft:iron_golem` (40): heavy melee strike/knockback
 - `minecraft:llama` (40): llama spit projectile
-- `minecraft:shulker` (1, override_attack true): open/close + bullet fire + passive attach checks
+- `minecraft:pufferfish` (60): secondary max puff
+- `minecraft:ravager` (120): ram attack with attack animation
+- `minecraft:shulker` (10, override_attack false): open/close + bullet fire while open + secondary teleport
 - `minecraft:snow_golem` (30): snowball burst volley
 - `minecraft:trader_llama` (40): llama spit projectile
 - `minecraft:witch` (100): random negative splash potion throw
 - `minecraft:wither` (120): wither skull projectile
+- `minecraft:zoglin` (120): ram attack with attack animation
 
 ### 3.2 Generic Fallback Ability
 

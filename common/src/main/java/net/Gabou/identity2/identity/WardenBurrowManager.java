@@ -3,7 +3,6 @@ package net.Gabou.identity2.identity;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,7 +16,13 @@ public final class WardenBurrowManager {
     private static final String ANCHOR_X_KEY = "identity2.warden_hidden_anchor_x";
     private static final String ANCHOR_Y_KEY = "identity2.warden_hidden_anchor_y";
     private static final String ANCHOR_Z_KEY = "identity2.warden_hidden_anchor_z";
-    private static final double IDENTITY_BURROW_Y_OFFSET = 1.9D;
+    private static final double BURROW_SEARCH_STEP = 0.1D;
+    private static final double BURROW_SEARCH_DEPTH = 2.0D;
+    private static final double EXIT_SEARCH_VERTICAL_STEP = 0.5D;
+    private static final double EXIT_SEARCH_MAX_HEIGHT = 8.0D;
+    private static final double EXIT_SEARCH_RADIUS_STEP = 0.5D;
+    private static final double EXIT_SEARCH_MAX_RADIUS = 4.0D;
+    private static final int EXIT_SEARCH_RADIAL_SAMPLES = 16;
 
     private WardenBurrowManager() {
     }
@@ -26,7 +31,7 @@ public final class WardenBurrowManager {
         if (!(entity instanceof EntityAccessor accessor)) {
             return false;
         }
-        CompoundTag nbt = ((NbtComponentAccessor) (Object) accessor.getCustomData()).getNbt();
+        CompoundTag nbt = ((NbtComponentAccessor) accessor.getCustomData()).getNbt();
         return nbt.contains(HIDDEN_KEY, Tag.TAG_BYTE) && nbt.getBoolean(HIDDEN_KEY);
     }
 
@@ -45,10 +50,12 @@ public final class WardenBurrowManager {
             return false;
         }
 
-        Vec3 burrowPos = resolveVisualBurrowPosition(player);
+        Vec3 burrowPos = findBurrowPosition(player);
         setAnchor(player, burrowPos);
-        moveIdentityToAnchor(player, burrowPos);
+        player.teleportTo(burrowPos.x, burrowPos.y, burrowPos.z);
+        player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
+        player.noPhysics = true;
         IdentityApi.syncBoolean(player, HIDDEN_KEY, true);
         syncAnchor(player, burrowPos);
         return true;
@@ -66,8 +73,19 @@ public final class WardenBurrowManager {
 
         IdentityApi.syncBoolean(player, HIDDEN_KEY, false);
         clearAnchor(player);
+        player.noPhysics = true;
+        player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
+
+        if (safeExit) {
+            Vec3 exitPos = findSafeExitPosition(player, anchor);
+            if (exitPos != null) {
+                player.teleportTo(exitPos.x, exitPos.y, exitPos.z);
+            }
+        }
+
         player.noPhysics = false;
+        player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         return true;
     }
@@ -82,12 +100,19 @@ public final class WardenBurrowManager {
             return;
         }
 
-        Vec3 anchor = resolveVisualBurrowPosition(player);
-        setAnchor(player, anchor);
-        moveIdentityToAnchor(player, anchor);
+        Vec3 anchor = readAnchor(player);
+        if (anchor == null) {
+            anchor = player.position();
+            setAnchor(player, anchor);
+            syncAnchor(player, anchor);
+        }
+
+        player.noPhysics = true;
+        player.teleportTo(anchor.x, anchor.y, anchor.z);
+        player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
 
-        if (player.isSprinting() || player.isCrouching()) {
+        if (player.isSprinting() || player.isCrouching() || player.isUsingItem()) {
             stop(player, true);
         }
     }
@@ -96,8 +121,7 @@ public final class WardenBurrowManager {
         if (entity == null) {
             return Vec3.ZERO;
         }
-        BlockPos below = entity.blockPosition().below();
-        return new Vec3(entity.getX(), below.getY() - IDENTITY_BURROW_Y_OFFSET, entity.getZ());
+        return entity.position();
     }
 
     public static boolean isWardenMorphed(@Nullable Entity entity) {
@@ -161,18 +185,52 @@ public final class WardenBurrowManager {
     }
 
     private static CompoundTag getCustomData(ServerPlayer player) {
-        return ((NbtComponentAccessor) (Object) ((EntityAccessor) player).getCustomData()).getNbt();
+        return ((NbtComponentAccessor) ((EntityAccessor) player).getCustomData()).getNbt();
     }
 
-    private static void moveIdentityToAnchor(ServerPlayer player, Vec3 pos) {
-        if (player == null || pos == null) {
-            return;
+    private static Vec3 findBurrowPosition(ServerPlayer player) {
+        Vec3 origin = player.position();
+        if (isCollidingAt(player, origin)) {
+            return origin;
         }
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity == null) {
-            return;
+        for (double depth = BURROW_SEARCH_STEP; depth <= BURROW_SEARCH_DEPTH; depth += BURROW_SEARCH_STEP) {
+            Vec3 candidate = origin.add(0.0D, -depth, 0.0D);
+            if (isCollidingAt(player, candidate)) {
+                return candidate;
+            }
         }
-        identity.setPos(pos.x, pos.y, pos.z);
-        identity.setDeltaMovement(Vec3.ZERO);
+        return origin.add(0.0D, -BURROW_SEARCH_DEPTH, 0.0D);
+    }
+
+    @Nullable
+    private static Vec3 findSafeExitPosition(ServerPlayer player, Vec3 anchor) {
+        for (double y = EXIT_SEARCH_VERTICAL_STEP; y <= EXIT_SEARCH_MAX_HEIGHT; y += EXIT_SEARCH_VERTICAL_STEP) {
+            Vec3 candidate = anchor.add(0.0D, y, 0.0D);
+            if (isSafeAt(player, candidate)) {
+                return candidate;
+            }
+        }
+        for (double radius = EXIT_SEARCH_RADIUS_STEP; radius <= EXIT_SEARCH_MAX_RADIUS; radius += EXIT_SEARCH_RADIUS_STEP) {
+            for (int i = 0; i < EXIT_SEARCH_RADIAL_SAMPLES; i++) {
+                double angle = (Math.PI * 2.0D * i) / EXIT_SEARCH_RADIAL_SAMPLES;
+                for (double y = 0.0D; y <= EXIT_SEARCH_MAX_HEIGHT; y += EXIT_SEARCH_VERTICAL_STEP) {
+                    Vec3 candidate = anchor.add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+                    if (isSafeAt(player, candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isCollidingAt(ServerPlayer player, Vec3 candidate) {
+        Vec3 delta = candidate.subtract(player.position());
+        return !player.level().noCollision(player, player.getBoundingBox().move(delta));
+    }
+
+    private static boolean isSafeAt(ServerPlayer player, Vec3 candidate) {
+        Vec3 delta = candidate.subtract(player.position());
+        return player.level().noCollision(player, player.getBoundingBox().move(delta));
     }
 }

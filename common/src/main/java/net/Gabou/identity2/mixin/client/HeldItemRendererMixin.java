@@ -12,6 +12,7 @@ import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.ModelPartCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartNames;
@@ -48,6 +49,8 @@ public class HeldItemRendererMixin {
         "right_arm",
         "body.right_arm",
         "body.rightArm",
+        "bone.body.right_arm",
+        "bone.body.rightArm",
         "root.right_arm",
         "root.rightArm",
         "right_front_leg",
@@ -68,6 +71,8 @@ public class HeldItemRendererMixin {
         "left_arm",
         "body.left_arm",
         "body.leftArm",
+        "bone.body.left_arm",
+        "bone.body.leftArm",
         "root.left_arm",
         "root.leftArm",
         "left_front_leg",
@@ -216,7 +221,7 @@ public class HeldItemRendererMixin {
                 return;
             }
 
-            PlayerModel playerModel = (PlayerModel) renderer.getModel();
+            PlayerModel playerModel = renderer.getModel();
             ModelPart playerArm = rightArm ? playerModel.rightArm : playerModel.leftArm;
 
             float offsetX = Mth.clamp((playerArm.x - identityArm.x), -12.0F, 12.0F) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
@@ -228,8 +233,13 @@ public class HeldItemRendererMixin {
             matrices.mulPose(Axis.XP.rotationDegrees(ARM_TUNE_ROT_X));
             matrices.mulPose(Axis.YP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Y : -ARM_TUNE_ROT_Y));
             matrices.mulPose(Axis.ZP.rotationDegrees(rightArm ? ARM_TUNE_ROT_Z : -ARM_TUNE_ROT_Z));
-            identityArm.resetPose();
-            identity2$renderIdentityHand(matrices, queue, light, identityTexture, identityArm);
+            ModelPartCompat.PartSnapshot armSnapshot = ModelPartCompat.PartSnapshot.capture(identityArm);
+            try {
+                identityArm.resetPose();
+                identity2$renderIdentityHand(matrices, queue, light, identityTexture, identityArm);
+            } finally {
+                armSnapshot.restore(identityArm);
+            }
             matrices.popPose();
         } catch (Exception ignored) {
             if (!morphed) {
@@ -265,6 +275,13 @@ public class HeldItemRendererMixin {
     }
 
     private static ModelPart identity2$resolveIdentityHandPart(EntityModel<?> model, boolean rightArm) {
+        if (model instanceof HumanoidModel<?> humanoidModel) {
+            ModelPart humanoidArm = rightArm ? humanoidModel.rightArm : humanoidModel.leftArm;
+            if (humanoidArm != null && !humanoidArm.isEmpty()) {
+                return humanoidArm;
+            }
+        }
+
         ModelPart root = ModelPartCompat.tryGetRoot(model);
         if (root == null) {
             return null;
@@ -281,10 +298,7 @@ public class HeldItemRendererMixin {
         if (anySide != null) {
             return anySide;
         }
-        return root.getAllParts()
-                .filter(part -> !part.isEmpty())
-                .findFirst()
-                .orElse(exact);
+        return null;
     }
 
     private static ModelPart identity2$findPartByNames(ModelPart root, String[] candidates) {
@@ -364,7 +378,7 @@ public class HeldItemRendererMixin {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static ResourceLocation identity2$resolveIdentityTexture(EntityRenderer<?> identityRenderer, Entity identity) {
         try {
-            return (ResourceLocation) ((EntityRenderer) identityRenderer).getTextureLocation(identity);
+            return ((EntityRenderer) identityRenderer).getTextureLocation(identity);
         } catch (Throwable ignored) {
         }
         if (identityRenderer instanceof EnderDragonRenderer) {

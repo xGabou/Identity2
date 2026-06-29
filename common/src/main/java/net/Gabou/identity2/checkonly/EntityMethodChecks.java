@@ -9,6 +9,5 @@ public abstract class EntityMethodChecks extends net.minecraft.world.entity.Enti
     }
     @Override
     public void checkFallDamage(double heightDifference, boolean onGround, BlockState state, BlockPos landedPosition){
-        return;
     }
 }

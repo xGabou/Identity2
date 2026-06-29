@@ -11,6 +11,7 @@ import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.Registry;
@@ -18,6 +19,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -79,6 +82,10 @@ public class ClientPlayerInteractionManagerMixin {
         if (hand != InteractionHand.MAIN_HAND) {
             return;
         }
+        if (identity2$fireOpenShulker(player)) {
+            info.setReturnValue(InteractionResult.SUCCESS);
+            return;
+        }
         if (!(target instanceof Player targetPlayer)) {
             return;
         }
@@ -88,6 +95,56 @@ public class ClientPlayerInteractionManagerMixin {
 
         Identity2Client.sendVillagerTradeRequest(targetPlayer.getUUID());
         info.setReturnValue(InteractionResult.SUCCESS);
+    }
+
+    @Inject(method = "useItem", at = @At("HEAD"), cancellable = true)
+    private void identity2$fireOpenShulkerWithUse(
+            Player player,
+            InteractionHand hand,
+            CallbackInfoReturnable<InteractionResult> info
+    ) {
+        if (hand != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        if (identity2$fireOpenShulker(player)) {
+            info.setReturnValue(InteractionResult.SUCCESS);
+        }
+    }
+
+    @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
+    private void identity2$fireOpenShulkerWithBlockUse(
+            LocalPlayer player,
+            InteractionHand hand,
+            BlockHitResult hit,
+            CallbackInfoReturnable<InteractionResult> info
+    ) {
+        if (hand == InteractionHand.MAIN_HAND && identity2$fireOpenShulker(player)) {
+            info.setReturnValue(InteractionResult.SUCCESS);
+        }
+    }
+
+    @Inject(method = "interactAt", at = @At("HEAD"), cancellable = true)
+    private void identity2$fireOpenShulkerWithPreciseEntityUse(
+            Player player,
+            Entity target,
+            EntityHitResult hit,
+            InteractionHand hand,
+            CallbackInfoReturnable<InteractionResult> info
+    ) {
+        if (hand == InteractionHand.MAIN_HAND && identity2$fireOpenShulker(player)) {
+            info.setReturnValue(InteractionResult.SUCCESS);
+        }
+    }
+
+    private static boolean identity2$fireOpenShulker(Player player) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity == null
+                || identity.getType() != net.minecraft.world.entity.EntityType.SHULKER
+                || !PredefIdentityAbilities.isShulkerOpen(player)) {
+            return false;
+        }
+        Identity2Client.sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
+        return true;
     }
 
     private static boolean identity2$isVillagerLikeIdentity(Player targetPlayer) {

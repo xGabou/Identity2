@@ -185,7 +185,7 @@ public final class UntamedWildsCompat {
     }
 
     private static boolean isComplexMobInstance(Object entity) {
-        return entity != null && COMPLEX_MOB_CLASS != null && COMPLEX_MOB_CLASS.isInstance(entity);
+        return COMPLEX_MOB_CLASS != null && COMPLEX_MOB_CLASS.isInstance(entity);
     }
 
     private static Object resolveEntityDataHolder(EntityType<?> type) {

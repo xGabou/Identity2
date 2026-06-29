@@ -8,16 +8,19 @@ import org.spongepowered.asm.mixin.Shadow;
 public class ShulkerEntityMixin implements ShulkerEntityAccessor{
 
     @Shadow
-    public void findNewAttachment(){};
+    public void findNewAttachment(){}
+
     public void runTryAttachOrTeleport(){this.findNewAttachment();}
     @Shadow
-    public void setRawPeekAmount(int amount){};
+    public void setRawPeekAmount(int amount){}
+
     @Override
     public void setPeekAmount(int amount) {
         this.setRawPeekAmount(amount);
     }
     @Shadow
-    public int getRawPeekAmount(){return 0;};
+    public int getRawPeekAmount(){return 0;}
+
     public int runGetPeekAmount(){return this.getRawPeekAmount();}
 //Tons of Redirects - End
 }

@@ -648,10 +648,7 @@ public final class IdentitySelectionScreen extends Screen {
         String requestedToken = IdentityProgression.toVariantUnlockToken(
                 IdentityProgression.normalizeVariantForUnlock(variant.variantNbt())
         );
-        if ("-".equals(requestedToken)) {
-            return false;
-        }
-        return true;
+        return !"-".equals(requestedToken);
     }
 
     private static Set<String> readUnlockedIdentities() {
@@ -665,7 +662,7 @@ public final class IdentitySelectionScreen extends Screen {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             unlocked.addAll(IdentityProgression.readUnlockedIdentityIdSet(
-                ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+                ((NbtComponentAccessor) ((EntityAccessor) client.player).getCustomData()).getNbt()
             ));
         }
 
@@ -686,7 +683,7 @@ public final class IdentitySelectionScreen extends Screen {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             Map<String, Set<String>> nbtTokens = IdentityProgression.readUnlockedIdentityVariantTokenSet(
-                ((NbtComponentAccessor) (Object) ((EntityAccessor) client.player).getCustomData()).getNbt()
+                ((NbtComponentAccessor) ((EntityAccessor) client.player).getCustomData()).getNbt()
             );
             for (Map.Entry<String, Set<String>> entry : nbtTokens.entrySet()) {
                 if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null || entry.getValue().isEmpty()) {
@@ -751,7 +748,7 @@ public final class IdentitySelectionScreen extends Screen {
             }
         }
         if (builder.isEmpty()) {
-            builder.append(id.toString());
+            builder.append(id);
         }
         if (!"minecraft".equals(id.getNamespace())) {
             builder.append(" [").append(id.getNamespace()).append("]");

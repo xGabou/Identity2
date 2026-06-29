@@ -38,7 +38,7 @@ public class PlayerEntityRendererMixin {
         require = 0
     )
     private void identity2$overridePlayerSkin(AbstractClientPlayer avatarEntity, CallbackInfoReturnable<ResourceLocation> cir) {
-        net.minecraft.world.entity.Entity entity = (net.minecraft.world.entity.Entity) avatarEntity;
+        net.minecraft.world.entity.Entity entity = avatarEntity;
         CompoundTag nbt = ((EntityAccessor) entity).getCustomData();
         String selectedType = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_TYPE_KEY, "");
         if (selectedType.isBlank()) {
@@ -385,10 +385,7 @@ public class PlayerEntityRendererMixin {
         if (parameterType == double.class && argumentType == Double.class) {
             return true;
         }
-        if (parameterType == char.class && argumentType == Character.class) {
-            return true;
-        }
-        return false;
+        return parameterType == char.class && argumentType == Character.class;
     }
 
     @Nullable

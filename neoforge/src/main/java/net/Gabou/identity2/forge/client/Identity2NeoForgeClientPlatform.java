@@ -1,7 +1,7 @@
 package net.Gabou.identity2.forge.client;
 
 import net.Gabou.identity2.Identity2;
-import net.Gabou.identity2.client.platform.ModClientPlatform;
+import net.Gabou.gaboulibs.client.platform.ModClientPlatform;
 
 public final class Identity2NeoForgeClientPlatform implements ModClientPlatform {
     @Override

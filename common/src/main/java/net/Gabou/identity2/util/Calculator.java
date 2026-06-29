@@ -135,7 +135,7 @@ public class Calculator{
                     splitWhileRespectingBrackets(input,'*',"(",")").forEach(
                         splitAroundTimes->{
                             retval.ensureCapacity(retval.size()+1);
-                            retval.add((Object)parseString(splitAroundTimes));
+                            retval.add(parseString(splitAroundTimes));
                         }
                     );
                     return retval;
@@ -145,7 +145,7 @@ public class Calculator{
                     splitWhileRespectingBrackets(input,'/',"(",")").forEach(
                         splitAroundDivides->{
                             retval.ensureCapacity(retval.size()+1);
-                            retval.add((Object)parseString(splitAroundDivides));
+                            retval.add(parseString(splitAroundDivides));
                         }
                     );
                     return retval;
@@ -158,7 +158,7 @@ public class Calculator{
                     splitWhileRespectingBrackets(input,'+',"(",")").forEach(
                         splitAroundPlus->{
                             retval.ensureCapacity(retval.size()+1);
-                            retval.add((Object)parseString(splitAroundPlus));
+                            retval.add(parseString(splitAroundPlus));
                         }
                     );
                     return retval;
@@ -168,7 +168,7 @@ public class Calculator{
                     splitWhileRespectingBrackets(input,'-',"(",")").forEach(
                         splitAroundMinus->{
                             retval.ensureCapacity(retval.size()+1);
-                            retval.add((Object)parseString(splitAroundMinus));
+                            retval.add(parseString(splitAroundMinus));
                         }
                     );
                     return retval;
@@ -181,7 +181,7 @@ public class Calculator{
             splitWhileRespectingBrackets(input,'^',"(",")").forEach(
                 splitAroundTimes->{
                     retval.ensureCapacity(retval.size()+1);
-                    retval.add((Object)parseString(splitAroundTimes));
+                    retval.add(parseString(splitAroundTimes));
                 }
             );
             return retval;
@@ -194,7 +194,7 @@ public class Calculator{
             splitWhileRespectingBrackets(input.substring(1+functionLen,input.length()-1),',',"(",")").forEach(
                 splitAroundComma->{
                     retval.ensureCapacity(retval.size()+1);
-                    retval.add((Object)parseString(splitAroundComma));
+                    retval.add(parseString(splitAroundComma));
                 }
             );
             return retval;
@@ -336,7 +336,7 @@ public class Calculator{
     static ArrayList<String> BinaryFunctionNames=new ArrayList(0);
     static ArrayList<BinaryCalculatorFunction> BinaryFunctions=new ArrayList(0);
     public static void addUnaryFunction(String name,UnaryCalculatorFunction function){
-        if(UnaryFunctionNames.contains(name)==false){
+        if(!UnaryFunctionNames.contains(name)){
             UnaryFunctionNames.ensureCapacity(UnaryFunctionNames.size()+1);
             UnaryFunctionNames.add(name);
             UnaryFunctions.ensureCapacity(UnaryFunctions.size()+1);
@@ -344,7 +344,7 @@ public class Calculator{
         }
     }
     public static void addBinaryFunction(String name,BinaryCalculatorFunction function){
-        if(BinaryFunctionNames.contains(name)==false){
+        if(!BinaryFunctionNames.contains(name)){
             BinaryFunctionNames.ensureCapacity(BinaryFunctionNames.size()+1);
             BinaryFunctionNames.add(name);
             BinaryFunctions.ensureCapacity(BinaryFunctions.size()+1);
@@ -363,13 +363,13 @@ public class Calculator{
         addBinaryFunction("min",new BinaryCalculatorFunction() {
             @Override
             public Float getValue(Float arga,Float argb){
-                return (Float)Math.min((float)arga,(float)argb); 
+                return Math.min(arga, argb);
             }
         });
         addBinaryFunction("max",new BinaryCalculatorFunction() {
             @Override
             public Float getValue(Float arga,Float argb){
-                return (Float)Math.max((float)arga,(float)argb); 
+                return Math.max(arga, argb);
             }
         });
     }

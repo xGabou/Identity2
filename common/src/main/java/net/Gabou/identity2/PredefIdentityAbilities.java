@@ -7,8 +7,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import dev.architectury.platform.Platform;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.mixin.EnderManAccessor;
+import net.Gabou.identity2.mixin.HoglinAccessor;
+import net.Gabou.identity2.mixin.RavagerAccessor;
+import net.Gabou.identity2.mixin.VillagerAccessor;
+import net.Gabou.identity2.mixin.ZoglinAccessor;
 import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
@@ -40,11 +43,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.animal.Pufferfish;
 import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.horse.Llama;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.*;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.npc.Villager;
@@ -86,7 +91,10 @@ public final class PredefIdentityAbilities {
     public static final String ANIM_JUMP_TICKS_KEY = "identity2.anim.jump_ticks";
     public static final String ANIM_ROLL_TICKS_KEY = "identity2.anim.roll_ticks";
     public static final String ANIM_ANGRY_TICKS_KEY = "identity2.anim.angry_ticks";
+    public static final String ANIM_DRAGON_FLIP_TICKS_KEY = "identity2.anim.dragon_flip_ticks";
+    public static final String CREEPER_HISS_TICKS_KEY = "identity2.anim.creeper_hiss_ticks";
     public static final String PUFFER_PUFF_TICKS_KEY = "identity2.anim.puffer_puff_ticks";
+    public static final int CREEPER_HISS_DURATION_TICKS = 30;
     private static final int WARDEN_SONIC_BOOM_ANIMATION_TICKS = 60;
     private static final int ILLUSIONER_CLONE_COUNT = 3;
     private static final int ILLUSIONER_CLONE_LIFETIME_TICKS = 20 * 25;
@@ -127,8 +135,12 @@ public final class PredefIdentityAbilities {
     public static final Map<ResourceLocation, BuiltinIdentityAbility> predef = create();
     private static final BuiltinIdentityAbility genericMobAbility = createGenericMobAbility();
     private static final Map<UUID, List<IllusionerCloneRef>> illusionerCloneRefs = new HashMap<>();
+    private static final Map<UUID, PendingSonicBoom> pendingSonicBooms = new HashMap<>();
 
     private record IllusionerCloneRef(UUID cloneUuid, long expiresAt, Vec3 offset) {
+    }
+
+    private record PendingSonicBoom(UUID targetUuid, int ticksRemaining) {
     }
 
     private PredefIdentityAbilities() {
@@ -143,7 +155,7 @@ public final class PredefIdentityAbilities {
             return false;
         }
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(identityTypeId);
-        if (type == null || type == EntityType.PLAYER) {
+        if (type == null || type == EntityType.PLAYER || type == EntityType.ENDERMITE) {
             return false;
         }
         return IdentityProgression.isMorphableType(type);
@@ -319,11 +331,7 @@ public final class PredefIdentityAbilities {
                 boolean open = !isShulkerOpen(player);
                 setShulkerOpenState(serverPlayer, open);
                 ((ShulkerEntityAccessor) shulker).setPeekAmount(open ? 100 : 0);
-                if (open) {
-                    setShulkerLockAnchor(serverPlayer, player.position());
-                    Vec3 motion = player.getDeltaMovement();
-                    player.setDeltaMovement(0.0D, motion.y, 0.0D);
-                } else {
+                if (!open) {
                     clearShulkerLockAnchor(serverPlayer);
                 }
             }
@@ -333,9 +341,7 @@ public final class PredefIdentityAbilities {
                 if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
                     return;
                 }
-                if (tryTeleportShulkerToNewAnchor(player, shulker) && player instanceof ServerPlayer serverPlayer && isShulkerOpen(player)) {
-                    setShulkerLockAnchor(serverPlayer, player.position());
-                }
+                tryTeleportShulkerToNewAnchor(player, shulker);
             }
 
             @Override
@@ -350,32 +356,12 @@ public final class PredefIdentityAbilities {
             }
             @Override
             public void passivetick(Entity player,boolean usedLastTick){
-                Shulker shulker=(Shulker)((EntityAccessor)player).getCurrentIdentity();
+                if (!(((EntityAccessor) player).getCurrentIdentity() instanceof Shulker shulker)) {
+                    return;
+                }
                 int desiredPeekAmount = isShulkerOpen(player) ? 100 : 0;
                 if(((ShulkerEntityAccessor)shulker).runGetPeekAmount()!=desiredPeekAmount){
                     ((ShulkerEntityAccessor)shulker).setPeekAmount(desiredPeekAmount);
-                }
-                if (!isShulkerOpen(player)) {
-                    return;
-                }
-                if (player instanceof ServerPlayer serverPlayer) {
-                    Vec3 anchor = getShulkerLockAnchor(serverPlayer);
-                    if (anchor == null) {
-                        anchor = player.position();
-                        setShulkerLockAnchor(serverPlayer, anchor);
-                    }
-                    serverPlayer.connection.teleport(anchor.x, anchor.y, anchor.z, player.getYRot(), player.getXRot());
-                    serverPlayer.setPos(anchor.x, anchor.y, anchor.z);
-                }
-                player.setDeltaMovement(Vec3.ZERO);
-                player.hasImpulse = true;
-                if (!shulker.level().isClientSide() && !shulker.isPassenger() && !canStay(shulker.blockPosition(), shulker.getAttachFace(),shulker)) {
-                    BlockPos pos=shulker.blockPosition();
-                    ((ShulkerEntityAccessor)shulker).runTryAttachOrTeleport();
-                    if((pos==shulker.blockPosition())==false){
-                        player.teleportTo(shulker.position().x(),shulker.position().y(),shulker.position().z());
-                        
-                    }
                 }
             }
             boolean canStay(BlockPos pos, Direction direction,Shulker entity) {
@@ -406,10 +392,27 @@ public final class PredefIdentityAbilities {
         map.put(new ResourceLocation("bee"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
-                identity2$setSyncedTicks(player, ANIM_ROLL_TICKS_KEY, 20);
+                identity2$setSyncedTicks(player, ANIM_ROLL_TICKS_KEY, 24);
             }
         });
         map.put(new ResourceLocation("minecraft", "bee"), map.get(new ResourceLocation("bee")));
+
+        map.put(new ResourceLocation("pufferfish"), new IdentityAbility() {
+            @Override
+            public void executeSecondary(Entity player) {
+                identity2$setSyncedTicks(player, PUFFER_PUFF_TICKS_KEY, 80);
+                Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+                if (identity instanceof Pufferfish pufferfish) {
+                    pufferfish.setPuffState(2);
+                }
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, PUFFER_PUFF_TICKS_KEY);
+            }
+        });
+        map.put(new ResourceLocation("minecraft", "pufferfish"), map.get(new ResourceLocation("pufferfish")));
 
         map.put(new ResourceLocation("blaze"), new IdentityAbility() {
             @Override
@@ -587,6 +590,29 @@ public final class PredefIdentityAbilities {
                 }
                 player.level().explode(player, player.getX(), player.getY(), player.getZ(), power, Level.ExplosionInteraction.NONE);
             }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (player.level().isClientSide()) {
+                    return;
+                }
+                identity2$setSyncedTicks(player, CREEPER_HISS_TICKS_KEY, CREEPER_HISS_DURATION_TICKS);
+                player.level().playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.CREEPER_PRIMED,
+                        SoundSource.HOSTILE,
+                        1.0F,
+                        1.0F
+                );
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, CREEPER_HISS_TICKS_KEY);
+            }
         });
 
         map.put(new ResourceLocation("alexscaves", "nucleeper"), new IdentityAbility() {
@@ -615,30 +641,6 @@ public final class PredefIdentityAbilities {
                     identity2$invokeOneArgLoose(explosionBase, "setNoGriefing", true);
                 }
                 world.addFreshEntity(explosionBase);
-            }
-        });
-
-        map.put(new ResourceLocation("endermite"), new IdentityAbility() {
-            @Override
-            public void execute(Entity player) {
-                Level world = player.level();
-                double startX = player.getX();
-                double startY = player.getY();
-                double startZ = player.getZ();
-
-                for (int i = 0; i < 16; ++i) {
-                    double targetX = startX + (player.level().random.nextDouble() - 0.5D) * 16.0D;
-                    int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(targetX), Mth.floor(startZ));
-                    double targetY = Mth.clamp(startY + (player.level().random.nextInt(16) - 8), world.getMinBuildHeight(), topY - 1);
-                    double targetZ = startZ + (player.level().random.nextDouble() - 0.5D) * 16.0D;
-                    if (player.isPassenger()) {
-                        player.stopRiding();
-                    }
-                    player.teleportTo(targetX, targetY, targetZ);
-                    world.playSound(null, startX, startY, startZ, SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
-                    player.playSound(SoundEvents.CHORUS_FRUIT_TELEPORT, 1.0F, 1.0F);
-                    break;
-                }
             }
         });
 
@@ -742,15 +744,13 @@ public final class PredefIdentityAbilities {
         map.put(new ResourceLocation("warden"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
-                executeWardenSonicBoom(player);
+                triggerDelayedSonicBoom(player);
                 identity2$setSyncedTicks(player, ANIM_BEAM_TICKS_KEY, WARDEN_SONIC_BOOM_ANIMATION_TICKS);
             }
 
             @Override
             public void executeSecondary(Entity player) {
-                if (player instanceof ServerPlayer serverPlayer) {
-                    WardenBurrowManager.toggle(serverPlayer);
-                }
+                // Warden burrow was intentionally removed. Secondary is now a no-op.
             }
 
             @Override
@@ -818,7 +818,7 @@ public final class PredefIdentityAbilities {
                 float damage = 14.0F;
                 target.hurt(player.damageSources().mobAttack(livingPlayer), damage);
                 Vec3 look = player.getViewVector(1.0F).normalize();
-                target.push(look.x * 1.6D, 0.65D, look.z * 1.6D);
+                target.push(look.x * 1.6D, 1.15D, look.z * 1.6D);
                 world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.IRON_GOLEM_ATTACK, SoundSource.HOSTILE, 1.0F, 0.85F);
             }
         });
@@ -872,7 +872,7 @@ public final class PredefIdentityAbilities {
                     snowball.setItem(new ItemStack(Items.SNOWBALL));
                     float pitchOffset = (float) (player.getXRot() + world.random.nextGaussian() * 5.0);
                     float yawOffset = (float) (player.getYRot() + world.random.nextGaussian() * 5.0);
-                    snowball.shootFromRotation((LivingEntity) player, pitchOffset, yawOffset, 0.0F, 1.5F, 1.0F);
+                    snowball.shootFromRotation(player, pitchOffset, yawOffset, 0.0F, 1.5F, 1.0F);
                     snowball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, yawOffset, pitchOffset);
                     world.addFreshEntity(snowball);
                 }
@@ -934,6 +934,24 @@ public final class PredefIdentityAbilities {
 
                 world.addFreshEntity(potionEntity);
             }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                if (!(player instanceof LivingEntity livingPlayer) || player.level().isClientSide()) {
+                    return;
+                }
+                livingPlayer.heal(4.0F);
+                player.level().playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.WITCH_DRINK,
+                        SoundSource.PLAYERS,
+                        1.0F,
+                        0.9F + player.level().getRandom().nextFloat() * 0.2F
+                );
+            }
         });
 
         map.put(new ResourceLocation("wither"), new IdentityAbility() {
@@ -980,6 +998,16 @@ public final class PredefIdentityAbilities {
                 fireball.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
                 world.addFreshEntity(fireball);
                 world.playSound(null, player, SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.HOSTILE, 3.0F, 1.0F);
+            }
+
+            @Override
+            public void executeSecondary(Entity player) {
+                identity2$setSyncedTicks(player, ANIM_DRAGON_FLIP_TICKS_KEY, 28);
+            }
+
+            @Override
+            public void passivetick(Entity player, boolean used) {
+                identity2$tickSyncedCountdowns(player, ANIM_DRAGON_FLIP_TICKS_KEY);
             }
         });
 
@@ -1305,7 +1333,7 @@ public final class PredefIdentityAbilities {
         }
         LivingEntity target = candidates.get(serverPlayer.getRandom().nextInt(candidates.size()));
         ResourceLocation targetId = EntityType.getKey(target.getType());
-        if (targetId == null || !IdentityProgression.isMorphableIdentity(targetId)) {
+        if (!IdentityProgression.isMorphableIdentity(targetId)) {
             return;
         }
         IdentityProgression.morph(serverPlayer, targetId);
@@ -1692,6 +1720,42 @@ public final class PredefIdentityAbilities {
         return null;
     }
 
+    /**
+     * Ticks pending warden sonic boom attacks and applies damage when their delay expires.
+     *
+     * @param server the current Minecraft server
+     */
+    public static void tickPendingSonicBooms(MinecraftServer server) {
+        if (server == null || pendingSonicBooms.isEmpty()) {
+            return;
+        }
+        Iterator<Map.Entry<UUID, PendingSonicBoom>> iterator = pendingSonicBooms.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, PendingSonicBoom> entry = iterator.next();
+            UUID playerUuid = entry.getKey();
+            PendingSonicBoom pending = entry.getValue();
+            int nextTicks = pending.ticksRemaining() - 1;
+            if (nextTicks > 0) {
+                entry.setValue(new PendingSonicBoom(pending.targetUuid(), nextTicks));
+                continue;
+            }
+
+            iterator.remove();
+            Entity player = findEntityByUuid(server, playerUuid);
+            Entity target = findEntityByUuid(server, pending.targetUuid());
+            if (player instanceof LivingEntity livingPlayer) {
+                if (target instanceof LivingEntity livingTarget
+                        && livingTarget.isAlive()
+                        && player.level() == target.level()
+                        && livingPlayer.distanceToSqr(livingTarget) <= 20.0D * 20.0D) {
+                    applyWardenSonicBoomImpact(livingPlayer, livingTarget);
+                } else {
+                    applyWardenSonicBoomMiss(livingPlayer);
+                }
+            }
+        }
+    }
+
     private static boolean isOwnedIllusionerClone(Entity entity, UUID ownerId) {
         if (entity == null || ownerId == null) {
             return false;
@@ -1772,23 +1836,37 @@ public final class PredefIdentityAbilities {
     }
 
 
-    private static void executeWardenSonicBoom(Entity player) {
+    /**
+     * Starts the warden sonic boom ability and delays damage until the impact frame.
+     *
+     * @param player the player using the warden morph
+     */
+    private static void triggerDelayedSonicBoom(Entity player) {
         if (!(player instanceof LivingEntity livingPlayer)) {
             return;
         }
+        EntityHitResult hit = findLivingTarget(player, 20.0D);
+        UUID targetUuid = hit != null && hit.getEntity() instanceof LivingEntity target ? target.getUUID() : null;
+        pendingSonicBooms.put(livingPlayer.getUUID(), new PendingSonicBoom(targetUuid, 34));
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 2.0F, 1.0F);
+    }
+
+    private static void applyWardenSonicBoomImpact(LivingEntity player, LivingEntity target) {
         Vec3 from = player.getEyePosition(1.0F);
-        Vec3 look = player.getViewVector(1.0F).normalize();
-        Vec3 to = from.add(look.scale(15.0D));
-        EntityHitResult hit = findLivingTarget(player, 15.0D);
-        if (hit != null && hit.getEntity() instanceof LivingEntity target) {
-            to = target.getEyePosition(1.0F);
-            target.hurt(resolveSonicBoomDamageSource(player, livingPlayer), 10.0F);
+        Vec3 to = target.getEyePosition(1.0F);
+        renderSonicBoom(player.level(), from, to);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 1.0F);
+        if (target.hurt(resolveSonicBoomDamageSource(player, player), 10.0F)) {
             Vec3 pushDirection = to.subtract(from).normalize();
             target.push(pushDirection.x * 2.5D, 0.5D, pushDirection.z * 2.5D);
         }
+    }
 
+    private static void applyWardenSonicBoomMiss(LivingEntity player) {
+        Vec3 from = player.getEyePosition(1.0F);
+        Vec3 to = from.add(player.getViewVector(1.0F).normalize().scale(20.0D));
         renderSonicBoom(player.level(), from, to);
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 1.0F);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 2.0F, 1.0F);
     }
 
     private static void executeBreezeWindProjectile(Entity player) {
@@ -2008,8 +2086,27 @@ public final class PredefIdentityAbilities {
 
         identity2$setSyncedTicks(player, ANIM_ATTACK_TICKS_KEY, 12);
         identity2$setSyncedTicks(player, ANIM_CHARGE_TICKS_KEY, 14);
+        identity2$triggerNativeRamAttackAnimation(player, 12);
         player.setDeltaMovement(player.getDeltaMovement().add(horizontal.scale(0.85D)).add(0.0D, 0.12D, 0.0D));
         world.playSound(null, player.getX(), player.getY(), player.getZ(), resolveRamAttackSound(player), SoundSource.HOSTILE, 1.0F, 0.85F);
+    }
+
+    private static void identity2$triggerNativeRamAttackAnimation(Entity player, int ticks) {
+        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+        if (identity instanceof Ravager ravager) {
+            ((RavagerAccessor) ravager).identity2$setAttackTick(ticks);
+            ravager.handleEntityEvent((byte) 4);
+            return;
+        }
+        if (identity instanceof Hoglin hoglin) {
+            ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(ticks);
+            hoglin.handleEntityEvent((byte) 4);
+            return;
+        }
+        if (identity instanceof Zoglin zoglin) {
+            ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(ticks);
+            zoglin.handleEntityEvent((byte) 4);
+        }
     }
 
     private static SoundEvent resolveRamAttackSound(Entity player) {
@@ -2208,12 +2305,8 @@ public final class PredefIdentityAbilities {
         try {
             Class<?> clazz = Class.forName(className);
             Set<Method> methods = new LinkedHashSet<>();
-            for (Method method : clazz.getDeclaredMethods()) {
-                methods.add(method);
-            }
-            for (Method method : clazz.getMethods()) {
-                methods.add(method);
-            }
+            Collections.addAll(methods, clazz.getDeclaredMethods());
+            Collections.addAll(methods, clazz.getMethods());
             for (Method method : methods) {
                 if (!Modifier.isStatic(method.getModifiers())) {
                     continue;
@@ -2362,10 +2455,10 @@ public final class PredefIdentityAbilities {
         if (leftValue != null && leftValue.equals(right)) {
             return true;
         }
-        if (rightValue != null && left.equals(rightValue)) {
+        if (left.equals(rightValue)) {
             return true;
         }
-        return leftValue != null && rightValue != null && leftValue.equals(rightValue);
+        return leftValue != null && leftValue.equals(rightValue);
     }
 
     private static Object unwrapHolderValue(Object value) {
@@ -2433,12 +2526,10 @@ public final class PredefIdentityAbilities {
                 .setProfession(profession)
                 .setLevel(1);
         villagerIdentity.setVillagerData(updatedVillagerData);
-
-        invokeIntArg(villagerIdentity, "setVillagerXp", 0);
-        invokeIntArg(villagerIdentity, "setExperience", 0);
-        clearVillagerOffers(villagerIdentity);
-        invokeVillagerUpdateTrades(villagerIdentity);
-        invokeNoArg(villagerIdentity, "restock");
+        villagerIdentity.setVillagerXp(0);
+        villagerIdentity.setOffers(new net.minecraft.world.item.trading.MerchantOffers());
+        ((VillagerAccessor) villagerIdentity).identity2$invokeUpdateTrades();
+        villagerIdentity.restock();
         return true;
     }
 
@@ -2451,27 +2542,18 @@ public final class PredefIdentityAbilities {
         CompoundTag variant = IdentityProgression.parseVariantNbt(
             net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY, "")
         );
-        Object villagerData = invokeNoArg(villagerIdentity, "getVillagerData");
-        if (villagerData == null) {
-            return;
-        }
-
-        Object profession = invokeNoArg(villagerData, "getProfession");
-        ResourceLocation professionId = resolveRegistryResourceLocation("VILLAGER_PROFESSION", profession);
+        VillagerData villagerData = villagerIdentity.getVillagerData();
+        ResourceLocation professionId = BuiltInRegistries.VILLAGER_PROFESSION.getKey(villagerData.getProfession());
         if (professionId != null) {
             variant.putString("VillagerProfession", professionId.toString());
         }
 
-        Object villagerType = invokeNoArg(villagerData, "getType");
-        ResourceLocation typeId = resolveRegistryResourceLocation("VILLAGER_TYPE", villagerType);
+        ResourceLocation typeId = BuiltInRegistries.VILLAGER_TYPE.getKey(villagerData.getType());
         if (typeId != null) {
             variant.putString("VillagerType", typeId.toString());
         }
 
-        Object level = invokeNoArg(villagerData, "getLevel");
-        if (level instanceof Number number) {
-            variant.putInt("VillagerLevel", Math.max(1, number.intValue()));
-        }
+        variant.putInt("VillagerLevel", Math.max(1, villagerData.getLevel()));
 
         IdentityProgression.updateCurrentVariantAndSync(player, variant);
     }
@@ -2741,10 +2823,7 @@ public final class PredefIdentityAbilities {
         if (paramType == double.class && arg instanceof Double) {
             return true;
         }
-        if (paramType == int.class && arg instanceof Integer) {
-            return true;
-        }
-        return false;
+        return paramType == int.class && arg instanceof Integer;
     }
 }
 

@@ -27,7 +27,6 @@ public class AbstractArrowMixin {
             return;
         }
         if (!(arrow instanceof Arrow tippedArrow)) {
-            return;
         }
     }
 }

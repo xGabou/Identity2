@@ -3,9 +3,8 @@ package net.Gabou.identity2;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
-import net.Gabou.identity2.auth.C2SChallengeReplyPacket;
-import net.Gabou.identity2.auth.S2CChallengePacket;
-import net.Gabou.identity2.auth.ServerAuth;
+import net.Gabou.gaboulibs.auth.C2SChallengeReplyPacket;
+import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
@@ -22,7 +21,6 @@ import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
-import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
@@ -236,12 +234,11 @@ public final class ModPackets {
             if (predefAbility == null) {
                 return;
             }
-            EntityAccessor accessor = (EntityAccessor) player;
             if (identity.getType() == EntityType.WARDEN) {
-                predefAbility.executeSecondary(player);
                 return;
             }
-            if (accessor.getSecondaryAbilityCooldown() > 0 && !WardenBurrowManager.isHidden(player)) {
+            EntityAccessor accessor = (EntityAccessor) player;
+            if (accessor.getSecondaryAbilityCooldown() > 0) {
                 return;
             }
             accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
@@ -314,7 +311,7 @@ public final class ModPackets {
     }
 
     private static void logResolvedPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId, ResourceLocation resolvedPredefId) {
-        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId + "->" + resolvedPredefId;
+        String key = identityTypeId + "->" + requestedPredefId + "->" + resolvedPredefId;
         if (loggedResolvedPredefDebug.add(key)) {
             Identity2.LOGGER.debug(
                 "Resolved builtin identity ability for {} using predef {} via {}.",
@@ -326,7 +323,7 @@ public final class ModPackets {
     }
 
     private static void logMissingPredef(ResourceLocation identityTypeId, ResourceLocation requestedPredefId) {
-        String key = String.valueOf(identityTypeId) + "->" + requestedPredefId;
+        String key = identityTypeId + "->" + requestedPredefId;
         if (loggedMissingPredefWarnings.add(key)) {
             Identity2.LOGGER.warn(
                 "No builtin identity ability is registered for predef {} while resolving {}. Falling back to the generic identity ability.",
