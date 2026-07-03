@@ -1,0 +1,32 @@
+{
+	"required": true,
+	"package": "net.Gabou.identity2.mixin.client",
+	"compatibilityLevel": "JAVA_21",
+	"minVersion": "0.8",
+	"refmap": "identity2-common-refmap.json",
+	"client": [
+		"ClientPlayerInteractionManagerMixin",
+		"ClientPlayNetworkHandlerMixin",
+		"ClientWorldMixin",
+		"CreativeModeInventoryScreenMixin",
+		"BeeModelMixin",
+		"EnderDragonEntityRendererMixin",
+		"EntityRenderDispatcherMixin",
+		"EntityRendererMixin",
+		"EntityTrackerEntryMixin",
+		"GameRendererMixin",
+		"HeldItemRendererMixin",
+		"InventoryScreenMixin",
+		"MinecraftClientMixin",
+		"PlayerEntityRendererMixin",
+		"PlayerNametagMixin",
+		"SnowGolemModelMixin",
+		"WorldRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

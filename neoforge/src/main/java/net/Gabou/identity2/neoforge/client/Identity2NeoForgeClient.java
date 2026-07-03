@@ -1,4 +1,4 @@
-package net.Gabou.identity2.forge.client;
+package net.Gabou.identity2.neoforge.client;
 
 import net.Gabou.identity2.client.Identity2ClientBootstrap;
 import net.Gabou.identity2.identity.IdentityTraitTags;
@@ -7,14 +7,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.common.NeoForge;
 
-public final class Identity2ForgeClient {
+public final class Identity2NeoForgeClient {
     private static boolean initialized = false;
 
-    private Identity2ForgeClient() {
+    private Identity2NeoForgeClient() {
     }
 
     public static void initialize() {
@@ -23,15 +23,15 @@ public final class Identity2ForgeClient {
         }
 
         initialized = true;
-        Identity2ClientBootstrap.initialize(new Identity2ForgeClientPlatform());
-        MinecraftForge.EVENT_BUS.addListener(Identity2ForgeClient::onRenderGuiOverlayPre);
+        Identity2ClientBootstrap.initialize(new Identity2NeoForgeClientPlatform());
+        NeoForge.EVENT_BUS.addListener(Identity2NeoForgeClient::onRenderGuiOverlayPre);
     }
 
-    private static void onRenderGuiOverlayPre(RenderGuiOverlayEvent.Pre event) {
-        if (event == null || event.getOverlay() == null) {
+    private static void onRenderGuiOverlayPre(RenderGuiLayerEvent.Pre event) {
+        if (event == null || event.getName() == null) {
             return;
         }
-        if (!VanillaGuiOverlay.AIR_LEVEL.id().equals(event.getOverlay().id())) {
+        if (!VanillaGuiLayers.AIR_LEVEL.equals(event.getName())) {
             return;
         }
 
@@ -59,4 +59,3 @@ public final class Identity2ForgeClient {
         return identity != null && Boolean.TRUE.equals(IdentityTraitTags.resolveCanBreatheUnderwater(identity.getType()));
     }
 }
-

@@ -29,7 +29,7 @@ dependencies {
     annotationProcessor "io.github.llamalad7:mixinextras-common:0.3.2"
 }
 architectury {
-    common("fabric", "forge","neoforge")
+    common("fabric", "neoforge")
 }
 
 configurations {
@@ -38,32 +38,4 @@ configurations {
 
 artifacts {
     dev(jar)
-}
-allprojects {
-    apply plugin: "java"
-    apply plugin: "architectury-plugin"
-    apply plugin: "maven-publish"
-
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
-    }
-
-    archivesBaseName = rootProject.archives_name
-    version = rootProject.mod_version + "-" + rootProject.minecraft_version
-    group = rootProject.maven_group
-
-    repositories {
-        maven { url = 'https://maven.architectury.dev' }
-    }
-
-    tasks.withType(JavaCompile) {
-        options.encoding = "UTF-8"
-        options.release = 17
-    }
-
-    java {
-        withSourcesJar()
-    }
 }

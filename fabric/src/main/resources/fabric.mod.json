@@ -23,13 +23,17 @@
     ]
   },
   "mixins": [
-    "identity2.mixins.json"
+    "identity2.mixins.json",
+    {
+      "config": "identity2.client.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.18.4",
-    "minecraft": "~1.20.1",
-    "java": ">=17",
-    "architectury": ">=9.2.14",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "architectury": ">=13.0.8",
     "gaboulibs": ">=1.4",
     "fabric-api": "*"
   },

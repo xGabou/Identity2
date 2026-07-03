@@ -78,7 +78,7 @@ if (modrinthToken) {
         versionNumber = "Fabric-${project.version}"
         versionName = "Identity ${mod_version}"
         changelog = rootProject.file("docs/public/IdentityChangeLog.md").text
-        gameVersions = ["1.20.1"]
+        gameVersions = ["1.21.1"]
         loaders = ["fabric"]
         versionType = "release"
         dependencies {
@@ -105,7 +105,7 @@ if (curseforgeToken) {
             id = "1238155"
             changelog = rootProject.file("docs/public/IdentityChangeLog.md")
             releaseType = "release" // options: alpha, beta, release
-            addGameVersion "1.20.1"
+            addGameVersion "1.21.1"
             addGameVersion "Fabric"
             mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
                 displayName = "Fabric-${version}"

@@ -1,6 +1,5 @@
 modLoader = "javafml"
 loaderVersion = "[2,)"
-#issueTrackerURL = ""
 license = "All Rights Reserved"
 
 [[mods]]
@@ -11,26 +10,25 @@ authors = "Gabou"
 description = '''
 
 '''
-#logoFile = ""
 
 [[dependencies.identity2]]
 modId = "neoforge"
 type = "required"
-versionRange = "[20,)"
+versionRange = "[21,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.20.1,)"
+versionRange = "[1.21.1,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "architectury"
 type = "required"
-versionRange = "[9.2.14,)"
+versionRange = "[13.0.8,)"
 ordering = "AFTER"
 side = "BOTH"
 
@@ -43,3 +41,6 @@ side = "BOTH"
 
 [[mixins]]
 config = "identity2.mixins.json"
+
+[[mixins]]
+config = "identity2.client.mixins.json"

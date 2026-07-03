@@ -11,4 +11,4 @@ rootProject.name = 'identity2'
 
 include 'common'
 include 'fabric'
-include 'forge'
+include 'neoforge'

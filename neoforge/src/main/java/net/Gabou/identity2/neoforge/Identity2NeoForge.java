@@ -1,9 +1,9 @@
-package net.Gabou.identity2.forge;
+package net.Gabou.identity2.neoforge;
 
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.ModRegistries;
-import net.Gabou.identity2.forge.client.Identity2NeoForgeClient;
-import net.Gabou.identity2.forge.platform.Identity2NeoForgeRegistryPlatform;
+import net.Gabou.identity2.neoforge.client.Identity2NeoForgeClient;
+import net.Gabou.identity2.neoforge.platform.Identity2NeoForgeRegistryPlatform;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
