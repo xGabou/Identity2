@@ -121,7 +121,7 @@ public class PlayerEntityRendererMixin {
             return fromDefaultSkin;
         }
 
-        return DefaultPlayerSkin.getDefaultSkin();
+        return DefaultPlayerSkin.getDefaultTexture();
     }
 
     private static void identity2$applyProfileTextureProperties(GameProfile profile, String textureValue, String textureSignature) {
@@ -228,7 +228,7 @@ public class PlayerEntityRendererMixin {
             return true;
         }
         try {
-            ResourceLocation defaultSkin = DefaultPlayerSkin.getDefaultSkin(uuid);
+            ResourceLocation defaultSkin = DefaultPlayerSkin.get(uuid).texture();
             return defaultSkin != null && defaultSkin.equals(candidate);
         } catch (Throwable ignored) {
             return false;

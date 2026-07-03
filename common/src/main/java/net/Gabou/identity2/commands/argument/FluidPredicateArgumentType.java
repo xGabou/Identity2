@@ -32,7 +32,7 @@ public class FluidPredicateArgumentType implements ArgumentType<FluidPredicateAr
 	private final HolderLookup<Block> registryWrapper;
 
 	public FluidPredicateArgumentType(CommandBuildContext commandRegistryAccess) {
-		this.registryWrapper = commandRegistryAccess.holderLookup(Registries.BLOCK);
+		this.registryWrapper = commandRegistryAccess.lookupOrThrow(Registries.BLOCK);
 	}
 
 	public static FluidPredicateArgumentType fluidPredicate(CommandBuildContext commandRegistryAccess) {

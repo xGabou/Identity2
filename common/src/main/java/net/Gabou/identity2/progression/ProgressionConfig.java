@@ -57,9 +57,9 @@ public final class ProgressionConfig {
         Map<String, String> configured = parseTierStringEntries(IdentitySettings.soulJarTierItems);
         String value = configured.getOrDefault(normalizedTier, DEFAULT_JAR_ITEMS.getOrDefault(normalizedTier, "minecraft:clay_ball"));
         try {
-            return new ResourceLocation(value);
+            return ResourceLocation.parse(value);
         } catch (Exception ignored) {
-            return new ResourceLocation("minecraft", "clay_ball");
+            return ResourceLocation.fromNamespaceAndPath("minecraft", "clay_ball");
         }
     }
 

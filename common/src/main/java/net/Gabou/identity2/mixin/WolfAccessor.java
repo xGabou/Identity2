@@ -3,6 +3,7 @@ package net.Gabou.identity2.mixin;
 import net.minecraft.world.entity.animal.Wolf;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(Wolf.class)
 public interface WolfAccessor {
@@ -18,4 +19,7 @@ public interface WolfAccessor {
 
     @Accessor("shakeAnimO")
     void identity2$setShakeAnimO(float value);
+
+    @Invoker("setCollarColor")
+    void identity2$setCollarColor(net.minecraft.world.item.DyeColor color);
 }

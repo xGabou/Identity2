@@ -12,6 +12,7 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 
 public final class SoulJarManager {
     private static final String SOUL_JARS_KEY = "identity2.progression.soul_jars";
@@ -483,11 +485,12 @@ public final class SoulJarManager {
             return null;
         }
 
-        if (!stack.hasTag()) {
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        if (customData == null || customData.isEmpty()) {
             return null;
         }
 
-        CompoundTag root = stack.getTag();
+        CompoundTag root = customData.copyTag();
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(root, ITEM_SOUL_JAR_KEY);
         if (jarTag == null || jarTag.isEmpty()) {
             return null;
@@ -514,8 +517,9 @@ public final class SoulJarManager {
         ItemStack targetStack = current;
         if (!current.is(targetItem)) {
             targetStack = new ItemStack(targetItem, Math.max(1, current.getCount()));
-            if (current.hasTag()) {
-                targetStack.setTag(current.getTag().copy());
+            CustomData currentData = current.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+            if (currentData != null && !currentData.isEmpty()) {
+                targetStack.set(DataComponents.CUSTOM_DATA, CustomData.of(currentData.copyTag()));
             }
             inventory.setItem(slot, targetStack);
         }
@@ -529,7 +533,8 @@ public final class SoulJarManager {
             return;
         }
 
-        CompoundTag root = stack.hasTag() ? stack.getTag().copy() : new CompoundTag();
+        CustomData currentData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        CompoundTag root = currentData == null ? new CompoundTag() : currentData.copyTag();
 
         CompoundTag jarTag = net.Gabou.identity2.util.NbtCompat.getCompoundOr(root, ITEM_SOUL_JAR_KEY, new CompoundTag());
         jarTag.putString("jar_id", normalizeJarId(jarData.jarId()));
@@ -537,7 +542,7 @@ public final class SoulJarManager {
         net.Gabou.identity2.util.NbtCompat.store(jarTag, "morphs", StoredMorphData.CODEC.listOf(), jarData.morphs() == null ? List.of() : jarData.morphs());
 
         root.put(ITEM_SOUL_JAR_KEY, jarTag);
-        stack.setTag(root);
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
     }
 
     private static Item resolveJarItem(String tier) {

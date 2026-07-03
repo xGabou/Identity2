@@ -1,6 +1,6 @@
 package net.Gabou.identity2.fabric.client;
 
-import net.Gabou.gaboulibs.client.platform.ModClientPlatform;
+import net.Gabou.identity2.client.platform.ModClientPlatform;
 
 public final class Identity2FabricClientPlatform implements ModClientPlatform {
     @Override

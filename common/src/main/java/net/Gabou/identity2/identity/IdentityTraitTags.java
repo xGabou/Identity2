@@ -13,37 +13,37 @@ import org.jetbrains.annotations.Nullable;
 public final class IdentityTraitTags {
     public static final TagKey<EntityType<?>> CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("identity2", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_CAN_FLY = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("minecraft", "can_fly")
+        ResourceLocation.fromNamespaceAndPath("minecraft", "can_fly")
     );
 
     public static final TagKey<EntityType<?>> CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("identity2", "can_breathe_underwater")
+        ResourceLocation.fromNamespaceAndPath("identity2", "can_breathe_underwater")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_CAN_BREATHE_UNDERWATER = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("minecraft", "can_breathe_under_water")
+        ResourceLocation.fromNamespaceAndPath("minecraft", "can_breathe_under_water")
     );
 
     public static final TagKey<EntityType<?>> BURNS_IN_DAYLIGHT = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("identity2", "burns_in_daylight")
+        ResourceLocation.fromNamespaceAndPath("identity2", "burns_in_daylight")
     );
 
     public static final TagKey<EntityType<?>> VANILLA_BURNS_IN_DAYLIGHT = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("minecraft", "burn_in_daylight")
+        ResourceLocation.fromNamespaceAndPath("minecraft", "burn_in_daylight")
     );
 
     public static final TagKey<EntityType<?>> SLOW_FALLING = TagKey.create(
         Registries.ENTITY_TYPE,
-        new ResourceLocation("identity2", "slow_falling")
+        ResourceLocation.fromNamespaceAndPath("identity2", "slow_falling")
     );
 
     private IdentityTraitTags() {
@@ -219,9 +219,9 @@ public final class IdentityTraitTags {
         }
         try {
             if (value.contains(":")) {
-                return new ResourceLocation(value);
+                return ResourceLocation.parse(value);
             }
-            return new ResourceLocation("minecraft", value);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", value);
         } catch (Exception ignored) {
             return null;
         }

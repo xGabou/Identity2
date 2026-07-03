@@ -112,7 +112,7 @@ public final class MorphTransitionHelper {
     private static Entity buildIdentity(Entity host, String typeId, String variantRaw) {
         ResourceLocation identifier;
         try {
-            identifier = new ResourceLocation(typeId);
+            identifier = ResourceLocation.parse(typeId);
         } catch (Exception ignored) {
             return null;
         }

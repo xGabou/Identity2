@@ -718,7 +718,7 @@ public final class IdentityCommand {
 
     private static boolean isMorphableIdentityString(String value) {
         try {
-            return IdentityProgression.isMorphableIdentity(new ResourceLocation(value));
+            return IdentityProgression.isMorphableIdentity(ResourceLocation.parse(value));
         } catch (Exception ignored) {
             return false;
         }
@@ -726,7 +726,7 @@ public final class IdentityCommand {
 
     private static Optional<ResourceLocation> parseResourceLocation(String value) {
         try {
-            return Optional.of(new ResourceLocation(value));
+            return Optional.of(ResourceLocation.parse(value));
         } catch (Exception ignored) {
             return Optional.empty();
         }
@@ -1132,12 +1132,12 @@ public final class IdentityCommand {
             return true;
         }
 
-        ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
+        ResourceLocation minecraftAlias = ResourceLocation.fromNamespaceAndPath("minecraft", prebuilt.getPath());
         if (PredefIdentityAbilities.predef.containsKey(minecraftAlias)) {
             return true;
         }
 
-        return PredefIdentityAbilities.predef.containsKey(new ResourceLocation("identity2", prebuilt.getPath()));
+        return PredefIdentityAbilities.predef.containsKey(ResourceLocation.fromNamespaceAndPath("identity2", prebuilt.getPath()));
     }
 
     private static boolean isNullResourceLocation(ResourceLocation id) {

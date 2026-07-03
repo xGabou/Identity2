@@ -36,6 +36,7 @@ import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -1019,7 +1020,7 @@ public final class Identity2Client {
         list.add(packet);
     }
 
-    private static void renderIdentityCooldown(GuiGraphics matrices, float delta) {
+    private static void renderIdentityCooldown(GuiGraphics matrices, DeltaTracker deltaTracker) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null) {
@@ -1080,7 +1081,7 @@ public final class Identity2Client {
 
         matrices.pose().popPose();
 
-        lastCooldown = Math.round(Mth.lerpInt(delta, cd - 1, cd));
+        lastCooldown = Math.round(Mth.lerpInt(deltaTracker.getGameTimeDeltaTicks(), cd - 1, cd));
     }
 
     private static Field getFieldFromClassHeirarchy(Class<?> clazz, String fieldName) throws NoSuchFieldException {

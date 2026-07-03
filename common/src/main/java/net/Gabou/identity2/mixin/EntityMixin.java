@@ -97,11 +97,11 @@ public class EntityMixin implements EntityAccessor {
 
     @Unique
     private static final Set<ResourceLocation> identity2$ravagerRiderIds = Set.of(
-            new ResourceLocation("minecraft", "pillager"),
-            new ResourceLocation("minecraft", "vindicator"),
-            new ResourceLocation("minecraft", "evoker"),
-            new ResourceLocation("minecraft", "illusioner"),
-            new ResourceLocation("minecraft", "witch")
+            ResourceLocation.fromNamespaceAndPath("minecraft", "pillager"),
+            ResourceLocation.fromNamespaceAndPath("minecraft", "vindicator"),
+            ResourceLocation.fromNamespaceAndPath("minecraft", "evoker"),
+            ResourceLocation.fromNamespaceAndPath("minecraft", "illusioner"),
+            ResourceLocation.fromNamespaceAndPath("minecraft", "witch")
     );
 
     @Nullable
@@ -645,8 +645,8 @@ public class EntityMixin implements EntityAccessor {
                 && player.level().isDay()
                 && !player.isInWaterRainOrBubble()
                 && player.level().canSeeSky(BlockPos.containing(player.getX(), player.getEyeY(), player.getZ()))) {
-            activeIdentity.setSecondsOnFire(8);
-            player.setSecondsOnFire(8);
+            activeIdentity.igniteForSeconds(8.0F);
+            player.igniteForSeconds(8.0F);
         }
         identity2$syncFireStateFromIdentity(player, activeIdentity);
 
@@ -847,7 +847,7 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         if (self.level().isDay() && self.level().canSeeSky(BlockPos.containing(self.getX(), self.getEyeY(), self.getZ()))) {
-            self.setSecondsOnFire(8);
+            self.igniteForSeconds(8.0F);
         }
     }
 
@@ -1079,8 +1079,8 @@ public class EntityMixin implements EntityAccessor {
     @Inject(method = "getDimensions", at = @At("RETURN"), cancellable = true)
     private void getDimensionsModification(CallbackInfoReturnable info) {
         EntityDimensions dimensions = (EntityDimensions) info.getReturnValue();
-        float oldWidth = dimensions.width;
-        float oldHeight = dimensions.height;
+        float oldWidth = dimensions.width();
+        float oldHeight = dimensions.height();
         float widthOverride = oldWidth;
         float heightOverride = oldHeight;
 
@@ -1244,7 +1244,7 @@ public class EntityMixin implements EntityAccessor {
         }
         ResourceLocation identityId;
         try {
-            identityId = new ResourceLocation(id);
+            identityId = ResourceLocation.parse(id);
         } catch (Exception e) {
             this.deactivateIdentityAfterFailure(null, "invalid id");
             return;
@@ -1444,9 +1444,9 @@ public class EntityMixin implements EntityAccessor {
         }
         try {
             if (raw.contains(":")) {
-                return new ResourceLocation(raw);
+                return ResourceLocation.parse(raw);
             }
-            return new ResourceLocation("minecraft", raw);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
         } catch (Exception ignored) {
             return null;
         }
@@ -1963,7 +1963,7 @@ public class EntityMixin implements EntityAccessor {
             CallbackInfo info
     ) {
         if (this.currentIdentity != null) {
-            this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps, interpolate);
+            this.currentIdentity.lerpTo(x, y, z, yRot, xRot, interpolationSteps);
         }
     }
 
@@ -2244,7 +2244,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     @Inject(method = "getMyRidingOffset()D", at = @At("HEAD"), cancellable = true)
     private void identity2$getMorphRidingOffset(CallbackInfoReturnable<Double> info) {
         if ((Object) this instanceof Player && this.currentIdentity != null) {
-            info.setReturnValue(this.currentIdentity.getMyRidingOffset() + 0.35D);
+            info.setReturnValue(0.35D);
         }
     }
 

@@ -186,7 +186,7 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double scrollAmount) {
         if (scrollAmount > 0 && this.scrollOffset > 0) {
             this.scrollOffset--;
             refreshEntries(false);
@@ -197,7 +197,7 @@ public final class IdentitySelectionScreen extends Screen {
             refreshEntries(false);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollAmount);
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, scrollAmount);
     }
 
     @Override

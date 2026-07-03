@@ -305,7 +305,7 @@ public final class IdentityRenderStateHelper {
                 for (int z = -3; z <= 3; z++) {
                     net.minecraft.core.BlockPos candidate = origin.offset(x, y, z);
                     if (source.level().getBlockEntity(candidate) instanceof JukeboxBlockEntity jukebox
-                            && jukebox.isRecordPlaying()) {
+                            && jukebox.getSongPlayer().isPlaying()) {
                         playingJukebox = candidate;
                         break outer;
                     }

@@ -87,9 +87,12 @@ final class IdentityMenuRenderHelper {
         float syntheticMouseY = centerY - angleY * 40.0F;
         InventoryScreen.renderEntityInInventoryFollowsMouse(
             context,
-            (renderLeft + renderRight) / 2,
+            renderLeft,
+            renderTop,
+            renderRight,
             renderBottom,
             scale,
+            0.0F,
             syntheticMouseX,
             syntheticMouseY,
             entity

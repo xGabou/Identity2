@@ -4,6 +4,7 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.mixin.GoatAccessor;
 import net.Gabou.identity2.mixin.HorseAccessor;
+import net.Gabou.identity2.mixin.WolfAccessor;
 import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Registry;
@@ -17,13 +18,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Cat;
-import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.axolotl.Axolotl.Variant;
 import net.minecraft.world.entity.animal.frog.Frog;
-import net.minecraft.world.entity.animal.FrogVariant;
 import net.minecraft.world.entity.animal.goat.Goat;
 import net.minecraft.world.entity.animal.horse.Horse;
 import net.minecraft.world.entity.animal.horse.Markings;
@@ -121,7 +120,7 @@ public final class IdentityVanillaVariantHelper {
         }
 
         if (entity instanceof Cat cat) {
-            putRegistryKey(variant, "CatVariant", BuiltInRegistries.CAT_VARIANT.getKey(cat.getVariant()));
+            putRegistryKey(variant, "CatVariant", BuiltInRegistries.CAT_VARIANT.getKey(cat.getVariant().value()));
         }
 
         if (entity instanceof Wolf wolf) {
@@ -131,7 +130,7 @@ public final class IdentityVanillaVariantHelper {
         }
 
         if (entity instanceof Frog frog) {
-            putRegistryKey(variant, "FrogVariant", BuiltInRegistries.FROG_VARIANT.getKey(frog.getVariant()));
+            putRegistryKey(variant, "FrogVariant", BuiltInRegistries.FROG_VARIANT.getKey(frog.getVariant().value()));
         }
 
         if (entity instanceof Axolotl axolotl) {
@@ -183,7 +182,7 @@ public final class IdentityVanillaVariantHelper {
             if (variantNbt.contains("CollarColor", Tag.TAG_ANY_NUMERIC)) {
                 DyeColor color = DyeColor.byId(variantNbt.getInt("CollarColor"));
                 if (color != null) {
-                    wolf.setCollarColor(color);
+                    ((WolfAccessor) wolf).identity2$setCollarColor(color);
                 }
             }
         }
@@ -434,10 +433,7 @@ public final class IdentityVanillaVariantHelper {
         if (variantId == null) {
             return;
         }
-        CatVariant variant = BuiltInRegistries.CAT_VARIANT.get(variantId);
-        if (variant != null) {
-            cat.setVariant(variant);
-        }
+        BuiltInRegistries.CAT_VARIANT.getHolder(variantId).ifPresent(cat::setVariant);
     }
 
     private static void applyFrogVariant(Frog frog, CompoundTag variantNbt) {
@@ -446,10 +442,7 @@ public final class IdentityVanillaVariantHelper {
         if (variantId == null) {
             return;
         }
-        FrogVariant variant = BuiltInRegistries.FROG_VARIANT.get(variantId);
-        if (variant != null) {
-            frog.setVariant(variant);
-        }
+        BuiltInRegistries.FROG_VARIANT.getHolder(variantId).ifPresent(frog::setVariant);
     }
 
     private static boolean isSupportedVanillaVariantType(EntityType<?> type) {
@@ -790,9 +783,9 @@ public final class IdentityVanillaVariantHelper {
         }
         try {
             if (raw.contains(":")) {
-                return new ResourceLocation(raw);
+                return ResourceLocation.parse(raw);
             }
-            return new ResourceLocation("minecraft", raw);
+            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
         } catch (Exception ignored) {
             return null;
         }

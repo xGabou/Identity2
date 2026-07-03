@@ -1,18 +1,16 @@
 package net.Gabou.identity2.items;
 
 import java.util.List;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.network.Filterable;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.WrittenBookContent;
 import net.minecraft.world.level.Level;
 
 public final class IdentityBookItem extends Item {
@@ -23,27 +21,17 @@ public final class IdentityBookItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
-        if (!held.is(Items.WRITTEN_BOOK)) {
-            held = new ItemStack(Items.WRITTEN_BOOK);
-            player.setItemInHand(hand, held);
-        }
-        applyGuideBookNbt(held);
+        held.set(DataComponents.WRITTEN_BOOK_CONTENT, createGuideBookContent());
         player.openItemGui(held, hand);
         player.awardStat(Stats.ITEM_USED.get(this));
         return InteractionResultHolder.consume(held);
     }
 
-    private static void applyGuideBookNbt(ItemStack stack) {
-        CompoundTag tag = stack.getOrCreateTag();
-        tag.putString("title", "Identity 2 Guide");
-        tag.putString("author", "Identity2");
-        tag.putBoolean("resolved", true);
-
-        ListTag pages = new ListTag();
-        for (String page : createPages()) {
-            pages.add(StringTag.valueOf(Component.Serializer.toJson(Component.literal(page))));
-        }
-        tag.put("pages", pages);
+    private static WrittenBookContent createGuideBookContent() {
+        List<Filterable<Component>> pages = createPages().stream()
+            .map(text -> Filterable.passThrough((Component) Component.literal(text)))
+            .toList();
+        return new WrittenBookContent(Filterable.passThrough("Identity 2 Guide"), "Identity2", 0, pages, true);
     }
 
     private static List<String> createPages() {

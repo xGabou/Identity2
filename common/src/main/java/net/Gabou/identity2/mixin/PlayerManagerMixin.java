@@ -13,7 +13,8 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.util.*;
-import net.minecraft.commands.CommandFunction;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -53,9 +54,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
-            for (CommandFunction function : accessor.getCommandFunctionManager()
-                .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave"))) {
+        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
+            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()
@@ -114,9 +115,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
 
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
-        if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join")) != null) {
-            for (CommandFunction function : accessor.getCommandFunctionManager()
-                .getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_join"))) {
+        if (accessor.getCommandFunctionManager().getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join")) != null) {
+            for (CommandFunction<CommandSourceStack> function : accessor.getCommandFunctionManager()
+                .getTag(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_join"))) {
                 accessor.getCommandFunctionManager().execute(
                     function,
                     player.level().getServer().createCommandSourceStack().withEntity(player).withPosition(player.position()).withSuppressedOutput()

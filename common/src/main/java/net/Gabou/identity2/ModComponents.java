@@ -1,6 +1,9 @@
 package net.Gabou.identity2;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 public final class ModComponents {
     public static final String USE_COMMAND_COMPONENT = "identity2_use_command";
@@ -18,6 +21,14 @@ public final class ModComponents {
     }
 
     public static boolean hasSoulbound(ItemStack stack) {
-        return stack != null && !stack.isEmpty() && stack.hasTag() && stack.getTag().getBoolean(SOULBOUND);
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        if (customData == null || customData.isEmpty()) {
+            return false;
+        }
+        CompoundTag tag = customData.copyTag();
+        return tag.getBoolean(SOULBOUND);
     }
 }

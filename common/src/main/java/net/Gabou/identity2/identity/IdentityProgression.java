@@ -299,8 +299,8 @@ public final class IdentityProgression {
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = customData;
         net.minecraft.world.entity.EntityDimensions previousDimensions = player.getDimensions(player.getPose());
-        double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width);
-        double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height);
+        double previousWidth = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "width_override", previousDimensions.width());
+        double previousHeight = net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, "height_override", previousDimensions.height());
         Entity previousIdentity = ((EntityAccessor) player).getCurrentIdentity();
         ResourceLocation previousIdentityId = previousIdentity == null ? null : EntityType.getKey(previousIdentity.getType());
         if (previousIdentityId != null && previousIdentityId.equals(EntityType.getKey(EntityType.ILLUSIONER)) && !identityId.equals(previousIdentityId)) {
@@ -310,10 +310,10 @@ public final class IdentityProgression {
         if (previousIdentity != null) {
             net.minecraft.world.entity.EntityDimensions previousIdentityDimensions = previousIdentity.getDimensions(previousIdentity.getPose());
             if (previousWidth <= 0.0D) {
-                previousWidth = previousIdentityDimensions.width;
+                previousWidth = previousIdentityDimensions.width();
             }
             if (previousHeight <= 0.0D) {
-                previousHeight = previousIdentityDimensions.height;
+                previousHeight = previousIdentityDimensions.height();
             }
         }
         String previousType = resolveTransitionSourceType(nbt);
@@ -342,7 +342,7 @@ public final class IdentityProgression {
             ((EntityAccessor) player).setStandingEyeHeight(player.getEyeHeight());
             ensureSafePostResizePosition(player);
             net.minecraft.world.entity.EntityDimensions nextDimensions = player.getDimensions(player.getPose());
-            updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width, nextDimensions.height);
+            updateMorphDamageGrace(player, nbt, previousWidth, previousHeight, nextDimensions.width(), nextDimensions.height());
             applyMorphAttributes(player, null);
             applyHealthScaling(player, null);
             syncMorphData(player, value, serializedVariant, 0.0, 0.0, previousType, previousVariant, transitionStart, transitionDuration);
@@ -366,15 +366,15 @@ public final class IdentityProgression {
         }
 
         net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
-        widthOverride = identityDimensions.width;
-        heightOverride = identityDimensions.height;
+        widthOverride = identityDimensions.width();
+        heightOverride = identityDimensions.height();
 
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
-        float widthScale = identityDimensions.width > 0.0F ? (float)(widthOverride / identityDimensions.width) : 1.0F;
-        float heightScale = identityDimensions.height > 0.0F ? (float)(heightOverride / identityDimensions.height) : 1.0F;
+        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
         ensureSafePostResizePosition(player);
@@ -482,15 +482,15 @@ public final class IdentityProgression {
         resetRestoredIdentityAnimationState(player, identity);
 
         net.minecraft.world.entity.EntityDimensions identityDimensions = identity.getDimensions(identity.getPose());
-        double widthOverride = identityDimensions.width;
-        double heightOverride = identityDimensions.height;
+        double widthOverride = identityDimensions.width();
+        double heightOverride = identityDimensions.height();
 
         if (identity.getType() == EntityType.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
-        float widthScale = identityDimensions.width > 0.0F ? (float)(widthOverride / identityDimensions.width) : 1.0F;
-        float heightScale = identityDimensions.height > 0.0F ? (float)(heightOverride / identityDimensions.height) : 1.0F;
+        float widthScale = identityDimensions.width() > 0.0F ? (float)(widthOverride / identityDimensions.width()) : 1.0F;
+        float heightScale = identityDimensions.height() > 0.0F ? (float)(heightOverride / identityDimensions.height()) : 1.0F;
         ((EntityAccessor) player).setEntityDimensions(identityDimensions.scale(widthScale, heightScale));
         ((EntityAccessor) player).setStandingEyeHeight(identity.getEyeHeight());
         ensureSafePostResizePosition(player);
@@ -1463,7 +1463,7 @@ public final class IdentityProgression {
                 continue;
             }
 
-            Attribute attribute = sourceInstance.getAttribute();
+            Holder<Attribute> attribute = sourceInstance.getAttribute();
             if (attribute == null || identity2$shouldSkipPlayerMorphAttribute(attribute)) {
                 continue;
             }
@@ -1474,7 +1474,7 @@ public final class IdentityProgression {
             }
 
             String attributeKey = resolveAttributeKey(attribute);
-            UUID modifierId = morphAttributeModifierUuid(attributeKey);
+            ResourceLocation modifierId = morphAttributeBaseModifierId(attributeKey);
             targetInstance.removeModifier(modifierId);
 
             double delta = sourceInstance.getBaseValue() - targetInstance.getBaseValue();
@@ -1482,12 +1482,11 @@ public final class IdentityProgression {
                 continue;
             }
 
-            targetInstance.addTransientModifier(
+            targetInstance.addOrUpdateTransientModifier(
                 new AttributeModifier(
                     modifierId,
-                    MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX + attributeKey,
                     delta,
-                    AttributeModifier.Operation.ADDITION
+                    AttributeModifier.Operation.ADD_VALUE
                 )
             );
 
@@ -1496,14 +1495,17 @@ public final class IdentityProgression {
                     continue;
                 }
 
-                UUID copiedModifierId = morphAttributeModifierUuid(attributeKey, sourceModifier);
+                ResourceLocation copiedModifierId = morphAttributeModifierId(attributeKey, sourceModifier);
                 targetInstance.removeModifier(copiedModifierId);
-                targetInstance.addTransientModifier(
+                AttributeModifier.Operation operation = identity2$getModifierOperation(sourceModifier);
+                if (operation == null) {
+                    continue;
+                }
+                targetInstance.addOrUpdateTransientModifier(
                     new AttributeModifier(
                         copiedModifierId,
-                        MORPH_ATTRIBUTE_MODIFIER_PREFIX + attributeKey + "." + sourceModifier.getName(),
-                        sourceModifier.getAmount(),
-                        sourceModifier.getOperation()
+                        identity2$getModifierAmount(sourceModifier),
+                        operation
                     )
                 );
             }
@@ -1514,7 +1516,7 @@ public final class IdentityProgression {
     private static AttributeInstance identity2$ensureMorphAttributeInstance(
         @Nullable AttributeMap targetAttributes,
         @Nullable AttributeMap sourceAttributes,
-        @Nullable Attribute attribute
+        @Nullable Holder<Attribute> attribute
     ) {
         if (targetAttributes == null || attribute == null) {
             return null;
@@ -1556,20 +1558,21 @@ public final class IdentityProgression {
                 continue;
             }
 
-            Attribute attribute = instance.getAttribute();
+            Holder<Attribute> attribute = instance.getAttribute();
             if (attribute == null || (identity2$shouldSkipPlayerMorphAttribute(attribute) && !attribute.equals(Attributes.ATTACK_DAMAGE))) {
                 continue;
             }
 
-            instance.removeModifier(morphAttributeModifierUuid(resolveAttributeKey(attribute)));
-            List<AttributeModifier> morphModifiers = new ArrayList<>();
+            instance.removeModifier(morphAttributeBaseModifierId(resolveAttributeKey(attribute)));
+            List<ResourceLocation> morphModifierIds = new ArrayList<>();
             for (AttributeModifier modifier : instance.getModifiers()) {
-                if (modifier != null && modifier.getName() != null && modifier.getName().startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX)) {
-                    morphModifiers.add(modifier);
+                ResourceLocation modifierId = identity2$getModifierId(modifier);
+                if (identity2$isMorphAttributeModifier(modifierId)) {
+                    morphModifierIds.add(modifierId);
                 }
             }
-            for (AttributeModifier modifier : morphModifiers) {
-                instance.removeModifier(modifier.getId());
+            for (ResourceLocation modifierId : morphModifierIds) {
+                instance.removeModifier(modifierId);
             }
         }
     }
@@ -1606,7 +1609,7 @@ public final class IdentityProgression {
     }
 
     @Nullable
-    private static AttributeInstance identity2$findAttributeTemplate(@Nullable AttributeMap attributes, @Nullable Attribute attribute) {
+    private static AttributeInstance identity2$findAttributeTemplate(@Nullable AttributeMap attributes, @Nullable Holder<Attribute> attribute) {
         if (attributes == null || attribute == null) {
             return null;
         }
@@ -1626,7 +1629,7 @@ public final class IdentityProgression {
     @Nullable
     private static Object identity2$resolveTemplateKey(
         @Nullable AttributeMap attributes,
-        @Nullable Attribute attribute,
+        @Nullable Holder<Attribute> attribute,
         @Nullable AttributeInstance expectedInstance
     ) {
         if (attributes == null || attribute == null) {
@@ -1682,12 +1685,12 @@ public final class IdentityProgression {
         }
     }
 
-    private static String resolveAttributeKey(Attribute attribute) {
+    private static String resolveAttributeKey(Holder<Attribute> attribute) {
         if (attribute == null) {
             return "unknown";
         }
         try {
-            ResourceLocation attributeId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+            ResourceLocation attributeId = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value());
             if (attributeId != null) {
                 return attributeId.toString();
             }
@@ -1696,18 +1699,32 @@ public final class IdentityProgression {
         return attribute.toString();
     }
 
-    private static UUID morphAttributeModifierUuid(String attributeKey) {
-        String safeKey = attributeKey == null ? "unknown" : attributeKey;
-        return UUID.nameUUIDFromBytes((MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX + safeKey).getBytes(StandardCharsets.UTF_8));
+    private static ResourceLocation morphAttributeBaseModifierId(String attributeKey) {
+        return identity2$morphModifierId(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX, attributeKey);
     }
 
-    private static UUID morphAttributeModifierUuid(String attributeKey, AttributeModifier modifier) {
-        String safeKey = attributeKey == null ? "unknown" : attributeKey;
-        String modifierKey = modifier == null ? "unknown" : modifier.getId() + ":" + modifier.getName() + ":" + modifier.getOperation().name();
-        return UUID.nameUUIDFromBytes((MORPH_ATTRIBUTE_MODIFIER_PREFIX + safeKey + ":" + modifierKey).getBytes(StandardCharsets.UTF_8));
+    private static ResourceLocation morphAttributeModifierId(String attributeKey, AttributeModifier modifier) {
+        String token = String.valueOf(identity2$getModifierId(modifier));
+        if ("null".equals(token)) {
+            token = identity2$getModifierAmount(modifier) + "|" + String.valueOf(identity2$getModifierOperation(modifier));
+        }
+        return identity2$morphModifierId(MORPH_ATTRIBUTE_MODIFIER_PREFIX, attributeKey + "|" + token);
     }
 
-    private static boolean identity2$shouldSkipPlayerMorphAttribute(Attribute attribute) {
+    private static ResourceLocation identity2$morphModifierId(String prefix, String token) {
+        String hash = UUID.nameUUIDFromBytes((prefix + token).getBytes(StandardCharsets.UTF_8)).toString().replace('-', '_');
+        return ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prefix + hash);
+    }
+
+    private static boolean identity2$isMorphAttributeModifier(@Nullable ResourceLocation modifierId) {
+        if (modifierId == null || !Identity2.MOD_ID.equals(modifierId.getNamespace())) {
+            return false;
+        }
+        String path = modifierId.getPath();
+        return path.startsWith(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX) || path.startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX);
+    }
+
+    private static boolean identity2$shouldSkipPlayerMorphAttribute(Holder<Attribute> attribute) {
         if (attribute == null) {
             return true;
         }
@@ -1715,6 +1732,32 @@ public final class IdentityProgression {
                 || attribute.equals(Attributes.ATTACK_DAMAGE)
                 || attribute.equals(Attributes.FLYING_SPEED)
                 || attribute.equals(Attributes.MOVEMENT_SPEED);
+    }
+
+    @Nullable
+    private static ResourceLocation identity2$getModifierId(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "id");
+        if (!(value instanceof ResourceLocation)) {
+            value = invokeNoArg(modifier, "getId");
+        }
+        return value instanceof ResourceLocation id ? id : null;
+    }
+
+    private static double identity2$getModifierAmount(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "amount");
+        if (!(value instanceof Number)) {
+            value = invokeNoArg(modifier, "getAmount");
+        }
+        return value instanceof Number number ? number.doubleValue() : 0.0D;
+    }
+
+    @Nullable
+    private static AttributeModifier.Operation identity2$getModifierOperation(@Nullable AttributeModifier modifier) {
+        Object value = invokeNoArg(modifier, "operation");
+        if (!(value instanceof AttributeModifier.Operation)) {
+            value = invokeNoArg(modifier, "getOperation");
+        }
+        return value instanceof AttributeModifier.Operation operation ? operation : null;
     }
 
     private static void applyHealthScaling(ServerPlayer player, @Nullable Entity identity) {
@@ -1726,7 +1769,7 @@ public final class IdentityProgression {
         float oldHealth = player.getHealth();
         float healthRatio = oldMaxHealth > 0.0F ? (oldHealth / oldMaxHealth) : 1.0F;
 
-        maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_UUID);
+        maxHealthAttr.removeModifier(HEALTH_SCALING_MODIFIER_ID);
 
         if (!IdentitySettings.scalingHealth) {
             float newMaxHealth = player.getMaxHealth();
@@ -1745,8 +1788,8 @@ public final class IdentityProgression {
             desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
             double delta = desired - base;
             if (Math.abs(delta) > 1.0E-4D) {
-                maxHealthAttr.addTransientModifier(
-                    new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADDITION)
+                maxHealthAttr.addOrUpdateTransientModifier(
+                    new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
                 );
             }
         }
@@ -2149,16 +2192,16 @@ public final class IdentityProgression {
             }
         }
         if (entity instanceof Cat cat) {
-            CatVariant catVariant = cat.getVariant();
-            ResourceLocation catVariantId = BuiltInRegistries.CAT_VARIANT.getKey(catVariant);
+            Holder<CatVariant> catVariant = cat.getVariant();
+            ResourceLocation catVariantId = BuiltInRegistries.CAT_VARIANT.getKey(catVariant.value());
             if (catVariantId != null) {
                 variant.putString("CatVariant", catVariantId.toString());
             }
         }
 
         if (entity instanceof Frog frog) {
-            FrogVariant frogVariant = frog.getVariant();
-            ResourceLocation frogVariantId = BuiltInRegistries.FROG_VARIANT.getKey(frogVariant);
+            Holder<FrogVariant> frogVariant = frog.getVariant();
+            ResourceLocation frogVariantId = BuiltInRegistries.FROG_VARIANT.getKey(frogVariant.value());
             if (frogVariantId != null) {
                 variant.putString("FrogVariant", frogVariantId.toString());
             }
