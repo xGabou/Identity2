@@ -41,8 +41,8 @@ import java.util.EnumMap;
 import net.minecraft.world.level.GameRules;
 @Mixin(LivingEntity.class)
 public class EntityEquipmentMixin{
-    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
-    private void identity2$noProxyDeathLoot(DamageSource source, CallbackInfo ci) {
+    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$noProxyDeathLoot(ServerLevel level, DamageSource source, CallbackInfo ci) {
         if (((EntityAccessor) this).getIdentityOwner() != null) {
             ci.cancel();
         }

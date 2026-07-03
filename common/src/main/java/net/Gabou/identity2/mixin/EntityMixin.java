@@ -69,6 +69,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -296,15 +297,15 @@ public class EntityMixin implements EntityAccessor {
             ci.cancel();
         }
     }
-    @Inject(method = "canChangeDimensions()Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$preventAttachedIdentityDimensionChange(CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "canChangeDimensions(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/level/Level;)Z", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityDimensionChange(Level from, Level to, CallbackInfoReturnable<Boolean> cir) {
         if (this.identityOf != null) {
             cir.setReturnValue(false);
         }
     }
 
-    @Inject(method = "changeDimension(Lnet/minecraft/server/level/ServerLevel;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), cancellable = true)
-    private void identity2$preventAttachedIdentityDimensionTravel(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
+    @Inject(method = "changeDimension(Lnet/minecraft/world/level/portal/DimensionTransition;)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), cancellable = true)
+    private void identity2$preventAttachedIdentityDimensionTravel(DimensionTransition transition, CallbackInfoReturnable<Entity> cir) {
         if (this.identityOf != null) {
             cir.setReturnValue(null);
         }
@@ -1951,7 +1952,7 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
-    @Inject(method = "lerpTo(DDDFFIZ)V", at = @At("HEAD"))
+    @Inject(method = "lerpTo(DDDFFI)V", at = @At("HEAD"))
     private void identity2$forwardLerpTo(
             double x,
             double y,
@@ -1959,7 +1960,6 @@ public class EntityMixin implements EntityAccessor {
             float yRot,
             float xRot,
             int interpolationSteps,
-            boolean interpolate,
             CallbackInfo info
     ) {
         if (this.currentIdentity != null) {
@@ -2238,13 +2238,6 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                 return;
             }
             info.setReturnValue(this.currentIdentity.getEyeHeight(pose));
-        }
-    }
-
-    @Inject(method = "getMyRidingOffset()D", at = @At("HEAD"), cancellable = true)
-    private void identity2$getMorphRidingOffset(CallbackInfoReturnable<Double> info) {
-        if ((Object) this instanceof Player && this.currentIdentity != null) {
-            info.setReturnValue(0.35D);
         }
     }
 

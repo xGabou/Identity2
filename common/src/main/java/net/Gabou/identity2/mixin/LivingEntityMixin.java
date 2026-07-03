@@ -665,8 +665,8 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
         }
     }
 
-    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
-    private void identity2$suppressOwnedIdentityDeathLoot(DamageSource source, CallbackInfo ci) {
+    @Inject(method = "dropAllDeathLoot(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
+    private void identity2$suppressOwnedIdentityDeathLoot(ServerLevel level, DamageSource source, CallbackInfo ci) {
         if (((EntityAccessor) this).getIdentityOwner() != null) {
             ci.cancel();
         }
