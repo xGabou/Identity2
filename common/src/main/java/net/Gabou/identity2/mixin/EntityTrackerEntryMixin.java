@@ -1,7 +1,6 @@
 package net.Gabou.identity2.mixin;
 
 import dev.architectury.networking.NetworkManager;
-import net.Gabou.identity2.util.NetworkCompat;
 import java.util.ArrayList;
 import java.util.List;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -52,13 +51,13 @@ public class EntityTrackerEntryMixin {
         }
 
         if (!doubleValues.isEmpty()) {
-            NetworkCompat.sendToPlayer(player, new CustomEntityDataS2CPacketPayload(this.entity.getId(), doubleValues));
+            NetworkManager.sendToPlayer(player, new CustomEntityDataS2CPacketPayload(this.entity.getId(), doubleValues));
         }
         if (!stringValues.isEmpty()) {
-            NetworkCompat.sendToPlayer(player, new CustomEntityStringDataS2CPacketPayload(this.entity.getId(), stringValues));
+            NetworkManager.sendToPlayer(player, new CustomEntityStringDataS2CPacketPayload(this.entity.getId(), stringValues));
         }
         if (!boolValues.isEmpty()) {
-            NetworkCompat.sendToPlayer(player, new CustomEntityBoolDataS2CPacketPayload(this.entity.getId(), boolValues));
+            NetworkManager.sendToPlayer(player, new CustomEntityBoolDataS2CPacketPayload(this.entity.getId(), boolValues));
         }
 
         Entity currentIdentity = ((EntityAccessor) this.entity).getCurrentIdentity();

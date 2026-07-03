@@ -1,24 +1,21 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record IdentityVillagerTradeRequestC2SPacketPayload(String targetUuid) implements NetworkPayload {
-    public static final ResourceLocation ID = ModPackets.IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID;
-
-    public static IdentityVillagerTradeRequestC2SPacketPayload decode(FriendlyByteBuf buffer) {
-        return new IdentityVillagerTradeRequestC2SPacketPayload(buffer.readUtf());
-    }
+public record IdentityVillagerTradeRequestC2SPacketPayload(String targetUuid) implements CustomPacketPayload {
+    public static final Type<IdentityVillagerTradeRequestC2SPacketPayload> ID = new Type<>(ModPackets.IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID);
+    public static final StreamCodec<RegistryFriendlyByteBuf, IdentityVillagerTradeRequestC2SPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8,
+        IdentityVillagerTradeRequestC2SPacketPayload::targetUuid,
+        IdentityVillagerTradeRequestC2SPacketPayload::new
+    );
 
     @Override
-    public ResourceLocation id() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
-    }
-
-    @Override
-    public void write(FriendlyByteBuf buffer) {
-        buffer.writeUtf(targetUuid == null ? "" : targetUuid);
     }
 }

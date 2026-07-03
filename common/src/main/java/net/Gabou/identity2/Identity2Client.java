@@ -10,7 +10,7 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.gaboulibs.client.platform.ModClientPlatform;
+import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
@@ -35,7 +35,6 @@ import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
-import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -150,13 +149,13 @@ public final class Identity2Client {
                 identity2$syncEnderDragonVisualState(dragonIdentity, entity);
             }
             return identity;
-        }, new ResourceLocation("minecraft", "ender_dragon"));
+        }, ResourceLocation.fromNamespaceAndPath("minecraft", "ender_dragon"));
         addVisualPatch((identity, entity) -> {
             if (identity instanceof Bee beeIdentity) {
                 identity2$syncBeeVisualState(beeIdentity, entity);
             }
             return identity;
-        }, new ResourceLocation("minecraft", "bee"));
+        }, ResourceLocation.fromNamespaceAndPath("minecraft", "bee"));
     }
 
     private static void identity2$syncBeeVisualState(Bee beeIdentity, Entity source) {
@@ -249,45 +248,45 @@ public final class Identity2Client {
         }
 
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityDataS2CPacketPayload.ID,
-                CustomEntityDataS2CPacketPayload::decode,
+                CustomEntityDataS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityStringDataS2CPacketPayload.ID,
-                CustomEntityStringDataS2CPacketPayload::decode,
+                CustomEntityStringDataS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 CustomEntityBoolDataS2CPacketPayload.ID,
-                CustomEntityBoolDataS2CPacketPayload::decode,
+                CustomEntityBoolDataS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 IdentityUnlockSyncS2CPacketPayload.ID,
-                IdentityUnlockSyncS2CPacketPayload::decode,
+                IdentityUnlockSyncS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> INSTANCE.onUnlockSyncData(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 MorphAcquisitionS2CPacketPayload.ID,
-                MorphAcquisitionS2CPacketPayload::decode,
+                MorphAcquisitionS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> onMorphAcquisition(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 OpenProgressionScreenS2CPacketPayload.ID,
-                OpenProgressionScreenS2CPacketPayload::decode,
+                OpenProgressionScreenS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(Identity2Client::openProgressionScreen));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 ProgressionPlayerChargesS2CPacketPayload.ID,
-                ProgressionPlayerChargesS2CPacketPayload::decode,
+                ProgressionPlayerChargesS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload)));
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
                 ProgressionJarStateS2CPacketPayload.ID,
-                ProgressionJarStateS2CPacketPayload::decode,
+                ProgressionJarStateS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
 
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
@@ -295,7 +294,7 @@ public final class Identity2Client {
     }
 
     public static void sendIdentityAbilityPacket(int entityId) {
-        NetworkCompat.sendToServer(new IdentityAbilityPacketPayload(entityId));
+        NetworkManager.sendToServer(new IdentityAbilityPacketPayload(entityId));
     }
 
     public static void sendMorphRequest(String identityId) {
@@ -327,7 +326,7 @@ public final class Identity2Client {
                 identityId,
                 variantNbt == null || variantNbt.isBlank() ? "<empty>" : variantNbt
         );
-        NetworkCompat.sendToServer(
+        NetworkManager.sendToServer(
                 new IdentityMorphRequestC2SPacketPayload(identityId, variantNbt == null ? "" : variantNbt));
     }
 
@@ -335,22 +334,22 @@ public final class Identity2Client {
         if (targetUuid == null) {
             return;
         }
-        NetworkCompat.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
+        NetworkManager.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
     }
 
     public static void requestProgressionChargeSync() {
-        NetworkCompat.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
+        NetworkManager.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
     }
 
     public static void sendProgressionJarSelect(int slotIndex) {
-        NetworkCompat.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
+        NetworkManager.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
     }
 
     public static void sendProgressionJarTransfer(int slotIndex, String identityId, int amount, boolean deposit) {
         if (identityId == null || identityId.isBlank() || amount <= 0) {
             return;
         }
-        NetworkCompat.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
+        NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
     }
 
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, ResourceLocation id) {
@@ -850,9 +849,9 @@ public final class Identity2Client {
         }
         return PredefIdentityAbilities.predef.containsKey(identityTypeId)
                 || PredefIdentityAbilities.predef
-                        .containsKey(new ResourceLocation("minecraft", identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath("minecraft", identityTypeId.getPath()))
                 || PredefIdentityAbilities.predef
-                        .containsKey(new ResourceLocation(Identity2.MOD_ID, identityTypeId.getPath()))
+                        .containsKey(ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, identityTypeId.getPath()))
                 || PredefIdentityAbilities.hasFallbackAbility(identityTypeId);
     }
 

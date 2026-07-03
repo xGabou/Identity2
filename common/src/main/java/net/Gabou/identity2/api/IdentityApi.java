@@ -13,8 +13,8 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
+import dev.architectury.networking.NetworkManager;
 import net.Gabou.identity2.util.NbtCompat;
-import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -460,7 +460,7 @@ public final class IdentityApi {
             return null;
         }
         try {
-            return new ResourceLocation(raw);
+            return ResourceLocation.parse(raw);
         } catch (Exception ignored) {
             return null;
         }
@@ -561,23 +561,23 @@ public final class IdentityApi {
             return;
         }
         if (payload instanceof CustomEntityBoolDataS2CPacketPayload boolPayload) {
-            NetworkCompat.sendToPlayer(player, boolPayload);
+            NetworkManager.sendToPlayer(player, boolPayload);
             for (ServerPlayer other : trackedPlayers(player)) {
-                NetworkCompat.sendToPlayer(other, boolPayload);
+                NetworkManager.sendToPlayer(other, boolPayload);
             }
             return;
         }
         if (payload instanceof CustomEntityDataS2CPacketPayload doublePayload) {
-            NetworkCompat.sendToPlayer(player, doublePayload);
+            NetworkManager.sendToPlayer(player, doublePayload);
             for (ServerPlayer other : trackedPlayers(player)) {
-                NetworkCompat.sendToPlayer(other, doublePayload);
+                NetworkManager.sendToPlayer(other, doublePayload);
             }
             return;
         }
         if (payload instanceof CustomEntityStringDataS2CPacketPayload stringPayload) {
-            NetworkCompat.sendToPlayer(player, stringPayload);
+            NetworkManager.sendToPlayer(player, stringPayload);
             for (ServerPlayer other : trackedPlayers(player)) {
-                NetworkCompat.sendToPlayer(other, stringPayload);
+                NetworkManager.sendToPlayer(other, stringPayload);
             }
         }
     }

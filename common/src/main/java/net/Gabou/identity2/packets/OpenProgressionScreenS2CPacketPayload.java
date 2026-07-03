@@ -1,23 +1,19 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record OpenProgressionScreenS2CPacketPayload() implements NetworkPayload {
-    public static final ResourceLocation ID = ModPackets.OPEN_PROGRESSION_SCREEN_PACKET_ID;
+public record OpenProgressionScreenS2CPacketPayload() implements CustomPacketPayload {
+    public static final Type<OpenProgressionScreenS2CPacketPayload> ID =
+        new Type<>(ModPackets.OPEN_PROGRESSION_SCREEN_PACKET_ID);
 
-    public static OpenProgressionScreenS2CPacketPayload decode(FriendlyByteBuf buffer) {
-        return new OpenProgressionScreenS2CPacketPayload();
-    }
+    public static final StreamCodec<RegistryFriendlyByteBuf, OpenProgressionScreenS2CPacketPayload> CODEC =
+        StreamCodec.of((buffer, payload) -> {}, buffer -> new OpenProgressionScreenS2CPacketPayload());
 
     @Override
-    public ResourceLocation id() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
-    }
-
-    @Override
-    public void write(FriendlyByteBuf buffer) {
     }
 }

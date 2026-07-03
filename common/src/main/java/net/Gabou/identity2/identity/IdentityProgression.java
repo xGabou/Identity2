@@ -45,7 +45,6 @@ import net.Gabou.identity2.util.EntityNbtIoCompat;
 import net.Gabou.identity2.util.NbtCompat;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
-import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.util.PlayerManagerAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Holder;
@@ -90,12 +89,12 @@ public final class IdentityProgression {
     // Sheep wool visual shape looks wider than the base collision box in this morph setup.
     // Keep this tunable to match in-game feel.
     private static final double SHEEP_WIDTH_COLLISION_SCALE = 1.2D;
-    private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = new ResourceLocation(Identity2.MOD_ID, "identity_max_health");
+    private static final ResourceLocation HEALTH_SCALING_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_max_health");
     private static final UUID HEALTH_SCALING_MODIFIER_UUID = UUID.fromString("4ebfd16b-953d-46e4-a999-c4ca7fed8b62");
     private static final String MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX = "morph_attribute_base_";
     private static final String MORPH_ATTRIBUTE_MODIFIER_PREFIX = "morph_attribute_modifier_";
-    public static final ResourceLocation PLAYER_IDENTITY_ID = new ResourceLocation("minecraft", "player");
-    private static final ResourceLocation GIANT_EASTER_EGG_ID = new ResourceLocation("minecraft", "giant");
+    public static final ResourceLocation PLAYER_IDENTITY_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "player");
+    private static final ResourceLocation GIANT_EASTER_EGG_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "giant");
     public static final String PLAYER_SKIN_UUID_VARIANT_KEY = "SkinPlayerUuid";
     public static final String PLAYER_SKIN_NAME_VARIANT_KEY = "SkinPlayerName";
     public static final String PLAYER_SKIN_TEXTURE_VALUE_VARIANT_KEY = "SkinTextureValue";
@@ -171,7 +170,7 @@ public final class IdentityProgression {
         }
 
         try {
-            ResourceLocation forcedIdentity = new ResourceLocation(forced.trim());
+            ResourceLocation forcedIdentity = ResourceLocation.parse(forced.trim());
             return isMorphableIdentity(forcedIdentity) ? forcedIdentity : null;
         } catch (Exception exception) {
             Identity2.LOGGER.warn("Ignoring invalid forced identity config value: {}", forced, exception);
@@ -606,11 +605,11 @@ public final class IdentityProgression {
                 )
         );
 
-        NetworkCompat.sendToPlayer(player, payload);
+        NetworkManager.sendToPlayer(player, payload);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkCompat.sendToPlayer(other, payload);
+                    NetworkManager.sendToPlayer(other, payload);
                 }
             }
         }
@@ -656,7 +655,7 @@ public final class IdentityProgression {
                 continue;
             }
             try {
-                ResourceLocation id = new ResourceLocation(raw);
+                ResourceLocation id = ResourceLocation.parse(raw);
                 if (isMorphableIdentity(id)) {
                     unlocked.add(id);
                 }
@@ -856,7 +855,7 @@ public final class IdentityProgression {
             }
             if (!selectedType.isBlank()) {
                 try {
-                    ResourceLocation selectedId = new ResourceLocation(selectedType);
+                    ResourceLocation selectedId = ResourceLocation.parse(selectedType);
                     if (isMorphableIdentity(selectedId)) {
                         return new UnlockTarget(selectedId, selectedVariant);
                     }
@@ -973,7 +972,7 @@ public final class IdentityProgression {
                 continue;
             }
             try {
-                ResourceLocation parsed = new ResourceLocation(identityId);
+                ResourceLocation parsed = ResourceLocation.parse(identityId);
                 List<CompoundTag> variantData = new ArrayList<>();
                 for (String token : variantUnlocks.getOrDefault(identityId, List.of())) {
                     CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
@@ -1184,7 +1183,7 @@ public final class IdentityProgression {
 
         if (entries == null || entries.isEmpty()) {
             if (replaceAll) {
-                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), true, List.of()));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), true, List.of()));
             }
             return;
         }
@@ -1196,7 +1195,7 @@ public final class IdentityProgression {
         for (IdentityUnlockSyncEntry entry : entries) {
             int entryBytes = unlockEntryBytes(entry);
             if (!current.isEmpty() && packetBytes + entryBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
-                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
                 current.clear();
                 packetBytes = packetOverheadBytes(false);
                 packetReplaceAll = false;
@@ -1204,7 +1203,7 @@ public final class IdentityProgression {
             current.add(entry);
             packetBytes += entryBytes;
             if (packetBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
-                NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
                 current.clear();
                 packetBytes = packetOverheadBytes(false);
                 packetReplaceAll = false;
@@ -1212,7 +1211,7 @@ public final class IdentityProgression {
         }
 
         if (!current.isEmpty()) {
-            NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+            NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
         }
     }
 
@@ -1290,13 +1289,13 @@ public final class IdentityProgression {
             )
         );
 
-        NetworkCompat.sendToPlayer(player, modelPayload);
-        NetworkCompat.sendToPlayer(player, shapePayload);
+        NetworkManager.sendToPlayer(player, modelPayload);
+        NetworkManager.sendToPlayer(player, shapePayload);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkCompat.sendToPlayer(other, modelPayload);
-                    NetworkCompat.sendToPlayer(other, shapePayload);
+                    NetworkManager.sendToPlayer(other, modelPayload);
+                    NetworkManager.sendToPlayer(other, shapePayload);
                 }
             }
         }
@@ -1317,10 +1316,10 @@ public final class IdentityProgression {
             acquired.getZ(),
             morphAcquisition
         );
-        NetworkCompat.sendToPlayer(player, payload);
+        NetworkManager.sendToPlayer(player, payload);
         for (ServerPlayer other : serverWorld.players()) {
             if (other != player) {
-                NetworkCompat.sendToPlayer(other, payload);
+                NetworkManager.sendToPlayer(other, payload);
             }
         }
     }
@@ -2280,7 +2279,7 @@ public final class IdentityProgression {
 
         ResourceLocation advancementIdentifier;
         try {
-            advancementIdentifier = new ResourceLocation(advancementId.trim());
+            advancementIdentifier = ResourceLocation.parse(advancementId.trim());
         } catch (Exception ignored) {
             return false;
         }

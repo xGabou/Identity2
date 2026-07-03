@@ -1,5 +1,6 @@
 package net.Gabou.identity2.mixin;
 
+import dev.architectury.networking.NetworkManager;
 import net.Gabou.gaboulibs.auth.PendingAuthManager;
 import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
@@ -16,6 +17,7 @@ import net.minecraft.commands.CommandFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -96,15 +98,15 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
         CustomEntityDataS2CPacketPayload doublePayload = new CustomEntityDataS2CPacketPayload(player.getId(), doubleData);
         sendToWorldPlayers(player, doublePayload);
-        NetworkCompat.sendToPlayer(player, doublePayload);
+        NetworkManager.sendToPlayer(player, doublePayload);
 
         CustomEntityStringDataS2CPacketPayload stringPayload = new CustomEntityStringDataS2CPacketPayload(player.getId(), stringData);
         sendToWorldPlayers(player, stringPayload);
-        NetworkCompat.sendToPlayer(player, stringPayload);
+        NetworkManager.sendToPlayer(player, stringPayload);
 
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);
-        NetworkCompat.sendToPlayer(player, boolPayload);
+        NetworkManager.sendToPlayer(player, boolPayload);
         IdentityProgression.syncUnlockedIdentities(player);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
@@ -214,11 +216,11 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         DELAYED_MORPH_REAPPLY.put(player.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
     }
 
-    private static <T extends NetworkPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
+    private static <T extends CustomPacketPayload> void sendToWorldPlayers(ServerPlayer source, T payload) {
         if (source.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer player : serverWorld.players()) {
                 if (player != source) {
-                    NetworkCompat.sendToPlayer(player, payload);
+                    NetworkManager.sendToPlayer(player, payload);
                 }
             }
         }

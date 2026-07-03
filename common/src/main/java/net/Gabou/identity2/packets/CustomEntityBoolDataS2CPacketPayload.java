@@ -2,25 +2,23 @@ package net.Gabou.identity2.packets;
 
 import java.util.List;
 import net.Gabou.identity2.ModPackets;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record CustomEntityBoolDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryBool> entries) implements NetworkPayload {
-    public static final ResourceLocation ID = ModPackets.CUSTOM_BOOL_DATA_ID;
-
-    public static CustomEntityBoolDataS2CPacketPayload decode(FriendlyByteBuf buffer) {
-        return new CustomEntityBoolDataS2CPacketPayload(buffer.readVarInt(), CustomEntityDataS2CPacket.readBoolEntries(buffer));
-    }
+public record CustomEntityBoolDataS2CPacketPayload(int entityid, List<CustomEntityDataS2CPacket.EntryBool> entries) implements CustomPacketPayload {
+    public static final Type<CustomEntityBoolDataS2CPacketPayload> ID = new Type<>(ModPackets.CUSTOM_BOOL_DATA_ID);
+    public static final StreamCodec<RegistryFriendlyByteBuf, CustomEntityBoolDataS2CPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.VAR_INT,
+        CustomEntityBoolDataS2CPacketPayload::entityid,
+        CustomEntityDataS2CPacket.EntryBool.CODEC.apply(ByteBufCodecs.list()),
+        CustomEntityBoolDataS2CPacketPayload::entries,
+        CustomEntityBoolDataS2CPacketPayload::new
+    );
 
     @Override
-    public ResourceLocation id() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
-    }
-
-    @Override
-    public void write(FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entityid);
-        CustomEntityDataS2CPacket.writeBoolEntries(buffer, entries);
     }
 }

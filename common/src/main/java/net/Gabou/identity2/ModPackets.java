@@ -26,7 +26,6 @@ import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
-import net.Gabou.identity2.util.NetworkCompat;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
@@ -49,50 +48,50 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class ModPackets {
-    public static final ResourceLocation CUSTOM_STRING_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_string");
-    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_double");
-    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = new ResourceLocation(Identity2.MOD_ID, "set_custom_data_bool");
-    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "morph_acquisition");
-    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "entity_ability");
-    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "identity_morph_request");
-    public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = new ResourceLocation(Identity2.MOD_ID, "unlock_sync");
-    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation CUSTOM_STRING_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
+    public static final ResourceLocation CUSTOM_DOUBLE_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_double");
+    public static final ResourceLocation CUSTOM_BOOL_DATA_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_bool");
+    public static final ResourceLocation MORPH_ACQUISITION_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
+    public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
+    public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
+    public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "unlock_sync");
+    public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
     );
-    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation OPEN_PROGRESSION_SCREEN_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "open_progression_screen"
     );
-    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation PROGRESSION_CHARGE_SYNC_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "progression_charge_sync_request"
     );
-    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation PROGRESSION_JAR_SELECT_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "progression_jar_select"
     );
-    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation PROGRESSION_JAR_TRANSFER_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "progression_jar_transfer"
     );
-    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation PROGRESSION_PLAYER_CHARGES_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "progression_player_charges"
     );
-    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation PROGRESSION_JAR_STATE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "auth_challenge"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "auth_challenge_reply"
     );
-    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = new ResourceLocation(
+    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
     );
@@ -116,12 +115,20 @@ public final class ModPackets {
         initialized = true;
 
         if (Platform.getEnvironment() == Env.SERVER) {
+            NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(IdentityUnlockSyncS2CPacketPayload.ID, IdentityUnlockSyncS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(ProgressionJarStateS2CPacketPayload.ID, ProgressionJarStateS2CPacketPayload.CODEC);
         }
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             C2SChallengeReplyPacket.ID,
-            C2SChallengeReplyPacket::decode,
+            C2SChallengeReplyPacket.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     ServerAuth.handleChallengeReply(player, payload);
@@ -129,10 +136,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             IdentityAbilityPacketPayload.ID,
-            IdentityAbilityPacketPayload::decode,
+            IdentityAbilityPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleIdentityAbilityPacket(player, payload);
@@ -140,10 +147,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             IdentityMorphRequestC2SPacketPayload.ID,
-            IdentityMorphRequestC2SPacketPayload::decode,
+            IdentityMorphRequestC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleMorphRequestPacket(player, payload);
@@ -151,10 +158,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             IdentityVillagerTradeRequestC2SPacketPayload.ID,
-            IdentityVillagerTradeRequestC2SPacketPayload::decode,
+            IdentityVillagerTradeRequestC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleVillagerTradeRequestPacket(player, payload);
@@ -162,10 +169,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             ProgressionChargeSyncRequestC2SPacketPayload.ID,
-            ProgressionChargeSyncRequestC2SPacketPayload::decode,
+            ProgressionChargeSyncRequestC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     ProgressionUiSync.sendPlayerCharges(player);
@@ -173,10 +180,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             ProgressionJarSelectC2SPacketPayload.ID,
-            ProgressionJarSelectC2SPacketPayload::decode,
+            ProgressionJarSelectC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleProgressionJarSelect(player, payload);
@@ -184,10 +191,10 @@ public final class ModPackets {
             })
         );
 
-        NetworkCompat.registerReceiver(
+        NetworkManager.registerReceiver(
             NetworkManager.c2s(),
             ProgressionJarTransferC2SPacketPayload.ID,
-            ProgressionJarTransferC2SPacketPayload::decode,
+            ProgressionJarTransferC2SPacketPayload.CODEC,
             (payload, context) -> context.queue(() -> {
                 if (context.getPlayer() instanceof ServerPlayer player) {
                     handleProgressionJarTransfer(player, payload);
@@ -292,14 +299,14 @@ public final class ModPackets {
             return exact;
         }
 
-        ResourceLocation minecraftAlias = new ResourceLocation("minecraft", prebuilt.getPath());
+        ResourceLocation minecraftAlias = ResourceLocation.fromNamespaceAndPath("minecraft", prebuilt.getPath());
         BuiltinIdentityAbility minecraft = PredefIdentityAbilities.predef.get(minecraftAlias);
         if (minecraft != null) {
             logResolvedPredef(identityTypeId, prebuilt, minecraftAlias);
             return minecraft;
         }
 
-        ResourceLocation identity2AliasId = new ResourceLocation(Identity2.MOD_ID, prebuilt.getPath());
+        ResourceLocation identity2AliasId = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prebuilt.getPath());
         BuiltinIdentityAbility identity2Alias = PredefIdentityAbilities.predef.get(identity2AliasId);
         if (identity2Alias != null) {
             logResolvedPredef(identityTypeId, prebuilt, identity2AliasId);
@@ -347,7 +354,7 @@ public final class ModPackets {
 
         ResourceLocation identityId;
         try {
-            identityId = new ResourceLocation(requested);
+            identityId = ResourceLocation.parse(requested);
         } catch (Exception exception) {
             player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity: " + requested), false);
             return;
@@ -468,7 +475,7 @@ public final class ModPackets {
 
         ResourceLocation identityId;
         try {
-            identityId = new ResourceLocation(payload.identityId());
+            identityId = ResourceLocation.parse(payload.identityId());
         } catch (Exception exception) {
             ProgressionUiSync.sendJarState(player, -1, "", "", Map.of(), "Invalid morph id: " + payload.identityId());
             return;
@@ -563,4 +570,3 @@ public final class ModPackets {
         return player.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
     }
 }
-

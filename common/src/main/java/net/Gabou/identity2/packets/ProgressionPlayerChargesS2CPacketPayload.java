@@ -1,24 +1,21 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record ProgressionPlayerChargesS2CPacketPayload(String serializedCharges) implements NetworkPayload {
-    public static final ResourceLocation ID = ModPackets.PROGRESSION_PLAYER_CHARGES_PACKET_ID;
-
-    public static ProgressionPlayerChargesS2CPacketPayload decode(FriendlyByteBuf buffer) {
-        return new ProgressionPlayerChargesS2CPacketPayload(buffer.readUtf());
-    }
+public record ProgressionPlayerChargesS2CPacketPayload(String serializedCharges) implements CustomPacketPayload {
+    public static final Type<ProgressionPlayerChargesS2CPacketPayload> ID = new Type<>(ModPackets.PROGRESSION_PLAYER_CHARGES_PACKET_ID);
+    public static final StreamCodec<RegistryFriendlyByteBuf, ProgressionPlayerChargesS2CPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionPlayerChargesS2CPacketPayload::serializedCharges,
+        ProgressionPlayerChargesS2CPacketPayload::new
+    );
 
     @Override
-    public ResourceLocation id() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
-    }
-
-    @Override
-    public void write(FriendlyByteBuf buffer) {
-        buffer.writeUtf(serializedCharges == null ? "" : serializedCharges);
     }
 }

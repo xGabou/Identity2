@@ -1,9 +1,10 @@
 package net.Gabou.identity2.packets;
 
 import net.Gabou.identity2.ModPackets;
-import net.Gabou.identity2.util.NetworkPayload;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record ProgressionJarStateS2CPacketPayload(
     int slotIndex,
@@ -12,32 +13,28 @@ public record ProgressionJarStateS2CPacketPayload(
     String serializedJarCharges,
     String serializedPlayerCharges,
     String message
-) implements NetworkPayload {
-    public static final ResourceLocation ID = ModPackets.PROGRESSION_JAR_STATE_PACKET_ID;
+) implements CustomPacketPayload {
+    public static final Type<ProgressionJarStateS2CPacketPayload> ID =
+        new Type<>(ModPackets.PROGRESSION_JAR_STATE_PACKET_ID);
 
-    public static ProgressionJarStateS2CPacketPayload decode(FriendlyByteBuf buffer) {
-        return new ProgressionJarStateS2CPacketPayload(
-            buffer.readVarInt(),
-            buffer.readUtf(),
-            buffer.readUtf(),
-            buffer.readUtf(),
-            buffer.readUtf(),
-            buffer.readUtf()
-        );
-    }
+    public static final StreamCodec<RegistryFriendlyByteBuf, ProgressionJarStateS2CPacketPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.VAR_INT,
+        ProgressionJarStateS2CPacketPayload::slotIndex,
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionJarStateS2CPacketPayload::jarId,
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionJarStateS2CPacketPayload::jarTier,
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionJarStateS2CPacketPayload::serializedJarCharges,
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionJarStateS2CPacketPayload::serializedPlayerCharges,
+        ByteBufCodecs.STRING_UTF8,
+        ProgressionJarStateS2CPacketPayload::message,
+        ProgressionJarStateS2CPacketPayload::new
+    );
 
     @Override
-    public ResourceLocation id() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
-    }
-
-    @Override
-    public void write(FriendlyByteBuf buffer) {
-        buffer.writeVarInt(slotIndex);
-        buffer.writeUtf(jarId == null ? "" : jarId);
-        buffer.writeUtf(jarTier == null ? "" : jarTier);
-        buffer.writeUtf(serializedJarCharges == null ? "" : serializedJarCharges);
-        buffer.writeUtf(serializedPlayerCharges == null ? "" : serializedPlayerCharges);
-        buffer.writeUtf(message == null ? "" : message);
     }
 }

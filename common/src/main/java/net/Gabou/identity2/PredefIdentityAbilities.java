@@ -12,7 +12,6 @@ import net.Gabou.identity2.mixin.HoglinAccessor;
 import net.Gabou.identity2.mixin.RavagerAccessor;
 import net.Gabou.identity2.mixin.VillagerAccessor;
 import net.Gabou.identity2.mixin.ZoglinAccessor;
-import net.Gabou.identity2.util.NetworkCompat;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
