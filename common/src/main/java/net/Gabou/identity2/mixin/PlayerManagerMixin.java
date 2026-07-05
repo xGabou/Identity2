@@ -23,7 +23,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -66,7 +68,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     }
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
-    private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
+    private void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie commonListenerCookie, CallbackInfo ci) {
         boolean pendingAuth = PendingAuthManager.isPending(player.getUUID());
         if (pendingAuth) {
             ServerAuth.sendChallenge(player);
@@ -162,7 +164,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     }
 
     @Inject(method = "respawn", at = @At("RETURN"))
-    private void identity2$onRespawn(ServerPlayer player, boolean bl, CallbackInfoReturnable<ServerPlayer> cir) {
+    private void identity2$onRespawn(ServerPlayer player, boolean bl, Entity.RemovalReason removalReason, CallbackInfoReturnable<ServerPlayer> cir) {
         ServerPlayer respawned = cir.getReturnValue();
         if (respawned == null) {
             return;

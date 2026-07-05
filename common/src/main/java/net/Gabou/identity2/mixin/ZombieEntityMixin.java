@@ -27,12 +27,7 @@ public abstract class ZombieEntityMixin {
 
     @Inject(method = "finalizeSpawn", at = @At("HEAD"))
     private void identity2$captureGiantSpawnOrigin(
-            ServerLevelAccessor level,
-            DifficultyInstance difficulty,
-            MobSpawnType spawnType,
-            @Nullable SpawnGroupData spawnData,
-            @Nullable CompoundTag spawnTag,
-            CallbackInfoReturnable<SpawnGroupData> info
+            ServerLevelAccessor serverLevelAccessor, DifficultyInstance difficultyInstance, MobSpawnType spawnType, SpawnGroupData spawnGroupData, CallbackInfoReturnable<SpawnGroupData> cir
     ) {
         this.identity2$eligibleGiantSpawnOrigin = spawnType == MobSpawnType.NATURAL
                 || spawnType == MobSpawnType.CHUNK_GENERATION

@@ -19,7 +19,7 @@ dependencies {
     modCompileOnly "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:8280105"
+    modImplementation "curse.maven:gabous-libs-1367332:8376871"
     modImplementation "curse.maven:naturalist-627986:6863943"
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:alexs-mobs-426558:5698791"

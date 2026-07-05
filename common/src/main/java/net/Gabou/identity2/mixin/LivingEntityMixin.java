@@ -296,19 +296,19 @@ private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo i
     }
 }
 
-@Redirect(
-        method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z",
-        at = @At(
-                value = "INVOKE",
-                target = "Lnet/minecraft/world/entity/LivingEntity;playSecondaryHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V"
-        )
-)
-private void identity2$redirectSecondaryHurtSound(LivingEntity self, DamageSource source) {
-    if (identity2$playIdentityHurtSoundInternal(source)) {
-        return;
-    }
-    identity2$invokePrivateVoid(self, "playSecondaryHurtSound", new Class<?>[] { DamageSource.class }, new Object[] { source });
-}
+//@Redirect(
+//        method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z",
+//        at = @At(
+//                value = "INVOKE",
+//                target = "Lnet/minecraft/world/entity/LivingEntity;playSecondaryHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V"
+//        )
+//)
+//private void identity2$redirectSecondaryHurtSound(LivingEntity self, DamageSource source) {
+//    if (identity2$playIdentityHurtSoundInternal(source)) {
+//        return;
+//    }
+//    identity2$invokePrivateVoid(self, "playSecondaryHurtSound", new Class<?>[] { DamageSource.class }, new Object[] { source });
+//}
 
 @Unique
 private boolean identity2$playIdentityHurtSoundInternal(DamageSource source) {
