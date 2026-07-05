@@ -50,9 +50,6 @@ import net.minecraft.world.phys.Vec3;
 
 public final class IdentityRenderStateHelper {
     private static final float ENDER_DRAGON_MORPH_FLAP_SPEED = 1.0F / 10.0F;
-    private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
-    private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
-    private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
     private static final Map<Integer, Boolean> WOLF_WAS_IN_WATER = new HashMap<>();
     private static final Map<Integer, Float> WOLF_SHAKE_PROGRESS = new HashMap<>();
     private static final Map<AnimationState, Integer> ANIMATION_START_TICKS = new IdentityHashMap<>();
@@ -346,7 +343,7 @@ public final class IdentityRenderStateHelper {
 
         if (shakeProgress > 0.0F) {
             float previous = shakeProgress;
-            shakeProgress = Math.min(1.0F, shakeProgress + 0.018F);
+            shakeProgress = Math.min(1.0F, shakeProgress + 0.010F);
 
             accessor.identity2$setShakeAnimO(previous);
             accessor.identity2$setShakeAnim(shakeProgress);
@@ -501,25 +498,17 @@ public final class IdentityRenderStateHelper {
         );
 
         if (identity instanceof IronGolem ironGolem) {
-            int golemAttackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
-            if (golemAttackTicks > 0) {
-                ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(golemAttackTicks);
-            }
+            int golemAttackTicks = PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
+            ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(golemAttackTicks);
         } else if (identity instanceof Ravager ravager) {
-            int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
-            if (attackTicks > 0) {
-                ((RavagerAccessor) ravager).identity2$setAttackTick(attackTicks);
-            }
+            int attackTicks = abilityAttackTicks;
+            ((RavagerAccessor) ravager).identity2$setAttackTick(attackTicks);
         } else if (identity instanceof Hoglin hoglin) {
-            int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
-            if (attackTicks > 0) {
-                ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
-            }
+            int attackTicks = abilityAttackTicks;
+            ((HoglinAccessor) hoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
         } else if (identity instanceof Zoglin zoglin) {
-            int attackTicks = Math.max(resolveIronGolemAttackTicks(source, tickDelta), abilityAttackTicks);
-            if (attackTicks > 0) {
-                ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
-            }
+            int attackTicks = abilityAttackTicks;
+            ((ZoglinAccessor) zoglin).identity2$setAttackAnimationRemainingTicks(attackTicks);
         } else if (abilityAttackTicks > 0) {
             ensureVanillaAttackAnimation(identity);
         }
@@ -559,31 +548,6 @@ public final class IdentityRenderStateHelper {
                     PredefIdentityAbilities.PUFFER_PUFF_TICKS_KEY
             ) ? 2 : 0);
         }
-    }
-
-    public static int resolveIronGolemAttackTicks(Entity source, float tickDelta) {
-        if (!(source instanceof LivingEntity livingSource)) {
-            return 0;
-        }
-        int entityId = source.getId();
-        int previousSwingTime = IRON_GOLEM_LAST_SWING_TIMES.getOrDefault(entityId, -1);
-        int currentEndTick = IRON_GOLEM_ATTACK_END_TICKS.getOrDefault(entityId, 0);
-        boolean attacking = livingSource.attackAnim > 0.0F || livingSource.swinging;
-        boolean restartedSwing = livingSource.swinging && livingSource.swingTime <= 1 && previousSwingTime > 1;
-
-        if (attacking && (currentEndTick <= source.tickCount || restartedSwing)) {
-            currentEndTick = source.tickCount + IRON_GOLEM_ATTACK_ANIMATION_TICKS;
-            IRON_GOLEM_ATTACK_END_TICKS.put(entityId, currentEndTick);
-        }
-        IRON_GOLEM_LAST_SWING_TIMES.put(entityId, livingSource.swingTime);
-
-        float remaining = currentEndTick - (source.tickCount + tickDelta);
-        if (remaining <= 0.0F) {
-            IRON_GOLEM_ATTACK_END_TICKS.remove(entityId);
-            IRON_GOLEM_LAST_SWING_TIMES.remove(entityId);
-            return 0;
-        }
-        return Math.min(IRON_GOLEM_ATTACK_ANIMATION_TICKS, (int) Math.ceil(remaining));
     }
 
     private static boolean ensureVanillaAttackAnimation(Entity identity) {

@@ -4,6 +4,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
@@ -211,8 +213,8 @@ public class HeldItemRendererMixin {
                 return;
             }
 
-            ModelPart identityArm = identity2$resolveIdentityHandPart(identityModel, rightArm);
-            if (identityArm == null) {
+            ResolvedHandPart identityHandPart = identity2$resolveIdentityHandPart(identityModel, rightArm);
+            if (identityHandPart == null) {
                 return;
             }
 
@@ -223,6 +225,7 @@ public class HeldItemRendererMixin {
 
             PlayerModel playerModel = renderer.getModel();
             ModelPart playerArm = rightArm ? playerModel.rightArm : playerModel.leftArm;
+            ModelPart identityArm = identityHandPart.leaf();
 
             float offsetX = Mth.clamp((playerArm.x - identityArm.x), -12.0F, 12.0F) + (rightArm ? ARM_TUNE_X : -ARM_TUNE_X);
             float offsetY = Mth.clamp((playerArm.y - identityArm.y), -12.0F, 12.0F) + ARM_TUNE_Y;
@@ -236,6 +239,7 @@ public class HeldItemRendererMixin {
             ModelPartCompat.PartSnapshot armSnapshot = ModelPartCompat.PartSnapshot.capture(identityArm);
             try {
                 identityArm.resetPose();
+                identity2$applyAncestorTransforms(matrices, identityHandPart.ancestors());
                 identity2$renderIdentityHand(matrices, queue, light, identityTexture, identityArm);
             } finally {
                 armSnapshot.restore(identityArm);
@@ -274,11 +278,11 @@ public class HeldItemRendererMixin {
         }
     }
 
-    private static ModelPart identity2$resolveIdentityHandPart(EntityModel<?> model, boolean rightArm) {
+    private static ResolvedHandPart identity2$resolveIdentityHandPart(EntityModel<?> model, boolean rightArm) {
         if (model instanceof HumanoidModel<?> humanoidModel) {
             ModelPart humanoidArm = rightArm ? humanoidModel.rightArm : humanoidModel.leftArm;
             if (humanoidArm != null && !humanoidArm.isEmpty()) {
-                return humanoidArm;
+                return new ResolvedHandPart(List.of(humanoidArm), List.of());
             }
         }
 
@@ -286,29 +290,32 @@ public class HeldItemRendererMixin {
         if (root == null) {
             return null;
         }
-        ModelPart exact = identity2$findPartByNames(root, rightArm ? RIGHT_HAND_PART_CANDIDATES : LEFT_HAND_PART_CANDIDATES);
-        if (exact != null && !exact.isEmpty()) {
+        ResolvedHandPart exact = identity2$findPartPathByNames(root, rightArm ? RIGHT_HAND_PART_CANDIDATES : LEFT_HAND_PART_CANDIDATES);
+        if (exact != null && !exact.leaf().isEmpty()) {
             return exact;
         }
-        ModelPart preferred = identity2$findNamedSidePart(root, rightArm, true);
+        ResolvedHandPart preferred = identity2$findNamedSidePart(root, rightArm, true);
         if (preferred != null) {
             return preferred;
         }
-        ModelPart anySide = identity2$findNamedSidePart(root, rightArm, false);
+        ResolvedHandPart anySide = identity2$findNamedSidePart(root, rightArm, false);
         if (anySide != null) {
             return anySide;
         }
         return null;
     }
 
-    private static ModelPart identity2$findPartByNames(ModelPart root, String[] candidates) {
+    private static ResolvedHandPart identity2$findPartPathByNames(ModelPart root, String[] candidates) {
         for (String candidate : candidates) {
             ModelPart current = root;
+            List<ModelPart> path = new ArrayList<>();
+            path.add(root);
             boolean valid = true;
 
             for (String segment : candidate.split("\\.")) {
                 try {
                     current = current.getChild(segment);
+                    path.add(current);
                 } catch (IllegalArgumentException e) {
                     valid = false;
                     break;
@@ -316,24 +323,24 @@ public class HeldItemRendererMixin {
             }
 
             if (valid) {
-                return current;
+                return new ResolvedHandPart(path, path.subList(0, Math.max(0, path.size() - 1)));
             }
         }
         return null;
     }
 
-    private static ModelPart identity2$findNamedSidePart(ModelPart root, boolean rightArm, boolean requirePreferredToken) {
+    private static ResolvedHandPart identity2$findNamedSidePart(ModelPart root, boolean rightArm, boolean requirePreferredToken) {
         return identity2$findNamedSidePartRecursive(root, rightArm, requirePreferredToken);
     }
 
-    private static ModelPart identity2$findNamedSidePartRecursive(ModelPart part, boolean rightArm, boolean requirePreferredToken) {
+    private static ResolvedHandPart identity2$findNamedSidePartRecursive(ModelPart part, boolean rightArm, boolean requirePreferredToken) {
         Map<String, ModelPart> children = identity2$getModelPartChildren(part);
         if (children == null || children.isEmpty()) {
             return null;
         }
 
         String sideToken = rightArm ? "right" : "left";
-        ModelPart fallback = null;
+        ResolvedHandPart fallback = null;
         for (Map.Entry<String, ModelPart> entry : children.entrySet()) {
             String name = entry.getKey();
             ModelPart child = entry.getValue();
@@ -350,17 +357,43 @@ public class HeldItemRendererMixin {
                 || lower.contains("fin");
 
             if (sideMatch && (!requirePreferredToken || preferredToken) && !child.isEmpty()) {
-                return child;
+                List<ModelPart> path = new ArrayList<>();
+                path.add(part);
+                path.add(child);
+                return new ResolvedHandPart(path, List.of(part));
             }
-            ModelPart nested = identity2$findNamedSidePartRecursive(child, rightArm, requirePreferredToken);
+            ResolvedHandPart nested = identity2$findNamedSidePartRecursive(child, rightArm, requirePreferredToken);
             if (nested != null) {
-                return nested;
+                List<ModelPart> path = new ArrayList<>();
+                path.add(part);
+                path.addAll(nested.parts());
+                return new ResolvedHandPart(path, path.subList(0, Math.max(0, path.size() - 1)));
             }
             if (sideMatch && fallback == null) {
-                fallback = child;
+                List<ModelPart> path = new ArrayList<>();
+                path.add(part);
+                path.add(child);
+                fallback = new ResolvedHandPart(path, List.of(part));
             }
         }
         return fallback;
+    }
+
+    private static void identity2$applyAncestorTransforms(PoseStack matrices, List<ModelPart> ancestors) {
+        for (ModelPart part : ancestors) {
+            part.translateAndRotate(matrices);
+        }
+    }
+
+    private record ResolvedHandPart(List<ModelPart> parts, List<ModelPart> ancestors) {
+        private ResolvedHandPart {
+            parts = List.copyOf(parts);
+            ancestors = List.copyOf(ancestors);
+        }
+
+        private ModelPart leaf() {
+            return this.parts.get(this.parts.size() - 1);
+        }
     }
 
     @SuppressWarnings("unchecked")

@@ -291,17 +291,43 @@ private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable inf
 
 @Inject(method = "playHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V", at = @At("HEAD"), cancellable = true)
 private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo info) {
-    if (!IdentitySettings.useIdentitySounds || this.currentIdentity == null) {
+    if (identity2$playIdentityHurtSoundInternal(source)) {
+        info.cancel();
+    }
+}
+
+@Redirect(
+        method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z",
+        at = @At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/world/entity/LivingEntity;playSecondaryHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V"
+        )
+)
+private void identity2$redirectSecondaryHurtSound(LivingEntity self, DamageSource source) {
+    if (identity2$playIdentityHurtSoundInternal(source)) {
         return;
     }
+    identity2$invokePrivateVoid(self, "playSecondaryHurtSound", new Class<?>[] { DamageSource.class }, new Object[] { source });
+}
+
+@Unique
+private boolean identity2$playIdentityHurtSoundInternal(DamageSource source) {
+    if (!IdentitySettings.useIdentitySounds || this.currentIdentity == null) {
+        return false;
+    }
     if (!(this.currentIdentity instanceof LivingEntity)) {
-        return;
+        return false;
     }
     SoundEvent hurtSound = ((LivingEntityAccessor) this.currentIdentity).getHurtSound(source);
     if (hurtSound == null) {
-        return;
+        return false;
     }
     LivingEntity self = (LivingEntity) (Object) this;
+    float pitch = 1.0F;
+    Object pitchValue = identity2$invokeNoArg(this.currentIdentity, "getVoicePitch");
+    if (pitchValue instanceof Number number) {
+        pitch = number.floatValue();
+    }
     self.level().playSound(
             null,
             self.getX(),
@@ -310,9 +336,9 @@ private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo i
             hurtSound,
             self.getSoundSource(),
             this.getSoundVolume(),
-            self.getVoicePitch()
+            pitch
     );
-    info.cancel();
+    return true;
 }
 
 @Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
@@ -566,6 +592,28 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
         return method.invoke(target);
     } catch (Throwable ignored) {
         return null;
+    }
+}
+
+@Unique
+private static void identity2$invokePrivateVoid(Object target, String methodName, Class<?>[] parameterTypes, Object[] args) {
+    if (target == null || methodName == null || methodName.isBlank()) {
+        return;
+    }
+    Class<?> current = target.getClass();
+    while (current != null) {
+        try {
+            Method method = current.getDeclaredMethod(methodName, parameterTypes);
+            if (!method.canAccess(target)) {
+                method.setAccessible(true);
+            }
+            method.invoke(target, args);
+            return;
+        } catch (NoSuchMethodException e) {
+            current = current.getSuperclass();
+        } catch (Throwable ignored) {
+            return;
+        }
     }
 }
 
