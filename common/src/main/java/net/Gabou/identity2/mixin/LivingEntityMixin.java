@@ -59,7 +59,9 @@ import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
@@ -68,10 +70,6 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
 
     @Shadow
     protected boolean jumping;
-
-    @Shadow
-    @Nullable
-    public abstract SoundEvent getDeathSound();
 
     @Shadow
     protected abstract float getSoundVolume();
@@ -283,7 +281,7 @@ private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable inf
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getHurtSound(source));
+            info.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetHurtSound(source));
         }
     }
     }
@@ -318,7 +316,7 @@ private boolean identity2$playIdentityHurtSoundInternal(DamageSource source) {
     if (!(this.currentIdentity instanceof LivingEntity)) {
         return false;
     }
-    SoundEvent hurtSound = ((LivingEntityAccessor) this.currentIdentity).getHurtSound(source);
+    SoundEvent hurtSound = ((LivingEntitySoundInvoker) this.currentIdentity).identity2$invokeGetHurtSound(source);
     if (hurtSound == null) {
         return false;
     }
@@ -346,7 +344,7 @@ private void getDeathSoundIdentity(CallbackInfoReturnable info){
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getDeathSound());
+            info.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetDeathSound());
         }
     }
     }
@@ -371,6 +369,61 @@ private void tickMovementIdentity(CallbackInfo info){
             //info.cancel();
         }
     }
+}
+
+@Inject(method = "aiStep()V", at = @At("TAIL"))
+private void identity2$applyMorphMovementAssists(CallbackInfo info) {
+    // Runs after travel() so the boosts below survive this tick's gravity/friction.
+    // Must run on the client too: player motion is client-authoritative.
+    if (!((Entity) (Object) this instanceof Player player) || this.currentIdentity == null) {
+        return;
+    }
+    EntityType<?> identityType = this.currentIdentity.getType();
+
+    if (identityType == EntityType.STRIDER && identity2$shouldStriderRiseInLava(player)) {
+        // canStandOnFluid(lava) morphs use land physics inside lava, so vanilla's
+        // lava swimming never engages; emulate it from the player's own inputs.
+        identity2$applyStriderLavaMovement(player);
+        return;
+    }
+
+    if (!player.onGround()
+            && !player.isInWater()
+            && !player.getAbilities().flying
+            && IdentityTraitTags.hasSlowFalling(identityType)) {
+        net.minecraft.world.phys.Vec3 motion = player.getDeltaMovement();
+        if (identity2$shouldSlowFallingFastFall(player)) {
+            if (motion.y > -0.45D) {
+                player.setDeltaMovement(motion.x, -0.45D, motion.z);
+            }
+        } else if (motion.y < -0.08D) {
+            player.setDeltaMovement(motion.x, -0.08D, motion.z);
+            player.resetFallDistance();
+        }
+    }
+}
+
+@Unique
+private static void identity2$applyStriderLavaMovement(Player player) {
+    Vec3 motion = player.getDeltaMovement();
+    boolean jumpInput = player instanceof LivingEntityAccessor accessor && accessor.identity2$isJumping();
+    if (jumpInput && identity2$shouldStriderRiseInLava(player)) {
+        player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
+    } else if (player.isShiftKeyDown()) {
+        player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
+    } else if (Math.abs(motion.y) < 0.02D) {
+        player.setDeltaMovement(motion.x, 0.02D, motion.z);
+    }
+}
+
+@Unique
+private static boolean identity2$shouldSlowFallingFastFall(Entity entity) {
+    return entity.isShiftKeyDown() && entity.getDeltaMovement().y < 0.0D;
+}
+
+@Unique
+private static boolean identity2$shouldStriderRiseInLava(Entity entity) {
+    return entity.isInLava() || entity.getFluidHeight(FluidTags.LAVA) > 0.0D;
 }
 
 @Inject(method = "aiStep()V", at = @At("TAIL"))

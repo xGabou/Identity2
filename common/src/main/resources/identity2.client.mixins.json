@@ -20,6 +20,7 @@
 		"MinecraftClientMixin",
 		"PlayerEntityRendererMixin",
 		"PlayerNametagMixin",
+		"ScreenEffectRendererMixin",
 		"SnowGolemModelMixin",
 		"WorldRendererMixin"
 	],

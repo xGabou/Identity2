@@ -19,6 +19,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.Sheep;
+import net.minecraft.world.entity.animal.TropicalFish;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.axolotl.Axolotl.Variant;
@@ -69,6 +70,8 @@ public final class IdentityVanillaVariantHelper {
             addVariants(out, discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
         } else if (type == EntityType.FROG) {
             addVariants(out, discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog"));
+        } else if (type == EntityType.TROPICAL_FISH) {
+            addVariants(out, discoverTropicalFishVariants(typeId));
         }
 
         IdentityVariant babyVariant = discoverBabyVariant(type, typeId, level);
@@ -512,6 +515,25 @@ public final class IdentityVanillaVariantHelper {
             CompoundTag nbt = new CompoundTag();
             nbt.putInt("Variant", i);
             variants.add(new IdentityVariant(typeId, "Axolotl " + capitalize(values[i].name()), nbt));
+        }
+        return variants;
+    }
+
+    private static List<IdentityVariant> discoverTropicalFishVariants(ResourceLocation typeId) {
+        // Explicit list instead of the reflective/sampled discovery passes: those
+        // depend on runtime method names (absent under Fabric intermediary mappings)
+        // and only mutated the pattern axis under NeoForge, giving colorless fish.
+        // The packed "Variant" int carries pattern + base color + pattern color and
+        // is read directly by TropicalFish.readAdditionalSaveData on every loader.
+        List<IdentityVariant> variants = new ArrayList<>(TropicalFish.COMMON_VARIANTS.size());
+        for (TropicalFish.Variant fishVariant : TropicalFish.COMMON_VARIANTS) {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("Variant", fishVariant.getPackedId());
+            String label = "Tropical Fish "
+                    + capitalize(fishVariant.pattern().name().toLowerCase(Locale.ROOT).replace('_', ' '))
+                    + " " + capitalize(fishVariant.baseColor().getName().replace('_', ' '))
+                    + "/" + capitalize(fishVariant.patternColor().getName().replace('_', ' '));
+            variants.add(new IdentityVariant(typeId, label, nbt));
         }
         return variants;
     }

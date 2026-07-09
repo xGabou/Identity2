@@ -588,7 +588,7 @@ public final class IdentityProgression {
             return;
         }
         CompoundTag nbt = getCustomData(player);
-        String serializedVariant = serializeVariantNbt(variantNbt);
+        String serializedVariant = capOversizedVariant(player, serializeVariantNbt(variantNbt));
         nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant);
 
         String modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
@@ -1258,6 +1258,32 @@ public final class IdentityProgression {
         return fromVariantUnlockToken(tokens.get(index));
     }
 
+    /**
+     * Hard cap for a single synced variant string. Vanilla's writeUtf refuses strings
+     * over 32767 chars and the C2S custom payload limit is 32767 bytes, so anything
+     * near that disconnects the client with a "packet too big" error. Oversized
+     * variants (usually huge modded entity NBT diffs) degrade to the default look
+     * instead of killing the connection.
+     */
+    private static final int MAX_SYNCED_VARIANT_CHARS = 24000;
+
+    private static String capOversizedVariant(ServerPlayer player, String variant) {
+        if (variant == null) {
+            return "";
+        }
+        if (variant.length() <= MAX_SYNCED_VARIANT_CHARS) {
+            return variant;
+        }
+        Identity2.LOGGER.warn(
+            "Identity variant NBT for {} is {} chars, above the sync limit of {}. Sending the default variant instead.",
+            player.getGameProfile().getName(),
+            variant.length(),
+            MAX_SYNCED_VARIANT_CHARS
+        );
+        notifyPlayerOversizedIdentityPayload(player);
+        return "";
+    }
+
     private static void syncMorphData(
         ServerPlayer player,
         String modelOverride,
@@ -1269,6 +1295,8 @@ public final class IdentityProgression {
         double transitionStartTick,
         double transitionDurationTicks
     ) {
+        variant = capOversizedVariant(player, variant);
+        previousVariant = capOversizedVariant(player, previousVariant);
         CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
             player.getId(),
             List.of(

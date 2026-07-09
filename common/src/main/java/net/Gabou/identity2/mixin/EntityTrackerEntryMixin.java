@@ -40,7 +40,12 @@ public class EntityTrackerEntryMixin {
                 continue;
             }
             if (value.getId() == Tag.TAG_STRING) {
-                stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, data.getString(key)));
+                String stringValue = data.getString(key);
+                // writeUtf rejects strings over 32767 chars; skip rather than break tracking sync.
+                if (stringValue.length() > 30000) {
+                    continue;
+                }
+                stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, stringValue));
             }
             if (value.getId() == Tag.TAG_BYTE) {
                 boolValues.add(new CustomEntityDataS2CPacket.EntryBool(key, data.getBoolean(key)));

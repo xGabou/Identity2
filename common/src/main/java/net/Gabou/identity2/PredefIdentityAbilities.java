@@ -95,6 +95,8 @@ public final class PredefIdentityAbilities {
     public static final String CREEPER_HISS_TICKS_KEY = "identity2.anim.creeper_hiss_ticks";
     public static final String PUFFER_PUFF_TICKS_KEY = "identity2.anim.puffer_puff_ticks";
     public static final int CREEPER_HISS_DURATION_TICKS = 30;
+    private static final String SHULKER_BULLET_COOLDOWN_KEY = "identity2.shulker_bullet_cooldown";
+    private static final int SHULKER_BULLET_COOLDOWN_TICKS = 20;
     private static final int WARDEN_SONIC_BOOM_ANIMATION_TICKS = 60;
     private static final int ILLUSIONER_CLONE_COUNT = 3;
     private static final int ILLUSIONER_CLONE_LIFETIME_TICKS = 20 * 25;
@@ -352,7 +354,16 @@ public final class PredefIdentityAbilities {
                 if (!isShulkerOpen(player)) {
                     return false;
                 }
-                return tryShootShulkerBullet(player, shulker);
+                // Server-authoritative bullet cooldown; the attack-key packet path has
+                // no other rate limit, which allowed machine-gun bullets.
+                if (isSyncedAnimationActive(player, SHULKER_BULLET_COOLDOWN_KEY)) {
+                    return false;
+                }
+                boolean shot = tryShootShulkerBullet(player, shulker);
+                if (shot) {
+                    identity2$setSyncedTicks(player, SHULKER_BULLET_COOLDOWN_KEY, SHULKER_BULLET_COOLDOWN_TICKS);
+                }
+                return shot;
             }
             @Override
             public void passivetick(Entity player,boolean usedLastTick){
@@ -400,16 +411,25 @@ public final class PredefIdentityAbilities {
         map.put(ResourceLocation.parse("pufferfish"), new IdentityAbility() {
             @Override
             public void executeSecondary(Entity player) {
-                identity2$setSyncedTicks(player, PUFFER_PUFF_TICKS_KEY, 80);
+                // Toggle: pressing again while puffed deflates immediately.
+                boolean puffed = isSyncedAnimationActive(player, PUFFER_PUFF_TICKS_KEY);
+                identity2$setSyncedTicks(player, PUFFER_PUFF_TICKS_KEY, puffed ? 0 : 80);
                 Entity identity = ((EntityAccessor) player).getCurrentIdentity();
                 if (identity instanceof Pufferfish pufferfish) {
-                    pufferfish.setPuffState(2);
+                    pufferfish.setPuffState(puffed ? 0 : 2);
                 }
             }
 
             @Override
             public void passivetick(Entity player, boolean used) {
                 identity2$tickSyncedCountdowns(player, PUFFER_PUFF_TICKS_KEY);
+                // Deflate the server-side morph entity once the puff window expires.
+                Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+                if (identity instanceof Pufferfish pufferfish
+                        && pufferfish.getPuffState() != 0
+                        && !isSyncedAnimationActive(player, PUFFER_PUFF_TICKS_KEY)) {
+                    pufferfish.setPuffState(0);
+                }
             }
         });
         map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "pufferfish"), map.get(ResourceLocation.parse("pufferfish")));
@@ -1385,33 +1405,10 @@ public final class PredefIdentityAbilities {
         syncBoolData(player, SHULKER_OPEN_STATE_KEY, open);
     }
 
-    private static void setShulkerLockAnchor(ServerPlayer player, Vec3 anchor) {
-        if (player == null || anchor == null) {
-            return;
-        }
-        CompoundTag customData = ((EntityAccessor) player).getCustomData();
-        customData.putDouble(SHULKER_LOCK_X_KEY, anchor.x);
-        customData.putDouble(SHULKER_LOCK_Y_KEY, anchor.y);
-        customData.putDouble(SHULKER_LOCK_Z_KEY, anchor.z);
-    }
-
-    private static Vec3 getShulkerLockAnchor(ServerPlayer player) {
-        if (player == null) {
-            return null;
-        }
-        CompoundTag customData = ((EntityAccessor) player).getCustomData();
-        if (!customData.contains(SHULKER_LOCK_X_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)
-                || !customData.contains(SHULKER_LOCK_Y_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)
-                || !customData.contains(SHULKER_LOCK_Z_KEY, net.minecraft.nbt.Tag.TAG_DOUBLE)) {
-            return null;
-        }
-        return new Vec3(
-                customData.getDouble(SHULKER_LOCK_X_KEY),
-                customData.getDouble(SHULKER_LOCK_Y_KEY),
-                customData.getDouble(SHULKER_LOCK_Z_KEY)
-        );
-    }
-
+    // setShulkerLockAnchor/getShulkerLockAnchor were removed: the shulker position
+    // lock was replaced by runTryAttachOrTeleport in tryTeleportShulkerToNewAnchor,
+    // so nothing writes the anchor anymore. clearShulkerLockAnchor stays to purge
+    // stale anchor keys from custom data saved by older versions.
     private static void clearShulkerLockAnchor(ServerPlayer player) {
         if (player == null) {
             return;
@@ -2157,20 +2154,30 @@ public final class PredefIdentityAbilities {
         world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GOAT_RAM_IMPACT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
+    // Synced countdowns are stored as absolute level game time (expiry tick), not
+    // Entity.tickCount: tickCount is a per-instance counter that differs between the
+    // server player and every client-side view of that player, so tickCount-based
+    // expiries never elapse for remote viewers (e.g. creeper morphs stuck mid-swell).
+    // Game time is synchronized to clients by vanilla, matching MorphTransitionHelper.
+    private static long identity2$gameTime(Entity player) {
+        return player == null || player.level() == null ? 0L : player.level().getGameTime();
+    }
+
     private static void identity2$setSyncedTicks(Entity player, String key, int ticks) {
         if (!(player instanceof ServerPlayer serverPlayer) || key == null || key.isBlank()) {
             return;
         }
         int clampedTicks = Math.max(0, ticks);
-        double value = player.tickCount + clampedTicks;
-        double windowStart = clampedTicks > 0 ? player.tickCount : 0.0D;
+        long now = identity2$gameTime(player);
+        double value = now + clampedTicks;
+        double windowStart = clampedTicks > 0 ? now : 0.0D;
         IdentityApi.syncDouble(serverPlayer, key, value);
         IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), windowStart);
     }
 
     private static int identity2$getSyncedTicks(Entity player, String key) {
         double expiresAt = identity2$getStoredTickValue(player, key);
-        return Math.max(0, (int) Math.round(expiresAt - player.tickCount));
+        return Math.max(0, (int) Math.round(expiresAt - identity2$gameTime(player)));
     }
 
     private static void identity2$tickSyncedCountdowns(Entity player, String... keys) {
@@ -2188,7 +2195,14 @@ public final class PredefIdentityAbilities {
         if (player == null || key == null || key.isBlank() || identity2$getSyncedTicks(player, key) <= 0) {
             return 0.0D;
         }
-        return identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+        double startGameTime = identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+        if (startGameTime <= 0.0D) {
+            return 0.0D;
+        }
+        // Convert from game time into the caller entity's tickCount base:
+        // AnimationState.start expects the same clock the renderer feeds it.
+        double elapsed = Math.max(0.0D, identity2$gameTime(player) - startGameTime);
+        return Math.max(1.0D, player.tickCount - elapsed);
     }
 
     public static boolean isSyncedAnimationActive(Entity player, String key) {

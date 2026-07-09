@@ -168,7 +168,11 @@ public final class IdentityVariantDiscovery {
 
             // If a custom adapter provides explicit variants for this entity type,
             // treat it as authoritative to avoid adapter + heuristic duplicate entries.
-            if (!adapterVariants.isEmpty()) {
+            // Tropical fish are also authoritative: the heuristic passes rely on
+            // runtime method names (broken under Fabric intermediary) and produce
+            // colorless pattern-only variants under NeoForge.
+            if (!adapterVariants.isEmpty()
+                    || (type == EntityType.TROPICAL_FISH && !known.isEmpty())) {
                 ensureDefaultVariantWhenBabyPresent(typeId, out);
                 if (out.isEmpty()) {
                     return List.of(defaultVariant(typeId));
@@ -217,6 +221,20 @@ public final class IdentityVariantDiscovery {
             return;
         }
         IdentityVariant normalized = new IdentityVariant(variant.entityTypeId(), variant.displayName(), sanitized);
+        // Multiple discovery passes (known/probe/baby diff) can produce the same
+        // logical variant with slightly different NBT, which defeats token-based
+        // dedup and shows duplicate rows (e.g. two "Armadillo Baby" entries).
+        // A display name collision for the same entity type is always a duplicate.
+        String displayName = normalized.displayName();
+        if (displayName != null && !displayName.isBlank()) {
+            for (IdentityVariant existing : out.values()) {
+                if (existing != null
+                        && displayName.equalsIgnoreCase(existing.displayName())
+                        && java.util.Objects.equals(existing.entityTypeId(), normalized.entityTypeId())) {
+                    return;
+                }
+            }
+        }
         String token = IdentityProgression.toVariantUnlockToken(normalized.variantNbt());
         out.putIfAbsent(token, normalized);
     }

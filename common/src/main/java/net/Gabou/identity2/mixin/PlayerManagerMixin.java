@@ -92,7 +92,13 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
                 doubleData.add(new CustomEntityDataS2CPacket.Entry(key, net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, key, 0.0)));
             }
             if (id == Tag.TAG_STRING) {
-                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, key, "")));
+                String value = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, key, "");
+                // writeUtf rejects strings over 32767 chars; skip rather than kill the login.
+                if (value.length() > 30000) {
+                    Identity2.LOGGER.warn("Skipping oversized custom data string '{}' ({} chars) during login sync for {}.", key, value.length(), player.getGameProfile().getName());
+                    continue;
+                }
+                stringData.add(new CustomEntityDataS2CPacket.EntryString(key, value));
             }
             if (id == Tag.TAG_BYTE) {
                 boolData.add(new CustomEntityDataS2CPacket.EntryBool(key, net.Gabou.identity2.util.NbtCompat.getBooleanOr(nbt, key, false)));

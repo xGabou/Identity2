@@ -55,11 +55,25 @@ public final class ModRegistries {
         initialized = true;
 
         platform.registerIdentityAbilityRegistry();
+        // Datapack registry contents only exist inside a loaded server's RegistryAccess.
+        // Fabric additionally assigns identityAbilityRegistry from its dynamic registry
+        // setup callback; this event is the loader-neutral path that also covers NeoForge.
+        dev.architectury.event.events.common.LifecycleEvent.SERVER_LEVEL_LOAD.register(level -> {
+            Registry<IdentityAbilityDefinition> resolved =
+                level.registryAccess().registry(IDENTITY_ABILITY_KEY).orElse(null);
+            if (resolved != null) {
+                identityAbilityRegistry = resolved;
+                nextIdentityAbilityLookupAtMs = 0L;
+            }
+        });
         refreshIdentityAbilityRegistry();
     }
 
     @SuppressWarnings("unchecked")
     public static Registry<IdentityAbilityDefinition> refreshIdentityAbilityRegistry() {
+        // Legacy fallback: VanillaRegistries is a datagen snapshot and will not contain
+        // datapack entries; it exists only so the retry loop has something to poll
+        // before a server registry access has been captured.
         identityAbilityRegistry = (Registry<IdentityAbilityDefinition>) VanillaRegistries.createLookup()
             .lookup(IDENTITY_ABILITY_KEY)
             .orElse(null);

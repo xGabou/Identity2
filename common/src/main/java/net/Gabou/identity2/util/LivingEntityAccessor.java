@@ -1,16 +1,14 @@
 package net.Gabou.identity2.util;
 
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.damagesource.DamageSource;
-import org.jetbrains.annotations.Nullable;
-
+/**
+ * Extra state exposed on every LivingEntity by LivingEntityMixin.
+ *
+ * <p>Hurt/death sound access intentionally lives in
+ * {@code net.Gabou.identity2.mixin.LivingEntitySoundInvoker} instead: the vanilla
+ * getters are protected, so declaring them here as public interface methods can
+ * never link and crashes on first dispatch.</p>
+ */
 public interface LivingEntityAccessor {
-
-    @Nullable
-    SoundEvent getHurtSound(DamageSource source);
-
-    @Nullable
-    SoundEvent getDeathSound();
 
     boolean identity2$isJumping();
 }

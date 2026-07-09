@@ -81,18 +81,9 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "auth_challenge"
-    );
-    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "auth_challenge_reply"
-    );
-    public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
-        Identity2.MOD_ID,
-        "unlocked_identity_sync"
-    );
+    // Auth challenge packets now live in gabous-libs (net.Gabou.gaboulibs.auth), and
+    // unlocked identities sync through UNLOCK_SYNC_PACKET_ID above. Do not re-add the
+    // old auth_challenge / auth_challenge_reply / unlocked_identity_sync ids here.
     public static final int ABILITY_ACTION_PRIMARY = 0;
     public static final int ABILITY_ACTION_SECONDARY = -4;
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;

@@ -107,6 +107,11 @@ public class IdentitySettings {
     public static double giantZombieSpawnReplacementChance = 0.02D;
 
     //@Comment(value = "If true, unarmed morph melee attacks use the identity's attack damage instead of the vanilla player attack damage.")
+    // Intentionally false by default: the vanilla player attack pipeline keeps item,
+    // enchantment, and modded attribute bonuses working while morphed (see
+    // PlayerEntityMixin.identity2$attackAsIdentityWhenUnarmed and
+    // LivingEntityMixin.doHurtTargetIdentity, which both defer to vanilla when this
+    // is false). Enabling it makes unarmed attacks use the mob's ATTACK_DAMAGE.
     public static boolean useIdentityAttackDamage = false;
 
     //@Comment(value = "Should player nametags render above players disguised with an identity? Note that the server is the authority for this config option.")

@@ -142,18 +142,15 @@ public final class IdentityRenderStateHelper {
             }
 
             if (livingIdentity instanceof Squid squidIdentity) {
-                // TODO: The squid/glow squid swim loop is serviceable but still not a perfect vanilla match.
+                // Tentacle motion is animated by vanilla Squid.aiStep, which runs because
+                // ClientWorldMixin ticks the morph entity every client tick. Do not write
+                // tentacleMovement/tentacleAngle here: deriving the phase from
+                // tickCount * rate makes the phase jump whenever the swim speed changes,
+                // which showed up as jerky squid/glow squid tentacles.
                 float swimSpeed = livingSource.walkAnimation.speed();
                 livingIdentity.walkAnimation.setSpeed(Math.max(0.15F, swimSpeed));
                 if (source.isInWater()) {
-                    livingIdentity.setSwimming(true);
-                    float speed = Math.max(0.2F, livingSource.walkAnimation.speed() * 2.5F);
-                    float phase = source.tickCount * (0.18F + speed * 0.08F);
-                    float previousPhase = (source.tickCount - 1) * (0.18F + speed * 0.08F);
-                    squidIdentity.tentacleMovement = phase;
-                    squidIdentity.oldTentacleMovement = previousPhase;
-                    squidIdentity.tentacleAngle = Mth.sin(phase) * Mth.sin(phase) * 0.65F;
-                    squidIdentity.oldTentacleAngle = Mth.sin(previousPhase) * Mth.sin(previousPhase) * 0.65F;
+                    squidIdentity.setSwimming(true);
                 }
             }
 
@@ -401,17 +398,34 @@ public final class IdentityRenderStateHelper {
     /**
      * Applies rabbit movement animation state.
      *
+     * <p>The rabbit hop animation is driven by the private jumpTicks/jumpDuration
+     * cycle that vanilla starts via entity event 1 and advances in Rabbit.aiStep
+     * (which runs because ClientWorldMixin ticks the morph entity). Calling
+     * setJumping(true) does not start that cycle — and Rabbit.setJumping(true)
+     * also plays the jump sound on every call — so we trigger the entity event
+     * whenever the previous hop cycle has finished.</p>
+     *
      * @param renderState the rabbit render state
      * @param source the morphed player
      */
     private static void applyRabbitMovementAnimation(LivingEntity renderState, LivingEntity source) {
-        boolean moving = source.getDeltaMovement().horizontalDistanceSqr() > 0.0025D;
-        renderState.setJumping(moving && source.onGround());
-        if (moving && source.onGround()) {
-            renderState.walkAnimation.setSpeed(Math.max(0.35F, source.walkAnimation.speed()));
+        if (!(renderState instanceof Rabbit rabbit)) {
+            return;
+        }
+        boolean hopping = source.getDeltaMovement().horizontalDistanceSqr() > 0.0025D && source.onGround();
+        if (!hopping) {
+            return;
+        }
+        renderState.walkAnimation.setSpeed(Math.max(0.35F, source.walkAnimation.speed()));
+        if (((net.Gabou.identity2.mixin.RabbitAccessor) rabbit).identity2$getJumpDuration() == 0) {
+            rabbit.handleEntityEvent((byte) 1);
         }
     }
 
+    // TODO(tuning): Ravager/hoglin/zoglin head anchoring still sits slightly off the
+    // body (reported as "head positions need adjustment"). Fixing this needs in-game
+    // visual iteration on the yaw/pitch copy below plus possibly a model pivot offset;
+    // do not guess values here without checking first- and third-person renders.
     private static void syncSpeciesHeadRotation(LivingEntity source, LivingEntity renderState) {
         if (renderState instanceof Hoglin || renderState instanceof Zoglin) {
             fixHoglinLikeHeadRotation(renderState, source);
@@ -498,6 +512,10 @@ public final class IdentityRenderStateHelper {
         );
 
         if (identity instanceof IronGolem ironGolem) {
+            // TODO(tuning): swing timing vs. damage moment ("attack arm swing timing")
+            // may still need an offset once verified in game. The countdown timebase
+            // was moved to game time, which already removes the client/server drift
+            // that made the swing start late for remote viewers.
             int golemAttackTicks = PredefIdentityAbilities.getSyncedTicksRemaining(source, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY);
             ((IronGolemAccessor) ironGolem).identity2$setAttackAnimationTick(golemAttackTicks);
         } else if (identity instanceof Ravager ravager) {

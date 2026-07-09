@@ -179,8 +179,16 @@ public class EntityMixin implements EntityAccessor {
                 this.entityCanFlyTickEvaluated = true;
                 this.entityCanFlyEvaluated = false;
             }
+            // Re-evaluate flight periodically: the first evaluation can run before
+            // entity type tags are synced/bound, and the result would otherwise be
+            // latched forever (flying morphs then never receive their flight grant).
+            long now = ((Entity) (Object) this).level() == null ? 0L : ((Entity) (Object) this).level().getGameTime();
+            if (this.entityCanFlyLastEvalTick == Long.MIN_VALUE
+                    || now - this.entityCanFlyLastEvalTick >= ENTITY_FLY_REEVAL_TICKS) {
+                this.entityCanFlyLastEvalTick = now;
+                this.entityCanFlyEvaluated = false;
+            }
             if (!this.entityCanFlyEvaluated) {
-                //QualityCommands.LOGGER.info("Reevaluating canFly for entity "+((Entity)(Object)this).getName());
                 this.canFly();
             }
             this.identityOf.noPhysics = this.noPhysics;
@@ -655,11 +663,13 @@ public class EntityMixin implements EntityAccessor {
             identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
         } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
             identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
-        } else if (activeIdentity.getType() == EntityType.STRIDER && identity2$shouldStriderRiseInLava(player)) {
-            identity2$applyStriderLavaMovement(player);
         } else {
             identity2$clearMorphZombificationTicks();
         }
+        // Strider lava movement moved to LivingEntityMixin.identity2$applyMorphMovementAssists:
+        // it must run on the client (player movement is client-authoritative and the jump
+        // input never reaches the server while not riding), and after travel() so the
+        // land-physics gravity applied by canStandOnFluid morphs doesn't erase the boost.
     }
 
     @Unique
@@ -2116,6 +2126,10 @@ public class EntityMixin implements EntityAccessor {
         if (heightDifference <= 0.0D) {
             return 0.0D;
         }
+        // TODO(tuning): the 0.5/0.35 factors are heuristics; horse/boat sitting height
+        // is reported as slightly off for some morphs. Adjusting needs in-game checks
+        // per vehicle type (boat, horse, camel) with small and tall morphs — a single
+        // scalar cannot be derived from code inspection alone.
         return Math.max(0.0D, heightDifference * (vehicle instanceof Boat ? 0.5D : 0.35D));
     }
 
@@ -2227,6 +2241,17 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
             info.setReturnValue(this.currentIdentity.getEyeHeight());
+        }
+    }
+
+    // Pose changes (crouch/uncrouch) call refreshDimensions, which resets the cached
+    // eyeHeight field from the player's (scaled) dimensions. getEyeY() reads that field
+    // directly, so projectile spawn points and bucket raytraces would revert to the
+    // player's own head height until the next morph. Restore the identity eye height.
+    @Inject(method = "refreshDimensions", at = @At("TAIL"), require = 0)
+    private void identity2$restoreMorphEyeHeightAfterRefresh(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.eyeHeight = this.currentIdentity.getEyeHeight();
         }
     }
 

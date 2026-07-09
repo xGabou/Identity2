@@ -43,6 +43,7 @@ public final class IdentityApi {
     private static final Map<EntityType<?>, IdentityVariantAdapter> VARIANT_ADAPTERS = new ConcurrentHashMap<>();
     private static final Map<EntityType<?>, CopyOnWriteArrayList<IdentityMorphTickHandler>> MORPH_TICK_HANDLERS = new ConcurrentHashMap<>();
     private static final Set<EntityType<?>> GENERIC_COMMAND_BABY_VARIANTS = Set.of(
+            EntityType.ARMADILLO,
             EntityType.BEE,
             EntityType.CAMEL,
             EntityType.CAT,

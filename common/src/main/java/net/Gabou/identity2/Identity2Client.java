@@ -303,6 +303,16 @@ public final class Identity2Client {
     }
 
     public static void sendMorphRequest(String identityId, String variantNbt) {
+        // Vanilla caps serverbound custom payloads at 32767 bytes; an oversized
+        // variant string would disconnect us, so fall back to the default variant.
+        if (variantNbt != null && variantNbt.length() > 24000) {
+            Identity2.LOGGER.warn(
+                "Morph request variant for {} is {} chars; sending default variant instead of an oversized packet.",
+                identityId,
+                variantNbt.length()
+            );
+            variantNbt = "";
+        }
         if (IdentityProgression.PLAYER_IDENTITY_ID.toString().equals(identityId)) {
             CompoundTag parsed = IdentityProgression.parseVariantNbt(variantNbt);
             String skinUuid = net.Gabou.identity2.util.NbtCompat.getStringOr(
