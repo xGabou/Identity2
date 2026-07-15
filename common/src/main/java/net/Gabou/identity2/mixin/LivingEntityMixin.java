@@ -61,12 +61,13 @@ import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.phys.shapes.CollisionContext;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
     @Unique
-    private static final String IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY = "identity2.last_ambient_sound_tick";
+    private static final String IDENTITY2_AMBIENT_SOUND_TIME_KEY = "identity2.ambient_sound_time";
 
     @Shadow
     protected boolean jumping;
@@ -160,18 +161,6 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
             );
     }
 
-    private static boolean identity2$canUseSlot(LivingEntity livingIdentity, EquipmentSlot slot) {
-        if (livingIdentity == null || slot == null) {
-            return true;
-        }
-        try {
-            return (boolean) LivingEntity.class
-                .getMethod("canUseSlot", EquipmentSlot.class)
-                .invoke(livingIdentity, slot);
-        } catch (Throwable ignored) {
-            return true;
-        }
-    }
 /*@Inject(method = "getMaxHealth()F", at=@At("HEAD"),cancellable=true)
 private void getMaxHealthIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
@@ -380,9 +369,7 @@ private void identity2$applyMorphMovementAssists(CallbackInfo info) {
     }
     EntityType<?> identityType = this.currentIdentity.getType();
 
-    if (identityType == EntityType.STRIDER && identity2$shouldStriderRiseInLava(player)) {
-        // canStandOnFluid(lava) morphs use land physics inside lava, so vanilla's
-        // lava swimming never engages; emulate it from the player's own inputs.
+    if (identityType == EntityType.STRIDER && player.isInLava()) {
         identity2$applyStriderLavaMovement(player);
         return;
     }
@@ -405,25 +392,19 @@ private void identity2$applyMorphMovementAssists(CallbackInfo info) {
 
 @Unique
 private static void identity2$applyStriderLavaMovement(Player player) {
-    Vec3 motion = player.getDeltaMovement();
-    boolean jumpInput = player instanceof LivingEntityAccessor accessor && accessor.identity2$isJumping();
-    if (jumpInput && identity2$shouldStriderRiseInLava(player)) {
-        player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
-    } else if (player.isShiftKeyDown()) {
-        player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
-    } else if (Math.abs(motion.y) < 0.02D) {
-        player.setDeltaMovement(motion.x, 0.02D, motion.z);
+    CollisionContext collisionContext = CollisionContext.of(player);
+    net.minecraft.core.BlockPos position = player.blockPosition();
+    if (collisionContext.isAbove(LiquidBlock.STABLE_SHAPE, position, true)
+            && !player.level().getFluidState(position.above()).is(FluidTags.LAVA)) {
+        player.setOnGround(true);
+    } else {
+        player.setDeltaMovement(player.getDeltaMovement().scale(0.5D).add(0.0D, 0.05D, 0.0D));
     }
 }
 
 @Unique
 private static boolean identity2$shouldSlowFallingFastFall(Entity entity) {
     return entity.isShiftKeyDown() && entity.getDeltaMovement().y < 0.0D;
-}
-
-@Unique
-private static boolean identity2$shouldStriderRiseInLava(Entity entity) {
-    return entity.isInLava() || entity.getFluidHeight(FluidTags.LAVA) > 0.0D;
 }
 
 @Inject(method = "aiStep()V", at = @At("TAIL"))
@@ -452,15 +433,15 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     if (intervalValue instanceof Number number) {
         interval = Math.max(1, number.intValue());
     }
-    if (serverLevel.getRandom().nextInt(interval) != 0) {
-        return;
-    }
     CompoundTag customData = ((EntityAccessor) hostPlayer).getCustomData();
-    long lastAmbientTick = customData.getLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY);
-    if (lastAmbientTick > 0L && hostPlayer.tickCount - lastAmbientTick < 20) {
+    int ambientSoundTime = customData.getInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY);
+    boolean shouldPlay = serverLevel.getRandom().nextInt(1000) < ambientSoundTime;
+    ambientSoundTime++;
+    if (!shouldPlay) {
+        customData.putInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY, ambientSoundTime);
         return;
     }
-    customData.putLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY, hostPlayer.tickCount);
+    customData.putInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY, -interval);
 
     float volume = 1.0F;
     Object volumeValue = identity2$invokeNoArg(livingIdentity, "getSoundVolume");
@@ -670,23 +651,6 @@ private static void identity2$invokePrivateVoid(Object target, String methodName
     }
 }
 
-//@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
-//private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
-//    if(this.currentIdentity!=null){
-//        if(this.currentIdentity instanceof LivingEntity livingIdentity){
-//            if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
-//                info.setReturnValue(false);
-//                return;
-//            }
-//            if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
-//                info.setReturnValue(false);
-//                return;
-//            }
-//            info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
-//        }
-//    }
-//}
-
     @Inject(method = "getLastHurtByMobTimestamp", at = @At("HEAD"), cancellable = true)
     private void identity2$getLastHurtTimestamp(CallbackInfoReturnable<Integer> cir) {
         if (this.identityOf instanceof LivingEntity livingIdentity) {
@@ -714,31 +678,6 @@ private static void identity2$invokePrivateVoid(Object target, String methodName
     @Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
     }
-
-    @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
-        if (slot.getType() == EquipmentSlot.Type.HAND) {
-            return;
-        }
-        if (slot.getType() == EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipItems) {
-            return;
-        }
-        if (slot.getType() != EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipArmor) {
-            return;
-        }
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
-            info.setReturnValue(false);
-        }
-    }
-
-//    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-//    private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info) {
-//        if (this.currentIdentity != null) {
-//            if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-//                info.setReturnValue(identity2$canUseSlot(livingIdentity, slot));
-//            }
-//        }
-//    }
 
     @Inject(method = "doHurtTarget(Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), cancellable = true)
     private void doHurtTargetIdentity(Entity entity, CallbackInfoReturnable<Boolean> info) {

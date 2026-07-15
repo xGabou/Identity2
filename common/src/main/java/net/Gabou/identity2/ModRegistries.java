@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.resources.ResourceLocation;
@@ -58,15 +59,21 @@ public final class ModRegistries {
         // Datapack registry contents only exist inside a loaded server's RegistryAccess.
         // Fabric additionally assigns identityAbilityRegistry from its dynamic registry
         // setup callback; this event is the loader-neutral path that also covers NeoForge.
-        dev.architectury.event.events.common.LifecycleEvent.SERVER_LEVEL_LOAD.register(level -> {
-            Registry<IdentityAbilityDefinition> resolved =
-                level.registryAccess().registry(IDENTITY_ABILITY_KEY).orElse(null);
-            if (resolved != null) {
-                identityAbilityRegistry = resolved;
-                nextIdentityAbilityLookupAtMs = 0L;
-            }
-        });
+        dev.architectury.event.events.common.LifecycleEvent.SERVER_LEVEL_LOAD.register(
+            level -> captureIdentityAbilityRegistry(level.registryAccess())
+        );
         refreshIdentityAbilityRegistry();
+    }
+
+    public static void captureIdentityAbilityRegistry(RegistryAccess registryAccess) {
+        if (registryAccess == null) {
+            return;
+        }
+        Registry<IdentityAbilityDefinition> resolved = registryAccess.registry(IDENTITY_ABILITY_KEY).orElse(null);
+        if (resolved != null) {
+            identityAbilityRegistry = resolved;
+            nextIdentityAbilityLookupAtMs = 0L;
+        }
     }
 
     @SuppressWarnings("unchecked")

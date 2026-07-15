@@ -453,7 +453,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
             return false;
         }
         for (String storedToken : this.unlockedVariantTokens) {
-            if (IdentityProgression.matchesStoredVariantToken(variant.variantNbt(), storedToken)) {
+            if (IdentityProgression.matchesStoredVariantReference(this.entityTypeId, variant.variantNbt(), storedToken)) {
                 Identity2.LOGGER.info(
                         "[VariantDebug] variant unlocked entity={} variant={} matchedToken={}",
                         this.entityTypeId,

@@ -13,6 +13,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -36,6 +37,14 @@ public final class SilverfishBurrowManager {
         }
         CompoundTag nbt = ((NbtComponentAccessor) accessor.getCustomData()).getNbt();
         return nbt.contains(HIDDEN_KEY, Tag.TAG_BYTE) && nbt.getBoolean(HIDDEN_KEY);
+    }
+
+    public static boolean shouldSuppressBlockOverlay(@Nullable Entity entity) {
+        if (!isHidden(entity)) {
+            return false;
+        }
+        BlockState cover = entity.level().getBlockState(entity.blockPosition().above());
+        return !(cover.getBlock() instanceof SnowLayerBlock);
     }
 
     public static boolean toggle(ServerPlayer player) {

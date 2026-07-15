@@ -8,6 +8,7 @@ import java.lang.reflect.Modifier;
 
 import dev.architectury.platform.Platform;
 import net.Gabou.identity2.mixin.EnderManAccessor;
+import net.Gabou.identity2.mixin.CreeperAccessor;
 import net.Gabou.identity2.mixin.HoglinAccessor;
 import net.Gabou.identity2.mixin.RavagerAccessor;
 import net.Gabou.identity2.mixin.VillagerAccessor;
@@ -62,6 +63,7 @@ import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -73,6 +75,9 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.entity.monster.Shulker;
+import net.Gabou.identity2.mixin.CreeperAccessor;
+import net.minecraft.world.level.gameevent.GameEvent;
+
 public final class PredefIdentityAbilities {
     private static final float GENERIC_MIN_DAMAGE = 2.0F;
     private static final float GENERIC_MAX_DAMAGE = 10.0F;
@@ -84,6 +89,7 @@ public final class PredefIdentityAbilities {
     private static final String SHULKER_LOCK_Y_KEY = "identity2.shulker_lock_y";
     private static final String SHULKER_LOCK_Z_KEY = "identity2.shulker_lock_z";
     public static final String CAMEL_SITTING_STATE_KEY = "identity2.camel_sitting";
+    public static final String ARMADILLO_SHELL_STATE_KEY = "identity2.armadillo_shell";
     public static final String ENDERMAN_ANGRY_STATE_KEY = "identity2.enderman_angry";
     public static final String ANIM_ATTACK_TICKS_KEY = "identity2.anim.attack_ticks";
     public static final String ANIM_BEAM_TICKS_KEY = "identity2.anim.beam_ticks";
@@ -93,8 +99,12 @@ public final class PredefIdentityAbilities {
     public static final String ANIM_ANGRY_TICKS_KEY = "identity2.anim.angry_ticks";
     public static final String ANIM_DRAGON_FLIP_TICKS_KEY = "identity2.anim.dragon_flip_ticks";
     public static final String CREEPER_HISS_TICKS_KEY = "identity2.anim.creeper_hiss_ticks";
+    public static final String CREEPER_FUSE_TICKS_KEY = "identity2:creeper_fuse_ticks";
+    public static final int CREEPER_FUSE_DURATION_TICKS = 30;
     public static final String PUFFER_PUFF_TICKS_KEY = "identity2.anim.puffer_puff_ticks";
     public static final int CREEPER_HISS_DURATION_TICKS = 30;
+    private static final String CREEPER_FUSE_ARMED_KEY =
+            "identity2.creeper_fuse_armed";
     private static final String SHULKER_BULLET_COOLDOWN_KEY = "identity2.shulker_bullet_cooldown";
     private static final int SHULKER_BULLET_COOLDOWN_TICKS = 20;
     private static final int WARDEN_SONIC_BOOM_ANIMATION_TICKS = 60;
@@ -408,6 +418,21 @@ public final class PredefIdentityAbilities {
         });
         map.put(ResourceLocation.fromNamespaceAndPath("minecraft", "bee"), map.get(ResourceLocation.parse("bee")));
 
+        map.put(ResourceLocation.parse("armadillo"), new IdentityAbility() {
+            @Override
+            public void execute(Entity player) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+                boolean shellActive = !net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                        ((EntityAccessor) player).getCustomData(),
+                        ARMADILLO_SHELL_STATE_KEY,
+                        false
+                );
+                IdentityApi.syncBoolean(serverPlayer, ARMADILLO_SHELL_STATE_KEY, shellActive);
+            }
+        });
+
         map.put(ResourceLocation.parse("pufferfish"), new IdentityAbility() {
             @Override
             public void executeSecondary(Entity player) {
@@ -600,23 +625,61 @@ public final class PredefIdentityAbilities {
             }
         });
 
+
+
         map.put(ResourceLocation.parse("creeper"), new IdentityAbility() {
             @Override
             public void execute(Entity player) {
-                float power = 3.0F;
-                Entity current = ((EntityAccessor) player).getCurrentIdentity();
-                if (current instanceof Creeper creeper && creeper.isPowered()) {
-                    power = 6.0F;
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
                 }
-                player.level().explode(player, player.getX(), player.getY(), player.getZ(), power, Level.ExplosionInteraction.NONE);
+
+                boolean armed = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                        ((EntityAccessor) player).getCustomData(),
+                        CREEPER_FUSE_ARMED_KEY,
+                        false
+                );
+
+                if (armed) {
+                    return;
+                }
+
+                ((EntityAccessor) player)
+                        .getCustomData()
+                        .putBoolean(CREEPER_FUSE_ARMED_KEY, true);
+
+                IdentityApi.syncBoolean(
+                        serverPlayer,
+                        CREEPER_FUSE_ARMED_KEY,
+                        true
+                );
+
+                identity2$setSyncedTicks(
+                        player,
+                        CREEPER_FUSE_TICKS_KEY,
+                        CREEPER_FUSE_DURATION_TICKS
+                );
+
+//                player.level().playSound(
+//                        null,
+//                        player.getX(),
+//                        player.getY(),
+//                        player.getZ(),
+//                        SoundEvents.CREEPER_PRIMED,
+//                        SoundSource.HOSTILE,
+//                        1.0F,
+//                        0.5F
+//                );
+
+                player.gameEvent(GameEvent.PRIME_FUSE);
             }
 
             @Override
             public void executeSecondary(Entity player) {
-                if (player.level().isClientSide()) {
+                if (!(player instanceof ServerPlayer)) {
                     return;
                 }
-                identity2$setSyncedTicks(player, CREEPER_HISS_TICKS_KEY, CREEPER_HISS_DURATION_TICKS);
+
                 player.level().playSound(
                         null,
                         player.getX(),
@@ -625,13 +688,59 @@ public final class PredefIdentityAbilities {
                         SoundEvents.CREEPER_PRIMED,
                         SoundSource.HOSTILE,
                         1.0F,
-                        1.0F
+                        0.5F
                 );
+
+                player.gameEvent(GameEvent.PRIME_FUSE);
             }
 
             @Override
             public void passivetick(Entity player, boolean used) {
-                identity2$tickSyncedCountdowns(player, CREEPER_HISS_TICKS_KEY);
+                int remainingTicks =
+                        identity2$getSyncedTicks(player, CREEPER_FUSE_TICKS_KEY);
+
+                Entity identity =
+                        ((EntityAccessor) player).getCurrentIdentity();
+
+                if (identity instanceof Creeper creeper) {
+                    identity2$updateCreeperFuseVisual(
+                            creeper,
+                            remainingTicks,
+                            CREEPER_FUSE_DURATION_TICKS
+                    );
+                }
+
+                if (!(player instanceof ServerPlayer serverPlayer)) {
+                    return;
+                }
+
+                boolean armed = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                        ((EntityAccessor) player).getCustomData(),
+                        CREEPER_FUSE_ARMED_KEY,
+                        false
+                );
+
+                if (!armed || remainingTicks > 0) {
+                    return;
+                }
+
+                ((EntityAccessor) player)
+                        .getCustomData()
+                        .putBoolean(CREEPER_FUSE_ARMED_KEY, false);
+
+                IdentityApi.syncBoolean(
+                        serverPlayer,
+                        CREEPER_FUSE_ARMED_KEY,
+                        false
+                );
+
+                identity2$setSyncedTicks(
+                        player,
+                        CREEPER_FUSE_TICKS_KEY,
+                        0
+                );
+
+                identity2$explodeAsCreeper(player, identity);
             }
         });
 
@@ -2154,6 +2263,65 @@ public final class PredefIdentityAbilities {
         world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GOAT_RAM_IMPACT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }
 
+    private static void identity2$updateCreeperFuseVisual(
+            Creeper creeper,
+            int remainingTicks,
+            int duration
+    ) {
+        if (creeper == null) {
+            return;
+        }
+
+        CreeperAccessor accessor = (CreeperAccessor) creeper;
+        int previousSwell = accessor.identity2$getSwell();
+
+        if (remainingTicks > 0) {
+            int elapsedTicks = Math.max(0, duration - remainingTicks);
+            int maxSwell = Math.max(1, accessor.identity2$getMaxSwell());
+
+            int currentSwell = Mth.clamp(
+                    elapsedTicks,
+                    0,
+                    maxSwell
+            );
+
+            accessor.identity2$setOldSwell(previousSwell);
+            accessor.identity2$setSwell(currentSwell);
+            creeper.setSwellDir(1);
+            return;
+        }
+
+        int currentSwell = Math.max(0, previousSwell - 1);
+
+        accessor.identity2$setOldSwell(previousSwell);
+        accessor.identity2$setSwell(currentSwell);
+        creeper.setSwellDir(-1);
+    }
+
+    private static void identity2$explodeAsCreeper(
+            Entity player,
+            Entity identity
+    ) {
+        if (player == null || player.level().isClientSide()) {
+            return;
+        }
+
+        float power = 3.0F;
+
+        if (identity instanceof Creeper creeper && creeper.isPowered()) {
+            power = 6.0F;
+        }
+
+        player.level().explode(
+                player,
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                power,
+                Level.ExplosionInteraction.NONE
+        );
+    }
+
     // Synced countdowns are stored as absolute level game time (expiry tick), not
     // Entity.tickCount: tickCount is a per-instance counter that differs between the
     // server player and every client-side view of that player, so tickCount-based
@@ -2839,6 +3007,7 @@ public final class PredefIdentityAbilities {
         }
         return paramType == int.class && arg instanceof Integer;
     }
+
 }
 
 

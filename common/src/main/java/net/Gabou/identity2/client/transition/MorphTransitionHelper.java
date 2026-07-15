@@ -11,12 +11,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Pose;
 import org.jetbrains.annotations.Nullable;
 
 public final class MorphTransitionHelper {
     private static final float PREVIOUS_STAGE_END = 0.35F;
-    private static final float NEXT_STAGE_START = 0.65F;
     private static final Map<Integer, CachedIdentity> CACHED_PREVIOUS_IDENTITIES = new ConcurrentHashMap<>();
 
     private MorphTransitionHelper() {
@@ -49,7 +47,7 @@ public final class MorphTransitionHelper {
             return currentIdentity;
         }
 
-        if (host.isPassenger() || host.getPose() == Pose.SWIMMING) {
+        if (host.isPassenger()) {
             clearCachedPreviousIdentity(host.getId());
             return currentIdentity;
         }
@@ -58,10 +56,6 @@ public final class MorphTransitionHelper {
         String previousType = nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY): "";
         String previousVariant =nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY): "";
         float progress = getTransitionProgress(host, partialTick);
-
-        if (progress >= NEXT_STAGE_START) {
-            return currentIdentity;
-        }
 
         boolean usePrevious = progress <= PREVIOUS_STAGE_END || (((host.tickCount + host.getId()) & 1) == 0);
         if (!usePrevious) {

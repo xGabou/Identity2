@@ -15,11 +15,11 @@ public abstract class AbstractFishMixin {
             method = "aiStep",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/animal/AbstractFish;playSound(Lnet/minecraft/sounds/SoundEvent;FF)V"
+                    target = "Lnet/minecraft/world/entity/animal/AbstractFish;makeSound(Lnet/minecraft/sounds/SoundEvent;)V"
             ),
             require = 0
     )
-    private void identity2$throttleMorphFlopSound(AbstractFish fish, SoundEvent sound, float volume, float pitch) {
+    private void identity2$throttleMorphFlopSound(AbstractFish fish, SoundEvent sound) {
         Entity owner = ((EntityAccessor) fish).getIdentityOwner();
         if (owner != null) {
             if (fish.tickCount % 20 != 0) {
@@ -33,6 +33,6 @@ public abstract class AbstractFishMixin {
             }
         }
 
-        fish.playSound(sound, volume, pitch);
+        fish.makeSound(sound);
     }
 }

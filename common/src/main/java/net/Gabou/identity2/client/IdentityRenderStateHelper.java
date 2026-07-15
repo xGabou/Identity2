@@ -26,6 +26,7 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.animal.Rabbit;
+import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.animal.Squid;
@@ -155,14 +156,11 @@ public final class IdentityRenderStateHelper {
             }
 
             if (livingIdentity instanceof Turtle) {
-                LimbAnimatorAccessor targetTurtle = (LimbAnimatorAccessor) livingIdentity.walkAnimation;
-                LimbAnimatorAccessor originTurtle = (LimbAnimatorAccessor) livingSource.walkAnimation;
-                float turtleScale = 0.12F;
-                float slowedPosition = originTurtle.getPosition() * turtleScale;
-                targetTurtle.setPrevSpeed(originTurtle.getPrevSpeed() * turtleScale);
-                targetTurtle.setPosition(slowedPosition);
-                targetTurtle.setPositionScale(originTurtle.getPositionScale() * turtleScale);
-                livingIdentity.walkAnimation.setSpeed(livingSource.walkAnimation.speed() * turtleScale);
+                scaleWalkAnimation(livingSource, livingIdentity, 0.12F);
+            }
+
+            if (livingIdentity instanceof Armadillo) {
+                scaleWalkAnimation(livingSource, livingIdentity, 0.30F);
             }
 
             if (livingIdentity instanceof Axolotl && !source.isInWater()) {
@@ -207,12 +205,9 @@ public final class IdentityRenderStateHelper {
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof LivingEntity livingIdentity) {
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.MAINHAND, livingSource.getItemBySlot(EquipmentSlot.MAINHAND));
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.OFFHAND, livingSource.getItemBySlot(EquipmentSlot.OFFHAND));
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.HEAD, livingSource.getItemBySlot(EquipmentSlot.HEAD));
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.CHEST, livingSource.getItemBySlot(EquipmentSlot.CHEST));
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.LEGS, livingSource.getItemBySlot(EquipmentSlot.LEGS));
-            setItemSlotIfChanged(livingIdentity, EquipmentSlot.FEET, livingSource.getItemBySlot(EquipmentSlot.FEET));
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                setItemSlotIfChanged(livingIdentity, slot, visibleMorphEquipment(livingSource, slot));
+            }
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {
@@ -242,6 +237,25 @@ public final class IdentityRenderStateHelper {
         }
     }
 
+    private static void scaleWalkAnimation(LivingEntity source, LivingEntity identity, float scale) {
+        LimbAnimatorAccessor target = (LimbAnimatorAccessor) identity.walkAnimation;
+        LimbAnimatorAccessor origin = (LimbAnimatorAccessor) source.walkAnimation;
+        target.setPrevSpeed(origin.getPrevSpeed() * scale);
+        target.setPosition(origin.getPosition() * scale);
+        target.setPositionScale(origin.getPositionScale() * scale);
+        identity.walkAnimation.setSpeed(source.walkAnimation.speed() * scale);
+    }
+
+    private static ItemStack visibleMorphEquipment(LivingEntity source, EquipmentSlot slot) {
+        if (slot.getType() == EquipmentSlot.Type.HAND && !net.Gabou.identity2.IdentitySettings.identitiesEquipItems) {
+            return ItemStack.EMPTY;
+        }
+        if (slot.getType() != EquipmentSlot.Type.HAND && !net.Gabou.identity2.IdentitySettings.identitiesEquipArmor) {
+            return ItemStack.EMPTY;
+        }
+        return source.getItemBySlot(slot);
+    }
+
     private static void syncEndermanCarriedBlock(Entity source, Entity identity) {
         if (!(identity instanceof EnderMan enderMan) || !(source instanceof LivingEntity livingSource)) {
             return;
@@ -268,23 +282,30 @@ public final class IdentityRenderStateHelper {
 
     private static void syncCreeperHissState(Entity source, Creeper creeper) {
         CreeperAccessor accessor = (CreeperAccessor) creeper;
-        int remaining = PredefIdentityAbilities.getSyncedTicksRemaining(
+
+        int fuseRemaining = PredefIdentityAbilities.getSyncedTicksRemaining(
                 source,
-                PredefIdentityAbilities.CREEPER_HISS_TICKS_KEY
+                PredefIdentityAbilities.CREEPER_FUSE_TICKS_KEY
         );
-        if (remaining <= 0) {
-            accessor.identity2$setSwellDir(-1);
+
+        if (fuseRemaining <= 0) {
+            creeper.setSwellDir(-1);
             accessor.identity2$setOldSwell(0);
             accessor.identity2$setSwell(0);
             return;
         }
-        int elapsed = Math.min(
-                PredefIdentityAbilities.CREEPER_HISS_DURATION_TICKS - 1,
-                PredefIdentityAbilities.CREEPER_HISS_DURATION_TICKS - remaining
+
+        int duration = PredefIdentityAbilities.CREEPER_FUSE_DURATION_TICKS;
+
+        int elapsed = Mth.clamp(
+                duration - fuseRemaining,
+                0,
+                duration
         );
-        accessor.identity2$setSwellDir(1);
+
+        creeper.setSwellDir(1);
         accessor.identity2$setOldSwell(Math.max(0, elapsed - 1));
-        accessor.identity2$setSwell(Math.max(0, elapsed));
+        accessor.identity2$setSwell(elapsed);
     }
 
     private static void syncParrotDanceState(Entity source, Entity identity) {

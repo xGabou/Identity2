@@ -27,6 +27,11 @@ dependencies {
     modImplementation "curse.maven:citadel-331936:7476570"
     compileOnly "io.github.llamalad7:mixinextras-common:0.3.2"
     annotationProcessor "io.github.llamalad7:mixinextras-common:0.3.2"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 architectury {
     common("fabric", "neoforge")

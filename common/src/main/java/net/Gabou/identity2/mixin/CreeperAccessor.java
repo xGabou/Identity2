@@ -3,16 +3,21 @@ package net.Gabou.identity2.mixin;
 import net.minecraft.world.entity.monster.Creeper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(Creeper.class)
 public interface CreeperAccessor {
-    @Invoker("setSwellDir")
-    void identity2$setSwellDir(int state);
-
-    @Accessor("swell")
-    void identity2$setSwell(int swell);
+    @Accessor("oldSwell")
+    int identity2$getOldSwell();
 
     @Accessor("oldSwell")
-    void identity2$setOldSwell(int swell);
+    void identity2$setOldSwell(int value);
+
+    @Accessor("swell")
+    int identity2$getSwell();
+
+    @Accessor("swell")
+    void identity2$setSwell(int value);
+
+    @Accessor("maxSwell")
+    int identity2$getMaxSwell();
 }

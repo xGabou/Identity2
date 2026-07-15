@@ -6,7 +6,6 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
-import net.Gabou.identity2.identity.KeepInventoryHelper;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
@@ -14,7 +13,6 @@ import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
-import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,7 +26,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -56,6 +53,7 @@ import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Fireball;
@@ -323,9 +321,6 @@ public class EntityMixin implements EntityAccessor {
     private void identityFix(CallbackInfo info) {
         if (this.currentIdentity != null) {
             if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && serverPlayer.isDeadOrDying()) {
-                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                    identity2$copyIdentityEquipmentToPlayerOnDeath(serverPlayer, livingIdentity);
-                }
                 this.currentIdentity.discard();
                 this.currentIdentity = null;
                 return;
@@ -595,7 +590,7 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack stack = livingHost.getItemBySlot(slot).copy();
+            ItemStack stack = identity2$visibleMorphEquipment(livingHost, slot);
             if (!ItemStack.matches(livingIdentity.getItemBySlot(slot), stack)) {
                 livingIdentity.setItemSlot(slot, stack);
             }
@@ -603,7 +598,31 @@ public class EntityMixin implements EntityAccessor {
     }
 
     @Unique
+    private static ItemStack identity2$visibleMorphEquipment(LivingEntity host, EquipmentSlot slot) {
+        if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+            return ItemStack.EMPTY;
+        }
+        if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+            return ItemStack.EMPTY;
+        }
+        return host.getItemBySlot(slot).copy();
+    }
+
+    @Unique
     private void identity2$applySyncedMorphState(Entity identity) {
+        if (!(identity instanceof Armadillo armadillo)) {
+            return;
+        }
+        boolean shellActive = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                this.getCustomData(),
+                net.Gabou.identity2.PredefIdentityAbilities.ARMADILLO_SHELL_STATE_KEY,
+                false
+        );
+        if (shellActive) {
+            armadillo.rollUp();
+        } else {
+            armadillo.rollOut();
+        }
     }
 
     @Unique
@@ -666,23 +685,8 @@ public class EntityMixin implements EntityAccessor {
         } else {
             identity2$clearMorphZombificationTicks();
         }
-        // Strider lava movement moved to LivingEntityMixin.identity2$applyMorphMovementAssists:
-        // it must run on the client (player movement is client-authoritative and the jump
-        // input never reaches the server while not riding), and after travel() so the
-        // land-physics gravity applied by canStandOnFluid morphs doesn't erase the boost.
-    }
-
-    @Unique
-    private static void identity2$applyStriderLavaMovement(Player player) {
-        Vec3 motion = player.getDeltaMovement();
-        boolean jumpInput = player instanceof LivingEntityAccessor accessor && accessor.identity2$isJumping();
-        if (jumpInput && identity2$shouldStriderRiseInLava(player)) {
-            player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
-        } else if (player.isShiftKeyDown()) {
-            player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
-        } else if (Math.abs(motion.y) < 0.02D) {
-            player.setDeltaMovement(motion.x, 0.02D, motion.z);
-        }
+        // Strider floating runs after travel in LivingEntityMixin so both the
+        // client-authoritative player and server use vanilla's lava behavior.
     }
 
     @Unique
@@ -790,32 +794,68 @@ public class EntityMixin implements EntityAccessor {
 
     @Unique
     private void identity2$tickMorphFear(ServerPlayer player) {
-        if (player == null || player.level().isClientSide() || (player.tickCount & 7) != 0) {
+        if (player == null
+                || player.level().isClientSide()
+                || (player.tickCount & 7) != 0) {
             return;
         }
+
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity == null) {
             return;
         }
+
         EntityType<?> identityType = identity.getType();
         if (!identity2$isFearIdentity(identityType)) {
             return;
         }
+
         AABB search = player.getBoundingBox().inflate(12.0D);
-        for (Mob mob : player.level().getEntitiesOfClass(Mob.class, search, mob -> mob.isAlive() && identity2$shouldMobFearIdentity(mob.getType(), identityType))) {
+
+        for (Mob mob : player.level().getEntitiesOfClass(
+                Mob.class,
+                search,
+                mob -> mob.isAlive()
+                        && identity2$shouldMobFearIdentity(
+                        mob.getType(),
+                        identityType
+                )
+        )) {
             Vec3 away = mob.position().subtract(player.position());
+
             if (away.horizontalDistanceSqr() < 1.0E-4D) {
                 away = Vec3.directionFromRotation(0.0F, mob.getYRot());
             }
-            Vec3 target = mob.position().add(new Vec3(away.x, 0.0D, away.z).normalize().scale(8.0D));
-            mob.setTarget(null);
-            if (mob instanceof Creeper creeper) {
-                CreeperAccessor creeperAccessor = (CreeperAccessor) creeper;
-                creeperAccessor.identity2$setSwellDir(-1);
-                creeperAccessor.identity2$setSwell(0);
-                creeperAccessor.identity2$setOldSwell(0);
+
+            Vec3 horizontalAway = new Vec3(
+                    away.x,
+                    0.0D,
+                    away.z
+            );
+
+            if (horizontalAway.lengthSqr() < 1.0E-6D) {
+                continue;
             }
-            mob.getNavigation().moveTo(target.x, mob.getY(), target.z, 1.35D);
+
+            Vec3 target = mob.position()
+                    .add(horizontalAway.normalize().scale(8.0D));
+
+            mob.setTarget(null);
+
+            if (mob instanceof Creeper creeper) {
+                CreeperAccessor accessor = (CreeperAccessor) creeper;
+
+                creeper.setSwellDir(-1);
+                accessor.identity2$setOldSwell(0);
+                accessor.identity2$setSwell(0);
+            }
+
+            mob.getNavigation().moveTo(
+                    target.x,
+                    mob.getY(),
+                    target.z,
+                    1.35D
+            );
         }
     }
 
@@ -1031,17 +1071,6 @@ public class EntityMixin implements EntityAccessor {
     @Unique
     private static boolean identity2$shouldSlowFallingFastFall(Entity entity) {
         return entity.isShiftKeyDown() && entity.getDeltaMovement().y < 0.0D;
-    }
-
-    /**
-     * Returns true when a strider morph should rise in lava.
-     *
-     * @param entity the morphed entity
-     * @return true if the entity is inside lava enough to swim upward
-     */
-    @Unique
-    private static boolean identity2$shouldStriderRiseInLava(Entity entity) {
-        return entity.isInLava() || entity.getFluidHeight(FluidTags.LAVA) > 0.0D;
     }
 
     @Unique
@@ -1360,234 +1389,6 @@ public class EntityMixin implements EntityAccessor {
         IdentityApi.applyVariantData(identityEntity, variantNbt);
     }
 
-    private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
-            return;
-        }
-
-        Object villagerData = identity2$invokeNoArg(identityEntity, "getVillagerData");
-        if (villagerData == null) {
-            return;
-        }
-
-        CompoundTag villagerDataTag = net.Gabou.identity2.util.NbtCompat.getCompoundOrNull(variantNbt, "VillagerData");
-        String professionRaw = identity2$readVariantString(variantNbt, "VillagerProfession", "Profession", "profession");
-        if ((professionRaw == null || professionRaw.isBlank()) && villagerDataTag != null) {
-            professionRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "profession", "");
-        }
-        String typeRaw = identity2$readVariantString(variantNbt, "VillagerType", "Type", "type");
-        if ((typeRaw == null || typeRaw.isBlank()) && villagerDataTag != null) {
-            typeRaw = net.Gabou.identity2.util.NbtCompat.getStringOr(villagerDataTag, "type", "");
-        }
-
-        ResourceLocation professionId = identity2$parseResourceLocation(professionRaw);
-        ResourceLocation typeId = identity2$parseResourceLocation(typeRaw);
-
-        if (professionId != null) {
-            Object profession = identity2$resolveRegistryValue("VILLAGER_PROFESSION", professionId);
-            if (profession != null) {
-                Object professionArg = profession;
-                Object professionRegistry = identity2$getBuiltInRegistryObject("VILLAGER_PROFESSION");
-                Object wrapped = identity2$wrapAsHolder(professionRegistry, profession);
-                if (wrapped != null) {
-                    professionArg = wrapped;
-                }
-                Object updatedVillagerData = identity2$invokeOneArg(villagerData, "setProfession", professionArg);
-                if (updatedVillagerData != null) {
-                    villagerData = updatedVillagerData;
-                }
-            }
-        }
-
-        if (typeId != null) {
-            Object villagerType = identity2$resolveRegistryValue("VILLAGER_TYPE", typeId);
-            if (villagerType != null) {
-                Object typeArg = villagerType;
-                Object typeRegistry = identity2$getBuiltInRegistryObject("VILLAGER_TYPE");
-                Object wrapped = identity2$wrapAsHolder(typeRegistry, villagerType);
-                if (wrapped != null) {
-                    typeArg = wrapped;
-                }
-                Object updatedVillagerData = identity2$invokeOneArg(villagerData, "setType", typeArg);
-                if (updatedVillagerData != null) {
-                    villagerData = updatedVillagerData;
-                }
-            }
-        }
-
-        int level = 0;
-        if (variantNbt.contains("VillagerLevel", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            level = variantNbt.getInt("VillagerLevel");
-        } else if (villagerDataTag != null && villagerDataTag.contains("level", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
-            level = villagerDataTag.getInt("level");
-        }
-        if (level > 0) {
-            Object updatedVillagerData = identity2$invokeIntArg(villagerData, "setLevel", Math.max(1, level));
-            if (updatedVillagerData != null) {
-                villagerData = updatedVillagerData;
-            }
-        }
-
-        if (identity2$invokeOneArg(identityEntity, "setVillagerData", villagerData) != null) {
-            identity2$clearVillagerOffers(identityEntity);
-        }
-    }
-
-    private static void identity2$clearVillagerOffers(Object villager) {
-        if (villager == null) {
-            return;
-        }
-        try {
-            Class<?> offersClass = Class.forName("net.minecraft.world.item.trading.MerchantOffers");
-            Object offers = offersClass.getConstructor().newInstance();
-            if (identity2$invokeOneArg(villager, "setOffers", offers) != null) {
-                return;
-            }
-        } catch (Throwable ignored) {
-        }
-        identity2$invokeNoArg(villager, "resetOffers");
-    }
-
-    @Nullable
-    private static ResourceLocation identity2$parseResourceLocation(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        try {
-            if (raw.contains(":")) {
-                return ResourceLocation.parse(raw);
-            }
-            return ResourceLocation.fromNamespaceAndPath("minecraft", raw);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Object identity2$resolveRegistryValue(String registryField, @Nullable ResourceLocation id) {
-        if (id == null) {
-            return null;
-        }
-        Object registry = identity2$getBuiltInRegistryObject(registryField);
-        if (registry instanceof net.minecraft.core.Registry<?> rawRegistry) {
-            @SuppressWarnings("unchecked")
-            net.minecraft.core.Registry<Object> cast = (net.minecraft.core.Registry<Object>) rawRegistry;
-            return cast.get(id);
-        }
-        return null;
-    }
-
-    private static void identity2$applyRegistryBackedVariant(Entity identityEntity, CompoundTag variantNbt, String nbtKey, String registryField) {
-        String raw = identity2$readVariantString(variantNbt, nbtKey, "variant", "Variant");
-        ResourceLocation variantId = identity2$parseResourceLocation(raw);
-        if (variantId == null) {
-            return;
-        }
-        Object variant = identity2$resolveRegistryValue(registryField, variantId);
-        if (variant == null) {
-            return;
-        }
-
-        Object arg = variant;
-        Object registry = identity2$getBuiltInRegistryObject(registryField);
-        Object wrapped = identity2$wrapAsHolder(registry, variant);
-        if (identity2$invokeOneArg(identityEntity, "setVariant", arg) != null) {
-            return;
-        }
-        if (wrapped != null && identity2$invokeOneArg(identityEntity, "setVariant", wrapped) != null) {
-            return;
-        }
-        if (identity2$invokeOneArg(identityEntity, "setType", arg) == null && wrapped != null) {
-            identity2$invokeOneArg(identityEntity, "setType", wrapped);
-        }
-    }
-
-    @Nullable
-    private static Object identity2$getBuiltInRegistryObject(String fieldName) {
-        if (fieldName == null || fieldName.isBlank()) {
-            return null;
-        }
-        try {
-            return BuiltInRegistries.class.getField(fieldName).get(null);
-        } catch (Throwable ignored) {
-        }
-
-        // 1.21.8: some registries (cat/wolf/frog variants) are exposed as keys in Registries
-        // rather than direct BuiltInRegistries fields.
-        try {
-            Object registryKeyObj = Registries.class.getField(fieldName).get(null);
-            if (!(registryKeyObj instanceof net.minecraft.resources.ResourceKey<?> registryKey)) {
-                return null;
-            }
-            ResourceLocation location = registryKey.location();
-            if (location == null || BuiltInRegistries.REGISTRY == null) {
-                return null;
-            }
-            return BuiltInRegistries.REGISTRY.get(location);
-        } catch (Throwable ignored) {
-        }
-        return null;
-    }
-
-    private static String identity2$readVariantString(CompoundTag variantNbt, String... keys) {
-        if (variantNbt == null || keys == null) {
-            return "";
-        }
-        for (String key : keys) {
-            if (key == null || key.isBlank()) {
-                continue;
-            }
-            if (!variantNbt.contains(key, net.minecraft.nbt.Tag.TAG_STRING)) {
-                continue;
-            }
-            String value = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, key, "").trim();
-            if (!value.isBlank()) {
-                return value;
-            }
-        }
-        return "";
-    }
-
-    @Nullable
-    private static Object identity2$resolveDyeColorById(int colorId) {
-        try {
-            Class<?> dyeColorClass = Class.forName("net.minecraft.world.item.DyeColor");
-            for (Method method : dyeColorClass.getMethods()) {
-                if (!Modifier.isStatic(method.getModifiers())) {
-                    continue;
-                }
-                if (!method.getName().equals("byId") || method.getParameterCount() != 1) {
-                    continue;
-                }
-                Class<?> type = method.getParameterTypes()[0];
-                if (type == int.class || type == Integer.class) {
-                    return method.invoke(null, Math.max(0, colorId));
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return null;
-    }
-
-    private static Object identity2$wrapAsHolder(Object registry, Object value) {
-        if (registry == null || value == null) {
-            return null;
-        }
-        for (Method method : registry.getClass().getMethods()) {
-            if (!method.getName().equals("wrapAsHolder") || method.getParameterCount() != 1) {
-                continue;
-            }
-            if (!identity2$isAssignable(method.getParameterTypes()[0], value.getClass())) {
-                continue;
-            }
-            try {
-                return method.invoke(registry, value);
-            } catch (Throwable ignored) {
-            }
-        }
-        return null;
-    }
-
-
     private static Object identity2$invokeOneArg(Object target, String methodName, Object arg) {
         if (target == null || methodName == null || methodName.isBlank()) {
             return null;
@@ -1775,20 +1576,6 @@ public class EntityMixin implements EntityAccessor {
         )) {
             target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false, true));
         }
-    }
-
-    @Unique
-    private static void identity2$copyIdentityEquipmentToPlayerOnDeath(ServerPlayer player, LivingEntity identity) {
-        if (identity == null || !KeepInventoryHelper.isKeepInventoryEnabled(player)) {
-            return;
-        }
-
-        player.setItemSlot(EquipmentSlot.MAINHAND, identity.getMainHandItem().copy());
-        player.setItemSlot(EquipmentSlot.OFFHAND, identity.getOffhandItem().copy());
-        player.setItemSlot(EquipmentSlot.HEAD, identity.getItemBySlot(EquipmentSlot.HEAD).copy());
-        player.setItemSlot(EquipmentSlot.CHEST, identity.getItemBySlot(EquipmentSlot.CHEST).copy());
-        player.setItemSlot(EquipmentSlot.LEGS, identity.getItemBySlot(EquipmentSlot.LEGS).copy());
-        player.setItemSlot(EquipmentSlot.FEET, identity.getItemBySlot(EquipmentSlot.FEET).copy());
     }
 
     @Shadow
@@ -2122,14 +1909,12 @@ public class EntityMixin implements EntityAccessor {
         if (identity == null) {
             return 0.0D;
         }
-        double heightDifference = identity.getBbHeight() - player.getBbHeight();
+        // Player dimensions already match the morph here, so compare against the
+        // vanilla standing player height to recover how much a small morph lost.
+        double heightDifference = Player.STANDING_DIMENSIONS.height() - identity.getBbHeight();
         if (heightDifference <= 0.0D) {
             return 0.0D;
         }
-        // TODO(tuning): the 0.5/0.35 factors are heuristics; horse/boat sitting height
-        // is reported as slightly off for some morphs. Adjusting needs in-game checks
-        // per vehicle type (boat, horse, camel) with small and tall morphs — a single
-        // scalar cannot be derived from code inspection alone.
         return Math.max(0.0D, heightDifference * (vehicle instanceof Boat ? 0.5D : 0.35D));
     }
 

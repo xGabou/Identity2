@@ -52,6 +52,9 @@ public class IdentitySettings {
     //@Comment(value = "Whether disguised players should hear their own ambient sounds (only if playAmbientSounds is true).")
     public static boolean hearSelfAmbient = false;
 
+    //@Comment(value = "Whether players can use active morph abilities. Passive morph traits remain enabled.")
+    public static boolean enableMorphAbilities = true;
+
     //@Comment(value = "Whether to show the chat hint explaining how to keep morphs after death.")
     public static boolean showDeathMorphRuleWarning = true;
 

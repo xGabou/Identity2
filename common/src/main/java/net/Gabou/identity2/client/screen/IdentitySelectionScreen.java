@@ -517,7 +517,10 @@ public final class IdentitySelectionScreen extends Screen {
 
         List<IdentityVariant> variants = new ArrayList<>();
         for (String token : tokens) {
-            CompoundTag variantNbt = IdentityProgression.fromVariantUnlockToken(token);
+            CompoundTag variantNbt = Identity2Client.getLocalVariantDefinition(IdentityProgression.PLAYER_IDENTITY_ID, token);
+            if (variantNbt == null) {
+                variantNbt = IdentityProgression.fromVariantUnlockToken(token);
+            }
             String name = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, IdentityProgression.PLAYER_SKIN_NAME_VARIANT_KEY, "").trim();
             String uuid = net.Gabou.identity2.util.NbtCompat.getStringOr(variantNbt, IdentityProgression.PLAYER_SKIN_UUID_VARIANT_KEY, "").trim();
             String display = !name.isEmpty() ? "Skin: " + name : (!uuid.isEmpty() ? "Skin: " + uuid : "Player Skin");
@@ -640,7 +643,7 @@ public final class IdentitySelectionScreen extends Screen {
             return false;
         }
         for (String storedToken : tokens) {
-            if (IdentityProgression.matchesStoredVariantToken(variant.variantNbt(), storedToken)) {
+            if (IdentityProgression.matchesStoredVariantReference(identityId, variant.variantNbt(), storedToken)) {
                 return false;
             }
         }

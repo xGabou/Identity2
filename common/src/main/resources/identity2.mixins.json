@@ -38,7 +38,6 @@
     "MinecraftServerMixin",
     "MobAccessor",
     "MobAmbientSoundMixin",
-    "MobEquipmentMixin",
     "MobGoalSelectorAccessorMixin",
     "NbtComponentMixin",
     "PhantomMixin",

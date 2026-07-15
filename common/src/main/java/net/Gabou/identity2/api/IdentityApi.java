@@ -5,8 +5,8 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.api.morph.IdentityMorphTickHandler;
 import net.Gabou.identity2.api.variant.IdentityVariantAdapter;
-import net.Gabou.identity2.compat.UntamedWildsCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityTropicalFishVariants;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -105,11 +105,6 @@ public final class IdentityApi {
         if (type == null) {
             return null;
         }
-        IdentityVariantAdapter adapter = VARIANT_ADAPTERS.get(type);
-        if (adapter != null) {
-            return adapter;
-        }
-        UntamedWildsCompat.ensureVariantAdapterRegistered(type);
         return VARIANT_ADAPTERS.get(type);
     }
 
@@ -174,6 +169,10 @@ public final class IdentityApi {
         return discoverVariants(type, null);
     }
 
+    public static List<IdentityVariant> discoverCommandVariants(EntityType<?> type, Level level) {
+        return discoverVariants(type, level);
+    }
+
     /**
      * Returns true when a baby variant should be blocked.
      *
@@ -198,17 +197,19 @@ public final class IdentityApi {
         } else if (type == EntityType.SLIME || type == EntityType.MAGMA_CUBE) {
             variants.addAll(discoverSlimeSizeVariants(typeId));
         } else if (type == EntityType.VILLAGER) {
-            variants.addAll(discoverRegistryBackedVariants(typeId, "VILLAGER_TYPE", "VillagerType", "Villager"));
+            variants.addAll(discoverRegistryBackedVariants(typeId, BuiltInRegistries.VILLAGER_TYPE, "VillagerType", "Villager"));
         } else if (type == EntityType.AXOLOTL) {
             variants.addAll(discoverAxolotlVariants(typeId));
         } else if (type == EntityType.CAT) {
-            variants.addAll(discoverRegistryBackedVariants(typeId, "CAT_VARIANT", "CatVariant", "Cat"));
+            variants.addAll(discoverRegistryBackedVariants(typeId, BuiltInRegistries.CAT_VARIANT, "CatVariant", "Cat"));
         } else if (type == EntityType.HORSE) {
             variants.addAll(discoverHorseVariants(typeId));
         } else if (type == EntityType.WOLF) {
-            variants.addAll(discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
+            variants.addAll(discoverRegistryBackedVariants(typeId, resolveWolfVariantRegistry(level), "WolfVariant", "Wolf"));
         } else if (type == EntityType.FROG) {
-            variants.addAll(discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog"));
+            variants.addAll(discoverRegistryBackedVariants(typeId, BuiltInRegistries.FROG_VARIANT, "FrogVariant", "Frog"));
+        } else if (type == EntityType.TROPICAL_FISH) {
+            variants.addAll(IdentityTropicalFishVariants.discover(typeId));
         }
         IdentityVariant baby = discoverBabyVariant(type, typeId, level);
         if (baby != null) {
@@ -340,11 +341,10 @@ public final class IdentityApi {
 
     private static List<IdentityVariant> discoverRegistryBackedVariants(
         ResourceLocation typeId,
-        String registryField,
+        @Nullable Registry<?> registry,
         String variantKey,
         String labelPrefix
     ) {
-        Registry<?> registry = resolveRegistry(registryField);
         if (registry == null || registry.keySet().isEmpty()) {
             return List.of();
         }
@@ -362,31 +362,9 @@ public final class IdentityApi {
         return variants;
     }
 
-    private static Registry<?> resolveRegistry(String fieldName) {
-        if (fieldName == null || fieldName.isBlank()) {
-            return null;
-        }
-        try {
-            Object direct = BuiltInRegistries.class.getField(fieldName).get(null);
-            if (direct instanceof Registry<?> registry) {
-                return registry;
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            Object key = Registries.class.getField(fieldName).get(null);
-            if (key instanceof net.minecraft.resources.ResourceKey<?> resourceKey) {
-                ResourceLocation location = resourceKey.location();
-                if (location != null) {
-                    Object value = BuiltInRegistries.REGISTRY.get(location);
-                    if (value instanceof Registry<?> registry) {
-                        return registry;
-                    }
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return null;
+    @Nullable
+    private static Registry<?> resolveWolfVariantRegistry(@Nullable Level level) {
+        return level == null ? null : level.registryAccess().registry(Registries.WOLF_VARIANT).orElse(null);
     }
 
     private static String capitalize(String text) {
@@ -508,6 +486,11 @@ public final class IdentityApi {
 
     public static void syncString(ServerPlayer player, String key, String value) {
         if (!shouldWriteString(player, key, value)) {
+            return;
+        }
+        if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                || IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(key)) {
+            IdentityProgression.syncCurrentMorphData(player);
             return;
         }
         CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(

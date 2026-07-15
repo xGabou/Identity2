@@ -7,8 +7,10 @@ import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
+import net.Gabou.identity2.packets.IdentityClientConfigS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
+import net.Gabou.identity2.packets.IdentityVariantDefinitionS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
@@ -19,6 +21,7 @@ import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
 import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityVariantRegistry;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
 import net.Gabou.identity2.progression.SoulJarChargeStorage;
@@ -53,6 +56,14 @@ public final class ModPackets {
     public static final ResourceLocation IDENTITY_ABILITY_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
     public static final ResourceLocation IDENTITY_MORPH_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
     public static final ResourceLocation UNLOCK_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, "unlock_sync");
+    public static final ResourceLocation IDENTITY_VARIANT_DEFINITION_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "variant_definition"
+    );
+    public static final ResourceLocation CLIENT_CONFIG_SYNC_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
+        Identity2.MOD_ID,
+        "client_config_sync"
+    );
     public static final ResourceLocation IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = ResourceLocation.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
@@ -108,6 +119,11 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(IdentityUnlockSyncS2CPacketPayload.ID, IdentityUnlockSyncS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(
+                IdentityVariantDefinitionS2CPacketPayload.ID,
+                IdentityVariantDefinitionS2CPacketPayload.CODEC
+            );
+            NetworkManager.registerS2CPayloadType(IdentityClientConfigS2CPacketPayload.ID, IdentityClientConfigS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
@@ -181,6 +197,17 @@ public final class ModPackets {
         );
     }
 
+    public static void syncClientSettings(ServerPlayer player) {
+        NetworkManager.sendToPlayer(player, IdentityClientConfigS2CPacketPayload.fromSettings());
+    }
+
+    public static void syncClientSettings(MinecraftServer server) {
+        IdentityClientConfigS2CPacketPayload payload = IdentityClientConfigS2CPacketPayload.fromSettings();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            NetworkManager.sendToPlayer(player, payload);
+        }
+    }
+
     private static void handleIdentityAbilityPacket(ServerPlayer player, IdentityAbilityPacketPayload payload) {
         Entity identity = ((EntityAccessor) player).getCurrentIdentity();
         if (identity == null) {
@@ -196,6 +223,11 @@ public final class ModPackets {
         }
 
         BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
+        if (!IdentitySettings.enableMorphAbilities
+                && payload.entityid() != ABILITY_ACTION_PASSIVE
+                && payload.entityid() != ABILITY_ACTION_PASSIVE_USED) {
+            return;
+        }
         if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
             int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
             EntityAccessor accessor = (EntityAccessor) player;
@@ -236,7 +268,10 @@ public final class ModPackets {
         }
 
         if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
-            predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
+            predefAbility.passiveTick(
+                player,
+                IdentitySettings.enableMorphAbilities && payload.entityid() == ABILITY_ACTION_PASSIVE_USED
+            );
         } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
             predefAbility.overrideAttack(player);
         } else {
@@ -251,8 +286,14 @@ public final class ModPackets {
         return 20;
     }
 
-    private static int resolveSecondaryAbilityCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
+    public static int resolveSecondaryAbilityCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
         if (identity != null) {
+            if (identity.getType() == EntityType.CAMEL) {
+                return 60;
+            }
+            if (identity.getType() == EntityType.SNIFFER) {
+                return 600;
+            }
             if (identity.getType() == EntityType.ELDER_GUARDIAN) {
                 return Math.max(0, IdentitySettings.elderGuardianMiningFatigueCooldownTicks);
             }
@@ -353,7 +394,21 @@ public final class ModPackets {
             return;
         }
 
-        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        CompoundTag variantNbt = IdentityVariantRegistry.resolve(player, identityId, payload.variantId());
+        if (variantNbt == null) {
+            Identity2.LOGGER.warn(
+                "Rejected unknown identity variant reference {} for {} from {}.",
+                payload.variantId(),
+                identityId,
+                player.getGameProfile().getName()
+            );
+            player.displayClientMessage(
+                net.minecraft.network.chat.Component.literal("Unknown identity variant: " + identityId),
+                false
+            );
+            IdentityProgression.syncUnlockedIdentities(player);
+            return;
+        }
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);

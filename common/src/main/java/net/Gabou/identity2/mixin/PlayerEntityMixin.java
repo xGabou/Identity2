@@ -38,7 +38,6 @@ import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
-import net.Gabou.identity2.util.IdentityEquipmentHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -90,11 +89,23 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         ci.cancel();
     }
 
-    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
-    private void identity2$getItemBySlot(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> cir) {
-        ItemStack blocked = IdentityEquipmentHelper.getBlockedSlotStack((Entity) (Object) this, slot);
-        if (blocked != null) {
-            cir.setReturnValue(blocked);
+    // Player overrides LivingEntity.getHurtSound, so LivingEntityMixin's replacement
+    // never applies to players. The client-side damage-event path
+    // (LivingEntity.handleDamageEvent -> getHurtSound) therefore still played the
+    // vanilla player sound, e.g. the drowning noise on top of the morph's hurt
+    // noise when a blaze/enderman morph takes water damage.
+    @Inject(
+            method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void identity2$getIdentityHurtSound(net.minecraft.world.damagesource.DamageSource source, CallbackInfoReturnable<net.minecraft.sounds.SoundEvent> cir) {
+        if (!IdentitySettings.useIdentitySounds) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (identity instanceof LivingEntity livingIdentity) {
+            cir.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetHurtSound(source));
         }
     }
 

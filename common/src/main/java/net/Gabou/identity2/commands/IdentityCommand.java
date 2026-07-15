@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier;
 import net.Gabou.gaboulibs.auth.AuthGuards;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.config.IdentityConfigManager;
 import net.Gabou.identity2.api.IdentityApi;
@@ -315,7 +316,7 @@ public final class IdentityCommand {
             return 0;
         }
 
-        MorphVariantParseResult variantResult = resolveMorphVariant(identityId, rawVariant);
+        MorphVariantParseResult variantResult = resolveMorphVariant(identityId, rawVariant, source.getLevel());
         if (variantResult.error() != null) {
             source.sendFailure(Component.literal(variantResult.error()));
             return 0;
@@ -475,6 +476,7 @@ public final class IdentityCommand {
 
         identity2$normalizeAliasedConfigAfterSet(key);
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " and saved it to the server config"));
         return 1;
     }
@@ -499,6 +501,7 @@ public final class IdentityCommand {
 
         values.add(value);
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " and saved it to the server config"));
         return 1;
     }
@@ -522,6 +525,7 @@ public final class IdentityCommand {
         }
 
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " and saved it to the server config"));
         return 1;
     }
@@ -542,6 +546,7 @@ public final class IdentityCommand {
         int removed = values.size();
         values.clear();
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) and saved it to the server config"));
         return removed;
     }
@@ -732,7 +737,7 @@ public final class IdentityCommand {
         }
     }
 
-    private static MorphVariantParseResult resolveMorphVariant(ResourceLocation identityId, String rawVariant) {
+    private static MorphVariantParseResult resolveMorphVariant(ResourceLocation identityId, String rawVariant, net.minecraft.world.level.Level level) {
         String trimmed = rawVariant == null ? "" : rawVariant.trim();
         if (trimmed.isEmpty()) {
             return MorphVariantParseResult.defaultVariant();
@@ -754,7 +759,7 @@ public final class IdentityCommand {
 
         EntityType<?> resolvedType = BuiltInRegistries.ENTITY_TYPE.get(identityId);
         if (resolvedType != null) {
-            for (IdentityVariant variant : IdentityApi.discoverCommandVariants(resolvedType)) {
+            for (IdentityVariant variant : IdentityApi.discoverCommandVariants(resolvedType, level)) {
                 if (variant.displayName() != null && trimmed.equalsIgnoreCase(variant.displayName().trim())) {
                     CompoundTag discovered = variant.variantNbt() == null ? new CompoundTag() : variant.variantNbt().copy();
                     return new MorphVariantParseResult(discovered, trimmed, false, null);
