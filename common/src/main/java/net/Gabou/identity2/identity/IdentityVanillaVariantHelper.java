@@ -6,7 +6,6 @@ import net.Gabou.identity2.mixin.GoatAccessor;
 import net.Gabou.identity2.mixin.HorseAccessor;
 import net.Gabou.identity2.mixin.WolfAccessor;
 import net.Gabou.identity2.util.NbtCompat;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,6 +32,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.trading.MerchantOffers;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 /** Typed, remap-safe extraction and application for vanilla variants. */
@@ -40,7 +40,7 @@ public final class IdentityVanillaVariantHelper {
     private IdentityVanillaVariantHelper() {
     }
 
-    public static List<IdentityVariant> discoverVariants(EntityType<?> type, ClientLevel level) {
+    public static List<IdentityVariant> discoverVariants(EntityType<?> type, Level level) {
         return type == null || level == null ? List.of() : IdentityApi.discoverVariants(type, level);
     }
 
