@@ -6,48 +6,69 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
 
 import java.util.Set;
+import java.util.Locale;
 
 public final class IdentityVariantNbtHelper {
     private static final Set<String> IGNORED_ROOT_KEYS = Set.of(
         "id",
-        "UUID",
-        "Pos",
-        "Motion",
-        "Rotation",
-        "FallDistance",
-        "Fire",
-        "Air",
-        "OnGround",
-        "Invulnerable",
-        "PortalCooldown",
-        "TicksFrozen",
-        "HasVisualFire",
-        "Health",
-        "AbsorptionAmount",
-        "HurtTime",
-        "HurtByTimestamp",
-        "DeathTime",
-        "EggLayTime",
-        "SleepingX",
-        "SleepingY",
-        "SleepingZ",
-        "Leash",
-        "CannotEnterHiveTicks",
-        "LeftHanded",
-        "NoAI",
-        "PersistenceRequired",
-        "HandItems",
-        "ArmorItems",
-        "HandDropChances",
-        "ArmorDropChances",
-        "Attributes",
-        "ActiveEffects",
-        "Brain",
-        "CanPickUpLoot",
+        "uuid",
+        "pos",
+        "motion",
+        "rotation",
+        "falldistance",
+        "fall_distance",
+        "fire",
+        "air",
+        "onground",
+        "on_ground",
+        "invulnerable",
+        "portalcooldown",
+        "portal_cooldown",
+        "ticksfrozen",
+        "ticks_frozen",
+        "hasvisualfire",
+        "has_visual_fire",
+        "health",
+        "absorptionamount",
+        "absorption_amount",
+        "hurttime",
+        "hurt_time",
+        "hurtbytimestamp",
+        "hurt_by_timestamp",
+        "deathtime",
+        "death_time",
+        "egglaytime",
+        "egg_lay_time",
+        "sleepingx",
+        "sleepingy",
+        "sleepingz",
+        "leash",
+        "cannotenterhiveticks",
+        "cannot_enter_hive_ticks",
+        "lefthanded",
+        "left_handed",
+        "noai",
+        "no_ai",
+        "persistencerequired",
+        "persistence_required",
+        "handitems",
+        "hand_items",
+        "armoritems",
+        "armor_items",
+        "handdropchances",
+        "hand_drop_chances",
+        "armordropchances",
+        "armor_drop_chances",
+        "attributes",
+        "activeeffects",
+        "active_effects",
+        "brain",
+        "canpickuploot",
+        "can_pick_up_loot",
         "fall_flying",
-        "Silent",
-        "Glowing",
-        "Tags"
+        "silent",
+        "glowing",
+        "tags"
     );
 
     private IdentityVariantNbtHelper() {
@@ -132,10 +153,10 @@ public final class IdentityVariantNbtHelper {
         loadEntityData(entity, merged);
     }
 
-    private static boolean isIgnoredRootKey(String key) {
+    public static boolean isIgnoredRootKey(String key) {
         if (key == null || key.isBlank()) {
             return true;
         }
-        return IGNORED_ROOT_KEYS.contains(key);
+        return IGNORED_ROOT_KEYS.contains(key.toLowerCase(Locale.ROOT));
     }
 }

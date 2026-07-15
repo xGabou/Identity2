@@ -192,9 +192,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         }
         IdentityProgression.resetMorphAttributeStateForRespawn(respawned);
         identity2$copyCustomData(player, respawned);
-        boolean alive = !player.isDeadOrDying();
+        boolean deathRespawn = removalReason == Entity.RemovalReason.KILLED || player.isDeadOrDying();
 
-        if (alive) {
+        if (!deathRespawn) {
             IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             identity2$syncUnlockedIdentities(respawned);
             DELAYED_MORPH_REAPPLY.put(respawned.getUUID(), DELAYED_MORPH_REAPPLY_TICKS);
@@ -213,6 +213,12 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
                 MorphChargeManager.applyDeathPenalty(respawned);
                 IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             }
+        }
+
+        if (rule != IdentitySettings.DeathMorphRule.NONE) {
+            // Vanilla has already copied the old player's attributes. Clean again
+            // after the death rule so no transient morph modifier survives.
+            IdentityProgression.resetMorphAttributeStateForRespawn(respawned);
         }
 
         identity2$syncUnlockedIdentities(respawned);

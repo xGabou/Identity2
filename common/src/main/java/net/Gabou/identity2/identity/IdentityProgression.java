@@ -616,7 +616,7 @@ public final class IdentityProgression {
         if (player == null) {
             return;
         }
-        clearMorphAttributes(player.getAttributes());
+        clearAllIdentityAttributes(player.getAttributes());
         AttributeInstance maxHealth = player.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth == null) {
             return;
@@ -704,6 +704,10 @@ public final class IdentityProgression {
             return false;
         }
         if (IdentitySettings.unlockAllVariantsOnFirstUnlock) {
+            return true;
+        }
+        if (normalizeVariantForUnlock(variantNbt).isEmpty()) {
+            // The base/adult form is available once the identity itself is unlocked.
             return true;
         }
         CompoundTag customData = getCustomData(player);
@@ -995,7 +999,7 @@ public final class IdentityProgression {
                 List<String> variantIds = new ArrayList<>();
                 for (String token : variantUnlocks.getOrDefault(identityId, List.of())) {
                     CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
-                    if (!decoded.isEmpty() || (token != null && !token.isBlank() && "-".equals(token.trim()))) {
+                    if (token != null && !token.isBlank()) {
                         String variantId = IdentityVariantRegistry.remember(player, parsed, decoded);
                         if (!variantId.isEmpty()) {
                             variantId = IdentityVariantRegistry.sendDefinition(player, player.getId(), parsed, decoded, false);
@@ -1699,6 +1703,14 @@ public final class IdentityProgression {
     }
 
     private static void clearMorphAttributes(AttributeMap attributes) {
+        clearIdentityAttributes(attributes, false);
+    }
+
+    private static void clearAllIdentityAttributes(AttributeMap attributes) {
+        clearIdentityAttributes(attributes, true);
+    }
+
+    private static void clearIdentityAttributes(AttributeMap attributes, boolean includeHealthScaling) {
         for (AttributeInstance instance : getAttributeInstances(attributes)) {
             if (instance == null) {
                 continue;
@@ -1713,7 +1725,8 @@ public final class IdentityProgression {
             List<ResourceLocation> morphModifierIds = new ArrayList<>();
             for (AttributeModifier modifier : instance.getModifiers()) {
                 ResourceLocation modifierId = identity2$getModifierId(modifier);
-                if (identity2$isMorphAttributeModifier(modifierId)) {
+                if (identity2$isMorphAttributeModifier(modifierId)
+                        || (includeHealthScaling && identity2$isIdentityAttributeModifier(modifierId))) {
                     morphModifierIds.add(modifierId);
                 }
             }
@@ -1862,12 +1875,17 @@ public final class IdentityProgression {
         return ResourceLocation.fromNamespaceAndPath(Identity2.MOD_ID, prefix + hash);
     }
 
+    private static boolean identity2$isIdentityAttributeModifier(@Nullable ResourceLocation modifierId) {
+        return modifierId != null && Identity2.MOD_ID.equals(modifierId.getNamespace());
+    }
+
     private static boolean identity2$isMorphAttributeModifier(@Nullable ResourceLocation modifierId) {
-        if (modifierId == null || !Identity2.MOD_ID.equals(modifierId.getNamespace())) {
+        if (!identity2$isIdentityAttributeModifier(modifierId)) {
             return false;
         }
         String path = modifierId.getPath();
-        return path.startsWith(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX) || path.startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX);
+        return path.startsWith(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX)
+            || path.startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX);
     }
 
     private static boolean identity2$shouldSkipPlayerMorphAttribute(Holder<Attribute> attribute) {
@@ -1882,28 +1900,16 @@ public final class IdentityProgression {
 
     @Nullable
     private static ResourceLocation identity2$getModifierId(@Nullable AttributeModifier modifier) {
-        Object value = invokeNoArg(modifier, "id");
-        if (!(value instanceof ResourceLocation)) {
-            value = invokeNoArg(modifier, "getId");
-        }
-        return value instanceof ResourceLocation id ? id : null;
+        return modifier == null ? null : modifier.id();
     }
 
     private static double identity2$getModifierAmount(@Nullable AttributeModifier modifier) {
-        Object value = invokeNoArg(modifier, "amount");
-        if (!(value instanceof Number)) {
-            value = invokeNoArg(modifier, "getAmount");
-        }
-        return value instanceof Number number ? number.doubleValue() : 0.0D;
+        return modifier == null ? 0.0D : modifier.amount();
     }
 
     @Nullable
     private static AttributeModifier.Operation identity2$getModifierOperation(@Nullable AttributeModifier modifier) {
-        Object value = invokeNoArg(modifier, "operation");
-        if (!(value instanceof AttributeModifier.Operation)) {
-            value = invokeNoArg(modifier, "getOperation");
-        }
-        return value instanceof AttributeModifier.Operation operation ? operation : null;
+        return modifier == null ? null : modifier.operation();
     }
 
     private static void applyHealthScaling(ServerPlayer player, @Nullable Entity identity) {
@@ -2124,7 +2130,7 @@ public final class IdentityProgression {
         CompoundTag out = new CompoundTag();
         Boolean babyVariant = root ? resolveBabyVariantFlag(source) : null;
         for (String key : source.getAllKeys()) {
-            if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
+            if (root && (NON_VARIANT_ROOT_KEYS.contains(key) || IdentityVariantNbtHelper.isIgnoredRootKey(key))) {
                 continue;
             }
             Tag tag = source.get(key);

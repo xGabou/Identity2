@@ -452,6 +452,9 @@ public final class IdentityVariantSelectionScreen extends Screen {
         if (this.wildcardUnlocked) {
             return false;
         }
+        if (IdentityProgression.normalizeVariantForUnlock(variant.variantNbt()).isEmpty()) {
+            return false;
+        }
         for (String storedToken : this.unlockedVariantTokens) {
             if (IdentityProgression.matchesStoredVariantReference(this.entityTypeId, variant.variantNbt(), storedToken)) {
                 Identity2.LOGGER.info(

@@ -115,6 +115,9 @@ caused missing babies and tropical fish in commands.
 - Frog Baby and Wandering Trader Baby remain explicitly invalid.
 - Valid command babies use stable NBT (`IsBaby` and `Age`) rather than reflected
   setters.
+- Once an identity is unlocked, its base/adult empty-NBT form is available in
+  both the main menu and variant picker. Baby and explicit variants still need
+  their own unlock when per-variant unlocking is enabled.
 - Removed the automatic `UntamedWildsCompat` adapter because it reflected
   literal mod method names. A mod integration must register a typed
   `IdentityVariantAdapter` through the public API.
@@ -473,6 +476,12 @@ modifier rendered as 48 health, or 24 hearts. The morph-attribute cleanup also
 skipped max health, movement speed, and flying speed, allowing Identity-owned
 modifiers from older builds to survive longer than intended.
 
+A follow-up regression came from using the full respawn cleanup during the
+normal per-tick refresh. It removed the active health-scaling modifier before
+`applyHealthScaling` measured the old health ratio. Each tick then measured the
+same health against the temporarily restored player maximum and reduced it
+again, silently converging to the half-heart clamp even in Creative mode.
+
 **1.21.1 changes**
 
 - Health scaling removes its previous modifier, reads the effective unscaled max
@@ -482,9 +491,18 @@ modifiers from older builds to survive longer than intended.
 - `clearMorphAttributes` removes Identity-owned morph modifiers from every
   attribute. It still leaves all modifiers owned by Minecraft or other mods
   untouched.
+- Normal per-tick morph cleanup deliberately preserves the health-scaling
+  modifier until `applyHealthScaling` has captured the old health ratio. Full
+  `identity2` namespace cleanup is reserved for respawn and morph revocation.
 - The replacement `ServerPlayer` created during respawn is cleaned before the
   death morph rule restores or clears the morph. This also repairs stale
   Identity modifiers carried by a world previously run with an older jar.
+- Modifier IDs, amounts, and operations use direct 1.21.1 record accessors. The
+  former reflected strings (`id`, `amount`, and `operation`) were not remapped in
+  production and could prevent stale Identity modifiers from being recognized.
+- A death respawn is identified by `RemovalReason.KILLED` with the dead-player
+  state as a fallback. When the death rule revokes the morph, all modifiers in
+  the `identity2` namespace are removed again after applying the rule.
 
 **Files**
 
@@ -498,6 +516,10 @@ Minecraft 1.20.1 identifies attribute modifiers by UUID, so retain that branch's
 UUID constructor and `removeModifier(UUID)` calls rather than copying the 1.21.1
 `ResourceLocation` signatures. Calculate from `AttributeInstance.getValue()`,
 not `getBaseValue()`, and preserve modifiers whose IDs are not owned by Identity.
+Call the mapped 1.20.1 `getId`, `getAmount`, and `getOperation` methods directly;
+do not look them up by string reflection. Keep normal morph-attribute cleanup
+separate from full respawn cleanup: the per-tick path must not remove the active
+health-scaling UUID until after the current health/max-health ratio is captured.
 
 ### S. Armadillo ability and locomotion animation
 
@@ -543,6 +565,11 @@ could still be emitted as an oversized packet. The existing size check happened
 after packet decoding on the server and therefore could not prevent a client
 disconnect.
 
+The dynamic diff filter was also case-sensitive. Minecraft 1.21.1 saved fields
+such as `attributes` in lowercase while the filter only ignored `Attributes`.
+Normal Cow kills could therefore store the full randomized attribute list as
+variant data, making the base Cow appear locked and inflating packets.
+
 A second packet bug was loader/environment-specific: dirty proxy
 `SynchedEntityData` was broadcast by `mixin/client/EntityTrackerEntryMixin`.
 That mixin runs on an integrated client but is absent from a dedicated server,
@@ -561,6 +588,9 @@ so remote proxy animation/state metadata could stop updating there.
   cannot submit arbitrary NBT through the morph request.
 - Unlock sync entries now contain UUID strings instead of `CompoundTag` values.
   Large lists are split within an identity as well as between identities.
+- Transient entity fields are ignored case-insensitively, including both legacy
+  camel-case and current lowercase/snake-case NBT names. Existing noisy tokens
+  normalize to the base variant without requiring save migration.
 - Variant definitions use `IdentityVariantDefinitionS2CPacketPayload`. SNBT is
   split into 20,000-byte fragments, with a 4 MiB per-definition memory guard.
   Each packet remains safely below the 32,767-byte boundary.
@@ -662,8 +692,9 @@ gradlew.bat :fabric:build :neoforge:build
 
 Results:
 
-- Seven regression tests pass: four baby/variant discovery tests, the packaged
-  Armadillo-ability test, and two stable-reference normalization tests.
+- Eight regression tests pass: four baby/variant discovery tests, the packaged
+  Armadillo-ability test, two stable-reference normalization tests, and a
+  lowercase transient-NBT regression test.
 - Fabric remapped build passes.
 - NeoForge remapped build passes.
 - Both release jars contain singular 1.21 entity-type tags,

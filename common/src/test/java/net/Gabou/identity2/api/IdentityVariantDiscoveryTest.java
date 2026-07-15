@@ -3,6 +3,7 @@ package net.Gabou.identity2.api;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.identity.IdentityVariantRegistry;
+import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.SharedConstants;
@@ -103,7 +104,26 @@ class IdentityVariantDiscoveryTest {
             IdentityVariantRegistry.stableId(zombie, age),
             IdentityVariantRegistry.stableId(zombie, flag)
         );
+        CompoundTag adult = new CompoundTag();
+        adult.putBoolean("IsBaby", false);
+        assertEquals("", IdentityVariantRegistry.stableId(ResourceLocation.parse("minecraft:cow"), adult));
         assertTrue(IdentityVariantRegistry.DEFINITION_CHUNK_BYTES < 32767);
+    }
+
+    @Test
+    void transientLowercaseEntityDataIsNotStoredAsAVariant() {
+        CompoundTag baseline = new CompoundTag();
+        CompoundTag current = new CompoundTag();
+        net.minecraft.nbt.ListTag attributes = new net.minecraft.nbt.ListTag();
+        CompoundTag attribute = new CompoundTag();
+        attribute.putString("id", "minecraft:generic.movement_speed");
+        attribute.putDouble("base", 0.2D);
+        attributes.add(attribute);
+        current.put("attributes", attributes);
+        current.putFloat("health", 7.0F);
+
+        assertTrue(IdentityVariantNbtHelper.computeVariantDiff(baseline, current).isEmpty());
+        assertTrue(net.Gabou.identity2.identity.IdentityProgression.normalizeVariantForUnlock(current).isEmpty());
     }
 
     private static boolean isBaby(IdentityVariant variant) {
