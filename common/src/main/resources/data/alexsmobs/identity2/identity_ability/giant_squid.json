@@ -1,6 +1,14 @@
 {
-  "icon": "minecraft:ink_sac",
+  "icon": "minecraft:heart_of_the_sea",
   "cooldown": 100,
-  "predef": "alexsmobs:giant_squid"
+  "action": "tentacle_pull",
+  "strength": 1.2,
+  "range": 7,
+  "duration": 40,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim",
+    "knockback_resistant"
+  ]
 }
-

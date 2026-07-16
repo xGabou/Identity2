@@ -35,6 +35,8 @@ configurations {
     }
 }
 
+def includeNaturalistInDevRuntime = !project.hasProperty("withoutNaturalist")
+
 dependencies {
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
@@ -44,7 +46,11 @@ dependencies {
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
     modImplementation "curse.maven:gabous-libs-1367332:8280105"
     modImplementation "curse.maven:geckolib-388172:7553256"
-    modImplementation "curse.maven:naturalist-627986:6863939"
+    if (includeNaturalistInDevRuntime) {
+        modImplementation "curse.maven:naturalist-627986:6863939"
+    } else {
+        modCompileOnly "curse.maven:naturalist-627986:6863939"
+    }
     runtimeOnly "curse.maven:midnightlib-488090:4980331"
     //runtimeOnly "me.djtheredstoner:DevAuth-fabric-latest:1.2.1"
 

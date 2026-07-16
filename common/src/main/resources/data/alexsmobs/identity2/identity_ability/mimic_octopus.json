@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:fermented_spider_eye",
+  "cooldown": 120,
+  "action": "ink_cloud",
+  "strength": 0,
+  "range": 4,
+  "duration": 80,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim"
+  ]
+}

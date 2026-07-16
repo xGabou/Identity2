@@ -70,6 +70,13 @@ dependencies {
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:citadel-331936:7476570"
     modImplementation "curse.maven:untamedwilds-457252:4779746"
+
+    // Optional compatibility runtime used by `-PwithMobMods=true` dev runs.
+    if (project.hasProperty("withMobMods")) {
+        modRuntimeOnly "curse.maven:naturalist-627986:6863943"
+        modRuntimeOnly "curse.maven:alexs-mobs-426558:5698791"
+        modRuntimeOnly "curse.maven:midnightlib-488090:4980331"
+    }
 }
 processResources {
     inputs.property "version", project.version.toString()

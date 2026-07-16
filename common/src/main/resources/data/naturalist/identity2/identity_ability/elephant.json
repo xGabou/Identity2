@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 100,
+  "action": "knockback",
+  "strength": 1.5,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

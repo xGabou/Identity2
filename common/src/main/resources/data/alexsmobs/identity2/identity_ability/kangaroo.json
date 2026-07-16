@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:rabbit_foot",
-  "cooldown": 100,
-  "predef": "alexsmobs:kangaroo"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 70,
+  "action": "kick",
+  "strength": 6,
+  "range": 3.5,
+  "duration": 20,
+  "traits": [
+    "high_jump",
+    "fast_land",
+    "fall_resistant"
+  ]
 }
-

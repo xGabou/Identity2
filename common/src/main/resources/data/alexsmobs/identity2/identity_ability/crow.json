@@ -1,6 +1,12 @@
 {
   "icon": "minecraft:feather",
-  "cooldown": 100,
-  "predef": "alexsmobs:crow"
+  "cooldown": 60,
+  "action": "upward_burst",
+  "strength": 0.6,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall"
+  ]
 }
-

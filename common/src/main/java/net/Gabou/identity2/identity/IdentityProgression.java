@@ -109,8 +109,10 @@ public final class IdentityProgression {
     private static final String HOSTILE_IDENTITY_GRACE_END_TICK_KEY = "identity2.hostile_identity_grace_end_tick";
     public static final String SELECTED_IDENTITY_TYPE_KEY = "identity2.identity_type";
     public static final String SELECTED_IDENTITY_VARIANT_KEY = "identity2.identity_variant";
+    public static final String SELECTED_IDENTITY_VARIANT_REF_KEY = "identity2.identity_variant_ref";
     public static final String PREVIOUS_IDENTITY_TYPE_KEY = "identity2.previous_identity_type";
     public static final String PREVIOUS_IDENTITY_VARIANT_KEY = "identity2.previous_identity_variant";
+    public static final String PREVIOUS_IDENTITY_VARIANT_REF_KEY = "identity2.previous_identity_variant_ref";
     public static final String TRANSITION_START_TICK_KEY = "identity2.transition_start_tick";
     public static final String TRANSITION_DURATION_TICKS_KEY = "identity2.transition_duration_ticks";
     public static final String MORPH_DAMAGE_GRACE_END_TICK_KEY = "identity2.morph_damage_grace_end_tick";
@@ -509,6 +511,14 @@ public final class IdentityProgression {
 
     public static void restoreMorphFromSavedDataAndSync(ServerPlayer player) {
         restoreMorphFromSavedData(player);
+        syncCurrentMorphData(player);
+    }
+
+    /** Broadcasts the persisted morph state using server-owned variant references. */
+    public static void syncCurrentMorphData(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
         CompoundTag nbt = getCustomData(player);
         String modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
         if (modelOverride.isBlank()) {
@@ -589,31 +599,8 @@ public final class IdentityProgression {
             return;
         }
         CompoundTag nbt = getCustomData(player);
-        String serializedVariant = serializeVariantNbt(variantNbt);
-        nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant);
-
-        String modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, SELECTED_IDENTITY_TYPE_KEY, "");
-        if (modelOverride.isBlank()) {
-            modelOverride = net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, "model_override", "");
-        }
-
-        CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(
-                player.getId(),
-                List.of(
-                        new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                        new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, serializedVariant)
-                )
-        );
-
-        NetworkCompat.sendToPlayer(player, payload);
-        if (player.level() instanceof ServerLevel serverWorld) {
-            for (ServerPlayer other : serverWorld.players()) {
-                if (other != player) {
-                    NetworkCompat.sendToPlayer(other, payload);
-                }
-            }
-        }
+        nbt.putString(SELECTED_IDENTITY_VARIANT_KEY, serializeVariantNbt(variantNbt));
+        syncCurrentMorphData(player);
     }
 
     public static void refreshScaledHealth(ServerPlayer player) {
@@ -622,6 +609,37 @@ public final class IdentityProgression {
         }
         applyMorphAttributes(player, ((EntityAccessor) player).getCurrentIdentity());
         applyHealthScaling(player, ((EntityAccessor) player).getCurrentIdentity());
+    }
+
+    /** Removes every transient modifier created by Identity before respawn state is restored. */
+    public static void resetMorphAttributeStateForRespawn(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        for (AttributeInstance instance : getAttributeInstances(player.getAttributes())) {
+            if (instance == null) {
+                continue;
+            }
+            List<AttributeModifier> identityModifiers = new ArrayList<>();
+            for (AttributeModifier modifier : instance.getModifiers()) {
+                if (modifier == null) {
+                    continue;
+                }
+                String name = modifier.getName();
+                if (modifier.getId().equals(HEALTH_SCALING_MODIFIER_UUID)
+                        || (name != null && (name.startsWith(MORPH_ATTRIBUTE_BASE_MODIFIER_PREFIX)
+                        || name.startsWith(MORPH_ATTRIBUTE_MODIFIER_PREFIX)
+                        || name.startsWith(Identity2.MOD_ID + ":")))) {
+                    identityModifiers.add(modifier);
+                }
+            }
+            for (AttributeModifier modifier : identityModifiers) {
+                instance.removeModifier(modifier.getId());
+            }
+        }
+        if (player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
     }
 
     public static void tickDailyRandomMorph(ServerPlayer player) {
@@ -974,16 +992,17 @@ public final class IdentityProgression {
             }
             try {
                 ResourceLocation parsed = new ResourceLocation(identityId);
-                List<CompoundTag> variantData = new ArrayList<>();
+                List<String> variantIds = new ArrayList<>();
                 for (String token : variantUnlocks.getOrDefault(identityId, List.of())) {
                     CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
                     if (!decoded.isEmpty()) {
-                        variantData.add(decoded);
-                    } else if (token != null && !token.isBlank() && "-".equals(token.trim())) {
-                        variantData.add(new CompoundTag());
+                        String variantId = IdentityVariantRegistry.sendDefinition(player, player.getId(), parsed, decoded, false);
+                        if (!variantId.isBlank()) {
+                            variantIds.add(variantId);
+                        }
                     }
                 }
-                entries.add(new IdentityUnlockSyncEntry(parsed, true, variantData));
+                entries.add(new IdentityUnlockSyncEntry(parsed, true, variantIds));
             } catch (Exception ignored) {
             }
         }
@@ -1189,11 +1208,28 @@ public final class IdentityProgression {
             return;
         }
 
+        // Split inside a single identity entry too; one modded identity can have
+        // thousands of variants and an outer entry-only splitter is not safe.
+        List<IdentityUnlockSyncEntry> expanded = new ArrayList<>();
+        for (IdentityUnlockSyncEntry entry : entries) {
+            List<String> ids = entry.variantIds() == null ? List.of() : entry.variantIds();
+            if (ids.isEmpty()) {
+                expanded.add(entry);
+                continue;
+            }
+            for (int start = 0; start < ids.size(); start += 300) {
+                expanded.add(new IdentityUnlockSyncEntry(
+                        entry.identityId(), start == 0 && entry.replaceTokens(),
+                        List.copyOf(ids.subList(start, Math.min(ids.size(), start + 300)))
+                ));
+            }
+        }
+
         List<IdentityUnlockSyncEntry> current = new ArrayList<>();
         int packetBytes = packetOverheadBytes(replaceAll);
         boolean packetReplaceAll = replaceAll;
 
-        for (IdentityUnlockSyncEntry entry : entries) {
+        for (IdentityUnlockSyncEntry entry : expanded) {
             int entryBytes = unlockEntryBytes(entry);
             if (!current.isEmpty() && packetBytes + entryBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
                 NetworkCompat.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
@@ -1235,10 +1271,10 @@ public final class IdentityProgression {
         try {
             buffer.writeResourceLocation(entry.identityId());
             buffer.writeBoolean(entry.replaceTokens());
-            List<CompoundTag> variantData = entry.variantData() == null ? List.of() : entry.variantData();
-            buffer.writeVarInt(variantData.size());
-            for (CompoundTag data : variantData) {
-                buffer.writeNbt(data == null ? new CompoundTag() : data);
+            List<String> variantIds = entry.variantIds() == null ? List.of() : entry.variantIds();
+            buffer.writeVarInt(variantIds.size());
+            for (String variantId : variantIds) {
+                buffer.writeUtf(variantId == null ? "" : variantId, 64);
             }
             return buffer.readableBytes();
         } finally {
@@ -1270,16 +1306,6 @@ public final class IdentityProgression {
         double transitionStartTick,
         double transitionDurationTicks
     ) {
-        CustomEntityStringDataS2CPacketPayload modelPayload = new CustomEntityStringDataS2CPacketPayload(
-            player.getId(),
-            List.of(
-                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
-                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_KEY, variant),
-                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
-                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_KEY, previousVariant)
-            )
-        );
         CustomEntityDataS2CPacketPayload shapePayload = new CustomEntityDataS2CPacketPayload(
             player.getId(),
             List.of(
@@ -1290,16 +1316,78 @@ public final class IdentityProgression {
             )
         );
 
-        NetworkCompat.sendToPlayer(player, modelPayload);
+        NetworkCompat.sendToPlayer(player, identity2$createMorphReferencePayload(
+                player, player.getId(), modelOverride, variant, previousType, previousVariant));
         NetworkCompat.sendToPlayer(player, shapePayload);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkCompat.sendToPlayer(other, modelPayload);
+                    NetworkCompat.sendToPlayer(other, identity2$createMorphReferencePayload(
+                            other, player.getId(), modelOverride, variant, previousType, previousVariant));
                     NetworkCompat.sendToPlayer(other, shapePayload);
                 }
             }
         }
+    }
+
+    private static CustomEntityStringDataS2CPacketPayload identity2$createMorphReferencePayload(
+            ServerPlayer recipient, int entityId, String modelOverride, String variant,
+            String previousType, String previousVariant
+    ) {
+        String selectedRef = identity2$sendVariantDefinition(recipient, entityId, modelOverride, variant, true);
+        String previousRef = identity2$sendVariantDefinition(recipient, entityId, previousType, previousVariant, false);
+        return new CustomEntityStringDataS2CPacketPayload(entityId, List.of(
+                new CustomEntityDataS2CPacket.EntryString("model_override", modelOverride),
+                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_TYPE_KEY, modelOverride),
+                new CustomEntityDataS2CPacket.EntryString(SELECTED_IDENTITY_VARIANT_REF_KEY, selectedRef),
+                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_TYPE_KEY, previousType),
+                new CustomEntityDataS2CPacket.EntryString(PREVIOUS_IDENTITY_VARIANT_REF_KEY, previousRef)
+        ));
+    }
+
+    private static String identity2$sendVariantDefinition(
+            ServerPlayer recipient, int entityId, String rawType, String rawVariant, boolean reset
+    ) {
+        if (rawType == null || rawType.isBlank() || BASE_PLAYER_TRANSITION_SENTINEL.equals(rawType)) {
+            if (reset) IdentityVariantRegistry.sendReset(recipient, entityId);
+            return "";
+        }
+        try {
+            ResourceLocation type = new ResourceLocation(rawType);
+            return IdentityVariantRegistry.sendDefinition(
+                    recipient, entityId, type, parseVariantNbt(rawVariant), reset);
+        } catch (Exception ignored) {
+            if (reset) IdentityVariantRegistry.sendReset(recipient, entityId);
+            return "";
+        }
+    }
+
+    public static boolean isMorphSyncStringKey(String key) {
+        return SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                || PREVIOUS_IDENTITY_VARIANT_KEY.equals(key)
+                || SELECTED_IDENTITY_VARIANT_REF_KEY.equals(key)
+                || PREVIOUS_IDENTITY_VARIANT_REF_KEY.equals(key);
+    }
+
+    /** Sends a tracked player morph snapshot using definitions followed by bounded references. */
+    public static void syncMorphSnapshotToPlayer(ServerPlayer source, ServerPlayer recipient) {
+        if (source == null || recipient == null) {
+            return;
+        }
+        CompoundTag data = getCustomData(source);
+        String model = NbtCompat.getStringOr(data, SELECTED_IDENTITY_TYPE_KEY,
+                NbtCompat.getStringOr(data, "model_override", ""));
+        String variant = NbtCompat.getStringOr(data, SELECTED_IDENTITY_VARIANT_KEY, "");
+        String previousType = NbtCompat.getStringOr(data, PREVIOUS_IDENTITY_TYPE_KEY, "");
+        String previousVariant = NbtCompat.getStringOr(data, PREVIOUS_IDENTITY_VARIANT_KEY, "");
+        NetworkCompat.sendToPlayer(recipient, identity2$createMorphReferencePayload(
+                recipient, source.getId(), model, variant, previousType, previousVariant));
+        NetworkCompat.sendToPlayer(recipient, new CustomEntityDataS2CPacketPayload(source.getId(), List.of(
+                new CustomEntityDataS2CPacket.Entry("width_override", NbtCompat.getDoubleOr(data, "width_override", 0.0D)),
+                new CustomEntityDataS2CPacket.Entry("height_override", NbtCompat.getDoubleOr(data, "height_override", 0.0D)),
+                new CustomEntityDataS2CPacket.Entry(TRANSITION_START_TICK_KEY, NbtCompat.getDoubleOr(data, TRANSITION_START_TICK_KEY, 0.0D)),
+                new CustomEntityDataS2CPacket.Entry(TRANSITION_DURATION_TICKS_KEY, NbtCompat.getDoubleOr(data, TRANSITION_DURATION_TICKS_KEY, 0.0D))
+        )));
     }
 
     private static void broadcastAcquisitionAnimation(ServerPlayer player, LivingEntity acquired, boolean morphAcquisition) {
@@ -1558,7 +1646,7 @@ public final class IdentityProgression {
             }
 
             Attribute attribute = instance.getAttribute();
-            if (attribute == null || (identity2$shouldSkipPlayerMorphAttribute(attribute) && !attribute.equals(Attributes.ATTACK_DAMAGE))) {
+            if (attribute == null) {
                 continue;
             }
 
@@ -1741,10 +1829,13 @@ public final class IdentityProgression {
         }
 
         if (identity instanceof LivingEntity livingIdentity) {
-            double base = maxHealthAttr.getBaseValue();
+            double unscaledMaxHealth = maxHealthAttr.getValue();
             double desired = resolveIdentityMaxHealth(player, livingIdentity);
             desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
-            double delta = desired - base;
+            double response = identity2$addValueModifierResponse(maxHealthAttr);
+            double delta = Math.abs(response) > 1.0E-6D
+                    ? (desired - unscaledMaxHealth) / response
+                    : desired - unscaledMaxHealth;
             if (Math.abs(delta) > 1.0E-4D) {
                 maxHealthAttr.addTransientModifier(
                     new AttributeModifier(HEALTH_SCALING_MODIFIER_UUID, HEALTH_SCALING_MODIFIER_ID.toString(), delta, AttributeModifier.Operation.ADDITION)
@@ -1755,6 +1846,37 @@ public final class IdentityProgression {
         float newMaxHealth = player.getMaxHealth();
         float scaled = Mth.clamp(healthRatio * newMaxHealth, 1.0F, newMaxHealth);
         player.setHealth(scaled);
+    }
+
+    /** Returns persisted variant definitions for server-side reference resolution and sync only. */
+    public static List<CompoundTag> getUnlockedVariantData(ServerPlayer player, ResourceLocation identityId) {
+        if (player == null || identityId == null) {
+            return List.of();
+        }
+        Map<String, List<String>> unlocks = readUnlockedIdentityVariantUnlocks(getCustomData(player));
+        List<CompoundTag> variants = new ArrayList<>();
+        for (String token : unlocks.getOrDefault(identityId.toString(), List.of())) {
+            CompoundTag variant = normalizeVariantForUnlock(fromVariantUnlockToken(token));
+            if (!variant.isEmpty()) {
+                variants.add(variant);
+            }
+        }
+        return variants;
+    }
+
+    private static double identity2$addValueModifierResponse(AttributeInstance instance) {
+        double response = 1.0D;
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.getOperation() == AttributeModifier.Operation.MULTIPLY_BASE) {
+                response += modifier.getAmount();
+            }
+        }
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.getOperation() == AttributeModifier.Operation.MULTIPLY_TOTAL) {
+                response *= 1.0D + modifier.getAmount();
+            }
+        }
+        return response;
     }
 
     private static double resolveIdentityMaxHealth(ServerPlayer player, LivingEntity livingIdentity) {

@@ -3,6 +3,8 @@ package net.Gabou.identity2.identity;
 import java.util.Collections;
 import java.util.List;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -73,6 +75,10 @@ public final class IdentityTraitTags {
             return Boolean.TRUE;
         }
 
+        if (hasAbilityTrait(type, "flight")) {
+            return Boolean.TRUE;
+        }
+
         if (type.is(CAN_FLY) || type.is(VANILLA_CAN_FLY)) {
             return Boolean.TRUE;
         }
@@ -104,7 +110,10 @@ public final class IdentityTraitTags {
             return Boolean.TRUE;
         }
 
-        return type.is(CAN_BREATHE_UNDERWATER) || type.is(VANILLA_CAN_BREATHE_UNDERWATER);
+        return hasAbilityTrait(type, "water_breathing")
+                || hasAbilityTrait(type, "aquatic")
+                || type.is(CAN_BREATHE_UNDERWATER)
+                || type.is(VANILLA_CAN_BREATHE_UNDERWATER);
     }
 
     public static boolean burnsInDaylight(EntityType<?> type) {
@@ -132,7 +141,15 @@ public final class IdentityTraitTags {
                 return assignmentOverride;
             }
         }
-        return type.is(SLOW_FALLING);
+        return hasAbilityTrait(type, "slow_fall") || type.is(SLOW_FALLING);
+    }
+
+    public static boolean hasAbilityTrait(EntityType<?> type, String trait) {
+        if (type == null || trait == null || trait.isBlank()) {
+            return false;
+        }
+        IdentityAbilityDefinition definition = ModRegistries.resolveIdentityAbility(type);
+        return definition != null && definition.hasTrait(trait);
     }
 
     @Nullable

@@ -28,11 +28,13 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
+import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.Identity2;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.LivingEntityAccessor;
+import net.Gabou.identity2.mixin.LivingEntitySoundInvoker;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.server.level.ServerLevel;
@@ -51,6 +53,9 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.item.Items;
 import net.Gabou.identity2.util.AttributeContainerAccessor;
 import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
@@ -64,7 +69,7 @@ import net.minecraft.nbt.CompoundTag;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityAccessor {
     @Unique
-    private static final String IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY = "identity2.last_ambient_sound_tick";
+    private static final String IDENTITY2_AMBIENT_SOUND_TIME_KEY = "identity2.ambient_sound_time";
 
     @Shadow
     protected boolean jumping;
@@ -155,6 +160,9 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
     }
 
     private static boolean identity2$isAquaticMorph(LivingEntity livingIdentity) {
+        if (livingIdentity != null && livingIdentity.level() != null) {
+            ModRegistries.captureIdentityAbilityRegistry(livingIdentity.level().registryAccess());
+        }
         return livingIdentity != null
             && (
                 livingIdentity.canBreatheUnderwater()
@@ -222,6 +230,11 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
         }
 
         if (identity2$isAquaticMorph(livingIdentity)) {
+            if (IdentityTraitTags.hasAbilityTrait(livingIdentity.getType(), "water_breathing")
+                    && !IdentityTraitTags.hasAbilityTrait(livingIdentity.getType(), "water_only")) {
+                info.setReturnValue(host.getMaxAirSupply());
+                return;
+            }
             int nextAir = air - 1;
             if (livingIdentity.getType() == EntityType.DOLPHIN && air > 0 && nextAir <= 0) {
                 host.hurt(host.damageSources().dryOut(), 2.0F);
@@ -266,6 +279,11 @@ private void getMaxHealthIdentity(CallbackInfoReturnable info){
             cir.setReturnValue(false);
             return;
         }
+        if (this.currentIdentity != null
+                && IdentityTraitTags.hasAbilityTrait(this.currentIdentity.getType(), "fall_resistant")) {
+            cir.setReturnValue(false);
+            return;
+        }
         if (this.currentIdentity != null && this.currentIdentity.getType() == EntityType.CAMEL) {
             cir.setReturnValue(false);
             return;
@@ -283,7 +301,7 @@ private void getHurtSoundIdentity(DamageSource source,CallbackInfoReturnable inf
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getHurtSound(source));
+            info.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetHurtSound(source));
         }
     }
     }
@@ -297,7 +315,7 @@ private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo i
     if (!(this.currentIdentity instanceof LivingEntity)) {
         return;
     }
-    SoundEvent hurtSound = ((LivingEntityAccessor) this.currentIdentity).getHurtSound(source);
+    SoundEvent hurtSound = ((LivingEntitySoundInvoker) this.currentIdentity).identity2$invokeGetHurtSound(source);
     if (hurtSound == null) {
         return;
     }
@@ -315,12 +333,57 @@ private void identity2$playIdentityHurtSound(DamageSource source, CallbackInfo i
     info.cancel();
 }
 
+//@Redirect(
+//        method = "hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z",
+//        at = @At(
+//                value = "INVOKE",
+//                target = "Lnet/minecraft/world/entity/LivingEntity;playSecondaryHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)V"
+//        )
+//)
+//private void identity2$redirectSecondaryHurtSound(LivingEntity self, DamageSource source) {
+//    if (identity2$playIdentityHurtSoundInternal(source)) {
+//        return;
+//    }
+//    identity2$invokePrivateVoid(self, "playSecondaryHurtSound", new Class<?>[] { DamageSource.class }, new Object[] { source });
+//}
+
+@Unique
+private boolean identity2$playIdentityHurtSoundInternal(DamageSource source) {
+    if (!IdentitySettings.useIdentitySounds || this.currentIdentity == null) {
+        return false;
+    }
+    if (!(this.currentIdentity instanceof LivingEntity)) {
+        return false;
+    }
+    SoundEvent hurtSound = ((LivingEntitySoundInvoker) this.currentIdentity).identity2$invokeGetHurtSound(source);
+    if (hurtSound == null) {
+        return false;
+    }
+    LivingEntity self = (LivingEntity) (Object) this;
+    float pitch = 1.0F;
+    Object pitchValue = identity2$invokeNoArg(this.currentIdentity, "getVoicePitch");
+    if (pitchValue instanceof Number number) {
+        pitch = number.floatValue();
+    }
+    self.level().playSound(
+            null,
+            self.getX(),
+            self.getY(),
+            self.getZ(),
+            hurtSound,
+            self.getSoundSource(),
+            this.getSoundVolume(),
+            pitch
+    );
+    return true;
+}
+
 @Inject(method = "getDeathSound()Lnet/minecraft/sounds/SoundEvent;", at=@At("HEAD"),cancellable=true)
 private void getDeathSoundIdentity(CallbackInfoReturnable info){
     if(IdentitySettings.useIdentitySounds){
     if(this.currentIdentity!=null){
         if(this.currentIdentity instanceof LivingEntity livingIdentity){
-            info.setReturnValue(((LivingEntityAccessor)this.currentIdentity).getDeathSound());
+            info.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetDeathSound());
         }
     }
     }
@@ -373,15 +436,15 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     if (intervalValue instanceof Number number) {
         interval = Math.max(1, number.intValue());
     }
-    if (serverLevel.getRandom().nextInt(interval) != 0) {
-        return;
-    }
     CompoundTag customData = ((EntityAccessor) hostPlayer).getCustomData();
-    long lastAmbientTick = customData.getLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY);
-    if (lastAmbientTick > 0L && hostPlayer.tickCount - lastAmbientTick < 20) {
+    int ambientSoundTime = customData.getInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY);
+    boolean shouldPlay = serverLevel.getRandom().nextInt(1000) < ambientSoundTime;
+    ambientSoundTime++;
+    if (!shouldPlay) {
+        customData.putInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY, ambientSoundTime);
         return;
     }
-    customData.putLong(IDENTITY2_LAST_AMBIENT_SOUND_TICK_KEY, hostPlayer.tickCount);
+    customData.putInt(IDENTITY2_AMBIENT_SOUND_TIME_KEY, -interval);
 
     float volume = 1.0F;
     Object volumeValue = identity2$invokeNoArg(livingIdentity, "getSoundVolume");
@@ -405,6 +468,24 @@ private void identity2$playAmbientSound(CallbackInfo info) {
     );
 }
 
+@Inject(method = "aiStep()V", at = @At("TAIL"))
+private void identity2$applyStriderLavaFloat(CallbackInfo info) {
+    if (!((Entity) (Object) this instanceof Player player)
+            || this.currentIdentity == null
+            || this.currentIdentity.getType() != EntityType.STRIDER
+            || !player.isInLava()) {
+        return;
+    }
+    CollisionContext context = CollisionContext.of(player);
+    net.minecraft.core.BlockPos pos = player.blockPosition();
+    if (context.isAbove(LiquidBlock.STABLE_SHAPE, pos, true)
+            && !player.level().getFluidState(pos.above()).is(FluidTags.LAVA)) {
+        player.setOnGround(true);
+    } else {
+        player.setDeltaMovement(player.getDeltaMovement().scale(0.5D).add(0.0D, 0.05D, 0.0D));
+    }
+}
+
 //getNextAir(underwater,onland) should be added
 @Inject(method = "onClimbable()Z", at=@At("HEAD"), cancellable=true)
 private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
@@ -412,7 +493,9 @@ private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
         return;
     }
     EntityType<?> identityType = this.currentIdentity.getType();
-    if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
+    if (identityType != EntityType.SPIDER
+            && identityType != EntityType.CAVE_SPIDER
+            && !IdentityTraitTags.hasAbilityTrait(identityType, "climb")) {
         return;
     }
     if ((Entity)(Object)this instanceof Player player && player.isSpectator()) {
@@ -425,9 +508,21 @@ private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
 @Inject(method = "canFreeze()Z", at=@At("HEAD"),cancellable=true)
 private void canFreezeIdentity(CallbackInfoReturnable info){
     if(this.currentIdentity!=null){
-        info.setReturnValue(this.currentIdentity.canFreeze());
+        info.setReturnValue(
+                !IdentityTraitTags.hasAbilityTrait(this.currentIdentity.getType(), "freeze_immune")
+                        && this.currentIdentity.canFreeze()
+        );
 
     }
+}
+
+@ModifyVariable(method = "knockback(DDD)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+private double identity2$applyMorphKnockbackResistance(double strength) {
+    if (this.currentIdentity != null
+            && IdentityTraitTags.hasAbilityTrait(this.currentIdentity.getType(), "knockback_resistant")) {
+        return strength * 0.5D;
+    }
+    return strength;
 }
 @Inject(method = "canStandOnFluid(Lnet/minecraft/world/level/material/FluidState;)Z", at=@At("HEAD"),cancellable=true)
 private void canWalkOnFluidIdentity(net.minecraft.world.level.material.FluidState key,CallbackInfoReturnable info){
@@ -569,6 +664,28 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
     }
 }
 
+@Unique
+private static void identity2$invokePrivateVoid(Object target, String methodName, Class<?>[] parameterTypes, Object[] args) {
+    if (target == null || methodName == null || methodName.isBlank()) {
+        return;
+    }
+    Class<?> current = target.getClass();
+    while (current != null) {
+        try {
+            Method method = current.getDeclaredMethod(methodName, parameterTypes);
+            if (!method.canAccess(target)) {
+                method.setAccessible(true);
+            }
+            method.invoke(target, args);
+            return;
+        } catch (NoSuchMethodException e) {
+            current = current.getSuperclass();
+        } catch (Throwable ignored) {
+            return;
+        }
+    }
+}
+
 //@Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at=@At("HEAD"),cancellable=true)
 //private void canUseSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable info){
 //    if(this.currentIdentity!=null){
@@ -612,22 +729,6 @@ private static Object identity2$invokeNoArg(Object target, String methodName) {
 
     @Inject(method = "getOffhandItem()Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
     private void identity2$getOffhandItemIdentity(CallbackInfoReturnable<ItemStack> info) {
-    }
-
-    @Inject(method = "hasItemInSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)
-    private void identity2$hasItemInSlotIdentity(EquipmentSlot slot, CallbackInfoReturnable<Boolean> info) {
-        if (slot.getType() == EquipmentSlot.Type.HAND) {
-            return;
-        }
-        if (slot.getType() == EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipItems) {
-            return;
-        }
-        if (slot.getType() != EquipmentSlot.Type.HAND && IdentitySettings.identitiesEquipArmor) {
-            return;
-        }
-        if (this.currentIdentity instanceof LivingEntity livingIdentity && !identity2$canUseSlot(livingIdentity, slot)) {
-            info.setReturnValue(false);
-        }
     }
 
 //    @Inject(method = "canUseSlot(Lnet/minecraft/world/entity/EquipmentSlot;)Z", at = @At("HEAD"), cancellable = true)

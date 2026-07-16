@@ -1,6 +1,9 @@
 {
-  "icon": "minecraft:rotten_flesh",
-  "cooldown": 100,
-  "predef": "alexsmobs:skunk"
+  "icon": "minecraft:fermented_spider_eye",
+  "cooldown": 140,
+  "action": "stink_cloud",
+  "strength": 0,
+  "range": 4,
+  "duration": 100,
+  "traits": []
 }
-

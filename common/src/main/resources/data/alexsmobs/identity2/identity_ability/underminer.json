@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:diamond_pickaxe",
+  "cooldown": 180,
+  "action": "ore_sense",
+  "strength": 0,
+  "range": 12,
+  "duration": 20,
+  "traits": [
+    "fall_resistant"
+  ]
+}

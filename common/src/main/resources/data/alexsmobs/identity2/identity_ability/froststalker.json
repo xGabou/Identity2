@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 110,
+  "action": "frost_bite",
+  "strength": 4,
+  "range": 3,
+  "duration": 100,
+  "traits": [
+    "fast_land",
+    "freeze_immune",
+    "fall_resistant"
+  ]
+}

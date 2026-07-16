@@ -5,8 +5,8 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.api.morph.IdentityMorphTickHandler;
 import net.Gabou.identity2.api.variant.IdentityVariantAdapter;
-import net.Gabou.identity2.compat.UntamedWildsCompat;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityTropicalFishVariants;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
@@ -104,11 +104,6 @@ public final class IdentityApi {
         if (type == null) {
             return null;
         }
-        IdentityVariantAdapter adapter = VARIANT_ADAPTERS.get(type);
-        if (adapter != null) {
-            return adapter;
-        }
-        UntamedWildsCompat.ensureVariantAdapterRegistered(type);
         return VARIANT_ADAPTERS.get(type);
     }
 
@@ -173,6 +168,10 @@ public final class IdentityApi {
         return discoverVariants(type, null);
     }
 
+    public static List<IdentityVariant> discoverCommandVariants(EntityType<?> type, Level level) {
+        return discoverVariants(type, level);
+    }
+
     /**
      * Returns true when a baby variant should be blocked.
      *
@@ -208,6 +207,8 @@ public final class IdentityApi {
             variants.addAll(discoverRegistryBackedVariants(typeId, "WOLF_VARIANT", "WolfVariant", "Wolf"));
         } else if (type == EntityType.FROG) {
             variants.addAll(discoverRegistryBackedVariants(typeId, "FROG_VARIANT", "FrogVariant", "Frog"));
+        } else if (type == EntityType.TROPICAL_FISH) {
+            variants.addAll(IdentityTropicalFishVariants.discover(typeId));
         }
         IdentityVariant baby = discoverBabyVariant(type, typeId, level);
         if (baby != null) {
@@ -507,6 +508,11 @@ public final class IdentityApi {
 
     public static void syncString(ServerPlayer player, String key, String value) {
         if (!shouldWriteString(player, key, value)) {
+            return;
+        }
+        if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                || IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(key)) {
+            IdentityProgression.syncCurrentMorphData(player);
             return;
         }
         CustomEntityStringDataS2CPacketPayload payload = new CustomEntityStringDataS2CPacketPayload(

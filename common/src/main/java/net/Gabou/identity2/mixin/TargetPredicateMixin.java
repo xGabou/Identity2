@@ -36,7 +36,10 @@ public class TargetPredicateMixin {
             cancellable = true
     )
     private void identity2$skipCreativeMorphTargets(@Nullable LivingEntity tester, LivingEntity target, CallbackInfoReturnable<Boolean> info) {
-        if (target instanceof Player player && (player.isSpectator() || player.getAbilities().instabuild)) {
+        Player player = target instanceof Player directPlayer
+                ? directPlayer
+                : ((EntityAccessor) target).getIdentityOwner() instanceof Player ownerPlayer ? ownerPlayer : null;
+        if (player != null && (player.isSpectator() || player.getAbilities().instabuild)) {
             identity2$replaceTargetWithIdentity.set(Boolean.FALSE);
             info.setReturnValue(false);
         }

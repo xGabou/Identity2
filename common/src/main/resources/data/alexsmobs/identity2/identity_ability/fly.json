@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:sugar",
-  "cooldown": 100,
-  "predef": "alexsmobs:fly"
+  "icon": "minecraft:feather",
+  "cooldown": 40,
+  "action": "dash",
+  "strength": 0.7,
+  "range": 2,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall"
+  ]
 }
-

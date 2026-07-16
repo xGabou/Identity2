@@ -1,5 +1,7 @@
 package net.Gabou.identity2.commands;
 
+import net.Gabou.identity2.ModPackets;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -475,6 +477,7 @@ public final class IdentityCommand {
 
         identity2$normalizeAliasedConfigAfterSet(key);
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Set " + key + " = " + formatConfigValue(parsed) + " and saved it to the server config"));
         return 1;
     }
@@ -499,6 +502,7 @@ public final class IdentityCommand {
 
         values.add(value);
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Added \"" + value + "\" to " + key + " and saved it to the server config"));
         return 1;
     }
@@ -522,6 +526,7 @@ public final class IdentityCommand {
         }
 
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Removed \"" + value + "\" from " + key + " and saved it to the server config"));
         return 1;
     }
@@ -542,6 +547,7 @@ public final class IdentityCommand {
         int removed = values.size();
         values.clear();
         IdentityConfigManager.save();
+        ModPackets.syncClientSettings(source.getServer());
         identity2$sendCommandFeedback(source, Component.literal("Cleared " + key + " (" + removed + " entries) and saved it to the server config"));
         return removed;
     }

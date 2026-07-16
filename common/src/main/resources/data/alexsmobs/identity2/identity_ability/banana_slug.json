@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 120,
+  "action": "mucus_trail",
+  "strength": 0,
+  "range": 3,
+  "duration": 80,
+  "traits": [
+    "fall_resistant"
+  ]
+}

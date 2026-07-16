@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:magma_cream",
+  "cooldown": 110,
+  "action": "charge",
+  "strength": 1.6,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "fire_immune",
+    "knockback_resistant"
+  ]
+}

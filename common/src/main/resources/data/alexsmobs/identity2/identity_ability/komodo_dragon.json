@@ -1,6 +1,9 @@
 {
-  "icon": "minecraft:fermented_spider_eye",
-  "cooldown": 100,
-  "predef": "alexsmobs:komodo_dragon"
+  "icon": "minecraft:spider_eye",
+  "cooldown": 110,
+  "action": "poison_bite",
+  "strength": 3,
+  "range": 3,
+  "duration": 100,
+  "traits": []
 }
-

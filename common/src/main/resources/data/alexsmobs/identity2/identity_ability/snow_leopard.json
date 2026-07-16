@@ -1,6 +1,14 @@
 {
-  "icon": "minecraft:snowball",
-  "cooldown": 100,
-  "predef": "alexsmobs:snow_leopard"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 70,
+  "action": "pounce",
+  "strength": 1.3,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "fast_land",
+    "fall_resistant",
+    "freeze_immune"
+  ]
 }
-

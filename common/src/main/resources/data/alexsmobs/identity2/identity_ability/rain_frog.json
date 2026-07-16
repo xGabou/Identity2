@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:rabbit_foot",
+  "cooldown": 130,
+  "action": "burrow_escape",
+  "strength": 0,
+  "range": 2,
+  "duration": 50,
+  "traits": [
+    "high_jump",
+    "fall_resistant"
+  ]
+}

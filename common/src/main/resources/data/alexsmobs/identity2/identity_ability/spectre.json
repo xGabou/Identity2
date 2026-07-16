@@ -1,6 +1,13 @@
 {
   "icon": "minecraft:ender_pearl",
-  "cooldown": 100,
-  "predef": "alexsmobs:spectre"
+  "cooldown": 70,
+  "action": "air_dash",
+  "strength": 1.8,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
 }
-

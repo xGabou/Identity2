@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:barrier",
+  "cooldown": 20,
+  "action": "none",
+  "strength": 0,
+  "range": 2,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall"
+  ]
+}

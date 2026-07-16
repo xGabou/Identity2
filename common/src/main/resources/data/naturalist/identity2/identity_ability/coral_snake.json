@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 100,
+  "action": "poison_bite",
+  "strength": 2,
+  "range": 2.5,
+  "duration": 100,
+  "traits": []
+}

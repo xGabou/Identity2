@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 60,
+  "action": "bite",
+  "strength": 3,
+  "range": 2.5,
+  "duration": 20,
+  "traits": []
+}

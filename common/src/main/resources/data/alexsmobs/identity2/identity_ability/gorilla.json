@@ -1,6 +1,11 @@
 {
-  "icon": "minecraft:beef",
-  "cooldown": 100,
-  "predef": "alexsmobs:gorilla"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 90,
+  "action": "knockback",
+  "strength": 1.5,
+  "range": 3.5,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
 }
-

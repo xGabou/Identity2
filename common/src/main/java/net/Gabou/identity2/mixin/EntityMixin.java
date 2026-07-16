@@ -4,9 +4,9 @@ import com.google.common.collect.Lists;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.ModRegistries;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
-import net.Gabou.identity2.identity.KeepInventoryHelper;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
@@ -314,9 +314,6 @@ public class EntityMixin implements EntityAccessor {
     private void identityFix(CallbackInfo info) {
         if (this.currentIdentity != null) {
             if ((Entity) (Object) this instanceof ServerPlayer serverPlayer && serverPlayer.isDeadOrDying()) {
-                if (this.currentIdentity instanceof LivingEntity livingIdentity) {
-                    identity2$copyIdentityEquipmentToPlayerOnDeath(serverPlayer, livingIdentity);
-                }
                 this.currentIdentity.discard();
                 this.currentIdentity = null;
                 return;
@@ -586,11 +583,22 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack stack = livingHost.getItemBySlot(slot).copy();
+            ItemStack stack = identity2$visibleMorphEquipment(livingHost, slot);
             if (!ItemStack.matches(livingIdentity.getItemBySlot(slot), stack)) {
                 livingIdentity.setItemSlot(slot, stack);
             }
         }
+    }
+
+    @Unique
+    private static ItemStack identity2$visibleMorphEquipment(LivingEntity host, EquipmentSlot slot) {
+        if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
+            return ItemStack.EMPTY;
+        }
+        if (slot.getType() != EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipArmor) {
+            return ItemStack.EMPTY;
+        }
+        return host.getItemBySlot(slot).copy();
     }
 
     @Unique
@@ -624,6 +632,8 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
 
+        ModRegistries.captureIdentityAbilityRegistry(player.level().registryAccess());
+
         if (activeIdentity.getType() == EntityType.DOLPHIN && player.isInWater()) {
             player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
         }
@@ -638,8 +648,10 @@ public class EntityMixin implements EntityAccessor {
             }
         }
 
-        if (activeIdentity.fireImmune()) {
+        boolean fireImmune = identity2$isMorphFireImmune(activeIdentity);
+        if (fireImmune) {
             activeIdentity.clearFire();
+            player.clearFire();
         }
         if (IdentityTraitTags.burnsInDaylight(activeIdentity.getType())
                 && player.level().isDay()
@@ -650,27 +662,28 @@ public class EntityMixin implements EntityAccessor {
         }
         identity2$syncFireStateFromIdentity(player, activeIdentity);
 
+        if (IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "fast_land") && player.onGround()) {
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 10, 0, true, false, false));
+        }
+        if (IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "high_jump")) {
+            player.addEffect(new MobEffectInstance(MobEffects.JUMP, 10, 0, true, false, false));
+        }
+        if (IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "fast_swim") && player.isInWaterOrBubble()) {
+            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 10, 0, true, false, false));
+        }
+        if (IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "lava_mobility") && player.isInLava()) {
+            Vec3 motion = player.getDeltaMovement();
+            if (motion.y < -0.2D) {
+                player.setDeltaMovement(motion.x, -0.2D, motion.z);
+            }
+        }
+
         if (activeIdentity instanceof AbstractPiglin piglinIdentity) {
             identity2$tickMorphZombification(player, piglinIdentity, EntityType.ZOMBIFIED_PIGLIN);
         } else if (activeIdentity instanceof Hoglin hoglinIdentity) {
             identity2$tickMorphZombification(player, hoglinIdentity, EntityType.ZOGLIN);
-        } else if (activeIdentity.getType() == EntityType.STRIDER && identity2$shouldStriderRiseInLava(player)) {
-            identity2$applyStriderLavaMovement(player);
         } else {
             identity2$clearMorphZombificationTicks();
-        }
-    }
-
-    @Unique
-    private static void identity2$applyStriderLavaMovement(Player player) {
-        Vec3 motion = player.getDeltaMovement();
-        boolean jumpInput = player instanceof LivingEntityAccessor accessor && accessor.identity2$isJumping();
-        if (jumpInput && identity2$shouldStriderRiseInLava(player)) {
-            player.setDeltaMovement(motion.x, Math.max(motion.y, 0.12D), motion.z);
-        } else if (player.isShiftKeyDown()) {
-            player.setDeltaMovement(motion.x, Math.min(motion.y, -0.05D), motion.z);
-        } else if (Math.abs(motion.y) < 0.02D) {
-            player.setDeltaMovement(motion.x, 0.02D, motion.z);
         }
     }
 
@@ -871,6 +884,7 @@ public class EntityMixin implements EntityAccessor {
 
     public boolean canFly() {
         if (!this.entityCanFlyEvaluated) {
+            ModRegistries.captureIdentityAbilityRegistry(((Entity) (Object) this).level().registryAccess());
             Boolean taggedFlight = IdentityTraitTags.resolveFlight(((Entity) (Object) this).getType());
             if (taggedFlight != null) {
                 this.entityCanFly = taggedFlight;
@@ -1020,17 +1034,6 @@ public class EntityMixin implements EntityAccessor {
     @Unique
     private static boolean identity2$shouldSlowFallingFastFall(Entity entity) {
         return entity.isShiftKeyDown() && entity.getDeltaMovement().y < 0.0D;
-    }
-
-    /**
-     * Returns true when a strider morph should rise in lava.
-     *
-     * @param entity the morphed entity
-     * @return true if the entity is inside lava enough to swim upward
-     */
-    @Unique
-    private static boolean identity2$shouldStriderRiseInLava(Entity entity) {
-        return entity.isInLava() || entity.getFluidHeight(FluidTags.LAVA) > 0.0D;
     }
 
     @Unique
@@ -1766,20 +1769,6 @@ public class EntityMixin implements EntityAccessor {
         }
     }
 
-    @Unique
-    private static void identity2$copyIdentityEquipmentToPlayerOnDeath(ServerPlayer player, LivingEntity identity) {
-        if (identity == null || !KeepInventoryHelper.isKeepInventoryEnabled(player)) {
-            return;
-        }
-
-        player.setItemSlot(EquipmentSlot.MAINHAND, identity.getMainHandItem().copy());
-        player.setItemSlot(EquipmentSlot.OFFHAND, identity.getOffhandItem().copy());
-        player.setItemSlot(EquipmentSlot.HEAD, identity.getItemBySlot(EquipmentSlot.HEAD).copy());
-        player.setItemSlot(EquipmentSlot.CHEST, identity.getItemBySlot(EquipmentSlot.CHEST).copy());
-        player.setItemSlot(EquipmentSlot.LEGS, identity.getItemBySlot(EquipmentSlot.LEGS).copy());
-        player.setItemSlot(EquipmentSlot.FEET, identity.getItemBySlot(EquipmentSlot.FEET).copy());
-    }
-
     @Shadow
     protected boolean wasTouchingWater;
     @Shadow
@@ -2112,7 +2101,9 @@ public class EntityMixin implements EntityAccessor {
         if (identity == null) {
             return 0.0D;
         }
-        double heightDifference = identity.getBbHeight() - player.getBbHeight();
+        // Player dimensions already follow the active morph here, so use the
+        // vanilla standing height as the stable reference for small morphs.
+        double heightDifference = Player.STANDING_DIMENSIONS.height - identity.getBbHeight();
         if (heightDifference <= 0.0D) {
             return 0.0D;
         }
@@ -2227,6 +2218,15 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
     private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {
         if (this.currentIdentity != null) {
             info.setReturnValue(this.currentIdentity.getEyeHeight());
+        }
+    }
+
+    // Crouching refreshes the cached eye-height field from the player dimensions,
+    // while projectile and bucket origins read that field directly through getEyeY.
+    @Inject(method = "refreshDimensions", at = @At("TAIL"), require = 0)
+    private void identity2$restoreMorphEyeHeightAfterRefresh(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.eyeHeight = this.currentIdentity.getEyeHeight();
         }
     }
 
@@ -2361,6 +2361,7 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
                             activeIdentity.getType() == EntityType.CHICKEN
                                     || activeIdentity.getType() == EntityType.CAT
                                     || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
+                                    || IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "fall_resistant")
                     )
             ) {
                 info.setReturnValue(true);
@@ -2411,7 +2412,9 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
 
     @Unique
     private static boolean identity2$isMorphFireImmune(Entity activeIdentity) {
-        return activeIdentity != null && activeIdentity.fireImmune();
+        return activeIdentity != null
+                && (activeIdentity.fireImmune()
+                || IdentityTraitTags.hasAbilityTrait(activeIdentity.getType(), "fire_immune"));
     }
 
     @Unique

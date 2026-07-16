@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 60,
+  "action": "swipe",
+  "strength": 3,
+  "range": 2.5,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only"
+  ]
+}

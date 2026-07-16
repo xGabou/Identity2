@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:bone",
-  "cooldown": 100,
-  "predef": "alexsmobs:dropbear"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 80,
+  "action": "down_pounce",
+  "strength": 1.2,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "fall_resistant"
+  ]
 }
-

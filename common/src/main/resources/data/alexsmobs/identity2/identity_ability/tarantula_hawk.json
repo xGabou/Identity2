@@ -1,6 +1,12 @@
 {
   "icon": "minecraft:spider_eye",
-  "cooldown": 100,
-  "predef": "alexsmobs:tarantula_hawk"
+  "cooldown": 120,
+  "action": "poison_sting",
+  "strength": 3,
+  "range": 3,
+  "duration": 120,
+  "traits": [
+    "flight",
+    "slow_fall"
+  ]
 }
-

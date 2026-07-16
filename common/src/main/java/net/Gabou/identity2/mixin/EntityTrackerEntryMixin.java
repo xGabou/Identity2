@@ -9,10 +9,12 @@ import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,9 +26,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerEntity.class)
-public class EntityTrackerEntryMixin {
+public abstract class EntityTrackerEntryMixin {
     @Shadow
     private Entity entity;
+
+    @Shadow
+    protected abstract void broadcastAndSend(Packet<?> packet);
 
     @Inject(method = "addPairing", at = @At("TAIL"))
     private void sendCustomDataPackets(ServerPlayer player, CallbackInfo info) {
@@ -41,6 +46,9 @@ public class EntityTrackerEntryMixin {
                 continue;
             }
             if (value.getId() == Tag.TAG_STRING) {
+                if (IdentityProgression.isMorphSyncStringKey(key)) {
+                    continue;
+                }
                 stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, data.getString(key)));
             }
             if (value.getId() == Tag.TAG_BYTE) {
@@ -61,6 +69,10 @@ public class EntityTrackerEntryMixin {
             NetworkCompat.sendToPlayer(player, new CustomEntityBoolDataS2CPacketPayload(this.entity.getId(), boolValues));
         }
 
+        if (this.entity instanceof ServerPlayer sourcePlayer) {
+            IdentityProgression.syncMorphSnapshotToPlayer(sourcePlayer, player);
+        }
+
         Entity currentIdentity = ((EntityAccessor) this.entity).getCurrentIdentity();
         if (currentIdentity == null) {
             return;
@@ -69,6 +81,21 @@ public class EntityTrackerEntryMixin {
         List<SynchedEntityData.DataValue<?>> trackedValues = currentIdentity.getEntityData().getNonDefaultValues();
         if (trackedValues != null && !trackedValues.isEmpty()) {
             player.connection.send(new ClientboundSetEntityDataPacket(-this.entity.getId(), trackedValues));
+        }
+    }
+
+    // Proxy entity data is not a tracked world entity. Forward its dirty
+    // metadata through the host's server tracker on both dedicated and
+    // integrated servers so remote render state stays current.
+    @Inject(method = "sendDirtyEntityData", at = @At("HEAD"))
+    private void identity2$syncDirtyIdentityData(CallbackInfo info) {
+        Entity currentIdentity = ((EntityAccessor) this.entity).getCurrentIdentity();
+        if (currentIdentity == null) {
+            return;
+        }
+        List<SynchedEntityData.DataValue<?>> dirty = currentIdentity.getEntityData().packDirty();
+        if (dirty != null && !dirty.isEmpty()) {
+            this.broadcastAndSend(new ClientboundSetEntityDataPacket(-this.entity.getId(), dirty));
         }
     }
 }

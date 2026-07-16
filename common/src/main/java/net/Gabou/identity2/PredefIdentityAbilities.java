@@ -71,6 +71,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.entity.monster.Shulker;
 public final class PredefIdentityAbilities {
@@ -523,7 +524,7 @@ public final class PredefIdentityAbilities {
 
             @Override
             public void executeSecondary(Entity player) {
-                if (!(player instanceof LivingEntity livingPlayer)) {
+                if (!(player instanceof ServerPlayer serverPlayer)) {
                     return;
                 }
                 Vec3 look = player.getViewVector(1.0F);
@@ -533,7 +534,12 @@ public final class PredefIdentityAbilities {
                 } else {
                     horizontal = horizontal.normalize();
                 }
-                player.setDeltaMovement(horizontal.scale(1.35D).add(0.0D, 0.72D, 0.0D));
+                Vec3 dashVelocity = horizontal.scale(1.35D).add(0.0D, 0.72D, 0.0D);
+                serverPlayer.setDeltaMovement(dashVelocity);
+                // Forge does not reliably predict this server-only velocity change.
+                // Send the owner an explicit motion packet as well as marking it dirty
+                // for observers, matching vanilla knockback synchronization.
+                serverPlayer.connection.send(new ClientboundSetEntityMotionPacket(serverPlayer));
                 player.hurtMarked = true;
                 player.level().playSound(
                         null,
@@ -2162,15 +2168,20 @@ public final class PredefIdentityAbilities {
             return;
         }
         int clampedTicks = Math.max(0, ticks);
-        double value = player.tickCount + clampedTicks;
-        double windowStart = clampedTicks > 0 ? player.tickCount : 0.0D;
+        long now = identity2$gameTime(player);
+        double value = now + clampedTicks;
+        double windowStart = clampedTicks > 0 ? now : 0.0D;
         IdentityApi.syncDouble(serverPlayer, key, value);
         IdentityApi.syncDouble(serverPlayer, identity2$getWindowStartKey(key), windowStart);
     }
 
     private static int identity2$getSyncedTicks(Entity player, String key) {
         double expiresAt = identity2$getStoredTickValue(player, key);
-        return Math.max(0, (int) Math.round(expiresAt - player.tickCount));
+        return Math.max(0, (int) Math.round(expiresAt - identity2$gameTime(player)));
+    }
+
+    private static long identity2$gameTime(Entity player) {
+        return player == null || player.level() == null ? 0L : player.level().getGameTime();
     }
 
     private static void identity2$tickSyncedCountdowns(Entity player, String... keys) {
@@ -2188,7 +2199,12 @@ public final class PredefIdentityAbilities {
         if (player == null || key == null || key.isBlank() || identity2$getSyncedTicks(player, key) <= 0) {
             return 0.0D;
         }
-        return identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+        double startGameTime = identity2$getStoredTickValue(player, identity2$getWindowStartKey(key));
+        if (startGameTime <= 0.0D) {
+            return 0.0D;
+        }
+        double elapsed = Math.max(0.0D, identity2$gameTime(player) - startGameTime);
+        return Math.max(1.0D, player.tickCount - elapsed);
     }
 
     public static boolean isSyncedAnimationActive(Entity player, String key) {

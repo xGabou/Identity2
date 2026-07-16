@@ -1,6 +1,13 @@
 {
   "icon": "minecraft:magma_cream",
-  "cooldown": 100,
-  "predef": "alexsmobs:bone_serpent"
+  "cooldown": 70,
+  "action": "lava_dash",
+  "strength": 1.8,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "fire_immune",
+    "lava_mobility",
+    "fall_resistant"
+  ]
 }
-

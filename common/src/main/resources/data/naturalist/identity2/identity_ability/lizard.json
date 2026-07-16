@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:rabbit_foot",
+  "cooldown": 140,
+  "action": "tail_decoy",
+  "strength": 0,
+  "range": 2,
+  "duration": 50,
+  "traits": [
+    "climb",
+    "fall_resistant"
+  ]
+}

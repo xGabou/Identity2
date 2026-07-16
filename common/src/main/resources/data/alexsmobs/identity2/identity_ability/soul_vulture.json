@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:ghast_tear",
-  "cooldown": 100,
-  "predef": "alexsmobs:soul_vulture"
+  "icon": "minecraft:feather",
+  "cooldown": 120,
+  "action": "soul_leech",
+  "strength": 4,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fire_immune"
+  ]
 }
-

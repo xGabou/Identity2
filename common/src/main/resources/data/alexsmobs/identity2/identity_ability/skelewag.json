@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 70,
+  "action": "bite",
+  "strength": 5,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim"
+  ]
+}

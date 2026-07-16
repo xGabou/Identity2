@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:vine",
-  "cooldown": 100,
-  "predef": "alexsmobs:anaconda"
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 110,
+  "action": "constrict",
+  "strength": 3,
+  "range": 4,
+  "duration": 60,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
 }
-

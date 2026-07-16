@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:egg",
-  "cooldown": 100,
-  "predef": "alexsmobs:emu"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 60,
+  "action": "kick",
+  "strength": 5,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "fall_resistant"
+  ]
 }
-

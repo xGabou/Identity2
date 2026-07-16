@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:lead",
+  "cooldown": 70,
+  "action": "tongue_pull",
+  "strength": 0.9,
+  "range": 5,
+  "duration": 30,
+  "traits": []
+}

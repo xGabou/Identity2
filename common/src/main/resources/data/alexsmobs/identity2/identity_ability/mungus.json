@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:fermented_spider_eye",
+  "cooldown": 140,
+  "action": "spore_cloud",
+  "strength": 0,
+  "range": 4,
+  "duration": 100,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

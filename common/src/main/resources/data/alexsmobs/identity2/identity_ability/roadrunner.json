@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:feather",
-  "cooldown": 100,
-  "predef": "alexsmobs:roadrunner"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 60,
+  "action": "dash",
+  "strength": 1.8,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "fall_resistant"
+  ]
 }
-

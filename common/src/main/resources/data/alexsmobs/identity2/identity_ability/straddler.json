@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:magma_cream",
+  "cooldown": 110,
+  "action": "hemolymph_shot",
+  "strength": 4,
+  "range": 10,
+  "duration": 60,
+  "traits": [
+    "fire_immune",
+    "lava_mobility",
+    "knockback_resistant"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 90,
+  "action": "tongue_pull",
+  "strength": 1,
+  "range": 6,
+  "duration": 40,
+  "traits": [
+    "water_breathing",
+    "high_jump",
+    "fall_resistant"
+  ]
+}

@@ -1,6 +1,11 @@
 {
-  "icon": "minecraft:slime_ball",
-  "cooldown": 100,
-  "predef": "alexsmobs:mimicube"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 80,
+  "action": "pounce",
+  "strength": 1.1,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "fall_resistant"
+  ]
 }
-

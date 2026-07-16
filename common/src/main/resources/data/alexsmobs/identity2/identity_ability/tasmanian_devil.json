@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:beef",
-  "cooldown": 100,
-  "predef": "alexsmobs:tasmanian_devil"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 80,
+  "action": "spin",
+  "strength": 1.5,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "knockback_resistant"
+  ]
 }
-

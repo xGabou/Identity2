@@ -1,6 +1,12 @@
 {
   "icon": "minecraft:chest",
   "cooldown": 100,
-  "predef": "alexsmobs:raccoon"
+  "action": "inventory_drop",
+  "strength": 0,
+  "range": 2,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "fall_resistant"
+  ]
 }
-

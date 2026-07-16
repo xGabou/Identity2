@@ -1,6 +1,11 @@
 {
-  "icon": "minecraft:wheat",
-  "cooldown": 100,
-  "predef": "alexsmobs:moose"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 90,
+  "action": "charge",
+  "strength": 1.4,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
 }
-

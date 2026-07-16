@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:ender_pearl",
+  "cooldown": 70,
+  "action": "air_dash",
+  "strength": 1.8,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

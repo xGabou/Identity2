@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:turtle_helmet",
+  "cooldown": 180,
+  "action": "shell_guard",
+  "strength": 0,
+  "range": 2,
+  "duration": 70,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

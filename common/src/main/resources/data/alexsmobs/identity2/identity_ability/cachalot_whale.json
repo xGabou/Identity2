@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:echo_shard",
+  "cooldown": 140,
+  "action": "sonar",
+  "strength": 0,
+  "range": 14,
+  "duration": 160,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim",
+    "knockback_resistant"
+  ]
+}

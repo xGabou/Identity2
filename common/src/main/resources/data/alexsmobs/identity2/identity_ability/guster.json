@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:phantom_membrane",
+  "icon": "minecraft:feather",
   "cooldown": 100,
-  "predef": "alexsmobs:guster"
+  "action": "gust",
+  "strength": 1.8,
+  "range": 5,
+  "duration": 40,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
 }
-

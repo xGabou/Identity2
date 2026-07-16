@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 70,
+  "action": "swipe",
+  "strength": 4,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "fall_resistant"
+  ]
+}

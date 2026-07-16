@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:barrier",
+  "cooldown": 20,
+  "action": "none",
+  "strength": 0,
+  "range": 2,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "slow_fall"
+  ]
+}

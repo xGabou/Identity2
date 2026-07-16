@@ -1,6 +1,13 @@
 {
   "icon": "minecraft:ender_pearl",
-  "cooldown": 100,
-  "predef": "alexsmobs:void_worm"
+  "cooldown": 160,
+  "action": "void_shot",
+  "strength": 7,
+  "range": 16,
+  "duration": 100,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
 }
-

@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 50,
+  "action": "leap",
+  "strength": 1,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "high_jump",
+    "fast_land",
+    "fall_resistant"
+  ]
+}

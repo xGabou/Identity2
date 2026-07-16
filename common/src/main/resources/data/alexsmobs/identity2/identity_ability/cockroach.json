@@ -1,6 +1,12 @@
 {
   "icon": "minecraft:music_disc_cat",
-  "cooldown": 100,
-  "predef": "alexsmobs:cockroach"
+  "cooldown": 60,
+  "action": "dance",
+  "strength": 0,
+  "range": 2,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "fall_resistant"
+  ]
 }
-

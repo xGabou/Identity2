@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:clay_ball",
+  "cooldown": 100,
+  "action": "mud_shot",
+  "strength": 2,
+  "range": 8,
+  "duration": 80,
+  "traits": [
+    "water_breathing",
+    "fall_resistant"
+  ]
+}

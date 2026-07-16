@@ -30,6 +30,7 @@ import net.minecraft.world.entity.animal.horse.Markings;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -43,7 +44,7 @@ public final class IdentityVanillaVariantHelper {
     private IdentityVanillaVariantHelper() {
     }
 
-    public static List<IdentityVariant> discoverVariants(EntityType<?> type, ClientLevel level) {
+    public static List<IdentityVariant> discoverVariants(EntityType<?> type, Level level) {
         if (type == null) {
             return List.of();
         }
@@ -523,7 +524,7 @@ public final class IdentityVanillaVariantHelper {
         return variants;
     }
 
-    private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, ClientLevel level) {
+    private static IdentityVariant discoverBabyVariant(EntityType<?> type, ResourceLocation typeId, Level level) {
         if (type == null || typeId == null || level == null || IdentityApi.isBabyVariantBlocked(type)) {
             return null;
         }

@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 100,
+  "action": "venom_spur",
+  "strength": 3,
+  "range": 2.5,
+  "duration": 80,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

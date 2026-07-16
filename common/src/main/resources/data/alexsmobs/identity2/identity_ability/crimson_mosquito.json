@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:spider_eye",
+  "icon": "minecraft:feather",
   "cooldown": 100,
-  "predef": "alexsmobs:crimson_mosquito"
+  "action": "leech",
+  "strength": 3,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall"
+  ]
 }
-

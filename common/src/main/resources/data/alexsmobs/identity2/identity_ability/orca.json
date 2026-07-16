@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:prismarine_crystals",
-  "cooldown": 100,
-  "predef": "alexsmobs:orca"
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 60,
+  "action": "water_dash",
+  "strength": 1.3,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim"
+  ]
 }
-

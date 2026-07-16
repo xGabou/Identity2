@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 50,
+  "action": "water_exit_leap",
+  "strength": 1.1,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

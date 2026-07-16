@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 80,
+  "action": "bill_strike",
+  "strength": 5,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "fall_resistant"
+  ]
+}

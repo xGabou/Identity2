@@ -1,6 +1,11 @@
 {
-  "icon": "minecraft:hay_block",
+  "icon": "minecraft:iron_sword",
   "cooldown": 100,
-  "predef": "alexsmobs:elephant"
+  "action": "knockback",
+  "strength": 1.8,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
 }
-

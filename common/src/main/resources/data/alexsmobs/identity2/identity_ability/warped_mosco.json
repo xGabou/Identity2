@@ -1,6 +1,14 @@
 {
-  "icon": "minecraft:netherite_scrap",
-  "cooldown": 100,
-  "predef": "alexsmobs:warped_mosco"
+  "icon": "minecraft:feather",
+  "cooldown": 140,
+  "action": "hemolymph_shot",
+  "strength": 6,
+  "range": 12,
+  "duration": 80,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fire_immune",
+    "knockback_resistant"
+  ]
 }
-

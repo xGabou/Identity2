@@ -46,6 +46,21 @@ public class IdentitySettings {
     //@Comment(value = "Whether Identity sounds take priority over Player Sounds (eg. Blaze hurt sound when hit).")
     public static boolean useIdentitySounds = true;
 
+    //@Comment(value = "Whether primary, secondary, and override-attack morph abilities are enabled.")
+    public static boolean enableMorphAbilities = true;
+
+    //@Comment(value = "Allows modded morph abilities to grow crops or otherwise change blocks.")
+    public static boolean enableModdedMorphWorldInteractions = false;
+
+    //@Comment(value = "Allows modded morph abilities to remove or drop items from the player's inventory.")
+    public static boolean enableModdedMorphInventoryInteractions = false;
+
+    //@Comment(value = "Allows area and targeted modded morph abilities to affect other players.")
+    public static boolean enableModdedMorphFriendlyFire = false;
+
+    //@Comment(value = "Maximum direct damage dealt by one data-driven modded morph ability hit.")
+    public static float moddedMorphAbilityDamageCap = 8.0F;
+
     //@Comment(value = "Whether disguised players should randomly emit the ambient sound of their Identity.")
     public static boolean playAmbientSounds = true;
 

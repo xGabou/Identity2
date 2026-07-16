@@ -4,8 +4,10 @@ import net.Gabou.gaboulibs.auth.PendingAuthManager;
 import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.ModPackets;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityVariantRegistry;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -49,6 +51,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     @Inject(method = "remove", at = @At("HEAD"))
     private void removeInject(ServerPlayer player, CallbackInfo info) {
         ServerAuth.onLogout(player);
+        IdentityVariantRegistry.forget(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(new ResourceLocation(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -87,6 +90,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
                 doubleData.add(new CustomEntityDataS2CPacket.Entry(key, net.Gabou.identity2.util.NbtCompat.getDoubleOr(nbt, key, 0.0)));
             }
             if (id == Tag.TAG_STRING) {
+                if (IdentityProgression.isMorphSyncStringKey(key)) {
+                    continue;
+                }
                 stringData.add(new CustomEntityDataS2CPacket.EntryString(key, net.Gabou.identity2.util.NbtCompat.getStringOr(nbt, key, "")));
             }
             if (id == Tag.TAG_BYTE) {
@@ -106,6 +112,8 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         sendToWorldPlayers(player, boolPayload);
         NetworkCompat.sendToPlayer(player, boolPayload);
         IdentityProgression.syncUnlockedIdentities(player);
+        IdentityProgression.syncMorphSnapshotToPlayer(player, player);
+        ModPackets.syncClientSettings(player);
 
         // Re-apply morph shape one second later to avoid login-time race conditions
         // where dimensions are still being initialized by vanilla/mods.
@@ -164,6 +172,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         if (respawned == null) {
             return;
         }
+        IdentityProgression.resetMorphAttributeStateForRespawn(respawned);
         identity2$copyCustomData(player, respawned);
         boolean alive = !player.isDeadOrDying();
 
@@ -186,6 +195,10 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
                 MorphChargeManager.applyDeathPenalty(respawned);
                 IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             }
+        }
+
+        if (rule != IdentitySettings.DeathMorphRule.NONE) {
+            IdentityProgression.resetMorphAttributeStateForRespawn(respawned);
         }
 
         identity2$syncUnlockedIdentities(respawned);

@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:lead",
-  "cooldown": 100,
-  "predef": "alexsmobs:crocodile"
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 90,
+  "action": "jaw_pull",
+  "strength": 1.2,
+  "range": 5,
+  "duration": 40,
+  "traits": [
+    "water_breathing",
+    "fast_swim",
+    "knockback_resistant"
+  ]
 }
-

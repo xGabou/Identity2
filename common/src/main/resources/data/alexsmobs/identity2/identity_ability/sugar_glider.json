@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 60,
+  "action": "glide_launch",
+  "strength": 1,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 80,
+  "action": "jaw_pull",
+  "strength": 1.1,
+  "range": 5,
+  "duration": 40,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

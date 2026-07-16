@@ -1,6 +1,13 @@
 {
   "icon": "minecraft:feather",
-  "cooldown": 100,
-  "predef": "alexsmobs:bald_eagle"
+  "cooldown": 70,
+  "action": "pounce",
+  "strength": 1.3,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
 }
-

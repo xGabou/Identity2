@@ -1,7 +1,10 @@
 package net.Gabou.identity2.mixin;
 import com.google.common.collect.Lists;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import net.Gabou.identity2.ModRegistries;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,6 +31,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerFunctionManager;
 @Mixin(MinecraftServer.class)
 public class MinecraftServerMixin implements net.Gabou.identity2.util.MinecraftServerAccessor{
+    @Unique
+    private boolean identity2$moddedMobAbilityCoverageValidated;
+
     @Shadow
     public ServerFunctionManager functionManager;
     @Shadow
@@ -37,6 +43,24 @@ public class MinecraftServerMixin implements net.Gabou.identity2.util.MinecraftS
     @Override
     public ServerFunctionManager getCommandFunctionManager() {
         return this.getFunctions();
+    }
+
+    @Inject(method = "tickServer", at = @At("HEAD"))
+    private void identity2$validateModdedMobAbilityCoverage(
+            BooleanSupplier hasTimeLeft,
+            CallbackInfo callbackInfo
+    ) {
+        if (identity2$moddedMobAbilityCoverageValidated) {
+            return;
+        }
+
+        MinecraftServer server = (MinecraftServer) (Object) this;
+        if (server.registryAccess().registry(ModRegistries.IDENTITY_ABILITY_KEY).isEmpty()) {
+            return;
+        }
+
+        ModRegistries.captureIdentityAbilityRegistry(server.registryAccess());
+        identity2$moddedMobAbilityCoverageValidated = true;
     }
 }
 

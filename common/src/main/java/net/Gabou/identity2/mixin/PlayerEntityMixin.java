@@ -35,15 +35,13 @@ import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.mixin.LivingEntitySoundInvoker;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
-import net.Gabou.identity2.util.IdentityEquipmentHelper;
 import org.spongepowered.asm.mixin.Overwrite;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 @Mixin(Player.class)
@@ -90,11 +88,23 @@ public abstract class PlayerEntityMixin extends LivingEntityMixin{
         ci.cancel();
     }
 
-    @Inject(method = "getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"), cancellable = true)
-    private void identity2$getItemBySlot(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> cir) {
-        ItemStack blocked = IdentityEquipmentHelper.getBlockedSlotStack((Entity) (Object) this, slot);
-        if (blocked != null) {
-            cir.setReturnValue(blocked);
+    // Player overrides LivingEntity.getHurtSound, so the common replacement does
+    // not cover client damage events for morphed players.
+    @Inject(
+            method = "getHurtSound(Lnet/minecraft/world/damagesource/DamageSource;)Lnet/minecraft/sounds/SoundEvent;",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void identity2$getIdentityHurtSound(
+            net.minecraft.world.damagesource.DamageSource source,
+            CallbackInfoReturnable<net.minecraft.sounds.SoundEvent> cir
+    ) {
+        if (!IdentitySettings.useIdentitySounds) {
+            return;
+        }
+        Entity identity = getCurrentIdentity();
+        if (identity instanceof LivingEntity livingIdentity) {
+            cir.setReturnValue(((LivingEntitySoundInvoker) livingIdentity).identity2$invokeGetHurtSound(source));
         }
     }
 

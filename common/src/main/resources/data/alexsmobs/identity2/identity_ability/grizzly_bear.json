@@ -1,6 +1,11 @@
 {
-  "icon": "minecraft:beef",
-  "cooldown": 100,
-  "predef": "alexsmobs:grizzly_bear"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 80,
+  "action": "swipe",
+  "strength": 6,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
 }
-

@@ -1,6 +1,12 @@
 {
-  "icon": "minecraft:beef",
-  "cooldown": 100,
-  "predef": "alexsmobs:tiger"
+  "icon": "minecraft:iron_sword",
+  "cooldown": 80,
+  "action": "pounce",
+  "strength": 1.5,
+  "range": 5,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "fall_resistant"
+  ]
 }
-

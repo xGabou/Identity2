@@ -3,13 +3,20 @@ package net.Gabou.identity2;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.Gabou.identity2.ability.ModdedMobAbilityCoverage;
 import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
+
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 public final class ModRegistries {
     public static final ResourceKey<Registry<IdentityAbilityDefinition>> IDENTITY_ABILITY_KEY =
@@ -31,12 +38,21 @@ public final class ModRegistries {
         Codec.INT.fieldOf("cooldown").forGetter(IdentityAbilityDefinition::cooldown),
         Codec.INT.optionalFieldOf("use_duration", 0).forGetter(IdentityAbilityDefinition::useduration),
         RESOURCE_LOCATION_STRING_CODEC.optionalFieldOf("predef", new ResourceLocation("null")).forGetter(IdentityAbilityDefinition::bultinability),
-        Codec.BOOL.optionalFieldOf("override_attack", false).forGetter(IdentityAbilityDefinition::override_attack)
+        Codec.BOOL.optionalFieldOf("override_attack", false).forGetter(IdentityAbilityDefinition::override_attack),
+        Codec.STRING.optionalFieldOf("action", "").forGetter(IdentityAbilityDefinition::action),
+        Codec.DOUBLE.optionalFieldOf("strength", 1.0D).forGetter(IdentityAbilityDefinition::strength),
+        Codec.DOUBLE.optionalFieldOf("range", 3.0D).forGetter(IdentityAbilityDefinition::range),
+        Codec.INT.optionalFieldOf("duration", 60).forGetter(IdentityAbilityDefinition::duration),
+        Codec.STRING.listOf().optionalFieldOf("traits", java.util.List.of()).forGetter(IdentityAbilityDefinition::traits)
     ).apply(inst, IdentityAbilityDefinition::new));
 
-    public static Registry<IdentityAbilityDefinition> identityAbilityRegistry;
+    public static volatile Registry<IdentityAbilityDefinition> identityAbilityRegistry;
     private static final long IDENTITY_ABILITY_LOOKUP_RETRY_DELAY_MS = 5000L;
     private static long nextIdentityAbilityLookupAtMs = 0L;
+    private static final ThreadLocal<Registry<IdentityAbilityDefinition>> CONTEXTUAL_IDENTITY_ABILITY_REGISTRY =
+            new ThreadLocal<>();
+    private static final Set<Registry<IdentityAbilityDefinition>> COVERAGE_VALIDATED_REGISTRIES =
+            Collections.newSetFromMap(new WeakHashMap<>());
 
     private static boolean initialized = false;
     private static ModRegistryPlatform platform = ModRegistryPlatform.NOOP;
@@ -72,6 +88,10 @@ public final class ModRegistries {
     }
 
     public static Registry<IdentityAbilityDefinition> getIdentityAbilityRegistry() {
+        Registry<IdentityAbilityDefinition> contextualRegistry = CONTEXTUAL_IDENTITY_ABILITY_REGISTRY.get();
+        if (contextualRegistry != null) {
+            return contextualRegistry;
+        }
         if (identityAbilityRegistry != null) {
             return identityAbilityRegistry;
         }
@@ -85,8 +105,50 @@ public final class ModRegistries {
         return refreshIdentityAbilityRegistry();
     }
 
+    @SuppressWarnings("unchecked")
+    public static Registry<IdentityAbilityDefinition> captureIdentityAbilityRegistry(RegistryAccess registryAccess) {
+        if (registryAccess == null) {
+            return getIdentityAbilityRegistry();
+        }
+        Registry<IdentityAbilityDefinition> runtimeRegistry = registryAccess
+                .registry(IDENTITY_ABILITY_KEY)
+                .map(registry -> (Registry<IdentityAbilityDefinition>) registry)
+                .orElse(null);
+        if (runtimeRegistry != null) {
+            CONTEXTUAL_IDENTITY_ABILITY_REGISTRY.set(runtimeRegistry);
+            identityAbilityRegistry = runtimeRegistry;
+            nextIdentityAbilityLookupAtMs = 0L;
+            validateModdedMobCoverage(runtimeRegistry);
+            return runtimeRegistry;
+        }
+        return getIdentityAbilityRegistry();
+    }
+
+    private static void validateModdedMobCoverage(Registry<IdentityAbilityDefinition> registry) {
+        if (registry == null) {
+            return;
+        }
+        synchronized (COVERAGE_VALIDATED_REGISTRIES) {
+            if (!COVERAGE_VALIDATED_REGISTRIES.add(registry)) {
+                return;
+            }
+        }
+        ModdedMobAbilityCoverage.validateAndLog(BuiltInRegistries.ENTITY_TYPE, registry);
+    }
+
     public static IdentityAbilityDefinition resolveIdentityAbility(EntityType<?> type) {
         Registry<IdentityAbilityDefinition> registry = getIdentityAbilityRegistry();
+        return resolveIdentityAbility(type, registry);
+    }
+
+    public static IdentityAbilityDefinition resolveIdentityAbility(EntityType<?> type, RegistryAccess registryAccess) {
+        return resolveIdentityAbility(type, captureIdentityAbilityRegistry(registryAccess));
+    }
+
+    private static IdentityAbilityDefinition resolveIdentityAbility(
+            EntityType<?> type,
+            Registry<IdentityAbilityDefinition> registry
+    ) {
         if (registry == null || type == null) {
             return null;
         }

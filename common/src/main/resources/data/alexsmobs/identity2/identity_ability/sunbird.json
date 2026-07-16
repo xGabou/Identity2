@@ -1,6 +1,13 @@
 {
-  "icon": "minecraft:golden_apple",
-  "cooldown": 100,
-  "predef": "alexsmobs:sunbird"
+  "icon": "minecraft:feather",
+  "cooldown": 110,
+  "action": "solar_flare",
+  "strength": 4,
+  "range": 5,
+  "duration": 80,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fire_immune"
+  ]
 }
-
