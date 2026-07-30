@@ -11,6 +11,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityAbilityPacketPayload;
 import net.Gabou.identity2.packets.IdentityMorphRequestC2SPacketPayload;
+import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityVillagerTradeRequestC2SPacketPayload;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
 import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
@@ -22,6 +23,8 @@ import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
+import net.Gabou.identity2.identity.IdentityVariantRegistry;
+import net.Gabou.identity2.packets.IdentityVariantDefinitionS2CPacketPayload;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionUiSync;
@@ -46,6 +49,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class ModPackets {
     public static final Identifier CUSTOM_STRING_DATA_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "set_custom_data_string");
@@ -54,6 +58,8 @@ public final class ModPackets {
     public static final Identifier MORPH_ACQUISITION_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "morph_acquisition");
     public static final Identifier IDENTITY_ABILITY_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "entity_ability");
     public static final Identifier IDENTITY_MORPH_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_morph_request");
+    public static final Identifier UNLOCK_SYNC_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "unlock_sync");
+    public static final Identifier IDENTITY_VARIANT_DEFINITION_PACKET_ID = Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "identity_variant_definition");
     public static final Identifier IDENTITY_VILLAGER_TRADE_REQUEST_PACKET_ID = Identifier.fromNamespaceAndPath(
         Identity2.MOD_ID,
         "identity_villager_trade_request"
@@ -99,6 +105,7 @@ public final class ModPackets {
     public static final int ABILITY_ACTION_OVERRIDE_ATTACK = -3;
     public static final int ABILITY_ACTION_PASSIVE = -1;
     public static final int ABILITY_ACTION_PASSIVE_USED = -2;
+    private static final long SLOW_ABILITY_PACKET_THRESHOLD_NS = TimeUnit.MILLISECONDS.toNanos(2L);
 
     private static boolean initialized = false;
 
@@ -115,6 +122,8 @@ public final class ModPackets {
             NetworkManager.registerS2CPayloadType(CustomEntityDataS2CPacketPayload.ID, CustomEntityDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(CustomEntityStringDataS2CPacketPayload.ID, CustomEntityStringDataS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(CustomEntityBoolDataS2CPacketPayload.ID, CustomEntityBoolDataS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(IdentityUnlockSyncS2CPacketPayload.ID, IdentityUnlockSyncS2CPacketPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(IdentityVariantDefinitionS2CPacketPayload.ID, IdentityVariantDefinitionS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(MorphAcquisitionS2CPacketPayload.ID, MorphAcquisitionS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(OpenProgressionScreenS2CPacketPayload.ID, OpenProgressionScreenS2CPacketPayload.CODEC);
             NetworkManager.registerS2CPayloadType(ProgressionPlayerChargesS2CPacketPayload.ID, ProgressionPlayerChargesS2CPacketPayload.CODEC);
@@ -202,62 +211,77 @@ public final class ModPackets {
     }
 
     private static void handleIdentityAbilityPacket(ServerPlayer player, IdentityAbilityPacketPayload payload) {
-        Entity identity = ((EntityAccessor) player).getCurrentIdentity();
-        if (identity == null) {
-            return;
-        }
-
-        IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
-        String command = "";
-        Identifier prebuilt = EntityType.getKey(identity.getType());
-        if (identityAbility != null) {
-            command = identityAbility.command();
-            prebuilt = identityAbility.bultinability();
-        }
-
-        BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
-        if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
-            int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
-            EntityAccessor accessor = (EntityAccessor) player;
-            if (accessor.getAbilityCooldown() > 0) {
+        long startNanos = System.nanoTime();
+        try {
+            Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+            if (identity == null) {
                 return;
             }
-            accessor.setAbilityCooldown(configuredCooldown);
-            if (!command.isEmpty() && player.level().getServer() != null) {
-                player.level().getServer().getCommands().performPrefixedCommand(
-                    player.level().getServer().createCommandSourceStack().withEntity(player),
-                    command
-                );
-            }
-            if (predefAbility != null) {
-                predefAbility.execute(player);
-            }
-            return;
-        }
 
-        if (payload.entityid() == ABILITY_ACTION_SECONDARY) {
+            IdentityAbilityDefinition identityAbility = ModRegistries.resolveIdentityAbility(identity.getType());
+            String command = "";
+            Identifier prebuilt = EntityType.getKey(identity.getType());
+            if (identityAbility != null) {
+                command = identityAbility.command();
+                prebuilt = identityAbility.bultinability();
+            }
+
+            BuiltinIdentityAbility predefAbility = resolvePredefAbility(prebuilt, EntityType.getKey(identity.getType()));
+            if (payload.entityid() == ABILITY_ACTION_PRIMARY) {
+                int configuredCooldown = resolvePrimaryAbilityCooldown(identity, identityAbility);
+                EntityAccessor accessor = (EntityAccessor) player;
+                if (accessor.getAbilityCooldown() > 0) {
+                    return;
+                }
+                accessor.setAbilityCooldown(configuredCooldown);
+                if (!command.isEmpty() && player.level().getServer() != null) {
+                    player.level().getServer().getCommands().performPrefixedCommand(
+                        player.level().getServer().createCommandSourceStack().withEntity(player),
+                        command
+                    );
+                }
+                if (predefAbility != null) {
+                    predefAbility.execute(player);
+                }
+                return;
+            }
+
+            if (payload.entityid() == ABILITY_ACTION_SECONDARY) {
+                if (predefAbility == null) {
+                    return;
+                }
+                EntityAccessor accessor = (EntityAccessor) player;
+                if (accessor.getSecondaryAbilityCooldown() > 0 && !WardenBurrowManager.isHidden(player)) {
+                    return;
+                }
+                accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
+                predefAbility.executeSecondary(player);
+                return;
+            }
+
             if (predefAbility == null) {
                 return;
             }
-            EntityAccessor accessor = (EntityAccessor) player;
-            if (accessor.getSecondaryAbilityCooldown() > 0 && !WardenBurrowManager.isHidden(player)) {
-                return;
+
+            if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
+                predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
+            } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
+                predefAbility.overrideAttack(player);
+            } else {
+                predefAbility.tick(player, payload.entityid());
             }
-            accessor.setSecondaryAbilityCooldown(resolveSecondaryAbilityCooldown(identity, identityAbility));
-            predefAbility.executeSecondary(player);
-            return;
-        }
-
-        if (predefAbility == null) {
-            return;
-        }
-
-        if (payload.entityid() == ABILITY_ACTION_PASSIVE || payload.entityid() == ABILITY_ACTION_PASSIVE_USED) {
-            predefAbility.passiveTick(player, payload.entityid() == ABILITY_ACTION_PASSIVE_USED);
-        } else if (payload.entityid() == ABILITY_ACTION_OVERRIDE_ATTACK) {
-            predefAbility.overrideAttack(player);
-        } else {
-            predefAbility.tick(player, payload.entityid());
+        } finally {
+            long elapsedNanos = System.nanoTime() - startNanos;
+            if (elapsedNanos >= SLOW_ABILITY_PACKET_THRESHOLD_NS && Identity2.LOGGER.isDebugEnabled()) {
+                Entity identity = ((EntityAccessor) player).getCurrentIdentity();
+                Identity2.LOGGER.debug(
+                    "Slow identity ability packet: player={}, identity={}, action={}, took {} us",
+                    player.getGameProfile().name(),
+                    identity == null ? "null" : EntityType.getKey(identity.getType()),
+                    payload.entityid(),
+                    elapsedNanos / 1_000L
+                );
+            }
         }
     }
 
@@ -344,7 +368,12 @@ public final class ModPackets {
             return;
         }
 
-        CompoundTag variantNbt = IdentityProgression.parseVariantNbt(payload.variantNbt());
+        CompoundTag variantNbt = IdentityVariantRegistry.resolve(player, identityId, payload.variantId());
+        if (variantNbt == null) {
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity variant reference."), false);
+            IdentityProgression.syncUnlockedIdentities(player);
+            return;
+        }
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);

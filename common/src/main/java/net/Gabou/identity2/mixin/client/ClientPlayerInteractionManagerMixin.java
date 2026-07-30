@@ -12,7 +12,6 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.core.Registry;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
@@ -56,11 +55,6 @@ public class ClientPlayerInteractionManagerMixin {
         if (currentIdentity.getType() == net.minecraft.world.entity.EntityType.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
             Identity2Client.sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
             info.cancel();
-            return;
-        }
-
-        Registry<IdentityAbilityDefinition> identityAbilityRegistry = ModRegistries.getIdentityAbilityRegistry();
-        if (identityAbilityRegistry == null) {
             return;
         }
 

@@ -97,6 +97,10 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
 
         for (String key : nbt.keySet()) {
+            if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                    || IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(key)) {
+                continue;
+            }
             if (nbt.getDouble(key).isPresent()) {
                 doubleData.add(new CustomEntityDataS2CPacket.Entry(key, nbt.getDoubleOr(key, 0.0)));
             } else if (nbt.getFloat(key).isPresent()) {
@@ -117,6 +121,7 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         CustomEntityStringDataS2CPacketPayload stringPayload = new CustomEntityStringDataS2CPacketPayload(player.getId(), stringData);
         sendToWorldPlayers(player, stringPayload);
         NetworkManager.sendToPlayer(player, stringPayload);
+        IdentityProgression.syncMorphSnapshotToPlayer(player, player);
 
         CustomEntityBoolDataS2CPacketPayload boolPayload = new CustomEntityBoolDataS2CPacketPayload(player.getId(), boolData);
         sendToWorldPlayers(player, boolPayload);

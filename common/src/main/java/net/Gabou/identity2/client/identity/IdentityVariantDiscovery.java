@@ -11,6 +11,7 @@ import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -162,15 +163,8 @@ public final class IdentityVariantDiscovery {
                 }
                 return new ArrayList<>(out.values());
             }
-            List<IdentityVariant> known = discoverKnownVariants(type, typeId);
+            List<IdentityVariant> known = discoverKnownVariants(type, typeId, world);
             for (IdentityVariant variant : known) {
-                addVariant(out, variant);
-            }
-            for (IdentityVariant variant : discoverDataDrivenRegistryVariants(type, typeId, world)) {
-                addVariant(out, variant);
-            }
-
-            for (IdentityVariant variant : discoverReflectiveVariants(type, typeId, world)) {
                 addVariant(out, variant);
             }
             for (IdentityVariant variant : discoverSampledVariants(type, typeId, world)) {
@@ -235,30 +229,11 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId) {
-//        if (type == EntityType.SHEEP) {
-//            List<IdentityVariant> variants = new ArrayList<>(16);
-//            for (int i = 0; i < 16; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putByte("Color", (byte) i);
-//                DyeColor color = DyeColor.byId(i);
-//                variants.add(new IdentityVariant(typeId, "Sheep " + capitalize(color.getName()), nbt));
-//            }
-//            return variants;
-//        }
-//
-//        if (type == EntityType.AXOLOTL) {
-//            List<IdentityVariant> variants = new ArrayList<>(5);
-//            String[] names = {"Lucy", "Wild", "Gold", "Cyan", "Blue"};
-//            for (int i = 0; i < names.length; i++) {
-//                CompoundTag nbt = new CompoundTag();
-//                nbt.putInt("Variant", i);
-//                variants.add(new IdentityVariant(typeId, "Axolotl " + names[i], nbt));
-//            }
-//            return variants;
-//        }
-//
-        return List.of();
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {
+        if (type == null || typeId == null) {
+            return List.of();
+        }
+        return IdentityVanillaVariantHelper.discoverVariants(type, world);
     }
 
     private static List<IdentityVariant> discoverDataDrivenRegistryVariants(EntityType<?> type, Identifier typeId, ClientLevel world) {

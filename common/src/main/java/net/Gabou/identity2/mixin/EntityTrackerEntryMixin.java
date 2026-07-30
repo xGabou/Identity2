@@ -6,6 +6,7 @@ import java.util.Optional;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
+import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +31,8 @@ public class EntityTrackerEntryMixin {
         CompoundTag data = ((NbtComponentAccessor) (Object) ((EntityAccessor) this.entity).getCustomData()).getNbt();
 
         for (String key : data.keySet()) {
+            if (IdentityProgression.SELECTED_IDENTITY_VARIANT_KEY.equals(key)
+                    || IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY.equals(key)) continue;
             Optional<String> strKey = data.getString(key);
             if (strKey.isPresent()) {
                 stringValues.add(new CustomEntityDataS2CPacket.EntryString(key, strKey.get()));
@@ -45,6 +48,9 @@ public class EntityTrackerEntryMixin {
         }
         if (!stringValues.isEmpty()) {
             NetworkManager.sendToPlayer(player, new CustomEntityStringDataS2CPacketPayload(this.entity.getId(), stringValues));
+        }
+        if (this.entity instanceof ServerPlayer owner) {
+            IdentityProgression.syncMorphSnapshotToPlayer(owner, player);
         }
     }
 }
