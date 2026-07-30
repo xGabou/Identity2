@@ -1,5 +1,9 @@
 # Identity2 Public Changelog
+---
+## 2026-07-30
 
+### Release 2.2
+- Fixed the packet issue 
 ---
 ## 2026-05-26
 

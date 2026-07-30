@@ -4,6 +4,8 @@ plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+    id 'com.hypherionmc.modutils.modpublisher' version '2.1.8' apply false // CurseForge uploader
+    id "com.modrinth.minotaur" version "2.8.10" apply false // Modrinth uploader
 }
 
 architectury {
@@ -19,6 +21,7 @@ subprojects {
     apply plugin: 'dev.architectury.loom'
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
+    apply plugin: 'com.modrinth.minotaur'
 
     base {
         // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
