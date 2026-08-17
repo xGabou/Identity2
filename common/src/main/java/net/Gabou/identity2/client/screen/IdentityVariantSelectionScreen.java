@@ -11,7 +11,7 @@ import net.Gabou.identity2.Identity2Client;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -143,7 +143,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         this.addRenderableWidget(
             Button.builder(Component.literal("Back"), button -> {
                 clearPreviewEntities();
-                this.minecraft.setScreen(this.parent);
+                this.minecraft.gui.setScreen(this.parent);
             })
                 .bounds(controlsLeft, footerY, footerButtonWidth, 20)
                 .build()
@@ -173,7 +173,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         Identifier worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
@@ -189,18 +189,18 @@ public final class IdentityVariantSelectionScreen extends Screen {
 
         renderBackground(context);
         renderPanelSections(context);
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
         renderRowEntityPreviews(context, delta);
         renderPreviewPane(context, mouseX, mouseY, delta);
 
-        context.drawCenteredString(
+        context.centeredText(
             this.font,
             Component.literal(this.compactLayout ? "Variants" : ("Variants: " + this.entityTypeId)),
             this.width / 2,
             this.panelTop + 8,
             0xF3FBF8
         );
-        context.drawString(
+        context.text(
             this.font,
             Component.literal("Showing: " + this.variants.size()),
             (this.compactLayout ? this.listLeft : this.previewLeft + 10),
@@ -209,7 +209,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         );
     }
 
-    private void renderBackground(GuiGraphics context) {
+    private void renderBackground(GuiGraphicsExtractor context) {
         context.fillGradient(0, 0, this.width, this.height, 0xCC09131A, 0xE20A1821);
         context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xDE172732);
         context.fillGradient(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 12, 0x805EC8A6, 0x105EC8A6);
@@ -219,7 +219,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         context.fill(this.panelLeft + this.panelWidth - 1, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xFF293D4A);
     }
 
-    private void renderPanelSections(GuiGraphics context) {
+    private void renderPanelSections(GuiGraphicsExtractor context) {
         context.fill(this.listLeft - 2, this.listTop - 2, this.listLeft + this.listWidth + 2, this.listTop + this.previewHeight + 2, 0x66203342);
         context.fill(this.listLeft, this.listTop, this.listLeft + this.listWidth, this.listTop + this.previewHeight, 0x6E12202A);
         if (!this.compactLayout && this.previewWidth > 32) {
@@ -228,7 +228,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         }
     }
 
-    private void renderRowEntityPreviews(GuiGraphics context, float delta) {
+    private void renderRowEntityPreviews(GuiGraphicsExtractor context, float delta) {
         float tick = IdentityMenuRenderHelper.resolveIdleTick(delta);
         for (int i = 0; i < this.rowButtons.size(); i++) {
             Button button = this.rowButtons.get(i);
@@ -256,7 +256,7 @@ public final class IdentityVariantSelectionScreen extends Screen {
         }
     }
 
-    private void renderPreviewPane(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    private void renderPreviewPane(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (this.compactLayout || this.previewWidth <= 32) {
             return;
         }
@@ -267,21 +267,21 @@ public final class IdentityVariantSelectionScreen extends Screen {
 
         int textX = this.previewLeft + 10;
         int textY = this.previewTop + 8;
-        context.drawString(this.font, Component.literal("Variant Preview"), textX, textY, 0xD3F9EB);
+        context.text(this.font, Component.literal("Variant Preview"), textX, textY, 0xD3F9EB);
         if (focused == null) {
-            context.drawString(this.font, Component.literal("No variants available"), textX, textY + 14, 0xA6C3C8);
+            context.text(this.font, Component.literal("No variants available"), textX, textY + 14, 0xA6C3C8);
             return;
         }
 
-        context.drawString(this.font, Component.literal(focused.displayName()), textX, textY + 14, 0xEDF7F7);
-        context.drawString(
+        context.text(this.font, Component.literal(focused.displayName()), textX, textY + 14, 0xEDF7F7);
+        context.text(
             this.font,
             Component.literal(focused.variantNbt().isEmpty() ? "Default data" : "Custom variant data"),
             textX,
             textY + 26,
             0x9CB6BB
         );
-        context.drawString(
+        context.text(
             this.font,
             Component.literal(isVariantLocked(focused) ? "Locked" : "Unlocked"),
             textX,
@@ -299,13 +299,13 @@ public final class IdentityVariantSelectionScreen extends Screen {
 
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
-            context.drawCenteredString(this.font, Component.literal("Enter a world to render preview"), (boxLeft + boxRight) / 2, boxTop + 12, 0x9AB7BC);
+            context.centeredText(this.font, Component.literal("Enter a world to render preview"), (boxLeft + boxRight) / 2, boxTop + 12, 0x9AB7BC);
             return;
         }
 
         LivingEntity previewEntity = resolvePreviewEntity(focused);
         if (previewEntity == null) {
-            context.drawCenteredString(this.font, Component.literal("Preview unavailable"), (boxLeft + boxRight) / 2, boxTop + 12, 0xCDA6A6);
+            context.centeredText(this.font, Component.literal("Preview unavailable"), (boxLeft + boxRight) / 2, boxTop + 12, 0xCDA6A6);
             return;
         }
 

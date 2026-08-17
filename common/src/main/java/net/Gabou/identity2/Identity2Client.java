@@ -43,7 +43,7 @@ import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.player.LocalPlayer;
@@ -293,7 +293,7 @@ public final class Identity2Client {
         if (client == null || client.player == null) {
             return;
         }
-        client.setScreen(new IdentityProgressionScreen());
+        client.gui.setScreen(new IdentityProgressionScreen());
     }
 
     private static void onClientTickEnd(Minecraft client) {
@@ -302,11 +302,11 @@ public final class Identity2Client {
         MorphAcquisitionEffectController.tick(client);
 
         while (identityMenuKeyBinding.consumeClick()) {
-            if (client.player != null && client.screen == null) {
+            if (client.player != null && client.gui.screen() == null) {
                 if (!IdentitySettings.enableClientSwapMenu) {
                     continue;
                 }
-                client.setScreen(new IdentitySelectionScreen());
+                client.gui.setScreen(new IdentitySelectionScreen());
             }
         }
 
@@ -743,10 +743,10 @@ public final class Identity2Client {
     }
 
     private static int resolveSecondaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
-        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityType.ELDER_GUARDIAN) {
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.ELDER_GUARDIAN) {
             return Math.max(0, IdentitySettings.elderGuardianMiningFatigueCooldownTicks);
         }
-        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityType.SHULKER) {
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.SHULKER) {
             return Math.max(0, IdentitySettings.shulkerTeleportCooldownTicks);
         }
         if (identityAbility != null) {
@@ -811,11 +811,11 @@ public final class Identity2Client {
             }
         }
         if (identity != null) {
-            if (SpawnEggItem.byId(identity.getType()) != null) {
-                ItemStack spawnEggFallback = new ItemStack(SpawnEggItem.byId(identity.getType()));
-                if (!spawnEggFallback.isEmpty() && !spawnEggFallback.is(Items.AIR)) {
-                    return spawnEggFallback;
-                }
+            ItemStack spawnEggFallback = SpawnEggItem.byId(identity.getType())
+                    .map(ItemStack::new)
+                    .orElse(ItemStack.EMPTY);
+            if (!spawnEggFallback.isEmpty() && !spawnEggFallback.is(Items.AIR)) {
+                return spawnEggFallback;
             }
         }
         return new ItemStack(Items.NETHER_STAR);
@@ -879,14 +879,13 @@ public final class Identity2Client {
         }
         String type = readCurrentIdentityType(player);
         if (type == null || type.isBlank()) {
-            player.displayClientMessage(Component.literal("No active identity to save in favorite " + (slot + 1)),
-                    true);
+            player.sendOverlayMessage(Component.literal("No active identity to save in favorite " + (slot + 1)));
             return;
         }
         String variant = readCurrentIdentityVariant(player);
         favoriteIdentityIds[slot] = type;
         favoriteVariantNbt[slot] = variant == null ? "" : variant;
-        player.displayClientMessage(Component.literal("Favorite " + (slot + 1) + " set to " + type), true);
+        player.sendOverlayMessage(Component.literal("Favorite " + (slot + 1) + " set to " + type));
     }
 
     private static void morphFavoriteSlot(LocalPlayer player, int slot) {
@@ -895,7 +894,7 @@ public final class Identity2Client {
         }
         String id = favoriteIdentityIds[slot];
         if (id == null || id.isBlank()) {
-            player.displayClientMessage(Component.literal("Favorite " + (slot + 1) + " is empty"), true);
+            player.sendOverlayMessage(Component.literal("Favorite " + (slot + 1) + " is empty"));
             return;
         }
         String variant = favoriteVariantNbt[slot];
@@ -947,7 +946,7 @@ public final class Identity2Client {
         list.add(packet);
     }
 
-    private static void renderIdentityCooldown(GuiGraphics matrices, DeltaTracker deltax) {
+    private static void renderIdentityCooldown(GuiGraphicsExtractor matrices, DeltaTracker deltax) {
         float delta = deltax.getGameTimeDeltaPartialTick(false);
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -967,7 +966,7 @@ public final class Identity2Client {
             return;
         }
 
-        if (client.screen instanceof ChatScreen) {
+        if (client.gui.screen() instanceof ChatScreen) {
             return;
         }
 
@@ -1002,7 +1001,7 @@ public final class Identity2Client {
             matrices.pose().popMatrix();
             return;
         }
-        matrices.renderItem(stack, (int) (width * .95f), (int) (height * .92f));
+        matrices.item(stack, (int) (width * .95f), (int) (height * .92f));
         if (scissorEnabled) {
             matrices.disableScissor();
         }

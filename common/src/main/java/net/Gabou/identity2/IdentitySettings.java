@@ -33,7 +33,7 @@ public class IdentitySettings {
             return IdentitySettings.DeathMorphRule.NONE;
         }
 
-        boolean cheatsEnabled = server != null && server.getWorldData().getGameRules().get(GameRules.SEND_COMMAND_FEEDBACK);
+        boolean cheatsEnabled = server != null && server.getGameRules().get(GameRules.SEND_COMMAND_FEEDBACK);
         // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
 
         if (cheatsEnabled) {

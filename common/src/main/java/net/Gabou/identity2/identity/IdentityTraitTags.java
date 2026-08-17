@@ -64,7 +64,7 @@ public final class IdentityTraitTags {
             return Boolean.TRUE;
         }
 
-        if (type.is(CAN_FLY) || type.is(VANILLA_CAN_FLY)) {
+        if (type.builtInRegistryHolder().is(CAN_FLY) || type.builtInRegistryHolder().is(VANILLA_CAN_FLY)) {
             return Boolean.TRUE;
         }
 
@@ -95,7 +95,8 @@ public final class IdentityTraitTags {
             return Boolean.TRUE;
         }
 
-        return type.is(CAN_BREATHE_UNDERWATER) || type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
+        return type.builtInRegistryHolder().is(CAN_BREATHE_UNDERWATER)
+                || type.builtInRegistryHolder().is(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
     }
 
     public static boolean burnsInDaylight(EntityType<?> type) {
@@ -109,7 +110,8 @@ public final class IdentityTraitTags {
                 return assignmentOverride;
             }
         }
-        return type.is(BURNS_IN_DAYLIGHT) || type.is(EntityTypeTags.BURN_IN_DAYLIGHT);
+        return type.builtInRegistryHolder().is(BURNS_IN_DAYLIGHT)
+                || type.builtInRegistryHolder().is(EntityTypeTags.BURN_IN_DAYLIGHT);
     }
 
     public static boolean hasSlowFalling(EntityType<?> type) {
@@ -123,7 +125,7 @@ public final class IdentityTraitTags {
                 return assignmentOverride;
             }
         }
-        return type.is(SLOW_FALLING);
+        return type.builtInRegistryHolder().is(SLOW_FALLING);
     }
 
     @Nullable

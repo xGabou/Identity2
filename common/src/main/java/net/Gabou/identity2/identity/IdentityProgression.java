@@ -291,11 +291,11 @@ public final class IdentityProgression {
             return false;
         }
         if (
-                entityType == EntityType.PLAYER
-                        || entityType == EntityType.IRON_GOLEM
-                        || entityType == EntityType.SNOW_GOLEM
-                        || entityType == EntityType.VILLAGER
-                        || entityType == EntityType.WANDERING_TRADER
+                entityType == net.minecraft.world.entity.EntityTypes.PLAYER
+                        || entityType == net.minecraft.world.entity.EntityTypes.IRON_GOLEM
+                        || entityType == net.minecraft.world.entity.EntityTypes.SNOW_GOLEM
+                        || entityType == net.minecraft.world.entity.EntityTypes.VILLAGER
+                        || entityType == net.minecraft.world.entity.EntityTypes.WANDERING_TRADER
         ) {
             return true;
         }
@@ -383,7 +383,7 @@ public final class IdentityProgression {
         widthOverride = identityDimensions.width();
         heightOverride = identityDimensions.height();
 
-        if (identity.getType() == EntityType.SHEEP) {
+        if (identity.getType() == net.minecraft.world.entity.EntityTypes.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
         applyMorphDamageGrace(player, nbt, previousWidth, previousHeight, widthOverride, heightOverride);
@@ -494,7 +494,7 @@ public final class IdentityProgression {
         double widthOverride = identityDimensions.width();
         double heightOverride = identityDimensions.height();
 
-        if (identity.getType() == EntityType.SHEEP) {
+        if (identity.getType() == net.minecraft.world.entity.EntityTypes.SHEEP) {
             widthOverride *= SHEEP_WIDTH_COLLISION_SCALE;
         }
 
@@ -727,10 +727,12 @@ public final class IdentityProgression {
         storeUnlockedIdentityData(customData, retained, retainedVariants);
         customData.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
         if (removed > 0) {
-            player.displayClientMessage(
-                    Component.literal("All unlocked identities were removed."),
-                    IdentitySettings.overlayIdentityRevokes
-            );
+            Component message = Component.literal("All unlocked identities were removed.");
+            if (IdentitySettings.overlayIdentityRevokes) {
+                player.sendOverlayMessage(message);
+            } else {
+                player.sendSystemMessage(message);
+            }
         }
         return removed;
     }
@@ -779,10 +781,12 @@ public final class IdentityProgression {
 
         boolean unlocked = unlockIdentityVariant(player, unlockTarget.identityId(), unlockTarget.variantNbt());
         if (unlocked) {
-            player.displayClientMessage(
-                    Component.literal("Unlocked identity: " + unlockTarget.identityId()),
-                    IdentitySettings.overlayIdentityUnlocks
-            );
+            Component message = Component.literal("Unlocked identity: " + unlockTarget.identityId());
+            if (IdentitySettings.overlayIdentityUnlocks) {
+                player.sendOverlayMessage(message);
+            } else {
+                player.sendSystemMessage(message);
+            }
             Identity2.LOGGER.info("Unlocked identity {} for {}", unlockTarget.identityId(), player.getName().getString());
             broadcastAcquisitionAnimation(player, killed, true);
         }

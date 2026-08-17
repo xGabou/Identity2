@@ -42,15 +42,15 @@ public final class IdentityVanillaVariantHelper {
         }
 
         Map<String, IdentityVariant> out = new LinkedHashMap<>();
-        if (type == EntityType.SHEEP) {
+        if (type == net.minecraft.world.entity.EntityTypes.SHEEP) {
             addVariants(out, discoverSheepVariants(typeId));
-        } else if (type == EntityType.AXOLOTL) {
+        } else if (type == net.minecraft.world.entity.EntityTypes.AXOLOTL) {
             addVariants(out, discoverAxolotlVariants(typeId));
-        } else if (type == EntityType.CAT) {
+        } else if (type == net.minecraft.world.entity.EntityTypes.CAT) {
             addVariants(out, discoverRegistryBackedVariants(typeId, level.registryAccess().lookupOrThrow(Registries.CAT_VARIANT), "CatVariant", "Cat"));
-        } else if (type == EntityType.WOLF) {
+        } else if (type == net.minecraft.world.entity.EntityTypes.WOLF) {
             addVariants(out, discoverRegistryBackedVariants(typeId, level.registryAccess().lookupOrThrow(Registries.WOLF_VARIANT), "WolfVariant", "Wolf"));
-        } else if (type == EntityType.FROG) {
+        } else if (type == net.minecraft.world.entity.EntityTypes.FROG) {
             addVariants(out, discoverRegistryBackedVariants(typeId, level.registryAccess().lookupOrThrow(Registries.FROG_VARIANT), "FrogVariant", "Frog"));
         }
 
@@ -86,7 +86,7 @@ public final class IdentityVanillaVariantHelper {
             }
         }
 
-        if (entity.getType() == EntityType.SHEEP) {
+        if (entity.getType() == net.minecraft.world.entity.EntityTypes.SHEEP) {
             Object color = invokeNoArg(entity, "getColor");
             Integer colorId = resolveDyeColorId(color);
             if (colorId != null) {
@@ -110,7 +110,7 @@ public final class IdentityVanillaVariantHelper {
             putRegistryKey(variant, "FrogVariant", resolveRegistryKey(entity.level().registryAccess().lookupOrThrow(Registries.FROG_VARIANT), frog.getVariant()));
         }
 
-        if (entity.getType() == EntityType.AXOLOTL) {
+        if (entity.getType() == net.minecraft.world.entity.EntityTypes.AXOLOTL) {
             Object axolotlVariant = invokeNoArg(entity, "getVariant");
             Integer variantId = resolveNumericVariantValue(axolotlVariant);
             if (variantId != null) {
@@ -130,7 +130,7 @@ public final class IdentityVanillaVariantHelper {
             applyAgeableState(ageable, variantNbt);
         }
 
-        if (entity.getType() == EntityType.SHEEP) {
+        if (entity.getType() == net.minecraft.world.entity.EntityTypes.SHEEP) {
             applySheepState(entity, variantNbt);
         }
 
@@ -150,7 +150,7 @@ public final class IdentityVanillaVariantHelper {
             applyRegistryBackedVariant(frog, variantNbt, entity.level().registryAccess().lookupOrThrow(Registries.FROG_VARIANT), "FrogVariant");
         }
 
-        if (entity.getType() == EntityType.AXOLOTL) {
+        if (entity.getType() == net.minecraft.world.entity.EntityTypes.AXOLOTL) {
             applyAxolotlState(entity, variantNbt);
         }
 
@@ -330,7 +330,7 @@ public final class IdentityVanillaVariantHelper {
         List<IdentityVariant> variants = new ArrayList<>();
         Object sample = null;
         try {
-            sample = EntityType.AXOLOTL.create(null, EntitySpawnReason.COMMAND);
+            sample = net.minecraft.world.entity.EntityTypes.AXOLOTL.create(null, EntitySpawnReason.COMMAND);
         } catch (Throwable ignored) {
         }
         Object[] values = sample == null ? null : invokeNoArg(sample, "getVariant") instanceof Enum<?> e ? e.getClass().getEnumConstants() : null;

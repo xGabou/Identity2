@@ -2,7 +2,7 @@ package net.Gabou.identity2.mixin.client;
 
 import net.Gabou.identity2.util.EntityAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.world.entity.Entity;
@@ -14,15 +14,15 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(CreativeModeInventoryScreen.class)
 public class CreativeModeInventoryScreenMixin {
     @Redirect(
-        method = "renderBg",
+        method = "extractBackground",
         require = 0,
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/screens/inventory/InventoryScreen;renderEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphics;IIIIIFFFLnet/minecraft/world/entity/LivingEntity;)V"
+            target = "Lnet/minecraft/client/gui/screens/inventory/InventoryScreen;extractEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIIIFFFLnet/minecraft/world/entity/LivingEntity;)V"
         )
     )
     private void identity2$renderMorphPreview(
-        GuiGraphics context,
+        GuiGraphicsExtractor context,
         int x1,
         int y1,
         int x2,
@@ -33,7 +33,7 @@ public class CreativeModeInventoryScreenMixin {
         float mouseY,
         LivingEntity entity
     ) {
-        InventoryScreen.renderEntityInInventoryFollowsMouse(
+        InventoryScreen.extractEntityInInventoryFollowsMouse(
             context,
             x1,
             y1,

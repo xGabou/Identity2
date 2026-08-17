@@ -83,7 +83,7 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         }
 
         Entity identity = getCurrentIdentity();
-        if (identity == null || identity.getType() != EntityType.ZOMBIE || target.getType() != EntityType.ZOMBIE_HORSE) {
+        if (identity == null || identity.getType() != net.minecraft.world.entity.EntityTypes.ZOMBIE || target.getType() != net.minecraft.world.entity.EntityTypes.ZOMBIE_HORSE) {
             return;
         }
 

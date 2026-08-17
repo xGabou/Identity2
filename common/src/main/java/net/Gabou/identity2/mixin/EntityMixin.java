@@ -66,6 +66,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -213,7 +214,7 @@ public class EntityMixin implements EntityAccessor {
             }
             if (
                     (!((Entity) (Object) this).level().isClientSide() && IdentityProgression.isMorphDamageGraceActive(player))
-                            || (identity != null && identity.getType() == EntityType.ENDER_DRAGON)
+                            || (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON)
             ) {
                 info.setReturnValue(false);
             }
@@ -271,7 +272,7 @@ public class EntityMixin implements EntityAccessor {
         }
 
         EntityType<?> hostType = ((Entity) (Object) this).getType();
-        if (hostType == EntityType.SPIDER || hostType == EntityType.CAVE_SPIDER) {
+        if (hostType == net.minecraft.world.entity.EntityTypes.SPIDER || hostType == net.minecraft.world.entity.EntityTypes.CAVE_SPIDER) {
             ci.cancel();
             return;
         }
@@ -280,7 +281,7 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         EntityType<?> identityType = this.currentIdentity.getType();
-        if (identityType == EntityType.SPIDER || identityType == EntityType.CAVE_SPIDER) {
+        if (identityType == net.minecraft.world.entity.EntityTypes.SPIDER || identityType == net.minecraft.world.entity.EntityTypes.CAVE_SPIDER) {
             ci.cancel();
         }
     }
@@ -652,7 +653,7 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
 
-        if (activeIdentity.getType() == EntityType.DOLPHIN && player.isInWater()) {
+        if (activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.DOLPHIN && player.isInWater()) {
             player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, true, false, true));
         }
 
@@ -868,7 +869,7 @@ public class EntityMixin implements EntityAccessor {
 
         if (canGrantFlight) {
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
-            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            boolean forceImmediateFlight = activeIdentity != null && activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON;
             boolean abilitiesChanged = false;
             if (!player.getAbilities().mayfly) {
                 player.getAbilities().mayfly = true;
@@ -1137,7 +1138,7 @@ public class EntityMixin implements EntityAccessor {
         Vec3 pos = new Vec3(0, 0, 0);
         try {
             Level serverWorld = (Level) ((Entity) (Object) this).level();
-            Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, EntitySpawnReason.COMMAND, entityx -> {
+            Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, new EntitySpawnRequest(EntitySpawnReason.COMMAND, false), entityx -> {
                 entityx.snapTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
                 return entityx;
             });
@@ -1704,11 +1705,10 @@ public class EntityMixin implements EntityAccessor {
             ((Entity) (Object) this).refreshDimensions();
             this.setStandingEyeHeight(((Entity) (Object) this).getEyeHeight());
             if (player instanceof ServerPlayer serverPlayer && identityId != null) {
-                serverPlayer.displayClientMessage(
+                serverPlayer.sendSystemMessage(
                         Component.literal(
                                 "Identity disabled after load failure: " + identityId + (reason == null || reason.isBlank() ? "" : " (" + reason + ")")
-                        ),
-                        false
+                        )
                 );
             }
         }
@@ -1727,7 +1727,7 @@ public class EntityMixin implements EntityAccessor {
         if (!(host instanceof ServerPlayer serverPlayer)) {
             return;
         }
-        if (this.currentIdentity == null || this.currentIdentity.getType() != EntityType.WARDEN) {
+        if (this.currentIdentity == null || this.currentIdentity.getType() != net.minecraft.world.entity.EntityTypes.WARDEN) {
             return;
         }
 
@@ -2016,10 +2016,10 @@ public class EntityMixin implements EntityAccessor {
     }
 
 
-    @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
-    private void interactIdentity(Player player, InteractionHand hand, CallbackInfoReturnable info) {
+    @Inject(method = "interact(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
+    private void interactIdentity(Player player, InteractionHand hand, Vec3 location, CallbackInfoReturnable<InteractionResult> info) {
         if (this.currentIdentity != null) {
-            InteractionResult actionResult = this.currentIdentity.interact(player, hand);
+            InteractionResult actionResult = this.currentIdentity.interact(player, hand, location);
             if (actionResult != InteractionResult.PASS) {
                 info.setReturnValue(actionResult);
             }
@@ -2035,7 +2035,7 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
         EntityType<?> type = this.currentIdentity.getType();
-        if (type == EntityType.CAMEL || type == EntityType.DONKEY) {
+        if (type == net.minecraft.world.entity.EntityTypes.CAMEL || type == net.minecraft.world.entity.EntityTypes.DONKEY) {
             cir.setReturnValue(false);
         }
     }
@@ -2067,7 +2067,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "isAttackable()Z", at = @At("HEAD"), cancellable = true)
     private void isAttackableIdentity(CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON) {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON) {
             return;
         }
         if (this.currentIdentity != null) {
@@ -2077,7 +2077,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "isInvulnerable()Z", at = @At("HEAD"), cancellable = true)
     private void isInvulnerableIdentity(CallbackInfoReturnable info) {
-        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == EntityType.ENDER_DRAGON) {
+        if ((Entity) (Object) this instanceof Player && this.currentIdentity != null && this.currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON) {
             return;
         }
         if (this.currentIdentity != null) {

@@ -294,10 +294,10 @@ public final class ModPackets {
 
     private static int resolveSecondaryAbilityCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {
         if (identity != null) {
-            if (identity.getType() == EntityType.ELDER_GUARDIAN) {
+            if (identity.getType() == net.minecraft.world.entity.EntityTypes.ELDER_GUARDIAN) {
                 return Math.max(0, IdentitySettings.elderGuardianMiningFatigueCooldownTicks);
             }
-            if (identity.getType() == EntityType.SHULKER) {
+            if (identity.getType() == net.minecraft.world.entity.EntityTypes.SHULKER) {
                 return Math.max(0, IdentitySettings.shulkerTeleportCooldownTicks);
             }
         }
@@ -335,7 +335,7 @@ public final class ModPackets {
 
     private static void handleMorphRequestPacket(ServerPlayer player, IdentityMorphRequestC2SPacketPayload payload) {
         if (!canSwap(player)) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity swapping is disabled."), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Identity swapping is disabled."));
             return;
         }
 
@@ -349,38 +349,37 @@ public final class ModPackets {
         try {
             identityId = Identifier.parse(requested);
         } catch (Exception exception) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity: " + requested), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Unknown identity: " + requested));
             return;
         }
 
         if (!IdentityProgression.isMorphableIdentity(identityId)) {
             if (IdentityProgression.isIdentityTemporarilyDisabled(identityId)) {
                 String reason = IdentityProgression.getDisabledIdentityReason(identityId);
-                player.displayClientMessage(
+                player.sendSystemMessage(
                     net.minecraft.network.chat.Component.literal(
                         "Identity disabled after load failure: " + identityId + (reason.isBlank() ? "" : " (" + reason + ")")
-                    ),
-                    false
+                    )
                 );
                 return;
             }
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unsupported identity: " + identityId), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Unsupported identity: " + identityId));
             return;
         }
 
         CompoundTag variantNbt = IdentityVariantRegistry.resolve(player, identityId, payload.variantId());
         if (variantNbt == null) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("Unknown identity variant reference."), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Unknown identity variant reference."));
             IdentityProgression.syncUnlockedIdentities(player);
             return;
         }
         if (IdentityProgression.shouldEnforceIdentityUnlocksForMorph() && !isOperator(player)) {
             if (!IdentityProgression.isUnlocked(player, identityId)) {
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId), false);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Identity not unlocked: " + identityId));
                 return;
             }
             if (!IdentityProgression.isVariantUnlocked(player, identityId, variantNbt)) {
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("Identity variant not unlocked: " + identityId), false);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Identity variant not unlocked: " + identityId));
                 return;
             }
         }
@@ -407,12 +406,12 @@ public final class ModPackets {
         if (target == null) return;
 
         if (target == requester && !IdentitySettings.canTradeWithHimSelf) {
-            requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Self villager trading is disabled."), false);
+            requester.sendSystemMessage(net.minecraft.network.chat.Component.literal("Self villager trading is disabled."));
             return;
         }
 
         if (target.level() != level) {
-            requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Target player is in another dimension."), false);
+            requester.sendSystemMessage(net.minecraft.network.chat.Component.literal("Target player is in another dimension."));
             return;
         }
 
@@ -425,7 +424,7 @@ public final class ModPackets {
             traderIdentity.mobInteract(requester, InteractionHand.MAIN_HAND);
             return;
         }
-        requester.displayClientMessage(net.minecraft.network.chat.Component.literal("Target is not morphed as a villager."), false);
+        requester.sendSystemMessage(net.minecraft.network.chat.Component.literal("Target is not morphed as a villager."));
     }
 
     private static void handleProgressionJarSelect(ServerPlayer player, ProgressionJarSelectC2SPacketPayload payload) {

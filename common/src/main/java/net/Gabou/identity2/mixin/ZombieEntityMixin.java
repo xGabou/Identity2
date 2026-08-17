@@ -44,7 +44,7 @@ public abstract class ZombieEntityMixin {
             return;
         }
 
-        Giant giant = EntityType.GIANT.create(serverLevel, EntitySpawnReason.NATURAL);
+        Giant giant = net.minecraft.world.entity.EntityTypes.GIANT.create(serverLevel, EntitySpawnReason.NATURAL);
         if (giant == null) {
             return;
         }

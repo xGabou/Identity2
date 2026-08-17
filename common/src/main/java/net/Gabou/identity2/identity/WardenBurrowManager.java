@@ -119,7 +119,7 @@ public final class WardenBurrowManager {
             return false;
         }
         Entity currentIdentity = accessor.getCurrentIdentity();
-        return currentIdentity != null && currentIdentity.getType() == EntityType.WARDEN;
+        return currentIdentity != null && currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.WARDEN;
     }
 
     private static boolean isEligible(@Nullable ServerPlayer player) {

@@ -53,7 +53,7 @@ public final class IdentityCommand {
     private static void identity2$sendCommandFeedback(CommandSourceStack source, Component message) {
         ServerPlayer player = source.getPlayer();
         if (IdentitySettings.logCommands && player != null) {
-            player.displayClientMessage(message, true);
+            player.sendOverlayMessage(message);
             return;
         }
         source.sendSystemMessage(message);

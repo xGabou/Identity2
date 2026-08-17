@@ -68,7 +68,7 @@ public final class MorphRenderStateHelper {
             return;
         }
         boolean attacking = livingSource.attackAnim > 0.0F || livingSource.swinging;
-        if (identity != null && identity.getType() == EntityType.IRON_GOLEM) {
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.IRON_GOLEM) {
             float golemAttackTicks = resolveIronGolemAttackTicks(source, livingSource, attacking, tickProgress);
             if (golemAttackTicks > 0.0F) {
                 setFloatFieldMax(renderState, "attackTicksRemaining", golemAttackTicks);
@@ -109,7 +109,7 @@ public final class MorphRenderStateHelper {
         if (!source.onGround() && motion.y > 0.05D) {
             startAnimationStates(renderState, source.tickCount, Set.of("jump", "leap", "hop"));
         }
-        if (identity != null && (identity.getType() == EntityType.STRIDER || identity.getType() == EntityType.TURTLE)) {
+        if (identity != null && (identity.getType() == net.minecraft.world.entity.EntityTypes.STRIDER || identity.getType() == net.minecraft.world.entity.EntityTypes.TURTLE)) {
             return;
         }
         if (motion.horizontalDistanceSqr() > 0.01D) {

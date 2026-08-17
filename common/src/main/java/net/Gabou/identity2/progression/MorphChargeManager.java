@@ -90,7 +90,7 @@ public final class MorphChargeManager {
         int available = getCharges(player, identityId);
         if (available < cost) {
             if (notifyPlayer) {
-                player.displayClientMessage(Component.literal("Not enough charges for morph: " + identityId + " (" + available + "/" + cost + ")"), false);
+                player.sendSystemMessage(Component.literal("Not enough charges for morph: " + identityId + " (" + available + "/" + cost + ")"));
             }
             return false;
         }

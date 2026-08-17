@@ -16,7 +16,7 @@ import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -162,7 +162,7 @@ public final class IdentitySelectionScreen extends Screen {
             }).bounds(searchLeft, footerY, footerButtonWidth, 20).build()
         );
         this.addRenderableWidget(
-            Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().setScreen(new IdentityProgressionScreen()))
+            Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().gui.setScreen(new IdentityProgressionScreen()))
                 .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
                 .build()
         );
@@ -192,7 +192,7 @@ public final class IdentitySelectionScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         Identifier worldId = currentWorldId();
         if (this.cachedWorldId == null && worldId != null) {
             this.cachedWorldId = worldId;
@@ -209,12 +209,12 @@ public final class IdentitySelectionScreen extends Screen {
 
         renderIdentityMenuBackground(context);
         renderPanelSections(context);
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
         renderRowEntityPreviews(context, delta);
         renderPreviewPane(context, mouseX, mouseY, delta);
 
-        context.drawCenteredString(this.font, this.title, this.width / 2, this.panelTop + 8, 0xF3FBF8);
-        context.drawString(
+        context.centeredText(this.font, this.title, this.width / 2, this.panelTop + 8, 0xF3FBF8);
+        context.text(
             this.font,
             Component.literal("Unlocked: " + unlockedCount() + " / " + this.allEntries.size()),
             this.listLeft,
@@ -222,7 +222,7 @@ public final class IdentitySelectionScreen extends Screen {
             0xBCD4D9
         );
         if (!this.compactLayout) {
-            context.drawString(
+            context.text(
                 this.font,
                 Component.literal(
                     "Fav1: " + Identity2Client.getFavoriteLabel(0)
@@ -234,7 +234,7 @@ public final class IdentitySelectionScreen extends Screen {
                 0x92B6BE
             );
         }
-        context.drawString(
+        context.text(
             this.font,
             Component.literal("Showing: " + this.filteredEntries.size()),
             (this.compactLayout ? this.listLeft : this.previewLeft + 10),
@@ -243,7 +243,7 @@ public final class IdentitySelectionScreen extends Screen {
         );
     }
 
-    private void renderIdentityMenuBackground(GuiGraphics context) {
+    private void renderIdentityMenuBackground(GuiGraphicsExtractor context) {
         context.fillGradient(0, 0, this.width, this.height, 0xCC09131A, 0xE20A1821);
         context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xDE172732);
         context.fillGradient(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 12, 0x805EC8A6, 0x105EC8A6);
@@ -253,7 +253,7 @@ public final class IdentitySelectionScreen extends Screen {
         context.fill(this.panelLeft + this.panelWidth - 1, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xFF293D4A);
     }
 
-    private void renderPanelSections(GuiGraphics context) {
+    private void renderPanelSections(GuiGraphicsExtractor context) {
         context.fill(this.listLeft - 2, this.listTop - 2, this.listLeft + this.listWidth + 2, this.listTop + this.previewHeight + 2, 0x66203342);
         context.fill(this.listLeft, this.listTop, this.listLeft + this.listWidth, this.listTop + this.previewHeight, 0x6E12202A);
         if (!this.compactLayout && this.previewWidth > 32) {
@@ -262,7 +262,7 @@ public final class IdentitySelectionScreen extends Screen {
         }
     }
 
-    private void renderRowEntityPreviews(GuiGraphics context, float delta) {
+    private void renderRowEntityPreviews(GuiGraphicsExtractor context, float delta) {
         float tick = IdentityMenuRenderHelper.resolveIdleTick(delta);
         for (int i = 0; i < this.rowButtons.size(); i++) {
             Button button = this.rowButtons.get(i);
@@ -290,7 +290,7 @@ public final class IdentitySelectionScreen extends Screen {
         }
     }
 
-    private void renderPreviewPane(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    private void renderPreviewPane(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (this.compactLayout || this.previewWidth <= 32) {
             return;
         }
@@ -301,15 +301,15 @@ public final class IdentitySelectionScreen extends Screen {
 
         int textX = this.previewLeft + 10;
         int textY = this.previewTop + 8;
-        context.drawString(this.font, Component.literal("Preview"), textX, textY, 0xD3F9EB);
+        context.text(this.font, Component.literal("Preview"), textX, textY, 0xD3F9EB);
         if (focused == null) {
-            context.drawString(this.font, Component.literal("No identities found"), textX, textY + 14, 0xA6C3C8);
+            context.text(this.font, Component.literal("No identities found"), textX, textY + 14, 0xA6C3C8);
             return;
         }
 
-        context.drawString(this.font, Component.literal(focused.displayName()), textX, textY + 14, 0xEDF7F7);
-        context.drawString(this.font, Component.literal(focused.id().toString()), textX, textY + 26, 0x9CB6BB);
-        context.drawString(
+        context.text(this.font, Component.literal(focused.displayName()), textX, textY + 14, 0xEDF7F7);
+        context.text(this.font, Component.literal(focused.id().toString()), textX, textY + 26, 0x9CB6BB);
+        context.text(
             this.font,
             Component.literal(focused.unlocked() ? "Unlocked" : "Locked"),
             textX,
@@ -327,13 +327,13 @@ public final class IdentitySelectionScreen extends Screen {
 
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
-            context.drawCenteredString(this.font, Component.literal("Enter a world to render preview"), (boxLeft + boxRight) / 2, boxTop + 12, 0x9AB7BC);
+            context.centeredText(this.font, Component.literal("Enter a world to render preview"), (boxLeft + boxRight) / 2, boxTop + 12, 0x9AB7BC);
             return;
         }
 
         LivingEntity previewEntity = resolvePreviewEntity(focused.id());
         if (previewEntity == null) {
-            context.drawCenteredString(this.font, Component.literal("Preview unavailable"), (boxLeft + boxRight) / 2, boxTop + 12, 0xCDA6A6);
+            context.centeredText(this.font, Component.literal("Preview unavailable"), (boxLeft + boxRight) / 2, boxTop + 12, 0xCDA6A6);
             return;
         }
 
@@ -448,7 +448,7 @@ public final class IdentitySelectionScreen extends Screen {
         boolean wildcardUnlocked = !IdentityProgression.shouldEnforceIdentityUnlocksForMorph()
                 || IdentitySettings.unlockAllVariantsOnFirstUnlock
                 || unlockedTokensForType == null;
-        client.setScreen(
+        client.gui.setScreen(
             new IdentityVariantSelectionScreen(
                 this,
                 entry.id(),

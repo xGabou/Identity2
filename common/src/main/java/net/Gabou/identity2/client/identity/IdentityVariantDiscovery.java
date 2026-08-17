@@ -927,7 +927,7 @@ public final class IdentityVariantDiscovery {
 
     private static String buildGenericDisplayName(Identifier typeId, String key, int value) {
         String entityName = capitalize(typeId.getPath().replace('_', ' '));
-        if ("Color".equals(key) && typeId.equals(EntityType.getKey(EntityType.SHEEP))) {
+        if ("Color".equals(key) && typeId.equals(EntityType.getKey(net.minecraft.world.entity.EntityTypes.SHEEP))) {
             DyeColor color = DyeColor.byId(value % 16);
             return "Sheep " + capitalize(color.getName());
         }

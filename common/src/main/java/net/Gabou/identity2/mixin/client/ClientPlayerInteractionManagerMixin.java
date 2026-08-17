@@ -52,7 +52,7 @@ public class ClientPlayerInteractionManagerMixin {
         if (currentIdentity == null) {
             return;
         }
-        if (currentIdentity.getType() == net.minecraft.world.entity.EntityType.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
+        if (currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.SHULKER && PredefIdentityAbilities.isShulkerOpen(player)) {
             Identity2Client.sendIdentityAbilityPacket(ModPackets.ABILITY_ACTION_OVERRIDE_ATTACK);
             info.cancel();
             return;

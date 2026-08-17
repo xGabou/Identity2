@@ -38,7 +38,7 @@ public class AbstractArrowMixin {
         }
 
         CustomData customData = ((EntityAccessor) arrow).getCustomData();
-        if (identity.getType() == EntityType.BOGGED) {
+        if (identity.getType() == net.minecraft.world.entity.EntityTypes.BOGGED) {
             if (((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr("identity2.bogged_poison_arrow", false)) {
                 return;
             }
@@ -48,7 +48,7 @@ public class AbstractArrowMixin {
             return;
         }
 
-        if (identity.getType() == EntityType.STRAY) {
+        if (identity.getType() == net.minecraft.world.entity.EntityTypes.STRAY) {
             if (((NbtComponentAccessor) (Object) customData).getNbt().getBooleanOr("identity2.stray_slowness_arrow", false)) {
                 return;
             }

@@ -163,7 +163,7 @@ public final class PredefIdentityAbilities {
             return false;
         }
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(identityTypeId);
-        if (type == null || type == EntityType.PLAYER) {
+        if (type == null || type == net.minecraft.world.entity.EntityTypes.PLAYER) {
             return false;
         }
         return IdentityProgression.isMorphableType(type);
@@ -358,7 +358,7 @@ public final class PredefIdentityAbilities {
                     if (!entity.level().loadedAndEntityCanStandOnFace(pos.offset(direction.getUnitVec3i()), entity, direction2)) {
                         return false;
                     } else {
-                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F, pos.getBottomCenter()).deflate(1.0E-6);
+                        AABB box = Shulker.getProgressAabb(entity.getScale(), direction2, 1.0F, Vec3.atBottomCenterOf(pos)).deflate(1.0E-6);
                         return entity.level().noCollision(entity, box);
                     }
                 }
@@ -389,7 +389,7 @@ public final class PredefIdentityAbilities {
                     SoundEvents.BLAZE_SHOOT,
                     SoundSource.HOSTILE,
                     2.0F,
-                    (world.random.nextFloat() - world.random.nextFloat()) * 0.2F + 1.0F
+                    (world.getRandom().nextFloat() - world.getRandom().nextFloat()) * 0.2F + 1.0F
                 );
             }
         });
@@ -636,7 +636,7 @@ public final class PredefIdentityAbilities {
                 }
                 Level world = player.level();
                 Vec3 look = player.getViewVector(1.0F);
-                LlamaSpit spit = new LlamaSpit(EntityType.LLAMA_SPIT, world);
+                LlamaSpit spit = new LlamaSpit(net.minecraft.world.entity.EntityTypes.LLAMA_SPIT, world);
                 spit.setOwner(livingPlayer);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(1.0));
                 spit.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, player.getYRot(), player.getXRot());
@@ -649,7 +649,7 @@ public final class PredefIdentityAbilities {
                     SoundEvents.LLAMA_SPIT,
                     player.getSoundSource(),
                     1.0F,
-                    1.0F + (world.random.nextFloat() - world.random.nextFloat()) * 0.2F
+                    1.0F + (world.getRandom().nextFloat() - world.getRandom().nextFloat()) * 0.2F
                 );
                 world.addFreshEntity(spit);
             }
@@ -667,16 +667,16 @@ public final class PredefIdentityAbilities {
                     SoundEvents.SNOWBALL_THROW,
                     SoundSource.NEUTRAL,
                     0.5F,
-                    0.4F / (world.random.nextFloat() * 0.4F + 0.8F)
+                    0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
                 );
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(0.8));
                 for (int i = 0; i < 10; i++) {
-                    Snowball snowball = new Snowball(EntityType.SNOWBALL, world);
+                    Snowball snowball = new Snowball(net.minecraft.world.entity.EntityTypes.SNOWBALL, world);
                     snowball.setOwner(player);
                     snowball.setItem(new ItemStack(Items.SNOWBALL));
-                    float pitchOffset = (float) (player.getXRot() + world.random.nextGaussian() * 5.0);
-                    float yawOffset = (float) (player.getYRot() + world.random.nextGaussian() * 5.0);
+                    float pitchOffset = (float) (player.getXRot() + world.getRandom().nextGaussian() * 5.0);
+                    float yawOffset = (float) (player.getYRot() + world.getRandom().nextGaussian() * 5.0);
                     snowball.shootFromRotation((LivingEntity) player, pitchOffset, yawOffset, 0.0F, 1.5F, 1.0F);
                     snowball.snapTo(spawnPos.x, spawnPos.y, spawnPos.z, yawOffset, pitchOffset);
                     world.addFreshEntity(snowball);
@@ -693,9 +693,9 @@ public final class PredefIdentityAbilities {
                     return;
                 }
                 Level world = player.level();
-                ThrownSplashPotion potionEntity = new ThrownSplashPotion(EntityType.SPLASH_POTION, world);
+                ThrownSplashPotion potionEntity = new ThrownSplashPotion(net.minecraft.world.entity.EntityTypes.SPLASH_POTION, world);
                 potionEntity.setOwner(livingPlayer);
-                Holder<Potion> potion = validPotions.get(world.random.nextInt(validPotions.size()));
+                Holder<Potion> potion = validPotions.get(world.getRandom().nextInt(validPotions.size()));
                 ItemStack potionStack = new ItemStack(Items.SPLASH_POTION);
                 potionStack.set(DataComponents.POTION_CONTENTS, new PotionContents(potion));
                 potionEntity.setItem(potionStack);
@@ -751,7 +751,7 @@ public final class PredefIdentityAbilities {
                     SoundEvents.WITHER_SHOOT,
                     SoundSource.HOSTILE,
                     1.0F,
-                    0.8F + world.random.nextFloat() * 0.4F
+                    0.8F + world.getRandom().nextFloat() * 0.4F
                 );
                 Vec3 look = player.getViewVector(1.0F);
                 Vec3 spawnPos = player.getEyePosition().add(look.scale(2.0));
@@ -833,7 +833,7 @@ public final class PredefIdentityAbilities {
             return;
         }
         Level world = player.level();
-        Arrow arrow = EntityType.ARROW.create(world, EntitySpawnReason.COMMAND);
+        Arrow arrow = net.minecraft.world.entity.EntityTypes.ARROW.create(world, EntitySpawnReason.COMMAND);
         if (arrow == null) {
             return;
         }
@@ -989,7 +989,7 @@ public final class PredefIdentityAbilities {
         String ownerTag = illusionerOwnerTag(serverPlayer.getUUID());
 
         for (int i = 0; i < ILLUSIONER_CLONE_COUNT; i++) {
-            Illusioner clone = EntityType.ILLUSIONER.create(serverLevel, EntitySpawnReason.COMMAND);
+            Illusioner clone = net.minecraft.world.entity.EntityTypes.ILLUSIONER.create(serverLevel, EntitySpawnReason.COMMAND);
             if (clone == null) {
                 continue;
             }
@@ -1186,7 +1186,7 @@ public final class PredefIdentityAbilities {
         if (entity == null || ownerId == null) {
             return false;
         }
-        return entity.getTags().contains(ILLUSIONER_CLONE_TAG) && entity.getTags().contains(illusionerOwnerTag(ownerId));
+        return entity.entityTags().contains(ILLUSIONER_CLONE_TAG) && entity.entityTags().contains(illusionerOwnerTag(ownerId));
     }
 
     private static String illusionerOwnerTag(UUID ownerId) {
@@ -1550,7 +1550,7 @@ public final class PredefIdentityAbilities {
         }
         if (!IdentitySettings.canTradeWithHimSelf) {
             if (player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.displayClientMessage(Component.literal("Self villager trading is disabled."), false);
+                serverPlayer.sendSystemMessage(Component.literal("Self villager trading is disabled."));
             }
             return;
         }
@@ -1580,7 +1580,7 @@ public final class PredefIdentityAbilities {
 
         HitResult hit = serverPlayer.pick(5.0D, 0.0F, false);
         if (!(hit instanceof net.minecraft.world.phys.BlockHitResult blockHit)) {
-            serverPlayer.displayClientMessage(Component.literal("Look at a villager workstation block to acquire a job."), true);
+            serverPlayer.sendOverlayMessage(Component.literal("Look at a villager workstation block to acquire a job."));
             return true;
         }
 
@@ -1595,17 +1595,17 @@ public final class PredefIdentityAbilities {
             professionId = resolveProfessionForWorkstationBlock(state);
         }
         if (professionId == null) {
-            serverPlayer.displayClientMessage(Component.literal("That block is not a valid villager workstation."), true);
+            serverPlayer.sendOverlayMessage(Component.literal("That block is not a valid villager workstation."));
             return true;
         }
 
         if (!applyVillagerProfession(villagerIdentity, professionId)) {
-            serverPlayer.displayClientMessage(Component.literal("Could not apply villager profession: " + professionId), true);
+            serverPlayer.sendOverlayMessage(Component.literal("Could not apply villager profession: " + professionId));
             return true;
         }
 
         syncVillagerVariantData(serverPlayer, villagerIdentity);
-        serverPlayer.displayClientMessage(Component.literal("Acquired villager job: " + professionId), true);
+        serverPlayer.sendOverlayMessage(Component.literal("Acquired villager job: " + professionId));
         return true;
     }
 

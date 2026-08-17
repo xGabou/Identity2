@@ -89,18 +89,18 @@ public final class MorphAcquisitionEffectController {
             float lifeProgress = Mth.clamp(age / (float) maxTicks, 0.0F, 1.0F);
             int particlesPerTick = BASE_PARTICLES_PER_TICK + (morphAcquisition ? 2 : 1);
             for (int i = 0; i < particlesPerTick; i++) {
-                double segment = (i + level.random.nextDouble()) / (double) TENDRIL_SEGMENTS;
+                double segment = (i + level.getRandom().nextDouble()) / (double) TENDRIL_SEGMENTS;
                 Vec3 point = bezierPoint(acquiredPos, originPos, segment, lifeProgress, age * 0.2D + i);
-                Vec3 velocity = originPos.subtract(point).scale(0.04D + level.random.nextDouble() * 0.03D);
+                Vec3 velocity = originPos.subtract(point).scale(0.04D + level.getRandom().nextDouble() * 0.03D);
                 level.addParticle(ParticleTypes.WITCH, point.x, point.y, point.z, velocity.x, velocity.y, velocity.z);
             }
 
             if (age < Math.min(8, maxTicks / 2)) {
                 for (int i = 0; i < 2; i++) {
                     Vec3 poof = acquiredPos.add(
-                        (level.random.nextDouble() - 0.5D) * 0.35D,
-                        (level.random.nextDouble() - 0.5D) * 0.35D,
-                        (level.random.nextDouble() - 0.5D) * 0.35D
+                        (level.getRandom().nextDouble() - 0.5D) * 0.35D,
+                        (level.getRandom().nextDouble() - 0.5D) * 0.35D,
+                        (level.getRandom().nextDouble() - 0.5D) * 0.35D
                     );
                     level.addParticle(ParticleTypes.POOF, poof.x, poof.y, poof.z, 0.0D, 0.03D, 0.0D);
                 }

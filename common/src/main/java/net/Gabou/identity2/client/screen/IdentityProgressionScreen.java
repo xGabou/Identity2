@@ -16,7 +16,7 @@ import net.Gabou.identity2.progression.SoulJarChargeStorage;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -218,28 +218,28 @@ public final class IdentityProgressionScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         renderBackgroundPanel(context);
         renderDropZone(context, mouseX, mouseY);
         renderChargeList(context, mouseX, mouseY);
         renderInventoryStrip(context, mouseX, mouseY);
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
 
         int textX = this.panelLeft + 12;
-        context.drawCenteredString(this.font, this.title, this.width / 2, this.panelTop + 8, 0xFFEAF7FF);
-        context.drawString(this.font, Component.literal("Morph Charges"), this.listLeft, this.listTop - 12, 0xFFCDE7F4);
-        context.drawString(this.font, Component.literal("Amount"), this.dropZoneLeft, this.amountField.getY() - 10, 0xFFCDE7F4);
+        context.centeredText(this.font, this.title, this.width / 2, this.panelTop + 8, 0xFFEAF7FF);
+        context.text(this.font, Component.literal("Morph Charges"), this.listLeft, this.listTop - 12, 0xFFCDE7F4);
+        context.text(this.font, Component.literal("Amount"), this.dropZoneLeft, this.amountField.getY() - 10, 0xFFCDE7F4);
         renderStatusBlock(context);
 
         if (!this.draggedJarStack.isEmpty()) {
-            context.renderItem(this.draggedJarStack, mouseX - 8, mouseY - 8);
+            context.item(this.draggedJarStack, mouseX - 8, mouseY - 8);
         }
 
         renderJarHoverPreview(context, mouseX, mouseY);
     }
 
-    private void renderBackgroundPanel(GuiGraphics context) {
+    private void renderBackgroundPanel(GuiGraphicsExtractor context) {
         context.fillGradient(0, 0, this.width, this.height, 0xCC09131A, 0xE20A1821);
         context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xDE172732);
         context.fillGradient(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 12, 0x805EC8A6, 0x105EC8A6);
@@ -249,7 +249,7 @@ public final class IdentityProgressionScreen extends Screen {
         context.fill(this.panelLeft + this.panelWidth - 1, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, 0xFF293D4A);
     }
 
-    private void renderDropZone(GuiGraphics context, int mouseX, int mouseY) {
+    private void renderDropZone(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         boolean hover = isWithinDropZone(mouseX, mouseY);
         int border = hover ? 0xFF76D5BD : 0xFF3E6570;
         int fill = hover ? 0x7A1D3740 : 0x5A102029;
@@ -261,10 +261,10 @@ public final class IdentityProgressionScreen extends Screen {
         String label = this.selectedJarSlot >= 0
             ? ("Jar: " + this.selectedJarId + " [" + this.selectedJarTier + "]")
             : "Drag Soul Jar Here";
-        context.drawCenteredString(this.font, Component.literal(label), (this.dropZoneLeft + this.dropZoneRight) / 2, this.dropZoneTop + 9, 0xFFDDF2FA);
+        context.centeredText(this.font, Component.literal(label), (this.dropZoneLeft + this.dropZoneRight) / 2, this.dropZoneTop + 9, 0xFFDDF2FA);
     }
 
-    private void renderChargeList(GuiGraphics context, int mouseX, int mouseY) {
+    private void renderChargeList(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         int borderLeft = this.listLeft - 2;
         int borderTop = this.listTop - 2;
         int borderRight = this.listLeft + this.listWidth + 2;
@@ -290,11 +290,11 @@ public final class IdentityProgressionScreen extends Screen {
             int jarCount = Math.max(0, this.jarCharges.getOrDefault(identityId, 0));
             String display = shortenIdentity(identityId) + "  P:" + playerCount + "  J:" + jarCount;
             int color = playerCount <= 0 ? 0xFFB89999 : 0xFFDDEDF4;
-            context.drawString(this.font, Component.literal(display), this.listLeft + 6, y + 5, color);
+            context.text(this.font, Component.literal(display), this.listLeft + 6, y + 5, color);
         }
     }
 
-    private void renderInventoryStrip(GuiGraphics context, int mouseX, int mouseY) {
+    private void renderInventoryStrip(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         for (InventorySlotView slot : this.inventorySlots) {
             int left = slot.x();
             int top = slot.y();
@@ -310,12 +310,12 @@ public final class IdentityProgressionScreen extends Screen {
 
             ItemStack stack = getInventoryStack(slot.index());
             if (!stack.isEmpty()) {
-                context.renderItem(stack, left + 1, top + 1);
+                context.item(stack, left + 1, top + 1);
             }
         }
     }
 
-    private void renderStatusBlock(GuiGraphics context) {
+    private void renderStatusBlock(GuiGraphicsExtractor context) {
         int inventoryTop = getInventoryTop();
         int statusX = this.dropZoneLeft;
         int statusY = this.clearJarButton.getY() + 24;
@@ -340,11 +340,11 @@ public final class IdentityProgressionScreen extends Screen {
                 case 2 -> 0xFF9BD3AE;
                 default -> 0xFF8FB0C2;
             };
-            context.drawString(this.font, lines.get(i), statusX, statusY + i * lineHeight, color);
+            context.text(this.font, lines.get(i), statusX, statusY + i * lineHeight, color);
         }
     }
 
-    private void renderJarHoverPreview(GuiGraphics context, int mouseX, int mouseY) {
+    private void renderJarHoverPreview(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         InventorySlotView hovered = findInventorySlot(mouseX, mouseY);
         if (hovered == null) {
             return;
@@ -396,7 +396,7 @@ public final class IdentityProgressionScreen extends Screen {
         context.fill(x + boxWidth - 1, y, x + boxWidth, y + boxHeight, 0xFF36515A);
         for (int i = 0; i < lines.size(); i++) {
             int color = i == 0 ? 0xFFEAF7FF : 0xFFD6E8EE;
-            context.drawString(this.font, Component.literal(lines.get(i)), x + 4, y + 3 + i * 12, color);
+            context.text(this.font, Component.literal(lines.get(i)), x + 4, y + 3 + i * 12, color);
         }
     }
 
@@ -622,14 +622,14 @@ public final class IdentityProgressionScreen extends Screen {
 
     public static void onPlayerChargeSync(ProgressionPlayerChargesS2CPacketPayload payload) {
         Minecraft client = Minecraft.getInstance();
-        if (client != null && client.screen instanceof IdentityProgressionScreen screen) {
+        if (client != null && client.gui.screen() instanceof IdentityProgressionScreen screen) {
             screen.applyPlayerChargeSync(payload.serializedCharges());
         }
     }
 
     public static void onJarStateSync(ProgressionJarStateS2CPacketPayload payload) {
         Minecraft client = Minecraft.getInstance();
-        if (client != null && client.screen instanceof IdentityProgressionScreen screen) {
+        if (client != null && client.gui.screen() instanceof IdentityProgressionScreen screen) {
             screen.applyJarStateSync(payload);
         }
     }

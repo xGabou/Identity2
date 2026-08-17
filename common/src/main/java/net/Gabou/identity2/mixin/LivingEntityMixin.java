@@ -185,8 +185,8 @@ private void canBreatheInWaterIdentity(CallbackInfoReturnable info){
             return;
         }
         if (this.currentIdentity != null && (((EntityAccessor) this.currentIdentity).canFly()
-                || this.currentIdentity.getType() == EntityType.CHICKEN
-                || this.currentIdentity.getType() == EntityType.CAT
+                || this.currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.CHICKEN
+                || this.currentIdentity.getType() == net.minecraft.world.entity.EntityTypes.CAT
                 || IdentityTraitTags.hasSlowFalling(this.currentIdentity.getType()))) {
             cir.setReturnValue(false);
         }
@@ -300,7 +300,7 @@ private void identity2$spiderWallClimb(CallbackInfoReturnable<Boolean> info){
         return;
     }
     EntityType<?> identityType = this.currentIdentity.getType();
-    if (identityType != EntityType.SPIDER && identityType != EntityType.CAVE_SPIDER) {
+    if (identityType != net.minecraft.world.entity.EntityTypes.SPIDER && identityType != net.minecraft.world.entity.EntityTypes.CAVE_SPIDER) {
         return;
     }
     if ((Entity)(Object)this instanceof Player player && player.isSpectator()) {
@@ -386,7 +386,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
             if (
                     activeIdentity != null
-                            && activeIdentity.getType() == EntityType.ENDER_DRAGON
+                            && activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON
                             && (source.is(DamageTypes.DRAGON_BREATH) || identity2$isOwnDragonBreathCloud(player, source))
             ) {
                 info.setReturnValue(true);
@@ -395,7 +395,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
 
             if (
                     activeIdentity != null
-                            && activeIdentity.getType() != EntityType.ENDER_DRAGON
+                            && activeIdentity.getType() != net.minecraft.world.entity.EntityTypes.ENDER_DRAGON
                             && identity2$isMorphFireImmune(activeIdentity)
                             && (source.is(DamageTypeTags.IS_FIRE) || source.is(DamageTypes.LAVA))
             ) {
@@ -416,8 +416,8 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                     activeIdentity != null
                             && identity2$isFallDamage(source)
                             && (
-                            activeIdentity.getType() == EntityType.CHICKEN
-                                    || activeIdentity.getType() == EntityType.CAT
+                            activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.CHICKEN
+                                    || activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.CAT
                                     || IdentityTraitTags.hasSlowFalling(activeIdentity.getType())
                     )
             ) {
@@ -425,7 +425,7 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 return;
             }
 
-            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == EntityType.ENDER_DRAGON;
+            boolean dragonIdentity = activeIdentity != null && activeIdentity.getType() == net.minecraft.world.entity.EntityTypes.ENDER_DRAGON;
             if ((dragonIdentity || IdentityProgression.isMorphDamageGraceActive(player)) && identity2$isWallCollisionDamage(source)) {
                 info.setReturnValue(true);
                 return;

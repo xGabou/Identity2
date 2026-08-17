@@ -81,7 +81,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
                 livingIdentity.setJumping(livingSource.isJumping());
             }
 
-            if (identity.getType() != EntityType.STRIDER && identity.getType() != EntityType.TURTLE) {
+            if (identity.getType() != net.minecraft.world.entity.EntityTypes.STRIDER && identity.getType() != net.minecraft.world.entity.EntityTypes.TURTLE) {
                 LimbAnimatorAccessor target = (LimbAnimatorAccessor) livingIdentity.walkAnimation;
                 LimbAnimatorAccessor origin = (LimbAnimatorAccessor) livingSource.walkAnimation;
                 target.setPrevSpeed(origin.getPrevSpeed());
@@ -198,7 +198,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             }
         }
 
-        if (identity != null && identity.getType() == EntityType.ZOMBIE && source instanceof LivingEntity livingSource) {
+        if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.ZOMBIE && source instanceof LivingEntity livingSource) {
             if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
                 identity2$setBooleanFieldIfPresent(renderState, "attacking", true);
                 identity2$setBooleanFieldIfPresent(renderState, "aggressive", true);

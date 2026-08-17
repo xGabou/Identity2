@@ -53,7 +53,7 @@ public class TargetPredicateMixin {
         if (!(currentIdentity instanceof LivingEntity identityLiving)) {
             return;
         }
-        if (identityLiving.getType() == EntityType.ALLAY || identityLiving.getType() == EntityType.BAT) {
+        if (identityLiving.getType() == net.minecraft.world.entity.EntityTypes.ALLAY || identityLiving.getType() == net.minecraft.world.entity.EntityTypes.BAT) {
             info.setReturnValue(false);
             return;
         }
@@ -128,7 +128,7 @@ public class TargetPredicateMixin {
         }
 
         EntityType<?> testerType = tester.getType();
-        if (testerType == EntityType.WOLF) {
+        if (testerType == net.minecraft.world.entity.EntityTypes.WOLF) {
             boolean tamed = Boolean.TRUE.equals(identity2$invokeNoArg(tester, "isTame"));
             if (tamed) {
                 return IdentitySettings.ownedWolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
@@ -136,11 +136,11 @@ public class TargetPredicateMixin {
             return IdentitySettings.wolvesAttackIdentityPrey && identity2$isWolfPrey(identityType);
         }
 
-        if (testerType == EntityType.FOX) {
+        if (testerType == net.minecraft.world.entity.EntityTypes.FOX) {
             return IdentitySettings.foxesAttackIdentityPrey && identity2$isFoxPrey(identityType);
         }
 
-        if (testerType == EntityType.VILLAGER || testerType == EntityType.WANDERING_TRADER) {
+        if (testerType == net.minecraft.world.entity.EntityTypes.VILLAGER || testerType == net.minecraft.world.entity.EntityTypes.WANDERING_TRADER) {
             return IdentitySettings.villagersRunFromIdentities && identity2$isVillagerFearIdentity(identityType);
         }
 
@@ -154,27 +154,27 @@ public class TargetPredicateMixin {
 
     @Unique
     private static boolean identity2$isWolfPrey(EntityType<?> type) {
-        return type == EntityType.SHEEP
-                || type == EntityType.FOX
-                || type == EntityType.SKELETON;
+        return type == net.minecraft.world.entity.EntityTypes.SHEEP
+                || type == net.minecraft.world.entity.EntityTypes.FOX
+                || type == net.minecraft.world.entity.EntityTypes.SKELETON;
     }
 
     @Unique
     private static boolean identity2$isFoxPrey(EntityType<?> type) {
-        return type == EntityType.CHICKEN
-                || type == EntityType.COD
-                || type == EntityType.SALMON
-                || type == EntityType.PUFFERFISH
-                || type == EntityType.TROPICAL_FISH;
+        return type == net.minecraft.world.entity.EntityTypes.CHICKEN
+                || type == net.minecraft.world.entity.EntityTypes.COD
+                || type == net.minecraft.world.entity.EntityTypes.SALMON
+                || type == net.minecraft.world.entity.EntityTypes.PUFFERFISH
+                || type == net.minecraft.world.entity.EntityTypes.TROPICAL_FISH;
     }
 
     @Unique
     private static boolean identity2$isVillagerFearIdentity(EntityType<?> type) {
-        return type == EntityType.ZOMBIE
-                || type == EntityType.HUSK
-                || type == EntityType.DROWNED
-                || type == EntityType.ZOMBIFIED_PIGLIN
-                || type == EntityType.ZOMBIE_VILLAGER;
+        return type == net.minecraft.world.entity.EntityTypes.ZOMBIE
+                || type == net.minecraft.world.entity.EntityTypes.HUSK
+                || type == net.minecraft.world.entity.EntityTypes.DROWNED
+                || type == net.minecraft.world.entity.EntityTypes.ZOMBIFIED_PIGLIN
+                || type == net.minecraft.world.entity.EntityTypes.ZOMBIE_VILLAGER;
     }
 
     @Unique
