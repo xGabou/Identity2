@@ -1,15 +1,61 @@
-plugins {
-    id 'com.github.johnrengelman.shadow'
-    id 'com.hypherionmc.modutils.modpublisher'
-    id "com.modrinth.minotaur" version "2.8.10" // Modrinth uploader
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.TransformParameters
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
+import org.gradle.api.file.FileSystemLocation
+import org.gradle.api.provider.Provider
+
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+abstract class StripBrokenFabricInstallerMetadata implements TransformAction<TransformParameters.None> {
+    @InputArtifact
+    abstract Provider<FileSystemLocation> getInputArtifact()
+
+    @Override
+    void transform(TransformOutputs outputs) {
+        def inputFile = inputArtifact.get().asFile
+        def outputFile = outputs.file(inputFile.name.replace('.jar', '-loom-safe.jar'))
+
+        new ZipInputStream(new BufferedInputStream(new FileInputStream(inputFile))).withCloseable { input ->
+            new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputFile))).withCloseable { output ->
+                ZipEntry entry
+                while ((entry = input.nextEntry) != null) {
+                    if (entry.name != 'fabric-installer.json' &&
+                            entry.name != 'fabric-installer.launchwrapper.json') {
+                        output.putNextEntry(new ZipEntry(entry.name))
+                        input.transferTo(output)
+                        output.closeEntry()
+                    }
+                    input.closeEntry()
+                }
+            }
+        }
+    }
 }
+
+apply plugin: 'com.gradleup.shadow'
+apply plugin: 'com.hypherionmc.modutils.modpublisher'
+apply plugin: "com.modrinth.minotaur"
+
 
 architectury {
     platformSetupLoomIde()
     neoForge()
 }
+sourceSets {
+    main {
+        resources.srcDir project(':common').file('src/main/resources')
+    }
+}
 
 configurations {
+    gabouLibsNeoForge {
+        canBeResolved = true
+        canBeConsumed = false
+    }
     common {
         canBeResolved = true
         canBeConsumed = false
@@ -34,15 +80,23 @@ repositories {
 }
 
 dependencies {
+    registerTransform(StripBrokenFabricInstallerMetadata) {
+        from.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.JAR_TYPE)
+        to.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'loom-safe-jar')
+    }
+
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
-    modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7495339"
+    implementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
+    gabouLibsNeoForge("curse.maven:gabous-libs-1367332:8438440") { transitive = false }
+    implementation configurations.gabouLibsNeoForge.incoming.artifactView {
+        attributes.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'loom-safe-jar')
+    }.files
     runtimeOnly "curse.maven:animal-garden-manatee-1354749:7345203"
-    modRuntimeOnly "curse.maven:spark-361579:7315224"
+    runtimeOnly "curse.maven:spark-361579:7315224"
     runtimeOnly "curse.maven:animal-garden-common-raven-1370539:7344358"
 
-    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    common(project(path: ':common')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }
 
@@ -54,14 +108,20 @@ processResources {
     }
 }
 
-shadowJar {
-    configurations = [project.configurations.shadowBundle]
-    archiveClassifier = 'dev-shadow'
+jar {
+    archiveClassifier = 'raw'
 }
 
-remapJar {
-    input.set shadowJar.archiveFile
+shadowJar {
+    dependsOn jar
+    mainSpec.sourcePaths.clear()
+    from(zipTree(jar.archiveFile))
+    exclude "fabric.mod.json"
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = null
 }
+
+assemble.dependsOn shadowJar
 def modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()
 def curseforgeToken = System.getenv("CURSEFORGE_TOKEN")?.trim()
 
@@ -79,7 +139,7 @@ if (modrinthToken) {
             required.project "lhGA9TYQ"
             required.project "N8aGZtvj"
         }
-        uploadFile = file("build/libs/${archivesBaseName}-${version}.jar")
+        uploadFile = project.tasks.named("shadowJar")
     }
 } else {
     logger.lifecycle("Skipping Modrinth config for ${project.path}: MODRINTH_TOKEN is not set.")
@@ -103,7 +163,7 @@ if (curseforgeToken) {
         setLoaders("neoforge")
         setCurseEnvironment("both")
         getJavaVersions().set([JavaVersion.VERSION_21])
-        setArtifact(tasks.named("remapJar"))
+        setArtifact(tasks.named("shadowJar"))
         setDebug(providers.gradleProperty("publisherDebug")
                 .map { it.toBoolean() }
                 .orElse(false)

@@ -1,9 +1,9 @@
 import groovy.json.JsonOutput
 
 plugins {
-    id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
-    id 'architectury-plugin' version '3.4-SNAPSHOT'
-    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+    id "dev.architectury.loom-no-remap" version "1.17-SNAPSHOT" apply false
+    id 'architectury-plugin' version '3.5-SNAPSHOT'
+    id 'com.gradleup.shadow' version '9.0.1' apply false
     id 'com.hypherionmc.modutils.modpublisher' version '2.1.8' apply false // CurseForge uploader
     id "com.modrinth.minotaur" version "2.8.10" apply false // Modrinth uploader
 }
@@ -15,40 +15,37 @@ architectury {
 allprojects {
     group = rootProject.maven_group
     version = rootProject.mod_version
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 25
+    }
 }
 
 subprojects {
-    apply plugin: 'dev.architectury.loom'
-    apply plugin: 'architectury-plugin'
-    apply plugin: 'maven-publish'
-    apply plugin: 'com.modrinth.minotaur'
-
+    apply plugin: 'dev.architectury.loom-no-remap'
     base {
         // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
-        archivesName = "$rootProject.minecraft_version-$rootProject.archives_name-$project.name"
+        archivesName = "$rootProject.archives_name-$project.name"
     }
-
     repositories {
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
+        // Architectury API and its platform implementations are published here.
         maven {
-            url "https://cursemaven.com"
+            name = "Architectury"
+            url = "https://maven.architectury.dev/"
         }
-        maven { url 'https://maven.fabricmc.net/' }
         maven {
-            url 'https://maven.nucleoid.xyz/'
-            content {
-                includeGroup('eu.pb4')
-            }
+            name = "CurseMaven"
+            url = "https://cursemaven.com"
+        }
+        maven {
+            url = "https://api.modrinth.com/maven"
         }
     }
 
     dependencies {
-        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
-        mappings loom.officialMojangMappings()
+        minecraft "com.mojang:minecraft:${rootProject.architectury.minecraft}"
     }
 
     java {
@@ -57,13 +54,10 @@ subprojects {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 
-    tasks.withType(JavaCompile).configureEach {
-        it.options.release = 21
-    }
 
     // Configure Maven publishing.
     publishing {
@@ -76,13 +70,16 @@ subprojects {
 
         // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
         repositories {
-            // Add repositories to publish to here.
-            // Notice: This block does NOT have the same function as the block in the top level.
+            // Local development publishing targets
+            mavenLocal()
+            maven {
+                name = "localBuildRepo"
+                url = uri("${rootProject.buildDir}/maven-repo")
+            }
             // The repositories here will be used for publishing your artifact, not for
             // retrieving dependencies.
         }
     }
-
 }
 tasks.register("discordWebhook") {
     def webhookUrl = System.getenv("DISCORD_WEBHOOK_URL")?.trim()
@@ -117,5 +114,12 @@ tasks.register("discordWebhook") {
         }
     }
 }
+// Convenience task to publish all platform jars to mavenLocal
+tasks.register('publishAllToMavenLocal') {
+    group = 'publishing'
+    description = 'Publishes common, fabric and neoforge modules to mavenLocal.'
+    dependsOn ':common:publishToMavenLocal', ':fabric:publishToMavenLocal', ':neoforge:publishToMavenLocal'
+}
+
 
 

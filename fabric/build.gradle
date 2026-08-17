@@ -1,12 +1,16 @@
-plugins {
-    id 'com.github.johnrengelman.shadow'
-    id 'com.hypherionmc.modutils.modpublisher'
-    id "com.modrinth.minotaur" version "2.8.10" // Modrinth uploader
-}
+apply plugin: 'com.gradleup.shadow'
+apply plugin: 'com.hypherionmc.modutils.modpublisher'
+apply plugin: "com.modrinth.minotaur"
+
 
 architectury {
     platformSetupLoomIde()
     fabric()
+}
+sourceSets {
+    main {
+        resources.srcDir project(':common').file('src/main/resources')
+    }
 }
 
 configurations {
@@ -27,16 +31,16 @@ configurations {
 }
 
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
-    modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+    implementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
-    include(modImplementation('me.lucko:fabric-permissions-api:0.6.1'))
+    include(implementation('me.lucko:fabric-permissions-api:0.6.1'))
 
-    modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7495338"
+    implementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
+    implementation "curse.maven:gabous-libs-1367332:8438441"
 
-    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    common(project(path: ':common')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 }
 
@@ -48,14 +52,19 @@ processResources {
     }
 }
 
-shadowJar {
-    configurations = [project.configurations.shadowBundle]
-    archiveClassifier = 'dev-shadow'
+jar {
+    archiveClassifier = 'raw'
 }
 
-remapJar {
-    input.set shadowJar.archiveFile
+shadowJar {
+    dependsOn jar
+    mainSpec.sourcePaths.clear()
+    from(zipTree(jar.archiveFile))
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = null
 }
+
+assemble.dependsOn shadowJar
 def modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()
 def curseforgeToken = System.getenv("CURSEFORGE_TOKEN")?.trim()
 
@@ -74,7 +83,7 @@ if (modrinthToken) {
             required.project "lhGA9TYQ"
             required.project "N8aGZtvj"
         }
-        uploadFile = file("build/libs/${archivesBaseName}-${version}.jar")
+        uploadFile = project.tasks.named("shadowJar")
     }
 } else {
     logger.lifecycle("Skipping Modrinth config for ${project.path}: MODRINTH_TOKEN is not set.")
@@ -98,7 +107,7 @@ if (curseforgeToken) {
         setLoaders("fabric")
         setCurseEnvironment("both")
         getJavaVersions().set([JavaVersion.VERSION_21])
-        setArtifact(tasks.named("remapJar"))
+        setArtifact(tasks.named("shadowJar"))
         setDebug(providers.gradleProperty("publisherDebug")
                 .map { it.toBoolean() }
                 .orElse(false)
