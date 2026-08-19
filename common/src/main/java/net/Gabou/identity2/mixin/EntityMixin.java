@@ -40,9 +40,9 @@ import net.Gabou.identity2.identity.WardenBurrowManager;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import com.llamalad7.mixinextras.sugar.Local;
 
 import net.Gabou.identity2.util.EntityAccessor;
+import net.Gabou.identity2.util.EntityMovementHooks;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
@@ -685,19 +685,13 @@ public class EntityMixin implements EntityAccessor {
 //        }
     }
 
-    @Redirect(method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(DDD)V"))
-    private void moveOnEntityLandWallOverride(Entity entity, double x, double y, double z, @Local(ordinal = 0) boolean bl, @Local(ordinal = 1) boolean bl2, @Local(ordinal = 2) Vec3 vec3d4) {
-        if (this.currentIdentity != null && ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").isPresent()) {
-            double d = ((NbtComponentAccessor) (Object) this.customData).getNbt().getDouble("horizontal_collision_speed_multiplier_override").get();
-            if (d != 0.0) {
-                entity.setDeltaMovement(bl ? vec3d4.x * d : vec3d4.x, vec3d4.y, bl2 ? vec3d4.z * d : vec3d4.z);
-            } else {
-                entity.setDeltaMovement(x, y, z);
-            }
-        } else {
-            entity.setDeltaMovement(x, y, z);
-        }
+    @Redirect(
+            method = "restituteMovementAfterCollisions(Lnet/minecraft/world/level/block/state/BlockState;ZZLnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"),
+            require = 0
+    )
+    private void moveOnEntityLandWallOverride(Entity entity, Vec3 movement) {
+        EntityMovementHooks.setDeltaMovementAfterCollisions(entity, movement);
     }
 
 

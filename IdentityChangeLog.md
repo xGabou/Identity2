@@ -1,7 +1,14 @@
 # Identity2 Public Changelog
 ---
-## 2026-07-30
 
+---
+## 2026-08-18
+### Release 2.2 for 26.2
+- Ported to 26.2
+- Note this build is still in beta, sulfur cubes' abilities haven't been implemented yet.
+
+---
+## 2026-07-30
 ### Release 2.2
 - Fixed the packet issue 
 ---

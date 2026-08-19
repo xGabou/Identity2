@@ -28,6 +28,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Set;
 
@@ -75,8 +76,8 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         }
     }
 
-    @Inject(method = "interactOn(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
-    private void identity2$rideZombieHorseAsZombie(Entity target, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+    @Inject(method = "interactOn(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/InteractionResult;", at = @At("HEAD"), cancellable = true)
+    private void identity2$rideZombieHorseAsZombie(Entity target, InteractionHand hand, Vec3 interactionLocation, CallbackInfoReturnable<InteractionResult> cir) {
         Player player = (Player) (Object) this;
         if (player.level().isClientSide() || player.isSpectator() || player.isPassenger() || hand != InteractionHand.MAIN_HAND) {
             return;

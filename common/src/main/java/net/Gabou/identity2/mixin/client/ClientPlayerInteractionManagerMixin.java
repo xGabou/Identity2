@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.EntityHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -68,7 +69,7 @@ public class ClientPlayerInteractionManagerMixin {
     }
 
     @Inject(method = "interact", at = @At("HEAD"), cancellable = true)
-    private void onInteract(Player player, Entity target, InteractionHand hand, CallbackInfoReturnable<InteractionResult> info) {
+    private void onInteract(Player player, Entity target, EntityHitResult hitResult, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         if (hand != InteractionHand.MAIN_HAND) {
             return;
         }
@@ -80,7 +81,7 @@ public class ClientPlayerInteractionManagerMixin {
         }
 
         Identity2Client.sendVillagerTradeRequest(targetPlayer.getUUID());
-        info.setReturnValue(InteractionResult.SUCCESS);
+        cir.setReturnValue(InteractionResult.SUCCESS);
     }
 
     private static boolean identity2$isVillagerLikeIdentity(Player targetPlayer) {

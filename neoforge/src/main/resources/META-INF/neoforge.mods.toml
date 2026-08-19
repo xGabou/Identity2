@@ -43,3 +43,6 @@ side = "BOTH"
 
 [[mixins]]
 config = "identity2.mixins.json"
+
+[[mixins]]
+config = "identity2-neoforge.mixins.json"

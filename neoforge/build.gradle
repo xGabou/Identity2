@@ -10,7 +10,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-abstract class StripBrokenFabricInstallerMetadata implements TransformAction<TransformParameters.None> {
+abstract class SanitizeGabouLibsForNeoForge implements TransformAction<TransformParameters.None> {
     @InputArtifact
     abstract Provider<FileSystemLocation> getInputArtifact()
 
@@ -23,8 +23,7 @@ abstract class StripBrokenFabricInstallerMetadata implements TransformAction<Tra
             new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputFile))).withCloseable { output ->
                 ZipEntry entry
                 while ((entry = input.nextEntry) != null) {
-                    if (entry.name != 'fabric-installer.json' &&
-                            entry.name != 'fabric-installer.launchwrapper.json') {
+                    if (!SanitizeGabouLibsForNeoForge.isBundledLoaderEntry(entry.name)) {
                         output.putNextEntry(new ZipEntry(entry.name))
                         input.transferTo(output)
                         output.closeEntry()
@@ -33,6 +32,26 @@ abstract class StripBrokenFabricInstallerMetadata implements TransformAction<Tra
                 }
             }
         }
+    }
+
+    private static boolean isBundledLoaderEntry(String name) {
+        name == 'fabric-installer.json' ||
+                name == 'fabric-installer.launchwrapper.json' ||
+                name == 'architectury.accessWidener' ||
+                name == 'architectury.common.json' ||
+                name == 'architectury-common.mixins.json' ||
+                name == 'LICENSE_fabric-loader' ||
+                name == 'META-INF/jars/mixinextras-fabric-0.5.4.jar' ||
+                name == 'META-INF/services/net.fabricmc.loader.impl.game.GameProvider' ||
+                name == 'META-INF/services/net.fabricmc.tinyremapper.TinyRemapper$CLIExtensionProvider' ||
+                name == 'META-INF/services/org.spongepowered.asm.service.IGlobalPropertyService' ||
+                name == 'META-INF/services/org.spongepowered.asm.service.IMixinService' ||
+                name == 'META-INF/services/org.spongepowered.asm.service.IMixinServiceBootstrap' ||
+                name.startsWith('dev/architectury/') ||
+                name.startsWith('net/fabricmc/') ||
+                name.startsWith('META-INF/versions/17/net/fabricmc/') ||
+                name.startsWith('assets/fabricloader/') ||
+                name.startsWith('ui/icon/')
     }
 }
 
@@ -80,7 +99,7 @@ repositories {
 }
 
 dependencies {
-    registerTransform(StripBrokenFabricInstallerMetadata) {
+    registerTransform(SanitizeGabouLibsForNeoForge) {
         from.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.JAR_TYPE)
         to.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'loom-safe-jar')
     }
@@ -92,9 +111,10 @@ dependencies {
     implementation configurations.gabouLibsNeoForge.incoming.artifactView {
         attributes.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'loom-safe-jar')
     }.files
-    runtimeOnly "curse.maven:animal-garden-manatee-1354749:7345203"
-    runtimeOnly "curse.maven:spark-361579:7315224"
-    runtimeOnly "curse.maven:animal-garden-common-raven-1370539:7344358"
+    runtimeOnly "curse.maven:animal-garden-snow-leopard-1477415:8294381"
+    implementation "curse.maven:spark-361579:8275631"
+    implementation "curse.maven:animal-garden-common-raven-1370539:8286121"
+    implementation "curse.maven:aquarius-libs-1412710:8273136"
 
     common(project(path: ':common')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
@@ -132,9 +152,9 @@ if (modrinthToken) {
         versionNumber = "NeoForge-${project.version}"
         versionName = "Identity ${mod_version}"
         changelog = rootProject.file("IdentityChangeLog.md").text
-        gameVersions = ["1.21.11"]
+        gameVersions = ["26.2"]
         loaders = ["neoforge"]
-        versionType = "release"
+        versionType = "beta"
         dependencies {
             required.project "lhGA9TYQ"
             required.project "N8aGZtvj"
@@ -156,10 +176,10 @@ if (curseforgeToken) {
             curseforge curseforgeToken
         }
         setCurseID("1238155")
-        setVersionType("release")
+        setVersionType("beta")
         setChangelog(rootProject.file("IdentityChangeLog.md"))
         setDisplayName("NeoForge-${project.version}")
-        setGameVersions("1.21.11")
+        setGameVersions("26.2")
         setLoaders("neoforge")
         setCurseEnvironment("both")
         getJavaVersions().set([JavaVersion.VERSION_21])

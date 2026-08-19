@@ -75,9 +75,9 @@ if (modrinthToken) {
         versionNumber = "Fabric-${project.version}"
         versionName = "Identity ${mod_version}"
         changelog = rootProject.file("IdentityChangeLog.md").text
-        gameVersions = ["1.21.11"]
+        gameVersions = ["26.2"]
         loaders = ["fabric"]
-        versionType = "release"
+        versionType = "beta"
         dependencies {
             required.project "mOgUt4GM"
             required.project "lhGA9TYQ"
@@ -100,10 +100,10 @@ if (curseforgeToken) {
             curseforge curseforgeToken
         }
         setCurseID("1238155")
-        setVersionType("release")
+        setVersionType("beta")
         setChangelog(rootProject.file("IdentityChangeLog.md"))
         setDisplayName("Fabric-${project.version}")
-        setGameVersions("1.21.11")
+        setGameVersions("26.2")
         setLoaders("fabric")
         setCurseEnvironment("both")
         getJavaVersions().set([JavaVersion.VERSION_21])

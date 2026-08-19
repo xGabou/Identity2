@@ -1,5 +1,6 @@
 package net.Gabou.identity2.client.screen;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -17,6 +18,7 @@ import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 
 final class IdentityMenuRenderHelper {
     private static final float MAX_MOUSE_COMPONENT = 1.0F;
+    private static final AtomicInteger NEXT_PREVIEW_ENTITY_ID = new AtomicInteger(-1);
 
     private IdentityMenuRenderHelper() {
     }
@@ -40,6 +42,7 @@ final class IdentityMenuRenderHelper {
         } catch (Throwable ignored) {
             return null;
         }
+        entity.setId(NEXT_PREVIEW_ENTITY_ID.getAndDecrement());
         if (!(entity instanceof LivingEntity living)) {
             disposeEntity(entity);
             return null;
