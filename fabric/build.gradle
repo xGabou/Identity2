@@ -63,8 +63,8 @@ if (modrinthToken) {
     modrinth {
         token = modrinthToken
         projectId = "u8V1OwVf" // from your Modrinth project URL
-        versionNumber = "Fabric-${project.version}"
-        versionName = "Identity ${mod_version}"
+        versionNumber = "Fabric-${project.version}-1.21.11"
+        versionName = "Identity ${mod_version} for 1.21.11"
         changelog = rootProject.file("IdentityChangeLog.md").text
         gameVersions = ["1.21.11"]
         loaders = ["fabric"]
@@ -93,7 +93,7 @@ if (curseforgeToken) {
         setCurseID("1238155")
         setVersionType("release")
         setChangelog(rootProject.file("IdentityChangeLog.md"))
-        setDisplayName("Fabric-${project.version}")
+        setDisplayName("Fabric-${project.version}-1.21.11")
         setGameVersions("1.21.11")
         setLoaders("fabric")
         setCurseEnvironment("both")

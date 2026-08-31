@@ -1,5 +1,19 @@
 # Identity2 Public Changelog
 ---
+## 2026-08-28
+
+### Release 2.2.3
+
+- Removed the auth
+---
+## 2026-08-28
+
+### Release 2.2.2
+
+- Restored vanilla mob equipment drops, including normal drop chances and durability damage.
+- Kept player equipment protected when keepInventory is enabled.
+
+---
 ## 2026-07-30
 
 ### Release 2.2
