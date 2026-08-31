@@ -6,9 +6,6 @@ import java.util.*;
 
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
-import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.ServerAuth;
-import net.Gabou.identity2.auth.TLauncherDetectedHandler;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.progression.MorphChargeManager;
@@ -51,24 +48,9 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
         return null;
     }
 
-    @Inject(method = "placeNewPlayer", at = @At("HEAD"), cancellable = true)
-    private static void playerConnectAuthInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
-        if (!ServerAuth.onLogin(connection, player)) {
-            info.cancel();
-            return;
-        }
-
-        String launcherReason = ClientLauncherGuards.getDetectedReason();
-        if (launcherReason != null && !launcherReason.isBlank() && player.level() instanceof ServerLevel serverLevel) {
-            TLauncherDetectedHandler.handle(serverLevel, player, launcherReason);
-            ServerAuth.onLogout(player);
-            info.cancel();
-        }
-    }
 
     @Inject(method = "remove", at = @At("HEAD"))
     private static void removeInject(ServerPlayer player, CallbackInfo info) {
-        ServerAuth.onLogout(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
         if (accessor.getCommandFunctionManager().getTag(Identifier.fromNamespaceAndPath(Identity2.MOD_ID, "on_before_player_leave")) != null) {
@@ -84,7 +66,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
     private static void playerConnectInject(Connection connection, ServerPlayer player, CommonListenerCookie clientData, CallbackInfo info) {
-        ServerAuth.sendChallenge(player);
 
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
@@ -147,7 +128,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     @Inject(method = "tick", at = @At("TAIL"))
     private void identity2$delayedMorphReapply(CallbackInfo info) {
         MinecraftServer server = ((PlayerList) (Object) this).getServer();
-        ServerAuth.onTick(server);
         if (DELAYED_MORPH_REAPPLY.isEmpty()) {
             return;
         }

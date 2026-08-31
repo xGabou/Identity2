@@ -149,8 +149,8 @@ if (modrinthToken) {
     modrinth {
         token = modrinthToken
         projectId = "u8V1OwVf" // from your Modrinth project URL
-        versionNumber = "NeoForge-${project.version}"
-        versionName = "Identity ${mod_version}"
+        versionNumber = "NeoForge-${project.version}-26.2"
+        versionName = "Identity ${mod_version} for 26.2"
         changelog = rootProject.file("IdentityChangeLog.md").text
         gameVersions = ["26.2"]
         loaders = ["neoforge"]
@@ -178,7 +178,7 @@ if (curseforgeToken) {
         setCurseID("1238155")
         setVersionType("beta")
         setChangelog(rootProject.file("IdentityChangeLog.md"))
-        setDisplayName("NeoForge-${project.version}")
+        setDisplayName("NeoForge-${project.version}-26.2")
         setGameVersions("26.2")
         setLoaders("neoforge")
         setCurseEnvironment("both")

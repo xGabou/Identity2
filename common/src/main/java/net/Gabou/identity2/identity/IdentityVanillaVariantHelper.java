@@ -2,7 +2,6 @@ package net.Gabou.identity2.identity;
 
 import net.Gabou.identity2.Identity2;
 import net.minecraft.core.Holder;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,6 +17,7 @@ import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
@@ -32,7 +32,7 @@ public final class IdentityVanillaVariantHelper {
     private IdentityVanillaVariantHelper() {
     }
 
-    public static List<IdentityVariant> discoverVariants(EntityType<?> type, ClientLevel level) {
+    public static List<IdentityVariant> discoverVariants(EntityType<?> type, Level level) {
         if (type == null) {
             return List.of();
         }
@@ -345,7 +345,7 @@ public final class IdentityVanillaVariantHelper {
         return variants;
     }
 
-    private static IdentityVariant discoverBabyVariant(EntityType<?> type, Identifier typeId, ClientLevel level) {
+    private static IdentityVariant discoverBabyVariant(EntityType<?> type, Identifier typeId, Level level) {
         if (type == null || typeId == null || level == null) {
             return null;
         }
@@ -594,7 +594,7 @@ public final class IdentityVanillaVariantHelper {
         return fields;
     }
 
-    private static Entity createEntity(EntityType<?> type, ClientLevel level) {
+    private static Entity createEntity(EntityType<?> type, Level level) {
         try {
             return type.create(level, EntitySpawnReason.COMMAND);
         } catch (Throwable ignored) {

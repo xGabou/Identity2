@@ -1,5 +1,24 @@
 # Identity2 Public Changelog
+
+
+
 ---
+## 2026-08-30
+### Release 2.2.3
+- Removed the auth system.
+---
+## 2026-08-28
+
+### Release 2.2.2 for 26.2
+
+- Restored vanilla behavior for any non-player equipment drop path.
+- Kept player equipment protected when keepInventory is enabled.
+- Fixed dedicated-server crashes when killing an entity by removing the shared code's ClientLevel dependency.
+
+---
+## 2026-08-26
+### Release 2.2.1 for 26.2
+- Fixed a crash with accesswidener on 26.2
 
 ---
 ## 2026-08-18
