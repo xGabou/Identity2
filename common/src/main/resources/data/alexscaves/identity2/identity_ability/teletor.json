@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:iron_pickaxe",
+  "cooldown": 100,
+  "action": "pull",
+  "strength": 1.1,
+  "range": 12,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

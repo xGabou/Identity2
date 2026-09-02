@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:spyglass",
+  "cooldown": 160,
+  "action": "sonar",
+  "strength": 0,
+  "range": 16,
+  "duration": 140,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

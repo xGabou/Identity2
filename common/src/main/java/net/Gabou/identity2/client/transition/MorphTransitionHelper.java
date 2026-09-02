@@ -55,6 +55,13 @@ public final class MorphTransitionHelper {
         CompoundTag nbt = ((EntityAccessor) host).getCustomData();
         String previousType = nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_TYPE_KEY): "";
         String previousVariant =nbt.contains(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY) ? nbt.getString(IdentityProgression.PREVIOUS_IDENTITY_VARIANT_KEY): "";
+        if (isIceAndFireDragon(currentIdentity) || isIceAndFireDragon(previousType)) {
+            // Temporal alternation works as a transition for small, similarly sized morphs, but a
+            // dragon alternates between two independently animated pose graphs (or player/dragon)
+            // and visibly flashes. Keep the current side stable; transition particles still run.
+            clearCachedPreviousIdentity(host.getId());
+            return currentIdentity;
+        }
         float progress = getTransitionProgress(host, partialTick);
 
         boolean usePrevious = progress <= PREVIOUS_STAGE_END || (((host.tickCount + host.getId()) & 1) == 0);
@@ -63,6 +70,30 @@ public final class MorphTransitionHelper {
         }
 
         return resolvePreviousIdentity(host, currentIdentity, previousType, previousVariant);
+    }
+
+    private static boolean isIceAndFireDragon(@Nullable Entity entity) {
+        return entity != null && isIceAndFireDragon(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()));
+    }
+
+    private static boolean isIceAndFireDragon(String rawId) {
+        if (rawId == null || rawId.isBlank()) {
+            return false;
+        }
+        try {
+            return isIceAndFireDragon(new ResourceLocation(rawId));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isIceAndFireDragon(@Nullable ResourceLocation id) {
+        if (id == null || !"iceandfire".equals(id.getNamespace())) {
+            return false;
+        }
+        return "fire_dragon".equals(id.getPath())
+                || "ice_dragon".equals(id.getPath())
+                || "lightning_dragon".equals(id.getPath());
     }
 
     public static void clearCachedPreviousIdentity(int hostEntityId) {

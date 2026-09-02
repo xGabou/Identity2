@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:elytra",
+  "cooldown": 90,
+  "action": "poison_sting",
+  "strength": 6,
+  "range": 4,
+  "duration": 70,
+  "traits": [
+    "flight",
+    "fall_resistant",
+    "climb"
+  ]
+}

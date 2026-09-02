@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 240,
+  "action": "cockatrice_gaze",
+  "strength": 1,
+  "range": 14,
+  "duration": 100,
+  "traits": []
+}

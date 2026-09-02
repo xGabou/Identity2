@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:arrow",
+  "cooldown": 100,
+  "action": "feather_volley",
+  "strength": 4,
+  "range": 20,
+  "duration": 1,
+  "traits": [
+    "flight",
+    "fall_resistant"
+  ]
+}

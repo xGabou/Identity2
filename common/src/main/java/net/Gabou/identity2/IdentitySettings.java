@@ -61,6 +61,12 @@ public class IdentitySettings {
     //@Comment(value = "Maximum direct damage dealt by one data-driven modded morph ability hit.")
     public static float moddedMorphAbilityDamageCap = 8.0F;
 
+    //@Comment(value = "Maximum direct damage dealt by one stage-scaled Ice and Fire dragon breath hit.")
+    public static float moddedDragonBreathDamageCap = 18.0F;
+
+    //@Comment(value = "Allows modded morph abilities such as the Dread Lich to create temporary combat summons.")
+    public static boolean enableModdedMorphSummons = false;
+
     //@Comment(value = "Whether disguised players should randomly emit the ambient sound of their Identity.")
     public static boolean playAmbientSounds = true;
 
@@ -93,21 +99,6 @@ public class IdentitySettings {
     public static boolean enableSwaps = true;
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;
-
-    //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
-    public static boolean authStrictOfflineUuidReject = false;
-
-    //@Comment(value = "If true, players that fail auth are kicked instead of being marked suspicious.")
-    public static boolean authKickOnFailure = false;
-
-    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is marked suspicious.")
-    public static int authChallengeTimeoutTicks = 200;
-
-    //@Comment(value = "Cooldown multiplier applied to suspicious players when they try to use protected abilities.")
-    public static float authCooldownMultiplier = 2.0f;
-
-    //@Comment(value = "Chance for a suspicious player to have a protected ability use fail entirely.")
-    public static double authAbilityFailureChance = 0.35D;
 
     //@Comment(value = "List of player names allowed to swap identities when swaps are disabled.")
     public static List<String> allowedSwappers = new ArrayList<>();

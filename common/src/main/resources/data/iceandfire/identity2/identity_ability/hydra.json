@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 140,
+  "action": "hydra_venom_volley",
+  "strength": 3,
+  "range": 20,
+  "duration": 100,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

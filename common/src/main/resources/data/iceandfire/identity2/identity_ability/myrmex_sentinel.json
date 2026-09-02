@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:flint",
+  "cooldown": 160,
+  "action": "sentinel_ambush",
+  "strength": 9,
+  "range": 6,
+  "duration": 100,
+  "traits": [
+    "climb"
+  ]
+}

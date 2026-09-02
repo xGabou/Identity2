@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:music_disc_13",
+  "cooldown": 300,
+  "action": "siren_song",
+  "strength": 0.35,
+  "range": 24,
+  "duration": 100,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

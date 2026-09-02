@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:stone",
+  "cooldown": 600,
+  "action": "petrifying_gaze",
+  "strength": 0,
+  "range": 16,
+  "duration": 100,
+  "traits": []
+}

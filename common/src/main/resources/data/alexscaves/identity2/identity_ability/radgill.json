@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:tropical_fish",
+  "cooldown": 70,
+  "action": "water_exit_leap",
+  "strength": 1.1,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim"
+  ]
+}

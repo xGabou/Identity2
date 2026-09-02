@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:stone_axe",
+  "cooldown": 140,
+  "action": "troll_slam",
+  "strength": 8,
+  "range": 6,
+  "duration": 1,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

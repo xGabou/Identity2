@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:phantom_membrane",
+  "cooldown": 80,
+  "action": "pounce",
+  "strength": 1.3,
+  "range": 6,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

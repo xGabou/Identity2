@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:golden_carrot",
+  "cooldown": 90,
+  "action": "charge",
+  "strength": 1.8,
+  "range": 7,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "high_jump"
+  ]
+}

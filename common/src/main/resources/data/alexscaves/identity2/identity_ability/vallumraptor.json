@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:rabbit_foot",
+  "cooldown": 80,
+  "action": "pounce",
+  "strength": 1.4,
+  "range": 6,
+  "duration": 20,
+  "traits": [
+    "fast_land",
+    "high_jump",
+    "fall_resistant"
+  ]
+}

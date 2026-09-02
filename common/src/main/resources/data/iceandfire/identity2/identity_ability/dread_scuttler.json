@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 60,
+  "action": "bite",
+  "strength": 7,
+  "range": 4,
+  "duration": 1,
+  "traits": [
+    "freeze_immune",
+    "climb"
+  ]
+}

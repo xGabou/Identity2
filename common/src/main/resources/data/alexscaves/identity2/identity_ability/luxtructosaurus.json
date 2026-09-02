@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:magma_cream",
+  "cooldown": 260,
+  "action": "fire_strike",
+  "strength": 8,
+  "range": 12,
+  "duration": 100,
+  "traits": [
+    "fire_immune",
+    "lava_mobility",
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

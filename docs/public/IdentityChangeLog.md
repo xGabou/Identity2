@@ -1,5 +1,10 @@
 # Identity2 1.20.1 Public Changelog
 ---
+## 2.2.3
+
+- Removed the legacy auth folder.
+
+---
 ## 2.2
 - Fixed keep-inventory deaths removing equipped armor and held items.
 - Improved baby and mob variant discovery, commands, menus, previews, unlocks, and autocomplete, including Tropical Fish variants.

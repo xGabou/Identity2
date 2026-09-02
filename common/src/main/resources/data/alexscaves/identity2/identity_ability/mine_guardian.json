@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:tnt",
+  "cooldown": 260,
+  "action": "blast",
+  "strength": 7,
+  "range": 6,
+  "duration": 60,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

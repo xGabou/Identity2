@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:stone",
+  "cooldown": 100,
+  "action": "burrow_escape",
+  "strength": 0,
+  "range": 10,
+  "duration": 50,
+  "traits": [
+    "fall_resistant"
+  ]
+}

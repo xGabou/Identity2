@@ -1,7 +1,5 @@
 package net.Gabou.identity2.mixin;
 
-import net.Gabou.gaboulibs.auth.PendingAuthManager;
-import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModPackets;
@@ -50,7 +48,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
     @Inject(method = "remove", at = @At("HEAD"))
     private void removeInject(ServerPlayer player, CallbackInfo info) {
-        ServerAuth.onLogout(player);
         IdentityVariantRegistry.forget(player);
         DELAYED_MORPH_REAPPLY.remove(player.getUUID());
         MinecraftServerAccessor accessor = (MinecraftServerAccessor) player.level().getServer();
@@ -67,11 +64,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
 
     @Inject(method = "placeNewPlayer", at = @At("TAIL"))
     private void playerConnectInject(Connection connection, ServerPlayer player, CallbackInfo info) {
-        boolean pendingAuth = PendingAuthManager.isPending(player.getUUID());
-        if (pendingAuth) {
-            ServerAuth.sendChallenge(player);
-        }
-
         ArrayList<CustomEntityDataS2CPacket.EntryBool> boolData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.EntryString> stringData = new ArrayList<>(0);
         ArrayList<CustomEntityDataS2CPacket.Entry> doubleData = new ArrayList<>(0);

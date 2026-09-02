@@ -37,7 +37,7 @@ side = "BOTH"
 [[dependencies.identity2]]
 modId = "gaboulibs"
 type = "required"
-versionRange = "[1.4,)"
+versionRange = "[1.9,)"
 ordering = "AFTER"
 side = "BOTH"
 

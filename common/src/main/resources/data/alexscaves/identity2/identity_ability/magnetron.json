@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:anvil",
+  "cooldown": 220,
+  "action": "shell_guard",
+  "strength": 0,
+  "range": 2,
+  "duration": 100,
+  "traits": [
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

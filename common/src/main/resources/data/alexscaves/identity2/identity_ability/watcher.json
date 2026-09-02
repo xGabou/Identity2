@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:ender_eye",
+  "cooldown": 180,
+  "action": "constrict",
+  "strength": 4,
+  "range": 10,
+  "duration": 60,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

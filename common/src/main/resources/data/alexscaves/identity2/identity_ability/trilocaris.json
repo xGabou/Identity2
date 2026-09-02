@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:nautilus_shell",
+  "cooldown": 60,
+  "action": "bite",
+  "strength": 3,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

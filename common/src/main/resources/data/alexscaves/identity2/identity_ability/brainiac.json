@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:slime_ball",
+  "cooldown": 110,
+  "action": "tongue_pull",
+  "strength": 1.2,
+  "range": 10,
+  "duration": 40,
+  "traits": []
+}

@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:ink_sac",
+  "cooldown": 140,
+  "action": "ink_cloud",
+  "strength": 0,
+  "range": 5,
+  "duration": 100,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

@@ -44,7 +44,7 @@ dependencies {
     modImplementation include("io.github.llamalad7:mixinextras-fabric:0.3.2")
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:8280105"
+    modImplementation "curse.maven:gabous-libs-1367332:8774260"
     modImplementation "curse.maven:geckolib-388172:7553256"
     if (includeNaturalistInDevRuntime) {
         modImplementation "curse.maven:naturalist-627986:6863939"
@@ -81,8 +81,8 @@ if (modrinthToken) {
     modrinth {
         token = modrinthToken
         projectId = "u8V1OwVf" // from your Modrinth project URL
-        versionNumber = "Fabric-${project.version}"
-        versionName = "Identity ${mod_version}"
+        versionNumber = "Fabric-${project.version}-1.20.1"
+        versionName = "Identity ${mod_version} for 1.20.1"
         changelog = rootProject.file("docs/public/IdentityChangeLog.md").text
         gameVersions = ["1.20.1"]
         loaders = ["fabric"]

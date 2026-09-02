@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:sugar_cane",
+  "cooldown": 90,
+  "action": "pounce",
+  "strength": 1.5,
+  "range": 7,
+  "duration": 40,
+  "traits": [
+    "fast_land",
+    "high_jump",
+    "fall_resistant"
+  ]
+}

@@ -17,6 +17,7 @@ import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
+import net.Gabou.identity2.ability.UnderzealotMorphAbility;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -828,6 +829,8 @@ public final class PredefIdentityAbilities {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.IRON_GOLEM_ATTACK, SoundSource.HOSTILE, 1.0F, 0.85F);
             }
         });
+
+        map.put(new ResourceLocation("alexscaves", "underzealot"), UnderzealotMorphAbility.INSTANCE);
 
         map.put(new ResourceLocation("llama"), new IdentityAbility() {
             @Override

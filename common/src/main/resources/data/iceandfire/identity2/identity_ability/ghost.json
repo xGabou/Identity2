@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:soul_lantern",
+  "cooldown": 120,
+  "action": "ghost_phase_charge",
+  "strength": 6,
+  "range": 10,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "fall_resistant",
+    "fire_immune"
+  ]
+}

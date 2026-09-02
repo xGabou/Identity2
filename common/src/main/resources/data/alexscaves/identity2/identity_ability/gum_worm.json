@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:cookie",
+  "cooldown": 120,
+  "action": "burrow_escape",
+  "strength": 0,
+  "range": 12,
+  "duration": 60,
+  "traits": [
+    "fire_immune",
+    "water_breathing",
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

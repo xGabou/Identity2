@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.ModRegistries;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.checkonly.EntityMethodChecks;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -12,6 +13,8 @@ import net.Gabou.identity2.identity.IdentityTraitTags;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
 import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.identity.SilverfishBurrowManager;
+import net.Gabou.identity2.ability.DataDrivenMobAbility;
+import net.Gabou.identity2.ability.UnderzealotMorphAbility;
 import net.Gabou.identity2.util.EntityAccessor;
 import net.Gabou.identity2.util.EnderDragonEntityAccessor;
 import net.Gabou.identity2.util.LivingEntityAccessor;
@@ -346,7 +349,12 @@ public class EntityMixin implements EntityAccessor {
                     mobIdentity.setNoAi(true);
                 }
                 IdentityApi.runMorphTickHandlers((Entity) (Object) this, this.currentIdentity);
-                if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
+                if (identity2$skipOptionalFakeEntityTick(this.currentIdentity)) {
+                    // These optional mobs include unconditional multipart, block-breaking, statue,
+                    // passenger, growth, and burrow work even while NoAI. The fake morph keeps render
+                    // time, loaded NBT, and player-controlled abilities without running world AI.
+                    this.currentIdentity.tickCount++;
+                } else if (this.currentIdentity.level() instanceof ServerLevel identityServerLevel) {
                     identityServerLevel.tickNonPassenger(this.currentIdentity);
                 } else {
                     this.currentIdentity.tick();
@@ -591,6 +599,18 @@ public class EntityMixin implements EntityAccessor {
     }
 
     @Unique
+    private static boolean identity2$skipOptionalFakeEntityTick(@Nullable Entity entity) {
+        if (entity == null) {
+            return false;
+        }
+        ResourceLocation id = EntityType.getKey(entity.getType());
+        if (id == null) {
+            return false;
+        }
+        return "alexscaves".equals(id.getNamespace()) || "iceandfire".equals(id.getNamespace());
+    }
+
+    @Unique
     private static ItemStack identity2$visibleMorphEquipment(LivingEntity host, EquipmentSlot slot) {
         if (slot.getType() == EquipmentSlot.Type.HAND && !IdentitySettings.identitiesEquipItems) {
             return ItemStack.EMPTY;
@@ -603,6 +623,106 @@ public class EntityMixin implements EntityAccessor {
 
     @Unique
     private void identity2$applySyncedMorphState(Entity identity) {
+        ResourceLocation id = identity == null ? null : EntityType.getKey(identity.getType());
+        if (identity2$isIceAndFireDragon(id)) {
+            identity2$applyIceAndFireDragonState(identity);
+            return;
+        }
+        if (id == null || !"alexscaves".equals(id.getNamespace()) || !"underzealot".equals(id.getPath())) {
+            return;
+        }
+        CompoundTag state = this.getCustomData();
+        boolean buried = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                state, UnderzealotMorphAbility.BURIED_STATE_KEY, false
+        );
+        boolean carrying = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                state, UnderzealotMorphAbility.CARRYING_STATE_KEY, false
+        );
+        boolean praying = net.Gabou.identity2.util.NbtCompat.getBooleanOr(
+                state, UnderzealotMorphAbility.PRAYING_STATE_KEY, false
+        );
+        identity2$invokeOneArg(identity, "setBuried", buried);
+        identity2$invokeOneArg(identity, "setCarrying", carrying);
+        identity2$invokeOneArg(identity, "setPraying", praying);
+        identity2$approachOptionalFloatField(identity, "buriedProgress", "prevBuriedProgress", buried ? 20.0F : 0.0F, 1.5F);
+        identity2$approachOptionalFloatField(identity, "carryingProgress", "prevCarryingProgress", carrying ? 5.0F : 0.0F, 1.0F);
+        identity2$approachOptionalFloatField(identity, "prayingProgress", "prevPrayingProgress", praying ? 5.0F : 0.0F, 1.0F);
+    }
+
+    @Unique
+    private void identity2$applyIceAndFireDragonState(Entity identity) {
+        Entity host = (Entity) (Object) this;
+        if (!(host instanceof Player player) || host.level().isClientSide()) {
+            return;
+        }
+
+        // The proxy dragon is not a tracked world entity and its hazardous server tick is skipped.
+        // Drive only Ice and Fire's tracked render inputs here; clients interpolate the progress
+        // fields and advance the walk/flight pose cycles in the dragon's normal client tick.
+        boolean flying = player.getAbilities().flying || player.isFallFlying();
+        identity2$invokeOneArg(identity, "setFlying", flying);
+        identity2$invokeOneArg(identity, "setHovering", false);
+
+        float targetPitch = flying
+                ? Mth.clamp((float) (-player.getDeltaMovement().y * 60.0D), -60.0F, 40.0F)
+                : 0.0F;
+        Object currentPitchValue = identity2$invokeNoArg(identity, "getDragonPitch");
+        float currentPitch = currentPitchValue instanceof Number number ? number.floatValue() : 0.0F;
+        float nextPitch = Mth.lerp(0.25F, currentPitch, targetPitch);
+        if (Math.abs(nextPitch - targetPitch) < 0.05F) {
+            nextPitch = targetPitch;
+        }
+        identity2$invokeOneArg(identity, "setDragonPitch", nextPitch);
+
+        boolean breathing = PredefIdentityAbilities.isSyncedAnimationActive(
+                host, PredefIdentityAbilities.ANIM_ATTACK_TICKS_KEY
+        );
+        identity2$invokeOneArg(identity, "setBreathingFire", breathing);
+    }
+
+    @Unique
+    private static boolean identity2$isIceAndFireDragon(@Nullable ResourceLocation id) {
+        if (id == null || !"iceandfire".equals(id.getNamespace())) {
+            return false;
+        }
+        return "fire_dragon".equals(id.getPath())
+                || "ice_dragon".equals(id.getPath())
+                || "lightning_dragon".equals(id.getPath());
+    }
+
+    @Unique
+    private static void identity2$approachOptionalFloatField(
+            Object target,
+            String currentName,
+            String previousName,
+            float desired,
+            float step
+    ) {
+        if (target == null) {
+            return;
+        }
+        for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+            try {
+                java.lang.reflect.Field current = type.getDeclaredField(currentName);
+                java.lang.reflect.Field previous = type.getDeclaredField(previousName);
+                if (!current.canAccess(target)) {
+                    current.setAccessible(true);
+                }
+                if (!previous.canAccess(target)) {
+                    previous.setAccessible(true);
+                }
+                float oldValue = current.getFloat(target);
+                float nextValue = oldValue < desired
+                        ? Math.min(desired, oldValue + step)
+                        : Math.max(desired, oldValue - step);
+                previous.setFloat(target, oldValue);
+                current.setFloat(target, nextValue);
+                return;
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+                return;
+            }
+        }
     }
 
     @Unique
@@ -776,6 +896,7 @@ public class EntityMixin implements EntityAccessor {
 
     @Inject(method = "baseTick", at = @At("HEAD"), cancellable = true)
     private void identity2$baseTick(CallbackInfo info) {
+        DataDrivenMobAbility.tickTemporarySummon((Entity) (Object) this);
         if (this.abilityCooldown > 0) {
             this.abilityCooldown -= 1;
         }
@@ -784,6 +905,8 @@ public class EntityMixin implements EntityAccessor {
         }
         if ((Entity) (Object) this instanceof ServerPlayer serverPlayer) {
             SilverfishBurrowManager.serverTick(serverPlayer);
+            DataDrivenMobAbility.serverTick(serverPlayer);
+            UnderzealotMorphAbility.serverTick(serverPlayer);
             IdentityProgression.tickDailyRandomMorph(serverPlayer);
             identity2$tickMorphFear(serverPlayer);
         }
@@ -1271,14 +1394,30 @@ public class EntityMixin implements EntityAccessor {
             return;
         }
 
+        EntityType<?> identityType = BuiltInRegistries.ENTITY_TYPE.get(identityId);
+        nbtCompound = IdentityApi.prepareVariantData(identityType, nbtCompound);
         nbtCompound.putString("id", identityId.toString());
         Vec3 pos = new Vec3(0, 0, 0);
         try {
             Level serverWorld = ((Entity) (Object) this).level();
-            Entity entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, entityx -> {
-                entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
-                return entityx;
-            });
+            boolean isolateOptionalLoad = "alexscaves".equals(identityId.getNamespace())
+                    || "iceandfire".equals(identityId.getNamespace());
+            Entity entity;
+            if (isolateOptionalLoad) {
+                entity = identityType.create(serverWorld);
+                if (entity != null) {
+                    // Optional NBT readers may emit multipart sync while loading; give the untracked
+                    // morph its reserved negative id before any such callback can run.
+                    entity.setId(-this.getId());
+                    net.Gabou.identity2.util.EntityNbtIoCompat.load(entity, nbtCompound, serverWorld.registryAccess());
+                    entity.moveTo(pos.x, pos.y, pos.z, entity.getYRot(), entity.getXRot());
+                }
+            } else {
+                entity = EntityType.loadEntityRecursive(nbtCompound, serverWorld, entityx -> {
+                    entityx.moveTo(pos.x, pos.y, pos.z, entityx.getYRot(), entityx.getXRot());
+                    return entityx;
+                });
+            }
             if (entity == null) {
                 throw new IllegalStateException("loadEntityWithPassengers returned null");
             }
@@ -1344,12 +1483,15 @@ public class EntityMixin implements EntityAccessor {
     }
 
     private void identity2$applyIdentityVariantState(Entity identityEntity, CompoundTag variantNbt) {
-        if (identityEntity == null || variantNbt == null || variantNbt.isEmpty()) {
+        if (identityEntity == null) {
             return;
         }
-        IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
-        IdentityVanillaVariantHelper.applyVariantData(identityEntity, variantNbt);
-        IdentityApi.applyVariantData(identityEntity, variantNbt);
+        CompoundTag safeVariant = variantNbt == null ? new CompoundTag() : variantNbt;
+        if (!safeVariant.isEmpty()) {
+            IdentityVariantNbtHelper.applyVariantData(identityEntity, safeVariant);
+            IdentityVanillaVariantHelper.applyVariantData(identityEntity, safeVariant);
+        }
+        IdentityApi.applyVariantData(identityEntity, safeVariant);
     }
 
     private void identity2$applyVillagerVariantState(Entity identityEntity, CompoundTag variantNbt) {

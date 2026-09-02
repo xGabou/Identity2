@@ -1,10 +1,6 @@
 package net.Gabou.identity2;
 
 import dev.architectury.networking.NetworkManager;
-import dev.architectury.platform.Platform;
-import dev.architectury.utils.Env;
-import net.Gabou.gaboulibs.auth.C2SChallengeReplyPacket;
-import net.Gabou.gaboulibs.auth.ServerAuth;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
@@ -90,14 +86,6 @@ public final class ModPackets {
         Identity2.MOD_ID,
         "progression_jar_state"
     );
-    public static final ResourceLocation AUTH_CHALLENGE_PACKET_ID = new ResourceLocation(
-        Identity2.MOD_ID,
-        "auth_challenge"
-    );
-    public static final ResourceLocation AUTH_CHALLENGE_REPLY_PACKET_ID = new ResourceLocation(
-        Identity2.MOD_ID,
-        "auth_challenge_reply"
-    );
     public static final ResourceLocation UNLOCKED_IDENTITY_SYNC_PACKET_ID = new ResourceLocation(
         Identity2.MOD_ID,
         "unlocked_identity_sync"
@@ -120,20 +108,6 @@ public final class ModPackets {
             return;
         }
         initialized = true;
-
-        if (Platform.getEnvironment() == Env.SERVER) {
-        }
-
-        NetworkCompat.registerReceiver(
-            NetworkManager.c2s(),
-            C2SChallengeReplyPacket.ID,
-            C2SChallengeReplyPacket::decode,
-            (payload, context) -> context.queue(() -> {
-                if (context.getPlayer() instanceof ServerPlayer player) {
-                    ServerAuth.handleChallengeReply(player, payload);
-                }
-            })
-        );
 
         NetworkCompat.registerReceiver(
             NetworkManager.c2s(),

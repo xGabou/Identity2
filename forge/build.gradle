@@ -51,7 +51,7 @@ dependencies {
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:8280104"
+    modImplementation "curse.maven:gabous-libs-1367332:8774253"
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionForge")) { transitive = false }
     runtimeOnly("me.djtheredstoner:DevAuth-forge-latest:1.2.1")
@@ -64,18 +64,25 @@ dependencies {
     compileOnly "curse.maven:placebo-283644:6274231"
     compileOnly "curse.maven:patchouli-306770:7731017"
     compileOnly "curse.maven:apothic-attributes-898963:5634071"
-    modImplementation "curse.maven:alexs-caves-924854:5848216"
+    compileOnly "curse.maven:alexs-caves-924854:5848216"
+    compileOnly "curse.maven:ice-and-fire-dragons-264231:5633453"
     //modImplementation "curse.maven:sonicraft-490147:6120917"
     modImplementation "curse.maven:curios-309927:6418456"
     modImplementation "curse.maven:geckolib-388172:7553267"
     modImplementation "curse.maven:citadel-331936:7476570"
     modImplementation "curse.maven:untamedwilds-457252:4779746"
-
     // Optional compatibility runtime used by `-PwithMobMods=true` dev runs.
     if (project.hasProperty("withMobMods")) {
         modRuntimeOnly "curse.maven:naturalist-627986:6863943"
         modRuntimeOnly "curse.maven:alexs-mobs-426558:5698791"
         modRuntimeOnly "curse.maven:midnightlib-488090:4980331"
+
+    }
+
+    // Forge-only compatibility runtime for `-PwithCaveAndDragonMods=true` smoke tests.
+    if (project.hasProperty("withCaveAndDragonMods")) {
+        modRuntimeOnly "curse.maven:alexs-caves-924854:5848216"
+        modRuntimeOnly "curse.maven:ice-and-fire-dragons-264231:5633453"
     }
 }
 processResources {
@@ -136,8 +143,8 @@ if (modrinthToken) {
     modrinth {
         token = modrinthToken
         projectId = "u8V1OwVf" // from your Modrinth project URL
-        versionNumber = "Forge-${project.version}"
-        versionName = "Identity ${mod_version}"
+        versionNumber = "Forge-${project.version}-1.20.1"
+        versionName = "Identity ${mod_version} for 1.20.1"
         changelog = rootProject.file("docs/public/IdentityChangeLog.md").text
         gameVersions = ["1.20.1"]
         loaders = ["forge"]

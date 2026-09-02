@@ -5,6 +5,8 @@ import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.api.ability.BuiltinIdentityAbility;
 import net.Gabou.identity2.api.morph.IdentityMorphTickHandler;
 import net.Gabou.identity2.api.variant.IdentityVariantAdapter;
+import net.Gabou.identity2.compat.IceAndFireDragonVariantAdapter;
+import net.Gabou.identity2.compat.IceAndFireMobVariantAdapter;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityTropicalFishVariants;
 import net.Gabou.identity2.identity.IdentityVariant;
@@ -104,7 +106,19 @@ public final class IdentityApi {
         if (type == null) {
             return null;
         }
-        return VARIANT_ADAPTERS.get(type);
+        IdentityVariantAdapter registered = VARIANT_ADAPTERS.get(type);
+        if (registered != null) {
+            return registered;
+        }
+        IdentityVariantAdapter optional = IceAndFireDragonVariantAdapter.create(type);
+        if (optional == null) {
+            optional = IceAndFireMobVariantAdapter.create(type);
+        }
+        if (optional != null) {
+            IdentityVariantAdapter raced = VARIANT_ADAPTERS.putIfAbsent(type, optional);
+            return raced == null ? optional : raced;
+        }
+        return null;
     }
 
     public static CompoundTag extractVariantData(LivingEntity entity) {
@@ -141,7 +155,7 @@ public final class IdentityApi {
 
     public static List<IdentityVariant> discoverVariants(EntityType<?> type, Level level) {
         IdentityVariantAdapter adapter = getVariantAdapter(type);
-        if (adapter != null && level != null) {
+        if (adapter != null) {
             try {
                 List<IdentityVariant> variants = adapter.discoverVariants(type, level);
                 if (variants != null && !variants.isEmpty()) {
@@ -387,6 +401,22 @@ public final class IdentityApi {
         } catch (Throwable ignored) {
         }
         return null;
+    }
+
+    /** Merges adapter-owned safe defaults before an optional entity reads its NBT. */
+    public static CompoundTag prepareVariantData(EntityType<?> type, CompoundTag variantNbt) {
+        CompoundTag input = variantNbt == null ? new CompoundTag() : variantNbt.copy();
+        IdentityVariantAdapter adapter = getVariantAdapter(type);
+        if (adapter == null) {
+            return input;
+        }
+        try {
+            CompoundTag prepared = adapter.prepareVariantData(input);
+            return prepared == null ? input : prepared.copy();
+        } catch (Throwable throwable) {
+            Identity2.LOGGER.error("Variant adapter preparation failed for {}", EntityType.getKey(type), throwable);
+            return input;
+        }
     }
 
     private static String capitalize(String text) {

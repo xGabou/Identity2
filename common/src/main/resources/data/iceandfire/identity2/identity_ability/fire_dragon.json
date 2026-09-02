@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:blaze_powder",
+  "cooldown": 100,
+  "action": "dragon_fire_breath",
+  "strength": 2,
+  "range": 24,
+  "duration": 40,
+  "traits": [
+    "flight",
+    "fall_resistant",
+    "fire_immune"
+  ]
+}

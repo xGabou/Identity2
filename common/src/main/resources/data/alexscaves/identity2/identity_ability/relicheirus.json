@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:shears",
+  "cooldown": 100,
+  "action": "swipe",
+  "strength": 7,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

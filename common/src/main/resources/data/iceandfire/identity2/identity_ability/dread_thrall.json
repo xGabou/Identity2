@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:bone",
+  "cooldown": 50,
+  "action": "swipe",
+  "strength": 2,
+  "range": 4,
+  "duration": 1,
+  "traits": [
+    "freeze_immune"
+  ]
+}

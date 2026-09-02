@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.api.IdentityApi;
+import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
@@ -19,13 +21,15 @@ import net.minecraft.world.entity.EntityType;
 import org.slf4j.Logger;
 
 /**
- * Validates the Naturalist and Alex's Mobs entity/ability inventories without
- * linking to either optional mod. Call this only after the synced ability
+ * Validates the supported optional-mod entity/ability inventories without
+ * linking to any optional mod. Call this only after the synced ability
  * registry has been created and populated.
  */
 public final class ModdedMobAbilityCoverage {
     public static final String NATURALIST_NAMESPACE = "naturalist";
     public static final String ALEXS_MOBS_NAMESPACE = "alexsmobs";
+    public static final String ALEXS_CAVES_NAMESPACE = "alexscaves";
+    public static final String ICE_AND_FIRE_NAMESPACE = "iceandfire";
 
     public static final int MAX_COOLDOWN_TICKS = 20 * 60 * 60;
     public static final int MAX_USE_DURATION_TICKS = 20 * 60;
@@ -201,10 +205,174 @@ public final class ModdedMobAbilityCoverage {
             "fart"
     );
 
-    public static final Set<ResourceLocation> ALL_ROOTS = union(NATURALIST_ROOTS, ALEXS_MOBS_ROOTS);
+    public static final Set<ResourceLocation> ALEXS_CAVES_ROOTS = resourceIds(
+            ALEXS_CAVES_NAMESPACE,
+            "teletor",
+            "magnetron",
+            "boundroid",
+            "ferrouslime",
+            "notor",
+            "subterranodon",
+            "vallumraptor",
+            "grottoceratops",
+            "trilocaris",
+            "tremorsaurus",
+            "relicheirus",
+            "luxtructosaurus",
+            "atlatitan",
+            "nucleeper",
+            "radgill",
+            "brainiac",
+            "gammaroach",
+            "raycat",
+            "tremorzilla",
+            "lanternfish",
+            "sea_pig",
+            "hullbreaker",
+            "gossamer_worm",
+            "tripodfish",
+            "deep_one",
+            "deep_one_knight",
+            "deep_one_mage",
+            "mine_guardian",
+            "gloomoth",
+            "underzealot",
+            "watcher",
+            "corrodent",
+            "vesper",
+            "forsaken",
+            "sweetish_fish",
+            "caniac",
+            "gumbeeper",
+            "candicorn",
+            "gum_worm",
+            "caramel_cube",
+            "gummy_bear",
+            "licowitch",
+            "gingerbread_man"
+    );
+
+    public static final Set<ResourceLocation> ALEXS_CAVES_HELPER_EXCLUSIONS = resourceIds(
+            ALEXS_CAVES_NAMESPACE,
+            "boundroid_winch",
+            "gum_worm_segment",
+            "boat",
+            "chest_boat",
+            "submarine",
+            "moving_metal_block",
+            "falling_tree_block",
+            "crushed_block",
+            "nuclear_explosion",
+            "nuclear_bomb",
+            "mine_guardian_anchor",
+            "floater",
+            "falling_guano",
+            "falling_frostmint",
+            "melted_caramel",
+            "magnetic_weapon",
+            "quarry_smasher",
+            "seeking_arrow",
+            "tephra",
+            "limestone_spear",
+            "extinction_spear",
+            "dinosaur_spirit",
+            "thrown_waste_drum",
+            "cinder_brick",
+            "ink_bomb",
+            "water_bolt",
+            "wave",
+            "depth_charge",
+            "guano",
+            "beholder_eye",
+            "desolate_dagger",
+            "burrowing_arrow",
+            "dark_arrow",
+            "gumball",
+            "spinning_peppermint",
+            "sugar_staff_hex",
+            "thrown_ice_cream_scoop",
+            "candy_cane_hook",
+            "soda_bottle_rocket",
+            "frostmint_spear"
+    );
+
+    public static final Set<ResourceLocation> ICE_AND_FIRE_ROOTS = resourceIds(
+            ICE_AND_FIRE_NAMESPACE,
+            "fire_dragon",
+            "ice_dragon",
+            "lightning_dragon",
+            "hippogryph",
+            "gorgon",
+            "pixie",
+            "cyclops",
+            "siren",
+            "hippocampus",
+            "deathworm",
+            "cockatrice",
+            "stymphalian_bird",
+            "troll",
+            "myrmex_worker",
+            "myrmex_soldier",
+            "myrmex_sentinel",
+            "myrmex_royal",
+            "myrmex_queen",
+            "amphithere",
+            "sea_serpent",
+            "myrmex_swarmer",
+            "dread_thrall",
+            "dread_ghoul",
+            "dread_beast",
+            "dread_scuttler",
+            "dread_lich",
+            "dread_knight",
+            "dread_horse",
+            "hydra",
+            "ghost"
+    );
+
+    public static final Set<ResourceLocation> ICE_AND_FIRE_HELPER_EXCLUSIONS = resourceIds(
+            ICE_AND_FIRE_NAMESPACE,
+            "dragon_multipart",
+            "multipart",
+            "hydra_multipart",
+            "cylcops_multipart",
+            "dragon_egg",
+            "dragon_arrow",
+            "dragon_skull",
+            "fire_dragon_charge",
+            "ice_dragon_charge",
+            "lightning_dragon_charge",
+            "hippogryph_egg",
+            "stone_statue",
+            "deathworm_egg",
+            "cockatrice_egg",
+            "stymphalian_feather",
+            "stymphalian_arrow",
+            "myrmex_egg",
+            "amphithere_arrow",
+            "sea_serpent_bubbles",
+            "sea_serpent_arrow",
+            "chain_tie",
+            "pixie_charge",
+            "tide_trident",
+            "mob_skull",
+            "dread_lich_skull",
+            "hydra_breath",
+            "hydra_arrow",
+            "ghost_sword"
+    );
+
+    public static final Set<ResourceLocation> ALL_ROOTS = union(
+            NATURALIST_ROOTS,
+            ALEXS_MOBS_ROOTS,
+            ALEXS_CAVES_ROOTS,
+            ICE_AND_FIRE_ROOTS
+    );
     public static final Set<ResourceLocation> ALL_HELPER_EXCLUSIONS = union(
             NATURALIST_HELPER_EXCLUSIONS,
-            ALEXS_MOBS_HELPER_EXCLUSIONS
+            ALEXS_MOBS_HELPER_EXCLUSIONS,
+            ALEXS_CAVES_HELPER_EXCLUSIONS,
+            ICE_AND_FIRE_HELPER_EXCLUSIONS
     );
 
     public static final Set<String> KNOWN_ACTIONS = strings(
@@ -259,6 +427,25 @@ public final class ModdedMobAbilityCoverage {
             "dance",
             "water_exit_leap",
             "inventory_drop"
+            ,"dragon_fire_breath"
+            ,"dragon_ice_breath"
+            ,"dragon_lightning_breath"
+            ,"petrifying_gaze"
+            ,"pixie_blessing"
+            ,"cyclops_stomp"
+            ,"siren_song"
+            ,"deathworm_burrow_burst"
+            ,"cockatrice_gaze"
+            ,"feather_volley"
+            ,"troll_slam"
+            ,"sentinel_ambush"
+            ,"sea_serpent_bubbles"
+            ,"dread_summon"
+            ,"hydra_venom_volley"
+            ,"ghost_phase_charge"
+            ,"blast"
+            ,"radiation_absorb"
+            ,"steal"
     );
 
     public static final Set<String> KNOWN_TRAITS = strings(
@@ -279,7 +466,26 @@ public final class ModdedMobAbilityCoverage {
 
     private static final List<NamespaceInventory> INVENTORIES = List.of(
             new NamespaceInventory(NATURALIST_NAMESPACE, NATURALIST_ROOTS, NATURALIST_HELPER_EXCLUSIONS),
-            new NamespaceInventory(ALEXS_MOBS_NAMESPACE, ALEXS_MOBS_ROOTS, ALEXS_MOBS_HELPER_EXCLUSIONS)
+            new NamespaceInventory(ALEXS_MOBS_NAMESPACE, ALEXS_MOBS_ROOTS, ALEXS_MOBS_HELPER_EXCLUSIONS),
+            new NamespaceInventory(ALEXS_CAVES_NAMESPACE, ALEXS_CAVES_ROOTS, ALEXS_CAVES_HELPER_EXCLUSIONS),
+            new NamespaceInventory(ICE_AND_FIRE_NAMESPACE, ICE_AND_FIRE_ROOTS, ICE_AND_FIRE_HELPER_EXCLUSIONS)
+    );
+    private static final Map<ResourceLocation, Integer> EXPECTED_OPTIONAL_VARIANT_COUNTS = Map.ofEntries(
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "fire_dragon"), 40),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "ice_dragon"), 40),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "lightning_dragon"), 40),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "sea_serpent"), 14),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "deathworm"), 6),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "hydra"), 3),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "dread_ghoul"), 3),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "dread_beast"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "dread_scuttler"), 1),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_worker"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_soldier"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_sentinel"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_royal"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_queen"), 2),
+            Map.entry(id(ICE_AND_FIRE_NAMESPACE, "myrmex_swarmer"), 2)
     );
     private static final Comparator<ResourceLocation> ID_ORDER = Comparator.comparing(ResourceLocation::toString);
 
@@ -330,6 +536,20 @@ public final class ModdedMobAbilityCoverage {
             List<String> problems = validateDefinition(definition);
             if (!problems.isEmpty()) {
                 invalidDefinitions.put(abilityId, problems);
+            }
+        }
+        for (Map.Entry<ResourceLocation, Integer> entry : EXPECTED_OPTIONAL_VARIANT_COUNTS.entrySet()) {
+            ResourceLocation entityId = entry.getKey();
+            if (!entityIds.contains(entityId)) {
+                continue;
+            }
+            List<String> problems = validateDiscoveredVariants(
+                    entityRegistry.get(entityId), entityId, entry.getValue()
+            );
+            if (!problems.isEmpty()) {
+                List<String> combined = new ArrayList<>(invalidDefinitions.getOrDefault(entityId, List.of()));
+                combined.addAll(problems);
+                invalidDefinitions.put(entityId, List.copyOf(combined));
             }
         }
 
@@ -464,6 +684,39 @@ public final class ModdedMobAbilityCoverage {
         return List.copyOf(problems);
     }
 
+    private static List<String> validateDiscoveredVariants(
+            EntityType<?> type,
+            ResourceLocation expectedType,
+            int expectedCount
+    ) {
+        List<String> problems = new ArrayList<>();
+        if (type == null) {
+            problems.add("variant adapter entity type is missing");
+            return List.copyOf(problems);
+        }
+        List<IdentityVariant> variants = IdentityApi.discoverCommandVariants(type);
+        if (variants.size() != expectedCount) {
+            problems.add("expected " + expectedCount + " discovered variants but found " + variants.size());
+        }
+        Set<String> labels = new LinkedHashSet<>();
+        Set<String> tokens = new LinkedHashSet<>();
+        for (IdentityVariant variant : variants) {
+            if (!expectedType.equals(variant.entityTypeId())) {
+                problems.add("variant entry targets " + variant.entityTypeId());
+                continue;
+            }
+            labels.add(variant.displayName());
+            tokens.add(variant.variantNbt().toString());
+        }
+        if (labels.size() != variants.size()) {
+            problems.add("discovered variant labels are not unique");
+        }
+        if (tokens.size() != variants.size()) {
+            problems.add("discovered variant NBT tokens are not unique");
+        }
+        return List.copyOf(problems);
+    }
+
     private static boolean hasResourceLocation(ResourceLocation id) {
         return id != null && !"null".equals(id.getPath());
     }
@@ -483,7 +736,10 @@ public final class ModdedMobAbilityCoverage {
     }
 
     private static boolean isSupportedNamespace(String namespace) {
-        return NATURALIST_NAMESPACE.equals(namespace) || ALEXS_MOBS_NAMESPACE.equals(namespace);
+        return NATURALIST_NAMESPACE.equals(namespace)
+                || ALEXS_MOBS_NAMESPACE.equals(namespace)
+                || ALEXS_CAVES_NAMESPACE.equals(namespace)
+                || ICE_AND_FIRE_NAMESPACE.equals(namespace);
     }
 
     private static Set<ResourceLocation> idsInNamespace(Set<ResourceLocation> ids, String namespace) {
@@ -545,6 +801,10 @@ public final class ModdedMobAbilityCoverage {
             }
         }
         return Collections.unmodifiableSet(ids);
+    }
+
+    private static ResourceLocation id(String namespace, String path) {
+        return new ResourceLocation(namespace, path);
     }
 
     @SafeVarargs

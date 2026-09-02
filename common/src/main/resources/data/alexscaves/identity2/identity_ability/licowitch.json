@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:ender_pearl",
+  "cooldown": 140,
+  "action": "void_shot",
+  "strength": 6,
+  "range": 16,
+  "duration": 100,
+  "traits": []
+}

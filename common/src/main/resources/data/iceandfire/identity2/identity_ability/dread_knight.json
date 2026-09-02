@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:iron_sword",
+  "cooldown": 60,
+  "action": "swipe",
+  "strength": 4,
+  "range": 4,
+  "duration": 1,
+  "traits": [
+    "freeze_immune",
+    "knockback_resistant"
+  ]
+}

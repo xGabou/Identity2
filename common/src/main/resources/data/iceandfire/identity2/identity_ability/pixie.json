@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:glowstone_dust",
+  "cooldown": 240,
+  "action": "pixie_blessing",
+  "strength": 1,
+  "range": 8,
+  "duration": 200,
+  "traits": [
+    "flight",
+    "fall_resistant"
+  ]
+}

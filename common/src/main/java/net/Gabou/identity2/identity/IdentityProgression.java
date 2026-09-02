@@ -1880,16 +1880,8 @@ public final class IdentityProgression {
     }
 
     private static double resolveIdentityMaxHealth(ServerPlayer player, LivingEntity livingIdentity) {
-        if (player == null || player.level() == null) {
-            return livingIdentity.getMaxHealth();
-        }
-        try {
-            Entity probe = livingIdentity.getType().create(player.level());
-            if (probe instanceof LivingEntity probeLiving) {
-                return probeLiving.getMaxHealth();
-            }
-        } catch (Throwable ignored) {
-        }
+        // The active identity has already had its selected variant NBT applied. A fresh probe
+        // loses variant-scaled attributes (notably Ice and Fire dragon growth stages).
         return livingIdentity.getMaxHealth();
     }
 
@@ -1921,6 +1913,11 @@ public final class IdentityProgression {
         CompoundTag variant = new CompoundTag();
         if (entity == null || entity.level() == null) {
             return variant;
+        }
+        net.Gabou.identity2.api.variant.IdentityVariantAdapter adapter = IdentityApi.getVariantAdapter(entity.getType());
+        if (adapter != null && adapter.replacesGenericExtraction()) {
+            CompoundTag authoritative = IdentityApi.extractVariantData(entity);
+            return normalizeVariantForUnlock(authoritative);
         }
         CompoundTag dynamicVariant = IdentityVariantNbtHelper.computeVariantDiff(entity);
         if (dynamicVariant != null && !dynamicVariant.isEmpty()) {

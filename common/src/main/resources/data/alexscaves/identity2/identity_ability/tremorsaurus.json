@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:goat_horn",
+  "cooldown": 240,
+  "action": "gust",
+  "strength": 2.2,
+  "range": 10,
+  "duration": 80,
+  "traits": [
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

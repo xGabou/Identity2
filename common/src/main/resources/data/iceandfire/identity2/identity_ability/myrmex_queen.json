@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:dragon_egg",
+  "cooldown": 140,
+  "action": "poison_sting",
+  "strength": 10,
+  "range": 5,
+  "duration": 200,
+  "traits": [
+    "climb",
+    "knockback_resistant"
+  ]
+}

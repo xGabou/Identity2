@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:honeycomb",
+  "cooldown": 240,
+  "action": "cocoon_guard",
+  "strength": 0,
+  "range": 2,
+  "duration": 120,
+  "traits": []
+}

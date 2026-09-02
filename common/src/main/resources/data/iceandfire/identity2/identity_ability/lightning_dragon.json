@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:lightning_rod",
+  "cooldown": 100,
+  "action": "dragon_lightning_breath",
+  "strength": 3.5,
+  "range": 24,
+  "duration": 40,
+  "traits": [
+    "flight",
+    "fall_resistant"
+  ]
+}

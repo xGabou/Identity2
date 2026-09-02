@@ -1,0 +1,15 @@
+{
+  "icon": "minecraft:snowball",
+  "cooldown": 100,
+  "action": "dragon_ice_breath",
+  "strength": 2.5,
+  "range": 24,
+  "duration": 40,
+  "traits": [
+    "flight",
+    "fall_resistant",
+    "freeze_immune",
+    "water_breathing",
+    "fast_swim"
+  ]
+}

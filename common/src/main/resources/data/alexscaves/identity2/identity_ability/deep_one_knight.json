@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:trident",
+  "cooldown": 120,
+  "action": "mud_shot",
+  "strength": 6,
+  "range": 14,
+  "duration": 50,
+  "traits": [
+    "water_breathing",
+    "fast_swim"
+  ]
+}

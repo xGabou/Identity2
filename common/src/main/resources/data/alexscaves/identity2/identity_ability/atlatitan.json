@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:iron_boots",
+  "cooldown": 180,
+  "action": "down_pounce",
+  "strength": 1.8,
+  "range": 8,
+  "duration": 20,
+  "traits": [
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:spider_eye",
+  "cooldown": 80,
+  "action": "poison_sting",
+  "strength": 4,
+  "range": 4,
+  "duration": 70,
+  "traits": [
+    "flight",
+    "fall_resistant"
+  ]
+}

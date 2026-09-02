@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:ender_eye",
+  "cooldown": 80,
+  "predef": "alexscaves:underzealot",
+  "strength": 2,
+  "range": 12,
+  "duration": 500,
+  "traits": [
+    "fall_resistant"
+  ]
+}

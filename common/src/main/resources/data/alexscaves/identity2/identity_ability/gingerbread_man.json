@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:cookie",
+  "cooldown": 200,
+  "action": "steal",
+  "strength": 1,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "fast_land"
+  ]
+}

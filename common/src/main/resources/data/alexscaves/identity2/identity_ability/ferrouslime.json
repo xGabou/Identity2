@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:iron_nugget",
+  "cooldown": 70,
+  "action": "air_dash",
+  "strength": 1,
+  "range": 4,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

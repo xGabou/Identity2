@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:rotten_flesh",
+  "cooldown": 70,
+  "action": "swipe",
+  "strength": 5,
+  "range": 5,
+  "duration": 1,
+  "traits": [
+    "freeze_immune"
+  ]
+}

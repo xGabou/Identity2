@@ -1,5 +1,6 @@
 package net.Gabou.identity2.client.screen;
 
+import net.Gabou.identity2.api.IdentityApi;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -44,7 +45,9 @@ final class IdentityMenuRenderHelper {
             return null;
         }
 
-        if (variantNbt != null && !variantNbt.isEmpty()) {
+        if (IdentityApi.getVariantAdapter(type) != null) {
+            IdentityApi.applyVariantData(living, variantNbt == null ? new CompoundTag() : variantNbt);
+        } else if (variantNbt != null && !variantNbt.isEmpty()) {
             applyVariantData(living, world, variantNbt);
         }
 
@@ -119,6 +122,7 @@ final class IdentityMenuRenderHelper {
             CompoundTag fullData = EntityNbtIoCompat.saveWithoutId(entity);
             fullData.merge(variantNbt.copy());
             EntityNbtIoCompat.load(entity, fullData, world.registryAccess());
+            entity.refreshDimensions();
         } catch (Throwable ignored) {
         }
     }

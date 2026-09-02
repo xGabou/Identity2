@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:honey_bottle",
+  "cooldown": 120,
+  "action": "mucus_trail",
+  "strength": 0,
+  "range": 4,
+  "duration": 100,
+  "traits": [
+    "fall_resistant"
+  ]
+}

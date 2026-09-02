@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:feather",
+  "cooldown": 60,
+  "action": "upward_burst",
+  "strength": 0.7,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "flight",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

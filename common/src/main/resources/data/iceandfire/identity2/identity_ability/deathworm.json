@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:sand",
+  "cooldown": 120,
+  "action": "deathworm_burrow_burst",
+  "strength": 6,
+  "range": 6,
+  "duration": 30,
+  "traits": [
+    "fall_resistant"
+  ]
+}

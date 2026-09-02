@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:heart_of_the_sea",
+  "cooldown": 120,
+  "action": "mud_shot",
+  "strength": 6,
+  "range": 16,
+  "duration": 80,
+  "traits": [
+    "water_breathing",
+    "fast_swim",
+    "slow_fall",
+    "fall_resistant"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:bone",
+  "cooldown": 60,
+  "action": "bite",
+  "strength": 4,
+  "range": 4,
+  "duration": 1,
+  "traits": [
+    "freeze_immune",
+    "fast_land"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:fermented_spider_eye",
+  "cooldown": 150,
+  "action": "spore_cloud",
+  "strength": 0,
+  "range": 5,
+  "duration": 100,
+  "traits": []
+}

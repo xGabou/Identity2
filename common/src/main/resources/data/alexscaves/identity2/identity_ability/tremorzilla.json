@@ -1,0 +1,16 @@
+{
+  "icon": "minecraft:beacon",
+  "cooldown": 360,
+  "action": "fire_strike",
+  "strength": 8,
+  "range": 24,
+  "duration": 100,
+  "traits": [
+    "fire_immune",
+    "water_breathing",
+    "fast_swim",
+    "lava_mobility",
+    "fall_resistant",
+    "knockback_resistant"
+  ]
+}

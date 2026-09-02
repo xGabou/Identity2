@@ -1,0 +1,13 @@
+{
+  "icon": "minecraft:saddle",
+  "cooldown": 80,
+  "action": "dash",
+  "strength": 1.4,
+  "range": 3,
+  "duration": 20,
+  "traits": [
+    "freeze_immune",
+    "fast_land",
+    "high_jump"
+  ]
+}

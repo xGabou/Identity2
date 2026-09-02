@@ -1,0 +1,12 @@
+{
+  "icon": "minecraft:chain",
+  "cooldown": 100,
+  "action": "down_pounce",
+  "strength": 1.3,
+  "range": 6,
+  "duration": 20,
+  "traits": [
+    "climb",
+    "fall_resistant"
+  ]
+}

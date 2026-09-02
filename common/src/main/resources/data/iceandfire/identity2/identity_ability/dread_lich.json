@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:skeleton_skull",
+  "cooldown": 300,
+  "action": "dread_summon",
+  "strength": 1,
+  "range": 12,
+  "duration": 100,
+  "traits": [
+    "freeze_immune"
+  ]
+}

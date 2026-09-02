@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:iron_boots",
+  "cooldown": 120,
+  "action": "cyclops_stomp",
+  "strength": 8,
+  "range": 6,
+  "duration": 1,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

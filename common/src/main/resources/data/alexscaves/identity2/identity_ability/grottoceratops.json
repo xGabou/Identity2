@@ -1,0 +1,11 @@
+{
+  "icon": "minecraft:goat_horn",
+  "cooldown": 110,
+  "action": "knockback",
+  "strength": 2,
+  "range": 5,
+  "duration": 30,
+  "traits": [
+    "knockback_resistant"
+  ]
+}

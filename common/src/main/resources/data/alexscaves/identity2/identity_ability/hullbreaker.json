@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:prismarine_shard",
+  "cooldown": 120,
+  "action": "charge",
+  "strength": 1.8,
+  "range": 8,
+  "duration": 20,
+  "traits": [
+    "water_breathing",
+    "water_only",
+    "fast_swim",
+    "knockback_resistant"
+  ]
+}

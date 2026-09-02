@@ -1,0 +1,9 @@
+{
+  "icon": "minecraft:glow_berries",
+  "cooldown": 160,
+  "action": "radiation_absorb",
+  "strength": 5,
+  "range": 9,
+  "duration": 80,
+  "traits": []
+}

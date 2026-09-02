@@ -1,0 +1,14 @@
+{
+  "icon": "minecraft:prismarine_crystals",
+  "cooldown": 100,
+  "action": "sea_serpent_bubbles",
+  "strength": 6,
+  "range": 24,
+  "duration": 1,
+  "traits": [
+    "water_breathing",
+    "fast_swim",
+    "fall_resistant",
+    "fire_immune"
+  ]
+}
