@@ -1,6 +1,6 @@
 plugins {
     id 'com.github.johnrengelman.shadow'
-    id 'com.matthewprenger.cursegradle' version '1.4.0' // CurseForge uploader
+    id 'com.hypherionmc.modutils.modpublisher'
     id "com.modrinth.minotaur" version "2.8.10" // Modrinth uploader
 }
 
@@ -104,25 +104,32 @@ if (modrinthToken) {
 }
 
 if (curseforgeToken) {
-    curseforge {
-        apiKey = curseforgeToken
-
-        project {
-            id = "1238155"
-            changelog = rootProject.file("docs/public/IdentityChangeLog.md")
-            releaseType = "release" // options: alpha, beta, release
-            addGameVersion "1.20.1"
-            addGameVersion "Fabric"
-            mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
-                displayName = "Fabric-${version}"
-            }
+    publisher {
+        apiKeys {
+            curseforge curseforgeToken
         }
+        setCurseID("1238155")
+        setVersionType("release")
+        setChangelog(rootProject.file("docs/public/IdentityChangeLog.md"))
+        setDisplayName("Fabric-${project.version}-1.20.1")
+        setGameVersions("1.20.1")
+        setLoaders("fabric")
+        setCurseEnvironment("both")
+        getJavaVersions().set([JavaVersion.VERSION_17])
+        setArtifact(tasks.named("remapJar"))
     }
 } else {
-    logger.lifecycle("Skipping CurseForge config for ${project.path}: CURSEFORGE_TOKEN is not set.")
-    tasks.configureEach {
-        if (name.toLowerCase().contains("curseforge")) {
-            enabled = false
-        }
-    }
+    logger.lifecycle("CURSEFORGE_TOKEN not set; CurseForge upload tasks will be disabled for ${project.path}.")
+    tasks.named("publishCurseforge").configure { enabled = false }
+}
+
+tasks.named("publishCurseforge").configure {
+    dependsOn(tasks.named("build"))
+}
+
+tasks.register("curseforge1238155") {
+    group = "publishing"
+    description = "Publishes the Fabric release to CurseForge project 1238155."
+    dependsOn(tasks.named("publishCurseforge"))
+    enabled = curseforgeToken != null && !curseforgeToken.isEmpty()
 }

@@ -1,5 +1,10 @@
 # Identity2 1.20.1 Public Changelog
 ---
+## 2.2.4
+
+- Removed all authentication configs and legacy auth-code remnants.
+
+---
 ## 2.2.3
 
 - Removed the legacy auth folder.
