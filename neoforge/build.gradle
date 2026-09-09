@@ -37,7 +37,7 @@ dependencies {
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7495339"
+    modImplementation "curse.maven:gabous-libs-1367332:8774267"
     runtimeOnly "curse.maven:animal-garden-manatee-1354749:7345203"
     modRuntimeOnly "curse.maven:spark-361579:7315224"
     runtimeOnly "curse.maven:animal-garden-common-raven-1370539:7344358"
