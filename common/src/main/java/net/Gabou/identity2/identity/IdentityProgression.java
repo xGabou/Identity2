@@ -6,7 +6,6 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
 
-import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.ArrayList;
@@ -23,12 +22,12 @@ import java.lang.reflect.Method;
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
+import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
 import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
-import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.progression.MorphChargeManager;
 import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.progression.SoulAbsorptionManager;
@@ -43,11 +42,8 @@ import net.Gabou.identity2.util.DefaultAttributeContainerAccessor;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.network.chat.Component;
@@ -101,8 +97,30 @@ public final class IdentityProgression {
     private static final Codec<Map<String, List<String>>> STRING_LIST_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING.listOf());
     private static final int MAX_UNLOCK_SYNC_PACKET_BYTES = 24000;
     private static final Map<ResourceLocation, String> DISABLED_IDENTITIES = new ConcurrentHashMap<>();
-    private static final Set<String> NON_VARIANT_ROOT_KEYS = Set.of("Age", "AgeLocked", "EggLayTime");
-    private static final int MAX_UNLOCKED_IDENTITY_SYNC_BYTES = FriendlyByteBuf.MAX_STRING_LENGTH;
+    private static final Set<String> VARIANT_ROOT_KEYS = Set.of(
+        "Variant",
+        "variant",
+        "Type",
+        "type",
+        "Skin",
+        "skin",
+        "Form",
+        "form",
+        "Color",
+        "CollarColor",
+        "IsBaby",
+        "Baby",
+        "VillagerData",
+        "VillagerProfession",
+        "VillagerType",
+        "VillagerLevel",
+        "CatVariant",
+        "WolfVariant",
+        "FrogVariant",
+        PLAYER_SKIN_UUID_VARIANT_KEY,
+        PLAYER_SKIN_NAME_VARIANT_KEY
+    );
+    private static final Set<String> VARIANT_COMPOUND_KEYS = Set.of("VillagerData");
     private static boolean initialized = false;
 
     private IdentityProgression() {
@@ -612,7 +630,12 @@ public final class IdentityProgression {
             // Legacy or command unlock: no per-variant restriction for this identity.
             return true;
         }
-        return tokens.contains(toVariantUnlockToken(variantNbt));
+        for (String token : tokens) {
+            if (matchesStoredVariantToken(variantNbt, token)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int grantAllMorphableIdentities(ServerPlayer player) {
@@ -866,140 +889,99 @@ public final class IdentityProgression {
         CompoundTag customData = getCustomData(player);
         List<String> unlocked = readUnlockedIdentityIds(customData);
         Map<String, List<String>> variantUnlocks = readUnlockedIdentityVariantUnlocks(customData);
-        UnlockedIdentitySyncS2CPacketPayload payload = buildUnlockedIdentitySyncPayload(player, unlocked, variantUnlocks);
-        if (!validateUnlockedIdentitiesPayload(player, payload)) {
-            return;
-        }
-
-        NetworkManager.sendToPlayer(player, payload);
+        List<IdentityUnlockSyncEntry> entries = buildUnlockSyncEntries(player, unlocked, variantUnlocks);
+        sendUnlockSyncPackets(player, true, entries);
         if (player.level() instanceof ServerLevel serverWorld) {
             for (ServerPlayer other : serverWorld.players()) {
                 if (other != player) {
-                    NetworkManager.sendToPlayer(other, payload);
+                    sendUnlockSyncPackets(other, true, entries, player.getId());
                 }
             }
         }
     }
 
-    private static UnlockedIdentitySyncS2CPacketPayload buildUnlockedIdentitySyncPayload(
-            ServerPlayer player,
-            List<String> unlocked,
-            Map<String, List<String>> variantUnlocks
+    private static List<IdentityUnlockSyncEntry> buildUnlockSyncEntries(
+        ServerPlayer player,
+        List<String> unlocked,
+        Map<String, List<String>> variantUnlocks
     ) {
-        List<UnlockedIdentitySyncS2CPacketPayload.VariantEntry> variantEntries = new ArrayList<>(variantUnlocks.size());
-        for (Map.Entry<String, List<String>> entry : variantUnlocks.entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank()) {
+        if (unlocked == null || unlocked.isEmpty()) {
+            return List.of();
+        }
+
+        List<IdentityUnlockSyncEntry> entries = new ArrayList<>(unlocked.size());
+        for (String identityIdText : unlocked) {
+            if (identityIdText == null || identityIdText.isBlank()) {
                 continue;
             }
-            List<CompoundTag> variantData = new ArrayList<>();
-            for (String token : entry.getValue()) {
-                CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(token));
-                if (!decoded.isEmpty()) {
-                    variantData.add(decoded);
-                } else if (token != null && !token.isBlank() && "-".equals(token.trim())) {
-                    variantData.add(new CompoundTag());
-                }
-            }
-            if (variantData.isEmpty()) {
+            ResourceLocation identityId;
+            try {
+                identityId = ResourceLocation.parse(identityIdText.trim());
+            } catch (Exception ignored) {
                 continue;
             }
-            variantEntries.add(new UnlockedIdentitySyncS2CPacketPayload.VariantEntry(entry.getKey(), variantData));
+
+            List<String> tokens = variantUnlocks == null ? List.of() : variantUnlocks.getOrDefault(identityId.toString(), List.of());
+            addChunkedUnlockSyncEntries(player, entries, identityId, tokens);
         }
-        return new UnlockedIdentitySyncS2CPacketPayload(player.getId(), new ArrayList<>(unlocked), variantEntries);
+        return entries;
     }
 
-    public static int getSerializedUnlockedIdentitiesSize(UnlockedIdentitySyncS2CPacketPayload payload) {
-        if (payload == null) {
-            return 0;
+    private static void addChunkedUnlockSyncEntries(
+        ServerPlayer player,
+        List<IdentityUnlockSyncEntry> entries,
+        ResourceLocation identityId,
+        List<String> tokens
+    ) {
+        if (entries == null || identityId == null) {
+            return;
         }
-
-        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
-        try {
-            UnlockedIdentitySyncS2CPacketPayload.CODEC.encode(buffer, payload);
-            return buffer.readableBytes();
-        } finally {
-            buffer.release();
-        }
-    }
-
-    public static boolean validateUnlockedIdentitiesPayload(ServerPlayer player, UnlockedIdentitySyncS2CPacketPayload payload) {
-        if (player == null || payload == null) {
-            return false;
-        }
-
-        int maxLength = FriendlyByteBuf.MAX_STRING_LENGTH;
-        for (String identityId : payload.unlockedIdentityIds()) {
-            if (identityId != null && identityId.length() > maxLength) {
-                logOversizedIdentityPayload(player, payload, -1, "identity id exceeded max string length");
-                notifyPlayerOversizedIdentityPayload(player);
-                return false;
-            }
-        }
-        for (UnlockedIdentitySyncS2CPacketPayload.VariantEntry entry : payload.unlockedVariantEntries()) {
-            if (entry.identityId() != null && entry.identityId().length() > maxLength) {
-                logOversizedIdentityPayload(player, payload, -1, "variant identity id exceeded max string length");
-                notifyPlayerOversizedIdentityPayload(player);
-                return false;
-            }
-            if (entry.variantData() == null) {
-                logOversizedIdentityPayload(player, payload, -1, "variant payload list was null");
-                notifyPlayerOversizedIdentityPayload(player);
-                return false;
-            }
-        }
-
-        int serializedSize;
-        try {
-            serializedSize = getSerializedUnlockedIdentitiesSize(payload);
-        } catch (RuntimeException exception) {
-            Identity2.LOGGER.error(
-                    "Failed to serialize unlocked identity payload for player={} uuid={} entityId={} payload={}",
-                    player.getGameProfile().getName(),
-                    player.getUUID(),
-                    player.getId(),
-                    payload,
-                    exception
-            );
-            notifyPlayerOversizedIdentityPayload(player);
-            return false;
-        }
-        if (serializedSize > MAX_UNLOCKED_IDENTITY_SYNC_BYTES) {
-            logOversizedIdentityPayload(player, payload, serializedSize, "serialized unlock payload exceeded safety limit");
-            notifyPlayerOversizedIdentityPayload(player);
-            return false;
-        }
-        return true;
-    }
-
-    public static void logOversizedIdentityPayload(ServerPlayer player, UnlockedIdentitySyncS2CPacketPayload payload, int serializedSize, String reason) {
-        String playerName = player.getGameProfile().getName();
-        String playerUuid = player.getUUID().toString();
-        int identityCount = payload.unlockedIdentityIds() == null ? 0 : payload.unlockedIdentityIds().size();
-        int variantCount = payload.unlockedVariantEntries() == null ? 0 : payload.unlockedVariantEntries().size();
-        String payloadText = String.valueOf(payload);
-        Identity2.LOGGER.error(
-                "Blocked oversized unlocked identity payload for player={} uuid={} entityId={} identityCount={} variantEntryCount={} serializedSize={} reason={} payload={}",
-                playerName,
-                playerUuid,
-                player.getId(),
-                identityCount,
-                variantCount,
-                serializedSize,
-                reason,
-                payloadText
-        );
-    }
-
-    public static void notifyPlayerOversizedIdentityPayload(ServerPlayer player) {
-        if (player == null) {
+        if (tokens == null || tokens.isEmpty()) {
+            entries.add(new IdentityUnlockSyncEntry(identityId, true, List.of()));
             return;
         }
 
-        player.displayClientMessage(
-                Component.literal(
-                        "Too big identity packet detected. Please report this in my Discord server: https://discord.gg/2jRhTJgYz4 in issues with your logs attached."
-                ),
-                false
+        int baseBytes = unlockEntryBaseBytes(identityId);
+        int maxTokenBytes = Math.max(0, MAX_UNLOCK_SYNC_PACKET_BYTES - packetOverheadBytes(false) - baseBytes);
+        List<String> currentTokens = new ArrayList<>();
+        int currentBytes = 0;
+        boolean replaceTokens = true;
+
+        for (String token : tokens) {
+            if (token == null || token.isBlank()) {
+                continue;
+            }
+            int tokenBytes = token.length() + 1;
+            if (tokenBytes > maxTokenBytes) {
+                logSkippedOversizedVariantToken(player, identityId, tokenBytes);
+                continue;
+            }
+            if (!currentTokens.isEmpty() && currentBytes + tokenBytes > maxTokenBytes) {
+                entries.add(new IdentityUnlockSyncEntry(identityId, replaceTokens, List.copyOf(currentTokens)));
+                currentTokens.clear();
+                currentBytes = 0;
+                replaceTokens = false;
+            }
+            currentTokens.add(token);
+            currentBytes += tokenBytes;
+        }
+
+        if (!currentTokens.isEmpty() || replaceTokens) {
+            entries.add(new IdentityUnlockSyncEntry(identityId, replaceTokens, List.copyOf(currentTokens)));
+        }
+    }
+
+    private static void logSkippedOversizedVariantToken(ServerPlayer player, ResourceLocation identityId, int tokenBytes) {
+        if (player == null) {
+            return;
+        }
+        Identity2.LOGGER.warn(
+            "Skipped oversized identity variant token for player={} uuid={} identity={} tokenBytes={} maxPacketBytes={}",
+            player.getGameProfile().getName(),
+            player.getUUID(),
+            identityId,
+            tokenBytes,
+            MAX_UNLOCK_SYNC_PACKET_BYTES
         );
     }
 
@@ -1161,7 +1143,7 @@ public final class IdentityProgression {
                 if (rawToken == null) {
                     continue;
                 }
-                String trimmedToken = rawToken.trim();
+                String trimmedToken = normalizeVariantUnlockToken(rawToken);
                 if (!trimmedToken.isEmpty()) {
                     normalizedTokens.add(trimmedToken);
                 }
@@ -1177,14 +1159,31 @@ public final class IdentityProgression {
         return normalized;
     }
 
+    private static String normalizeVariantUnlockToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            return "";
+        }
+        String trimmed = rawToken.trim();
+        if ("-".equals(trimmed)) {
+            return "-";
+        }
+
+        CompoundTag decoded = normalizeVariantForUnlock(fromVariantUnlockToken(trimmed));
+        return toVariantUnlockToken(decoded);
+    }
+
     private static void sendUnlockSyncPackets(ServerPlayer player, boolean replaceAll, List<IdentityUnlockSyncEntry> entries) {
+        sendUnlockSyncPackets(player, replaceAll, entries, player == null ? 0 : player.getId());
+    }
+
+    private static void sendUnlockSyncPackets(ServerPlayer player, boolean replaceAll, List<IdentityUnlockSyncEntry> entries, int entityId) {
         if (player == null) {
             return;
         }
 
         if (entries == null || entries.isEmpty()) {
             if (replaceAll) {
-                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), true, List.of()));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(entityId, true, List.of()));
             }
             return;
         }
@@ -1196,7 +1195,7 @@ public final class IdentityProgression {
         for (IdentityUnlockSyncEntry entry : entries) {
             int entryBytes = unlockEntryBytes(entry);
             if (!current.isEmpty() && packetBytes + entryBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
-                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(entityId, packetReplaceAll, List.copyOf(current)));
                 current.clear();
                 packetBytes = packetOverheadBytes(false);
                 packetReplaceAll = false;
@@ -1204,7 +1203,7 @@ public final class IdentityProgression {
             current.add(entry);
             packetBytes += entryBytes;
             if (packetBytes > MAX_UNLOCK_SYNC_PACKET_BYTES) {
-                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+                NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(entityId, packetReplaceAll, List.copyOf(current)));
                 current.clear();
                 packetBytes = packetOverheadBytes(false);
                 packetReplaceAll = false;
@@ -1212,7 +1211,7 @@ public final class IdentityProgression {
         }
 
         if (!current.isEmpty()) {
-            NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(player.getId(), packetReplaceAll, List.copyOf(current)));
+            NetworkManager.sendToPlayer(player, new IdentityUnlockSyncS2CPacketPayload(entityId, packetReplaceAll, List.copyOf(current)));
         }
     }
 
@@ -1835,6 +1834,10 @@ public final class IdentityProgression {
         if (dynamicVariant != null && !dynamicVariant.isEmpty()) {
             variant.merge(dynamicVariant);
         }
+        CompoundTag vanillaVariant = IdentityVanillaVariantHelper.extractVariantData(entity);
+        if (vanillaVariant != null && !vanillaVariant.isEmpty()) {
+            variant.merge(vanillaVariant);
+        }
         try {
             CompoundTag full = EntityNbtIoCompat.saveWithoutId(entity);
             copyVariantKey(full, variant, "Color");
@@ -1934,7 +1937,7 @@ public final class IdentityProgression {
         CompoundTag out = new CompoundTag();
         Boolean babyVariant = root ? resolveBabyVariantFlag(source) : null;
         for (String key : source.getAllKeys()) {
-            if (root && NON_VARIANT_ROOT_KEYS.contains(key)) {
+            if (!isAllowedVariantKey(key, root)) {
                 continue;
             }
             Tag tag = source.get(key);
@@ -1948,6 +1951,9 @@ public final class IdentityProgression {
                 continue;
             }
             if (tag instanceof CompoundTag nested) {
+                if (root && !VARIANT_COMPOUND_KEYS.contains(key)) {
+                    continue;
+                }
                 CompoundTag sanitizedNested = sanitizeVariantNbt(nested, false);
                 if (!sanitizedNested.isEmpty()) {
                     out.put(key, sanitizedNested);
@@ -1960,6 +1966,16 @@ public final class IdentityProgression {
             out.putBoolean("IsBaby", true);
         }
         return out;
+    }
+
+    private static boolean isAllowedVariantKey(String key, boolean root) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        if (root) {
+            return VARIANT_ROOT_KEYS.contains(key);
+        }
+        return true;
     }
 
     @Nullable
@@ -2473,5 +2489,8 @@ public final class IdentityProgression {
     private record UnlockTarget(ResourceLocation identityId, CompoundTag variantNbt) {
     }
 }
+
+
+
 
 

@@ -34,7 +34,7 @@
     "minecraft": "~1.21.1",
     "java": ">=21",
     "architectury": ">=13.0.8",
-    "gaboulibs": ">=1.4",
+    "gaboulibs": ">=1.9",
     "fabric-api": "*"
   },
   "suggests": {

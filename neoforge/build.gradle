@@ -1,6 +1,6 @@
 plugins {
     id 'com.github.johnrengelman.shadow'
-    id 'com.matthewprenger.cursegradle' version '1.4.0' // CurseForge uploader
+    id 'com.hypherionmc.modutils.modpublisher'
     id "com.modrinth.minotaur" version "2.8.10" // Modrinth uploader
 }
 
@@ -45,7 +45,7 @@ dependencies {
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
-    modImplementation "curse.maven:gabous-libs-1367332:7195722"
+    modImplementation "curse.maven:gabous-libs-1367332:8774265"
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }
@@ -73,8 +73,8 @@ if (modrinthToken) {
     modrinth {
         token = modrinthToken
         projectId = "u8V1OwVf" // from your Modrinth project URL
-        versionNumber = "NeoForge-${project.version}"
-        versionName = "Identity ${mod_version}"
+        versionNumber = "NeoForge-${project.version}-1.21.1"
+        versionName = "Identity ${mod_version} for 1.21.1"
         changelog = rootProject.file("docs/public/IdentityChangeLog.md").text
         gameVersions = ["1.21.1"]
         loaders = ["neoforge"]
@@ -95,25 +95,32 @@ if (modrinthToken) {
 }
 
 if (curseforgeToken) {
-    curseforge {
-        apiKey = curseforgeToken
-
-        project {
-            id = "1238155"
-            changelog = rootProject.file("docs/public/IdentityChangeLog.md")
-            releaseType = "release" // options: alpha, beta, release
-            addGameVersion "1.21.1"
-            addGameVersion "NeoForge"
-            mainArtifact(file("build/libs/${archivesBaseName}-${version}.jar")) {
-                displayName = "NeoForge-${version}"
-            }
+    publisher {
+        apiKeys {
+            curseforge curseforgeToken
         }
+        setCurseID("1238155")
+        setVersionType("release")
+        setChangelog(rootProject.file("docs/public/IdentityChangeLog.md"))
+        setDisplayName("NeoForge-${project.version}-1.21.1")
+        setGameVersions("1.21.1")
+        setLoaders("neoforge")
+        setCurseEnvironment("both")
+        getJavaVersions().set([JavaVersion.VERSION_21])
+        setArtifact(tasks.named("remapJar"))
     }
 } else {
-    logger.lifecycle("Skipping CurseForge config for ${project.path}: CURSEFORGE_TOKEN is not set.")
-    tasks.configureEach {
-        if (name.toLowerCase().contains("curseforge")) {
-            enabled = false
-        }
-    }
+    logger.lifecycle("CURSEFORGE_TOKEN not set; CurseForge upload tasks will be disabled for ${project.path}.")
+    tasks.named("publishCurseforge").configure { enabled = false }
+}
+
+tasks.named("publishCurseforge").configure {
+    dependsOn(tasks.named("build"))
+}
+
+tasks.register("curseforge1238155") {
+    group = "publishing"
+    description = "Publishes the NeoForge release to CurseForge project 1238155."
+    dependsOn(tasks.named("publishCurseforge"))
+    enabled = curseforgeToken != null && !curseforgeToken.isEmpty()
 }

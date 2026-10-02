@@ -4,6 +4,7 @@ import java.util.List;
 
 import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -1092,6 +1093,7 @@ public class EntityMixin implements EntityAccessor{
             return;
         }
         IdentityVariantNbtHelper.applyVariantData(identityEntity, variantNbt);
+        IdentityVanillaVariantHelper.applyVariantData(identityEntity, variantNbt);
 
         boolean hasBabyFlag = variantNbt.contains("IsBaby", net.minecraft.nbt.Tag.TAG_BYTE) || variantNbt.contains("Baby", net.minecraft.nbt.Tag.TAG_BYTE);
         if (hasBabyFlag) {
@@ -1984,6 +1986,8 @@ private void setCustomNameVisibleIdentity(boolean visible, CallbackInfo info){
 }
 //Tons of Redirects - End
 }
+
+
 
 
 

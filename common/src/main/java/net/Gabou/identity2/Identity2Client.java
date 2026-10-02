@@ -10,9 +10,6 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.Gabou.identity2.client.transition.MorphAcquisitionEffectController;
 import net.Gabou.identity2.client.transition.MorphTransitionHelper;
-import net.Gabou.identity2.auth.ClientAuth;
-import net.Gabou.identity2.auth.ClientLauncherGuards;
-import net.Gabou.identity2.auth.S2CChallengePacket;
 import net.Gabou.identity2.client.platform.ModClientPlatform;
 import net.Gabou.identity2.client.screen.IdentitySelectionScreen;
 import net.Gabou.identity2.identity.IdentityProgression;
@@ -139,6 +136,7 @@ public final class Identity2Client {
     private static final ArrayList<CustomEntityStringDataS2CPacketPayload> pendingStringDataPackets = new ArrayList<>(
             0);
     private static final ArrayList<CustomEntityBoolDataS2CPacketPayload> pendingBoolDataPackets = new ArrayList<>(0);
+    private static final ArrayList<IdentityUnlockSyncS2CPacketPayload> pendingUnlockSyncPackets = new ArrayList<>(0);
     private static final ArrayList<UnlockedIdentitySyncS2CPacketPayload> pendingUnlockedIdentityPackets = new ArrayList<>(0);
     private static final String[] favoriteIdentityIds = new String[] { "", "", "" };
     private static final String[] favoriteVariantNbt = new String[] { "", "", "" };
@@ -202,7 +200,6 @@ public final class Identity2Client {
             return;
         }
 
-        ClientLauncherGuards.enforce();
         platform = platformImpl;
         initialized = true;
 
@@ -237,6 +234,11 @@ public final class Identity2Client {
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateCustomData(payload)));
         NetworkManager.registerReceiver(
                 NetworkManager.s2c(),
+                IdentityUnlockSyncS2CPacketPayload.ID,
+                IdentityUnlockSyncS2CPacketPayload.CODEC,
+                (payload, context) -> context.queue(() -> INSTANCE.onUpdateUnlockedIdentities(payload)));
+        NetworkManager.registerReceiver(
+                NetworkManager.s2c(),
                 UnlockedIdentitySyncS2CPacketPayload.ID,
                 UnlockedIdentitySyncS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> INSTANCE.onUpdateUnlockedIdentities(payload)));
@@ -260,12 +262,6 @@ public final class Identity2Client {
                 ProgressionJarStateS2CPacketPayload.ID,
                 ProgressionJarStateS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                S2CChallengePacket.ID,
-                S2CChallengePacket.CODEC,
-                (payload, context) -> context.queue(() -> ClientAuth.handleChallenge(payload)));
-
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
     }
@@ -487,6 +483,18 @@ public final class Identity2Client {
         }
     }
 
+    private void onUpdateUnlockedIdentities(IdentityUnlockSyncS2CPacketPayload packet) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+            return;
+        }
+
+        if (!tryApplyUnlockSync(client, packet)) {
+            enqueuePendingPacket(pendingUnlockSyncPackets, packet);
+        }
+    }
+
     private static void processPendingCustomDataPackets(Minecraft client) {
         if (client.level == null) {
             return;
@@ -494,6 +502,7 @@ public final class Identity2Client {
 
         if (pendingDoubleDataPackets.isEmpty() && pendingStringDataPackets.isEmpty()
                 && pendingBoolDataPackets.isEmpty()
+                && pendingUnlockSyncPackets.isEmpty()
                 && pendingUnlockedIdentityPackets.isEmpty()) {
             pendingPacketProcessTicks = 0;
             return;
@@ -503,6 +512,7 @@ public final class Identity2Client {
         processPendingDoublePackets(client);
         processPendingStringPackets(client);
         processPendingBoolPackets(client);
+        processPendingUnlockSyncPackets(client);
         processPendingUnlockedIdentityPackets(client);
 
         // Avoid an unbounded per-tick scan if some queued packets can never resolve.
@@ -510,6 +520,7 @@ public final class Identity2Client {
             pendingDoubleDataPackets.clear();
             pendingStringDataPackets.clear();
             pendingBoolDataPackets.clear();
+            pendingUnlockSyncPackets.clear();
             pendingUnlockedIdentityPackets.clear();
             pendingPacketProcessTicks = 0;
         }
@@ -556,6 +567,18 @@ public final class Identity2Client {
         for (int i = 0; i < max;) {
             if (INSTANCE.tryApplyUnlockedIdentities(client, pendingUnlockedIdentityPackets.get(i))) {
                 pendingUnlockedIdentityPackets.remove(i);
+                max--;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private static void processPendingUnlockSyncPackets(Minecraft client) {
+        int max = Math.min(MAX_PENDING_PACKET_PROCESS_PER_TICK, pendingUnlockSyncPackets.size());
+        for (int i = 0; i < max;) {
+            if (INSTANCE.tryApplyUnlockSync(client, pendingUnlockSyncPackets.get(i))) {
+                pendingUnlockSyncPackets.remove(i);
                 max--;
             } else {
                 i++;
@@ -661,6 +684,50 @@ public final class Identity2Client {
         return true;
     }
 
+    private boolean tryApplyUnlockSync(Minecraft client, IdentityUnlockSyncS2CPacketPayload packet) {
+        Entity entity = resolvePacketTarget(client, packet.entityid());
+        if (entity == null) {
+            return false;
+        }
+
+        CustomData customData = ((EntityAccessor) entity).getCustomData();
+        CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
+        java.util.LinkedHashSet<String> unlocked = new java.util.LinkedHashSet<>();
+        Map<String, java.util.List<String>> variants = new LinkedHashMap<>();
+        if (!packet.replaceAll()) {
+            for (String identityId : IdentityProgression.readUnlockedIdentityIdSet(nbt)) {
+                unlocked.add(identityId);
+            }
+            for (Map.Entry<String, Set<String>> entry : IdentityProgression.readUnlockedIdentityVariantTokenSet(nbt).entrySet()) {
+                variants.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+            }
+        }
+
+        for (IdentityUnlockSyncEntry entry : packet.entries()) {
+            if (entry == null || entry.identityId() == null) {
+                continue;
+            }
+            String identityId = entry.identityId().toString();
+            unlocked.add(identityId);
+            java.util.List<String> tokens = entry.variantTokens() == null ? java.util.List.of() : entry.variantTokens();
+            if (entry.replaceTokens()) {
+                if (tokens.isEmpty()) {
+                    variants.remove(identityId);
+                } else {
+                    variants.put(identityId, new ArrayList<>(tokens));
+                }
+                continue;
+            }
+            if (!tokens.isEmpty()) {
+                java.util.List<String> existing = variants.computeIfAbsent(identityId, ignored -> new ArrayList<>());
+                existing.addAll(tokens);
+            }
+        }
+
+        IdentityProgression.storeUnlockedIdentityData(nbt, new ArrayList<>(unlocked), variants);
+        return true;
+    }
+
     private static Entity resolvePacketTarget(Minecraft client, int entityId) {
         if (client.level != null) {
             Entity entity = client.level.getEntity(entityId);
@@ -714,10 +781,6 @@ public final class Identity2Client {
             return Set.of();
         }
         return Set.copyOf(tokens);
-    }
-
-    private static void processPendingUnlockSyncPackets(Minecraft client) {
-        processPendingCustomDataPackets(client);
     }
 
     private static int resolvePrimaryCooldown(Entity identity, IdentityAbilityDefinition identityAbility) {

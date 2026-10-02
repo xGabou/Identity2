@@ -11,6 +11,7 @@ import net.Gabou.identity2.api.IdentityApi;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.IdentityVariant;
 import net.Gabou.identity2.identity.IdentityVariantNbtHelper;
+import net.Gabou.identity2.identity.IdentityVanillaVariantHelper;
 import net.Gabou.identity2.util.NbtCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
@@ -162,15 +163,8 @@ public final class IdentityVariantDiscovery {
                 }
                 return new ArrayList<>(out.values());
             }
-            List<IdentityVariant> known = discoverKnownVariants(type, typeId);
+            List<IdentityVariant> known = discoverKnownVariants(type, typeId, world);
             for (IdentityVariant variant : known) {
-                addVariant(out, variant);
-            }
-            for (IdentityVariant variant : discoverDataDrivenRegistryVariants(type, typeId, world)) {
-                addVariant(out, variant);
-            }
-
-            for (IdentityVariant variant : discoverReflectiveVariants(type, typeId, world)) {
                 addVariant(out, variant);
             }
             for (IdentityVariant variant : discoverSampledVariants(type, typeId, world)) {
@@ -235,7 +229,23 @@ public final class IdentityVariantDiscovery {
         }
     }
 
-    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId) {
+    private static List<IdentityVariant> discoverKnownVariants(EntityType<?> type, ResourceLocation typeId, ClientLevel world) {
+        List<IdentityVariant> vanilla = new ArrayList<>(IdentityVanillaVariantHelper.discoverVariants(type, world));
+        if (!vanilla.isEmpty()) {
+            if (type == EntityType.MOOSHROOM) {
+                CompoundTag brown = new CompoundTag();
+                brown.putString("Type", "brown");
+                brown.putString("MushroomType", "brown");
+                vanilla.add(new IdentityVariant(typeId, "Brown Mooshroom", brown));
+            }
+            if (type == EntityType.PANDA) {
+                CompoundTag brown = new CompoundTag();
+                brown.putString("MainGene", "brown");
+                brown.putString("HiddenGene", "brown");
+                vanilla.add(new IdentityVariant(typeId, "Brown Panda", brown));
+            }
+            return vanilla;
+        }
 //        if (type == EntityType.SHEEP) {
 //            List<IdentityVariant> variants = new ArrayList<>(16);
 //            for (int i = 0; i < 16; i++) {
@@ -1621,3 +1631,5 @@ public final class IdentityVariantDiscovery {
         return out.toString();
     }
 }
+
+

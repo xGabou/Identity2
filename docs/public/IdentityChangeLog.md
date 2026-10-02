@@ -1,4 +1,17 @@
 # Identity2 Public Changelog
+---
+## Release 2.2.4.1
+- Fixed a dedicated-server crash during identity unlock resolution after an entity death.
+- Removed the client-only ClientLevel reference from shared variant extraction code.
+---
+## 2.2.4
+
+- Removed all authentication configs and legacy auth-code remnants.
+
+---
+## 2.2.3
+
+- Removed the legacy auth and launcher-detection implementation.
 
 ---
 ## 2026-04-29
