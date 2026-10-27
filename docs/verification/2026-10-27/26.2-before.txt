@@ -1,0 +1,10 @@
+[IDENTITY-AUDIT] before FAIL death-rule-none | configured=NONE, commandFeedback=false, effective=WIPE_ALL
+[IDENTITY-AUDIT] before FAIL health-with-external-modifiers | desired=10.0, actual=25.0
+[IDENTITY-AUDIT] before FAIL selected-variant-health | selected-morph maxHealth=37, player=10.0
+[IDENTITY-AUDIT] before FAIL single-held-item-melee | damage events=2, targetHealth=75.5
+[IDENTITY-AUDIT] before FAIL own-morph-damage | invulnerable to owned proxy=false
+[IDENTITY-AUDIT] before FAIL warden-search-keeps-position | search moved player by 5.0 blocks
+[IDENTITY-AUDIT] before FAIL crouching-eye-height | morph eye=0.6439999938011169, cached player eye=1.2699999809265137
+[IDENTITY-AUDIT] before PASS large-single-identity-unlock | production entries=2, variants=1000, largestBytes=23959, budget=24000
+[IDENTITY-AUDIT] before FAIL flight-maintenance | mayfly=false, flying=false
+[IDENTITY-AUDIT] COMPLETE phase=before checks=9 failures=8

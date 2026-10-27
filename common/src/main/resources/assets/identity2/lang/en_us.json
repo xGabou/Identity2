@@ -1,4 +1,4 @@
-﻿{
+{
   "category.identity2.test": "Identity 2",
   "key.identity2.primary_ability": "Primary Ability",
   "key.identity2.secondary_ability": "Secondary Ability",
@@ -10,10 +10,5 @@
   "key.identity2.favorite_save_2": "Save Favorite 2",
   "key.identity2.favorite_save_3": "Save Favorite 3",
   "item.identity2.identity_book": "Identity Book",
-  "item.identity2.mud_jar": "Mud Soul Jar",
-  "item.identity2.glass_jar": "Glass Soul Jar",
-  "item.identity2.reinforced_jar": "Reinforced Soul Jar",
-  "item.identity2.endgame_jar": "Endgame Soul Jar",
-  "item.identity2.soul_catalyst": "Soul Catalyst",
   "itemGroup.identity2": "Identity 2"
 }

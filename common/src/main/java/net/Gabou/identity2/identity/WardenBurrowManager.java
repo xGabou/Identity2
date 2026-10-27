@@ -69,17 +69,19 @@ public final class WardenBurrowManager {
             anchor = player.position();
         }
 
+        Vec3 exitPos = safeExit ? findSafeExitPosition(player, anchor) : null;
+        if (safeExit && exitPos == null) {
+            return false;
+        }
+
         IdentityApi.syncBoolean(player, HIDDEN_KEY, false);
         clearAnchor(player);
         player.noPhysics = true;
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
 
-        if (safeExit) {
-            Vec3 exitPos = findSafeExitPosition(player, anchor);
-            if (exitPos != null) {
-                player.teleportTo(exitPos.x, exitPos.y, exitPos.z);
-            }
+        if (exitPos != null) {
+            player.teleportTo(exitPos.x, exitPos.y, exitPos.z);
         }
 
         player.noPhysics = false;
@@ -213,22 +215,22 @@ public final class WardenBurrowManager {
             }
         }
 
-        return anchor;
+        return null;
     }
 
     private static boolean isColliding(ServerPlayer player, Vec3 candidate) {
         if (player == null || candidate == null) {
             return false;
         }
-        player.setPos(candidate.x, candidate.y, candidate.z);
-        return !player.level().noCollision(player, player.getBoundingBox());
+        Vec3 offset = candidate.subtract(player.position());
+        return !player.level().noCollision(player, player.getBoundingBox().move(offset));
     }
 
     private static boolean isSafe(ServerPlayer player, Vec3 candidate) {
         if (player == null || candidate == null) {
             return false;
         }
-        player.setPos(candidate.x, candidate.y, candidate.z);
-        return player.level().noCollision(player, player.getBoundingBox());
+        Vec3 offset = candidate.subtract(player.position());
+        return player.level().noCollision(player, player.getBoundingBox().move(offset));
     }
 }

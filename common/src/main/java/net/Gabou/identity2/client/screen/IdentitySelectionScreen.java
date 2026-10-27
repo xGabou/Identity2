@@ -3,7 +3,6 @@ package net.Gabou.identity2.client.screen;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -154,7 +153,7 @@ public final class IdentitySelectionScreen extends Screen {
         }
 
         int footerButtonGap = 8;
-        int footerButtonWidth = (this.panelWidth - 24 - footerButtonGap * 2) / 3;
+        int footerButtonWidth = (this.panelWidth - 24 - footerButtonGap) / 2;
         this.addRenderableWidget(
             Button.builder(Component.literal("Return to Original"), button -> {
                 Identity2Client.sendMorphRequest("");
@@ -162,13 +161,8 @@ public final class IdentitySelectionScreen extends Screen {
             }).bounds(searchLeft, footerY, footerButtonWidth, 20).build()
         );
         this.addRenderableWidget(
-            Button.builder(Component.literal("Progression"), button -> Minecraft.getInstance().gui.setScreen(new IdentityProgressionScreen()))
-                .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
-                .build()
-        );
-        this.addRenderableWidget(
             Button.builder(Component.literal("Close"), button -> this.onClose())
-                .bounds(searchLeft + (footerButtonWidth + footerButtonGap) * 2, footerY, footerButtonWidth, 20)
+                .bounds(searchLeft + footerButtonWidth + footerButtonGap, footerY, footerButtonWidth, 20)
                 .build()
         );
 

@@ -383,6 +383,10 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
             }
 
             Entity activeIdentity = ((EntityAccessor) player).getCurrentIdentity();
+            if (identity2$isOwnIdentityDamage(player, activeIdentity, source)) {
+                info.setReturnValue(true);
+                return;
+            }
 
             if (
                     activeIdentity != null
@@ -439,6 +443,20 @@ private void getPlayerHitTimerIdentity(CallbackInfoReturnable info){
                 info.setReturnValue(livingIdentity.isInvulnerableTo(world, source));
             }
         }
+    }
+
+    @Unique
+    private static boolean identity2$isOwnIdentityDamage(Player player, Entity identity, DamageSource source) {
+        if (identity == null || source == null) {
+            return false;
+        }
+        return identity2$isOwnedDamageEntity(player, identity, source.getEntity())
+                || identity2$isOwnedDamageEntity(player, identity, source.getDirectEntity());
+    }
+
+    @Unique
+    private static boolean identity2$isOwnedDamageEntity(Player player, Entity identity, Entity attacker) {
+        return attacker != null && (attacker == identity || ((EntityAccessor) attacker).getIdentityOwner() == player);
     }
 
     @Unique

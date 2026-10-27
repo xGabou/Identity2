@@ -1,10 +1,3 @@
-# Identity 2.0 – Art Asset Item List
+# Identity2 Art Assets
 
-## Soul Jar Tiers
-- Mud Jar
-- Glass Jar
-- Reinforced Jar
-- Endgame Jar
-
-## Absorption / Ritual Item
-- Soul Catalyst (absorption item)
+- Identity Book (uses the vanilla book texture).

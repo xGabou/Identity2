@@ -1,4 +1,4 @@
-﻿{
+{
   "category.identity2.test": "Identity 2",
   "key.identity2.primary_ability": "メイン能力",
   "key.identity2.secondary_ability": "サブ能力",
@@ -10,10 +10,5 @@
   "key.identity2.favorite_save_2": "お気に入り保存 2",
   "key.identity2.favorite_save_3": "お気に入り保存 3",
   "item.identity2.identity_book": "Identityの本",
-  "item.identity2.mud_jar": "泥の魂の壺",
-  "item.identity2.glass_jar": "ガラスの魂の壺",
-  "item.identity2.reinforced_jar": "強化された魂の壺",
-  "item.identity2.endgame_jar": "最終段階の魂の壺",
-  "item.identity2.soul_catalyst": "魂の触媒",
   "itemGroup.identity2": "Identity 2"
 }

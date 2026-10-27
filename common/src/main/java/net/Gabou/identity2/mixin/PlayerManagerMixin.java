@@ -8,8 +8,6 @@ import net.Gabou.identity2.Identity2;
 import net.Gabou.identity2.IdentitySettings;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.identity.WardenBurrowManager;
-import net.Gabou.identity2.progression.MorphChargeManager;
-import net.Gabou.identity2.progression.ProgressionConfig;
 import net.Gabou.identity2.packets.CustomEntityBoolDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacket;
 import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
@@ -182,7 +180,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
             }
 
             case NONE -> {
-                MorphChargeManager.applyDeathPenalty(respawned);
                 IdentityProgression.restoreMorphFromSavedDataAndSync(respawned);
             }
         }
@@ -206,8 +203,6 @@ public abstract class PlayerManagerMixin implements PlayerManagerAccessor {
     private static void identity2$syncUnlockedIdentities(ServerPlayer player) {
         IdentityProgression.syncUnlockedIdentities(player);
     }
-
-
 
     @Unique
     @Override

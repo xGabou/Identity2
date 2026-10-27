@@ -19,10 +19,6 @@ public final class IdentityConfigManager {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = Platform.getConfigFolder().resolve(Identity2.MOD_ID + ".json");
     private static final Set<String> HIDDEN_KEYS = Set.of(
-        "EnableMorphCharges",
-        "EnableSoulJars",
-        "EnablePermanentJarMorphs",
-        "EnableSoulAbsorption",
         "disableMorphLossOnDeath"
     );
     private static boolean initialized = false;
@@ -141,18 +137,6 @@ public final class IdentityConfigManager {
         if (root == null) {
             return;
         }
-        if (!root.has("enableMorphChargeSystem") && root.has("EnableMorphCharges")) {
-            root.add("enableMorphChargeSystem", root.get("EnableMorphCharges"));
-        }
-        if (!root.has("enableSoulJarSystem") && root.has("EnableSoulJars")) {
-            root.add("enableSoulJarSystem", root.get("EnableSoulJars"));
-        }
-        if (!root.has("enablePermanentMorphs") && root.has("EnablePermanentJarMorphs")) {
-            root.add("enablePermanentMorphs", root.get("EnablePermanentJarMorphs"));
-        }
-        if (!root.has("enableSoulAbsorption") && root.has("EnableSoulAbsorption")) {
-            root.add("enableSoulAbsorption", root.get("EnableSoulAbsorption"));
-        }
         if (root.has("disableMorphLossOnDeath") && !root.has("deathMorphRule")) {
             JsonElement legacy = root.get("disableMorphLossOnDeath");
             if (legacy != null && legacy.isJsonPrimitive()) {
@@ -163,12 +147,8 @@ public final class IdentityConfigManager {
     }
 
     private static void identity2$normalizeSettings() {
-        IdentitySettings.EnableMorphCharges = IdentitySettings.enableMorphChargeSystem;
-        IdentitySettings.EnableSoulJars = IdentitySettings.enableSoulJarSystem;
-        IdentitySettings.EnablePermanentJarMorphs = IdentitySettings.enablePermanentMorphs;
-        IdentitySettings.EnableSoulAbsorption = IdentitySettings.enableSoulAbsorption;
         if (IdentitySettings.deathMorphRule == null) {
-            IdentitySettings.deathMorphRule = IdentitySettings.DeathMorphRule.WIPE_ALL;
+            IdentitySettings.deathMorphRule = IdentitySettings.DeathMorphRule.NONE;
         }
     }
 

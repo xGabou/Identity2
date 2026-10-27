@@ -1,7 +1,6 @@
 package net.Gabou.identity2;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.gamerules.GameRules;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -20,27 +19,11 @@ public class IdentitySettings {
         WIPE_ALL
     }
 
-    public static DeathMorphRule deathMorphRule = DeathMorphRule.WIPE_ALL;
+    public static DeathMorphRule deathMorphRule = DeathMorphRule.NONE;
 
     public static IdentitySettings.DeathMorphRule getEffectiveDeathMorphRule(@Nullable MinecraftServer server) {
-        IdentitySettings.DeathMorphRule rule = IdentitySettings.deathMorphRule;
-
-        if (rule != IdentitySettings.DeathMorphRule.NONE) {
-            return rule;
-        }
-
-        if (allowDisableMorphLossOnDeathWithoutCheats) {
-            return IdentitySettings.DeathMorphRule.NONE;
-        }
-
-        boolean cheatsEnabled = server != null && server.getGameRules().get(GameRules.SEND_COMMAND_FEEDBACK);
-        // This gamerule is not actually "cheats enabled". If you already have a real "are cheats enabled" check in your project, use that instead.
-
-        if (cheatsEnabled) {
-            return IdentitySettings.DeathMorphRule.NONE;
-        }
-
-        return IdentitySettings.DeathMorphRule.WIPE_ALL;
+        DeathMorphRule rule = IdentitySettings.deathMorphRule;
+        return rule == null ? DeathMorphRule.NONE : rule;
     }
 
     //@Comment(value = "If true, disableMorphLossOnDeath can be used even when cheats are disabled.")
@@ -100,15 +83,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If set to false, only operators can switch identities. Used on the server; guaranteed to be authoritative.")
     public static boolean enableSwaps = true;
-    //@Comment(value = "If true, players with an offline UUID v3 are rejected during login.")
-    public final static boolean authStrictOfflineUuidReject = true;
-
-    //@Comment(value = "If true, players who fail the auth challenge are kicked instead of being banned/left in a suspicious state.")
-    public final static boolean authKickOnFailure = true;
-
-    //@Comment(value = "How many ticks the auth challenge may remain pending before the player is treated as failed.")
-    public final static int authChallengeTimeoutTicks = 200;
-
     //@Comment(value = "If true, players can use /identity_villager trade myself to trade with their own villager identity.")
     public static boolean canTradeWithHimSelf = false;
 
@@ -163,100 +137,6 @@ public class IdentitySettings {
 
     //@Comment(value = "If true, /identity morph only works for unlocked identities unless you are an operator.")
     public static boolean requireUnlockedIdentityForMorph = true;
-
-    //@Comment(value = "If true, morphing consumes charges and morph kills grant charges.")
-    public static boolean enableMorphChargeSystem = true;
-    //@Comment(value = "Identity 2.0 alias for enableMorphChargeSystem.")
-    public static boolean EnableMorphCharges = true;
-
-    //@Comment(value = "Default number of charges gained per qualifying kill.")
-    public static int defaultChargeGainPerKill = 1;
-
-    //@Comment(value = "Charge cost paid when selecting a morph.")
-    public static int defaultMorphUseChargeCost = 1;
-
-    //@Comment(value = "If true, morphing does not require charges. Charges can still be used for death penalties and jar storage.")
-    public static boolean dontRequireChargeForMorphing = true;
-
-    //@Comment(value = "If true, creative players bypass morph charge checks and penalties.")
-    public static boolean bypassMorphChargesForCreativePlayers = true;
-
-    //@Comment(value = "If true, operators bypass morph charge checks and penalties.")
-    public static boolean bypassMorphChargesForOperators = true;
-
-    //@Comment(value = "If true, dying while morphed removes charges from the active morph.")
-    public static boolean removeMorphChargeOnDeath = true;
-
-    //@Comment(value = "How many charges are removed on death when removeMorphChargeOnDeath is true.")
-    public static int morphDeathChargePenalty = 1;
-
-    //@Comment(value = "Per-identity charge gain overrides in the format 'namespace:entity=value'.")
-    public static List<String> chargeGainByIdentity = new ArrayList<>();
-
-    //@Comment(value = "Per-identity charge cost overrides in the format 'namespace:entity=value'.")
-    public static List<String> chargeCostByIdentity = new ArrayList<>();
-
-    //@Comment(value = "Per-identity death charge penalty overrides in the format 'namespace:entity=value'.")
-    public static List<String> chargeDeathPenaltyByIdentity = new ArrayList<>();
-
-    //@Comment(value = "If true, soul jar storage/protection is enabled.")
-    public static boolean enableSoulJarSystem = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulJarSystem.")
-    public static boolean EnableSoulJars = false;
-
-    //@Comment(value = "Per-tier soul jar capacities in the format 'tier=value'.")
-    public static List<String> soulJarTierCapacities = new ArrayList<>(
-        List.of("mud=5", "glass=10", "reinforced=15", "true_soul=24")
-    );
-
-    //@Comment(value = "Per-tier soul jar item mapping in the format 'tier=namespace:item'.")
-    public static List<String> soulJarTierItems = new ArrayList<>(
-        List.of(
-            "mud=identity2:mud_jar",
-            "glass=identity2:glass_jar",
-            "reinforced=identity2:reinforced_jar",
-            "true_soul=identity2:endgame_jar"
-        )
-    );
-
-    //@Comment(value = "Optional per-tier recipe id mapping in the format 'tier=namespace:recipe'.")
-    public static List<String> soulJarTierRecipes = new ArrayList<>();
-
-    //@Comment(value = "Tier key used for the endgame true soul jar.")
-    public static String trueSoulJarTier = "true_soul";
-
-    //@Comment(value = "If true, morphs stored in true soul jars are treated as permanent.")
-    public static boolean trueSoulJarGrantsPermanent = true;
-
-    //@Comment(value = "If true, morphs stored in true soul jars ignore charge death penalties.")
-    public static boolean trueSoulJarPreventsDeathPenalty = true;
-
-    //@Comment(value = "If true, soul jars can randomly drop into the world on mob death.")
-    public static boolean enableRandomSoulJarWorldDrops = true;
-
-    //@Comment(value = "Chance per non-player mob death to drop a random soul jar. Range: 0.0 to 1.0.")
-    public static double soulJarWorldDropChance = 0.005D;
-
-    //@Comment(value = "Weighted random jar tiers for world drops in the format 'tier=weight'.")
-    public static List<String> soulJarWorldDropTierWeights = new ArrayList<>(
-        List.of("mud=85", "glass=12", "reinforced=3", "true_soul=1")
-    );
-
-    //@Comment(value = "If true, stored morphs can become permanent by kill dedication.")
-    public static boolean enablePermanentMorphs = false;
-    //@Comment(value = "Identity 2.0 alias for enablePermanentMorphs.")
-    public static boolean EnablePermanentJarMorphs = false;
-
-    //@Comment(value = "Default kills required to permanently bind a stored morph.")
-    public static int defaultPermanentKillRequirement = 250;
-
-    //@Comment(value = "Per-identity permanent requirement overrides in the format 'namespace:entity=value'.")
-    public static List<String> permanentKillRequirementByIdentity = new ArrayList<>();
-
-    //@Comment(value = "If true, players can absorb permanent morphs for account-bound permanence.")
-    public static boolean enableSoulAbsorption = false;
-    //@Comment(value = "Identity 2.0 alias for enableSoulAbsorption.")
-    public static boolean EnableSoulAbsorption = false;
 
     //@Comment(value = "Elder Guardian active ability radius in blocks.")
     public static double elderGuardianMiningFatigueRadius = 50.0D;

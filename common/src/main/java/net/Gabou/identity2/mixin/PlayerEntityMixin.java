@@ -41,6 +41,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
 import net.Gabou.identity2.ModComponents;
 import net.Gabou.identity2.Identity2;
+import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EntityAccessor;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -93,35 +94,25 @@ public class PlayerEntityMixin extends LivingEntityMixin {
         }
     }
 
-    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
+    @Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
     private void attackAlsoAsIdentity(Entity target, CallbackInfo ci) {
         Player player = (Player) (Object) this;
-
-        if (!(player.level() instanceof ServerLevel level)) return;
-
-        Entity identity = getCurrentIdentity();
-        if (identity == null) return;
-        if (identity instanceof LivingEntity livingIdentity) {
-            if (!identity2$hasAttackDamageAttribute(livingIdentity)) {
-                return;
-            }
-
-            // Optional guard so it only triggers when the player actually hit something
-            if (target instanceof LivingEntity livingTarget) {
-                if (livingTarget.hurtTime <= 0) return;
-
-                // Optional, makes sure the second hit is not blocked by i frames
-                int oldInvul = livingTarget.invulnerableTime;
-                livingTarget.invulnerableTime = 0;
-
-                livingIdentity.doHurtTarget(level, target);
-
-                livingTarget.invulnerableTime = oldInvul;
-                return;
-            }
-
-            livingIdentity.doHurtTarget(level, target);
+        if (!(player.level() instanceof ServerLevel level) || !player.getMainHandItem().isEmpty()
+                || player.isSpectator() || !player.isAlive()) {
+            return;
         }
+        Entity identity = getCurrentIdentity();
+        if (!(identity instanceof LivingEntity livingIdentity) || !identity2$hasAttackDamageAttribute(livingIdentity)) {
+            return;
+        }
+        // Use one attack path. Held weapons retain vanilla damage and enchantments.
+        livingIdentity.setPos(player.position());
+        livingIdentity.setDeltaMovement(player.getDeltaMovement());
+        if (livingIdentity.doHurtTarget(level, target)) {
+            PredefIdentityAbilities.triggerMorphAttackAnimation(player, 10);
+            player.resetAttackStrengthTicker();
+        }
+        ci.cancel();
     }
 
     @org.spongepowered.asm.mixin.Unique

@@ -43,7 +43,7 @@ dependencies {
     include(implementation('me.lucko:fabric-permissions-api:0.6.1'))
 
     implementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
-    implementation "curse.maven:gabous-libs-1367332:8438441"
+    implementation "curse.maven:gabous-libs-1367332:8774268"
 
     common(project(path: ':common')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

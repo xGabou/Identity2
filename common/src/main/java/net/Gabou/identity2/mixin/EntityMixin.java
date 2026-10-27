@@ -398,6 +398,8 @@ public class EntityMixin implements EntityAccessor {
             }
 
             if (hostIsPlayer && (Entity) (Object) this instanceof Player playerHost) {
+                // Cached flight detection must still repair grants reset by vanilla or other mods.
+                applyIdentityFlightGrant(playerHost, ((EntityAccessor) this.currentIdentity).canFly());
                 identity2$applyMorphSpecificPlayerTraits(playerHost);
             }
 
@@ -2105,6 +2107,21 @@ private void getEyeHeightIdentity(EntityPose pose, CallbackInfoReturnable info){
         this.saving = false;
     }
 
+
+    @Inject(method = "refreshDimensions", at = @At("TAIL"))
+    private void identity2$restoreMorphEyeHeightAfterRefresh(CallbackInfo info) {
+        if (this.currentIdentity != null) {
+            this.eyeHeight = this.currentIdentity.getEyeHeight();
+        }
+    }
+
+    @Inject(method = "getEyeHeight(Lnet/minecraft/world/entity/Pose;)F", at = @At("HEAD"), cancellable = true)
+    private void identity2$getPoseEyeHeightIdentity(net.minecraft.world.entity.Pose pose, CallbackInfoReturnable<Float> info) {
+        if (this.currentIdentity != null) {
+            info.setReturnValue(pose == net.minecraft.world.entity.Pose.STANDING || pose == net.minecraft.world.entity.Pose.CROUCHING
+                    ? this.currentIdentity.getEyeHeight() : this.currentIdentity.getEyeHeight(pose));
+        }
+    }
 
     @Inject(method = "getEyeHeight()F", at = @At("HEAD"), cancellable = true)
     private void getStandingEyeHeightIdentity(CallbackInfoReturnable info) {

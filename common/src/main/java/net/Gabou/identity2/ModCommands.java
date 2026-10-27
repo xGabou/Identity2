@@ -2,7 +2,6 @@ package net.Gabou.identity2;
 
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import net.Gabou.identity2.commands.IdentityCommand;
-import net.Gabou.identity2.commands.IdentityProgressionCommand;
 
 public final class ModCommands {
     private static boolean initialized = false;
@@ -18,7 +17,6 @@ public final class ModCommands {
 
         CommandRegistrationEvent.EVENT.register((dispatcher, registryAccess, environment) -> {
             IdentityCommand.register(dispatcher);
-            IdentityProgressionCommand.register(dispatcher);
         });
     }
 }

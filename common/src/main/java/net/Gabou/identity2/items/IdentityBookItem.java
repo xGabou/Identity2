@@ -48,15 +48,7 @@ public final class IdentityBookItem extends Item {
                     + "- Morphs can be configured to require unlocks.\n"
                     + "- Some morphs can fly.\n"
                     + "- Hostile/passive mob reactions depend on config.\n"
-                    + "- Death penalties depend on Soulbound/progression settings."
-            ),
-            page(
-                "Progression Systems\n\n"
-                    + "- Charges (optional)\n"
-                    + "- Soul Jars (optional)\n"
-                    + "- Permanent Jar Morphs (optional)\n"
-                    + "- Soul Absorption (optional endgame)\n\n"
-                    + "See /identity progression ..."
+                    + "- Morphs are kept on death by default."
             ),
             page(
                 "Useful Commands\n\n"
@@ -66,14 +58,6 @@ public final class IdentityBookItem extends Item {
                     + "/identity ability current\n\n"
                     + "Admin:\n"
                     + "/identity config list"
-            ),
-            page(
-                "Progression Commands (Admin)\n\n"
-                    + "/identity progression ui\n"
-                    + "/identity progression charges get <id>\n"
-                    + "/identity progression jar list\n"
-                    + "/identity progression jar create <jar> <tier>\n"
-                    + "/identity progression jar store <jar> <id>"
             )
         );
 

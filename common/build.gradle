@@ -17,5 +17,5 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     implementation "dev.architectury:architectury:$rootProject.architectury_api_version"
-    implementation "curse.maven:gabous-libs-1367332:8438441"
+    implementation "curse.maven:gabous-libs-1367332:8774268"
 }

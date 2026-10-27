@@ -30,12 +30,7 @@ import net.Gabou.identity2.packets.CustomEntityDataS2CPacketPayload;
 import net.Gabou.identity2.packets.CustomEntityStringDataS2CPacketPayload;
 import net.Gabou.identity2.packets.IdentityUnlockSyncEntry;
 import net.Gabou.identity2.packets.IdentityUnlockSyncS2CPacketPayload;
-import net.Gabou.identity2.progression.MorphChargeManager;
-import net.Gabou.identity2.progression.ProgressionConfig;
-import net.Gabou.identity2.progression.SoulAbsorptionManager;
-import net.Gabou.identity2.progression.SoulJarManager;
 import net.Gabou.identity2.packets.MorphAcquisitionS2CPacketPayload;
-import net.Gabou.identity2.mixin.PlayerManagerMixin;
 import net.Gabou.identity2.util.*;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.core.Holder;
@@ -55,7 +50,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.feline.Cat;
@@ -318,9 +312,6 @@ public final class IdentityProgression {
         CustomData customData = ((EntityAccessor) player).getCustomData();
         String value = identityId.toString();
         CompoundTag safeVariant = variantNbt == null ? new CompoundTag() : variantNbt.copy();
-        if (!MorphChargeManager.tryConsumeMorphCharge(player, identityId, safeVariant, true)) {
-            return false;
-        }
         String serializedVariant = serializeVariantNbt(safeVariant);
         CompoundTag nbt = ((NbtComponentAccessor) (Object) customData).getNbt();
         double previousWidth = nbt.getDoubleOr("width_override", 0.0D);
@@ -693,38 +684,9 @@ public final class IdentityProgression {
         }
 
         CompoundTag customData = getCustomData(player);
-        List<String> unlocked = new ArrayList<>(readUnlockedIdentityIds(customData));
-        List<String> retained = new ArrayList<>();
-        Map<String, List<String>> retainedVariants = new HashMap<>();
 
-        if (ProgressionConfig.enableSoulJars()) {
-            for (SoulJarManager.SoulJarData jar : SoulJarManager.getSoulJars(player)) {
-                for (SoulJarManager.StoredMorphData morph : jar.morphs()) {
-                    if (morph.identityId() == null || morph.identityId().isBlank()) {
-                        continue;
-                    }
-                    if (!retained.contains(morph.identityId())) {
-                        retained.add(morph.identityId());
-                    }
-                    retainedVariants.computeIfAbsent(morph.identityId(), ignored -> new ArrayList<>());
-                    List<String> variants = retainedVariants.get(morph.identityId());
-                    if (!variants.contains(morph.variantToken())) {
-                        variants.add(morph.variantToken());
-                    }
-                }
-            }
-        }
-
-        if (ProgressionConfig.enableSoulAbsorption()) {
-            for (String absorbedIdentityId : SoulAbsorptionManager.getAbsorbedIdentityIds(player)) {
-                if (!retained.contains(absorbedIdentityId)) {
-                    retained.add(absorbedIdentityId);
-                }
-            }
-        }
-
-        int removed = Math.max(0, unlocked.size() - retained.size());
-        storeUnlockedIdentityData(customData, retained, retainedVariants);
+        int removed = readUnlockedIdentityIds(customData).size();
+        storeUnlockedIdentityData(customData, List.of(), Map.of());
         customData.store(IDENTITY_KILL_COUNTS_KEY, STRING_INT_MAP_CODEC, Map.of());
         if (removed > 0) {
             Component message = Component.literal("All unlocked identities were removed.");
@@ -741,7 +703,6 @@ public final class IdentityProgression {
         if (killed.level().isClientSide()) {
             return EventResult.pass();
         }
-        SoulJarManager.trySpawnRandomWorldJar(killed);
 
         Entity attacker = source.getEntity();
         ServerPlayer player = null;
@@ -763,8 +724,6 @@ public final class IdentityProgression {
             return EventResult.pass();
         }
 
-        MorphChargeManager.onIdentityKilled(player, unlockTarget.identityId(), unlockTarget.variantNbt());
-        SoulJarManager.onIdentityKilled(player, unlockTarget.identityId(), unlockTarget.variantNbt());
 
         if (!IdentitySettings.enableIdentityKillUnlocks) {
             return EventResult.pass();
@@ -1830,15 +1789,16 @@ public final class IdentityProgression {
             return;
         }
         if (identity instanceof LivingEntity livingIdentity) {
-        double base = maxHealthAttr.getBaseValue();
-        double desired = resolveIdentityMaxHealth(player, livingIdentity);
-        desired = Math.max(1.0D, Math.min(desired, Math.max(1, IdentitySettings.maxHealth)));
-        double delta = desired - base;
-        if (Math.abs(delta) > 1.0E-4D) {
-            maxHealthAttr.addOrUpdateTransientModifier(
-                    new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
-            );
-        }
+            // The selected variant may change max health; a default entity loses that state.
+            double desired = Math.max(1.0D, Math.min(livingIdentity.getMaxHealth(), Math.max(1, IdentitySettings.maxHealth)));
+            double current = maxHealthAttr.getValue();
+            double response = identity2$addValueModifierResponse(maxHealthAttr);
+            double delta = Math.abs(response) > 1.0E-6D ? (desired - current) / response : desired - current;
+            if (Math.abs(delta) > 1.0E-4D) {
+                maxHealthAttr.addOrUpdateTransientModifier(
+                        new AttributeModifier(HEALTH_SCALING_MODIFIER_ID, delta, AttributeModifier.Operation.ADD_VALUE)
+                );
+            }
         }
 
         float newMaxHealth = player.getMaxHealth();
@@ -1846,18 +1806,19 @@ public final class IdentityProgression {
         player.setHealth(scaled);
     }
 
-    private static double resolveIdentityMaxHealth(ServerPlayer player, LivingEntity livingIdentity) {
-        if (player == null || player.level() == null) {
-            return livingIdentity.getMaxHealth();
-        }
-        try {
-            Entity probe = livingIdentity.getType().create(player.level(), EntitySpawnReason.COMMAND);
-            if (probe instanceof LivingEntity probeLiving) {
-                return probeLiving.getMaxHealth();
+    private static double identity2$addValueModifierResponse(AttributeInstance instance) {
+        double response = 1.0D;
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
+                response += modifier.amount();
             }
-        } catch (Throwable ignored) {
         }
-        return livingIdentity.getMaxHealth();
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+                response *= 1.0D + modifier.amount();
+            }
+        }
+        return response;
     }
 
     public static String toVariantUnlockToken(CompoundTag variantNbt) {

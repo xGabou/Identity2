@@ -1,7 +1,5 @@
 package net.Gabou.identity2;
 
-import net.Gabou.identity2.client.screen.IdentityProgressionScreen;
-import net.Gabou.identity2.packets.OpenProgressionScreenS2CPacketPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import dev.architectury.event.events.client.ClientGuiEvent;
@@ -29,11 +27,6 @@ import net.Gabou.identity2.packets.UnlockedIdentitySyncS2CPacketPayload;
 import net.Gabou.identity2.identity.WardenBurrowManager;
 import net.Gabou.identity2.util.EnderDragonEntityRendererAccessor;
 import net.Gabou.identity2.util.EntityAccessor;
-import net.Gabou.identity2.packets.ProgressionChargeSyncRequestC2SPacketPayload;
-import net.Gabou.identity2.packets.ProgressionJarSelectC2SPacketPayload;
-import net.Gabou.identity2.packets.ProgressionJarStateS2CPacketPayload;
-import net.Gabou.identity2.packets.ProgressionJarTransferC2SPacketPayload;
-import net.Gabou.identity2.packets.ProgressionPlayerChargesS2CPacketPayload;
 import net.Gabou.identity2.util.IdentityAbilityDefinition;
 import net.Gabou.identity2.util.MinecraftClientAccessor;
 import net.Gabou.identity2.util.NbtComponentAccessor;
@@ -48,7 +41,6 @@ import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
@@ -214,21 +206,6 @@ public final class Identity2Client {
                 MorphAcquisitionS2CPacketPayload.ID,
                 MorphAcquisitionS2CPacketPayload.CODEC,
                 (payload, context) -> context.queue(() -> onMorphAcquisition(payload)));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                OpenProgressionScreenS2CPacketPayload.ID,
-                OpenProgressionScreenS2CPacketPayload.CODEC,
-                (payload, context) -> context.queue(Identity2Client::openProgressionScreen));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                ProgressionPlayerChargesS2CPacketPayload.ID,
-                ProgressionPlayerChargesS2CPacketPayload.CODEC,
-                (payload, context) -> context.queue(() -> IdentityProgressionScreen.onPlayerChargeSync(payload)));
-        NetworkManager.registerReceiver(
-                NetworkManager.s2c(),
-                ProgressionJarStateS2CPacketPayload.ID,
-                ProgressionJarStateS2CPacketPayload.CODEC,
-                (payload, context) -> context.queue(() -> IdentityProgressionScreen.onJarStateSync(payload)));
         ClientTickEvent.CLIENT_POST.register(Identity2Client::onClientTickEnd);
         ClientGuiEvent.RENDER_HUD.register(Identity2Client::renderIdentityCooldown);
     }
@@ -256,21 +233,6 @@ public final class Identity2Client {
         NetworkManager.sendToServer(new IdentityVillagerTradeRequestC2SPacketPayload(targetUuid.toString()));
     }
 
-    public static void requestProgressionChargeSync() {
-        NetworkManager.sendToServer(new ProgressionChargeSyncRequestC2SPacketPayload());
-    }
-
-    public static void sendProgressionJarSelect(int slotIndex) {
-        NetworkManager.sendToServer(new ProgressionJarSelectC2SPacketPayload(slotIndex));
-    }
-
-    public static void sendProgressionJarTransfer(int slotIndex, String identityId, int amount, boolean deposit) {
-        if (identityId == null || identityId.isBlank() || amount <= 0) {
-            return;
-        }
-        NetworkManager.sendToServer(new ProgressionJarTransferC2SPacketPayload(slotIndex, identityId, amount, deposit));
-    }
-
     public static void addVisualPatch(BiFunction<Entity, Entity, Entity> value, Identifier id) {
         visualPatchKeys.ensureCapacity(visualPatchKeys.size() + 1);
         visualPatchValues.ensureCapacity(visualPatchValues.size() + 1);
@@ -278,13 +240,6 @@ public final class Identity2Client {
         visualPatchValues.add(value);
     }
 
-    private static void openProgressionScreen() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return;
-        }
-        client.gui.setScreen(new IdentityProgressionScreen());
-    }
 
     private static void onClientTickEnd(Minecraft client) {
         processPendingCustomDataPackets(client);

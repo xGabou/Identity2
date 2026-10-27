@@ -1,7 +1,24 @@
 # Identity2 Public Changelog
 
+---
+## 2026-10-27
 
+### Release 2.2.4.2
 
+- Removed the legacy jar system.
+- Fixed double melee attacks while morphed.
+- Fixed the keep-morphs-on-death setting being ignored.
+- Fixed health scaling with external health modifiers.
+- Fixed health scaling for morph variants.
+- Fixed damage from the player's own morph.
+- Fixed Warden burrow collision checks moving the player.
+- Fixed morph eye height when crouching.
+- Fixed flight grants not being restored for flying morphs.
+
+---
+## 2026-09-02
+### Release 2.2.4
+- Removed all authentication configs and legacy auth-code remnants.
 ---
 ## 2026-08-30
 ### Release 2.2.3
