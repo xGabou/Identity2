@@ -1,10 +1,13 @@
 {
   "required": true,
   "package": "net.Gabou.identity2.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "minVersion": "0.8",
   "refmap": "identity2-common-refmap.json",
   "client": [
+    "client.LivingEntitySwingAccessor",
+    "client.SwingStateAccessor",
+    "client.LevelExtractorMixin",
     "client.ClientWorldMixin",
     "client.CreativeModeInventoryScreenMixin",
     "client.EntityRendererMixin",

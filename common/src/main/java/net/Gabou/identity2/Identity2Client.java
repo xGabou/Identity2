@@ -72,47 +72,47 @@ public final class Identity2Client {
 
     private static final KeyMapping primaryAbilityKeyBinding = new KeyMapping(
             "key.identity2.primary_ability",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_V,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping secondaryAbilityKeyBinding = new KeyMapping(
             "key.identity2.secondary_ability",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_B,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping identityMenuKeyBinding = new KeyMapping(
             "key.identity2.identity_menu",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_G,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot1KeyBinding = new KeyMapping(
             "key.identity2.favorite_morph_1",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F6,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot2KeyBinding = new KeyMapping(
             "key.identity2.favorite_morph_2",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F7,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteMorphSlot3KeyBinding = new KeyMapping(
             "key.identity2.favorite_morph_3",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F8,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot1KeyBinding = new KeyMapping(
             "key.identity2.favorite_save_1",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F9,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot2KeyBinding = new KeyMapping(
             "key.identity2.favorite_save_2",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F10,
             IDENTITY_KEY_CATEGORY);
     private static final KeyMapping favoriteSaveSlot3KeyBinding = new KeyMapping(
             "key.identity2.favorite_save_3",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_F11,
             IDENTITY_KEY_CATEGORY);
 

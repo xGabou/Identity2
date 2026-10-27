@@ -8,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import net.Gabou.identity2.Identity2Client;
+import net.Gabou.identity2.mixin.client.LivingEntitySwingAccessor;
+import net.Gabou.identity2.mixin.client.SwingStateAccessor;
 import net.Gabou.identity2.PredefIdentityAbilities;
 import net.Gabou.identity2.identity.IdentityProgression;
 import net.Gabou.identity2.util.EntityAccessor;
@@ -24,11 +26,27 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.phys.Vec3;
 
 public final class MorphRenderStateHelper {
+    private static final ThreadLocal<Boolean> AVATAR_STATE_ONLY = ThreadLocal.withInitial(() -> false);
     private static final int IRON_GOLEM_ATTACK_ANIMATION_TICKS = 10;
     private static final Map<Integer, Integer> IRON_GOLEM_ATTACK_END_TICKS = new HashMap<>();
     private static final Map<Integer, Integer> IRON_GOLEM_LAST_SWING_TIMES = new HashMap<>();
 
     private MorphRenderStateHelper() {
+    }
+
+    public static boolean isAvatarStateOnly() {
+        return AVATAR_STATE_ONLY.get();
+    }
+
+    public static EntityRenderState extractAvatarState(Entity player, float partialTick) {
+        boolean previous = AVATAR_STATE_ONLY.get();
+        AVATAR_STATE_ONLY.set(true);
+        try {
+            return ((net.Gabou.identity2.util.MinecraftClientAccessor) net.minecraft.client.Minecraft.getInstance())
+                .getEntityRenderManager().extractEntity(player, partialTick);
+        } finally {
+            AVATAR_STATE_ONLY.set(previous);
+        }
     }
 
     public static void applySharedState(Entity source, Entity identity, EntityRenderState renderState, float tickProgress) {
@@ -67,7 +85,7 @@ public final class MorphRenderStateHelper {
         if (!(source instanceof LivingEntity livingSource)) {
             return;
         }
-        boolean attacking = livingSource.attackAnim > 0.0F || livingSource.swinging;
+        boolean attacking = livingSource.getSwingAnimation(tickProgress) > 0.0F || livingSource.isSwinging();
         if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.IRON_GOLEM) {
             float golemAttackTicks = resolveIronGolemAttackTicks(source, livingSource, attacking, tickProgress);
             if (golemAttackTicks > 0.0F) {
@@ -80,20 +98,22 @@ public final class MorphRenderStateHelper {
         setBooleanFieldIfPresent(renderState, "isAngry", true);
         setBooleanFieldIfPresent(renderState, "attacking", true);
         setBooleanFieldIfPresent(renderState, "isAggressive", true);
-        setFloatFieldMax(renderState, "rollAmount", livingSource.attackAnim);
+        setFloatFieldMax(renderState, "rollAmount", livingSource.getSwingAnimation(tickProgress));
     }
 
     private static float resolveIronGolemAttackTicks(Entity source, LivingEntity livingSource, boolean attacking, float tickProgress) {
         int entityId = source.getId();
         int previousSwingTime = IRON_GOLEM_LAST_SWING_TIMES.getOrDefault(entityId, -1);
         int currentEndTick = IRON_GOLEM_ATTACK_END_TICKS.getOrDefault(entityId, 0);
-        boolean restartedSwing = livingSource.swinging && livingSource.swingTime <= 1 && previousSwingTime > 1;
+
+        int swingTicks = ((SwingStateAccessor) ((LivingEntitySwingAccessor) livingSource).identity2$getSwingState()).identity2$getTicks();
+        boolean restartedSwing = livingSource.isSwinging() && swingTicks <= 1 && previousSwingTime > 1;
 
         if (attacking && (currentEndTick <= source.tickCount || restartedSwing)) {
             currentEndTick = source.tickCount + IRON_GOLEM_ATTACK_ANIMATION_TICKS;
             IRON_GOLEM_ATTACK_END_TICKS.put(entityId, currentEndTick);
         }
-        IRON_GOLEM_LAST_SWING_TIMES.put(entityId, livingSource.swingTime);
+        IRON_GOLEM_LAST_SWING_TIMES.put(entityId, swingTicks);
 
         float remaining = currentEndTick - (source.tickCount + tickProgress);
         if (remaining <= 0.0F) {

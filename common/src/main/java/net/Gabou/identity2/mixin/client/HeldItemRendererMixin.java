@@ -29,7 +29,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.player.PlayerModel;
-import net.minecraft.client.renderer.ItemInHandRenderer;
+import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EnderDragonRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -41,7 +41,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import java.lang.reflect.Field;
-@Mixin(ItemInHandRenderer.class)
+@Mixin(FirstPersonHandsAndItemsRenderer.class)
 public class HeldItemRendererMixin{
     // ModelPart origins are in 1/16th block units.
     // Tune these if the morph arm still needs adjustment.
@@ -62,28 +62,16 @@ public class HeldItemRendererMixin{
         }
         throw new NoSuchFieldException("Field '" + fieldName + "' not found in class hierarchy.");
     }
-    @Redirect(method = "renderPlayerArm",
+    @Redirect(method = "renderPlayerHand",
               require = 0,
               at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/Identifier;Z)V"))
     private void rahir(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible){
         renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
-    @Redirect(method = "renderMapHand",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderRightHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/Identifier;Z)V"))
-    private void rar(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible){
-        renderRightArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
-    }
-    @Redirect(method = "renderPlayerArm",
+    @Redirect(method = "renderPlayerHand",
               require = 0,
               at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/Identifier;Z)V"))
     private void rahil(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible){
-        renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
-    }
-    @Redirect(method = "renderMapHand",
-              require = 0,
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;renderLeftHand(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/Identifier;Z)V"))
-    private void ral(AvatarRenderer renderer, PoseStack matrices, SubmitNodeCollector queue, int light, Identifier skinTexture, boolean sleeveVisible){
         renderLeftArmOverride(renderer,matrices,queue,light,skinTexture,sleeveVisible);
     }
     

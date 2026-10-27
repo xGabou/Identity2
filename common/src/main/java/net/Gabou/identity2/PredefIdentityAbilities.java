@@ -956,7 +956,7 @@ public final class PredefIdentityAbilities {
                 double offsetX = (livingPlayer.getRandom().nextDouble() - 0.5D) * 24.0D;
                 double offsetY = livingPlayer.getRandom().nextInt(13) - 6;
                 double offsetZ = (livingPlayer.getRandom().nextDouble() - 0.5D) * 24.0D;
-                if (livingPlayer.randomTeleport(livingPlayer.getX() + offsetX, livingPlayer.getY() + offsetY, livingPlayer.getZ() + offsetZ, true)) {
+                if (livingPlayer.randomTeleport(livingPlayer.getX() + offsetX, livingPlayer.getY() + offsetY, livingPlayer.getZ() + offsetZ, true, net.minecraft.tags.BlockTags.ENDERMAN_DOES_NOT_TELEPORT_TO)) {
                     player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHULKER_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
                     return true;
                 }
@@ -999,7 +999,7 @@ public final class PredefIdentityAbilities {
             clone.setNoAi(true);
             clone.setNoGravity(true);
             clone.noPhysics = true;
-            clone.setInvulnerable(true);
+            clone.setPermanentlyInvulnerable(true);
             clone.setSilent(true);
             clone.addTag(ILLUSIONER_CLONE_TAG);
             clone.addTag(ownerTag);

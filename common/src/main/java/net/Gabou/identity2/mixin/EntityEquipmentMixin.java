@@ -27,17 +27,17 @@ public class EntityEquipmentMixin{
     @Shadow
     private EnumMap<EquipmentSlot, ItemStack> items;
     @Redirect(method = "dropAll",
-              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
+              at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;createItemStackToDrop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
     @Nullable
     private ItemEntity cancelDropSoulboundItems(LivingEntity entity, ItemStack stack,boolean dropAtSelf,boolean retainOwnership) {
         if (!this.identity2$isPlayerEquipmentDrop) {
-            return entity.drop(stack, dropAtSelf, retainOwnership);
+            return entity.createItemStackToDrop(stack, dropAtSelf, retainOwnership);
         }
         if (KeepInventoryHelper.isKeepInventoryEnabled(entity)) {
             return null;
         }
         if(!EnchantmentHelper.has(stack, ModComponents.SOULBOUND)){
-            return entity.drop(stack,dropAtSelf,retainOwnership);
+            return entity.createItemStackToDrop(stack,dropAtSelf,retainOwnership);
         }else{
             return null;
         }

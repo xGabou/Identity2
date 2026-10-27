@@ -54,7 +54,7 @@ public final class ModRegistries {
     @SuppressWarnings("unchecked")
     public static synchronized Registry<IdentityAbilityDefinition> refreshIdentityAbilityRegistry() {
         long start = System.nanoTime();
-        Registry<IdentityAbilityDefinition> registry = (Registry<IdentityAbilityDefinition>) VanillaRegistries.createLookup()
+        Registry<IdentityAbilityDefinition> registry = (Registry<IdentityAbilityDefinition>) VanillaRegistries.createWorldLookup()
             .lookup(IDENTITY_ABILITY_KEY)
             .orElse(null);
         setIdentityAbilityRegistry(registry);

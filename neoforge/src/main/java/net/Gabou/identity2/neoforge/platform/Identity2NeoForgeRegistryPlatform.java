@@ -5,7 +5,7 @@ import net.Gabou.identity2.platform.ModRegistryPlatform;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DataPackRegistryEvent;
+import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
 
 public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatform {
     private static ResourceKey<? extends Registry<?>> pendingRegistryKey;
@@ -33,7 +33,7 @@ public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatf
         }
     }
 
-    private static void onNewDataPackRegistry(DataPackRegistryEvent.NewRegistry event) {
+    private static void onNewDataPackRegistry(NewDatapackRegistryEvent event) {
         if (pendingRegistryKey == null || pendingCodec == null) {
             return;
         }
@@ -46,7 +46,7 @@ public final class Identity2NeoForgeRegistryPlatform implements ModRegistryPlatf
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> void register(DataPackRegistryEvent.NewRegistry event, ResourceKey<? extends Registry<?>> key, Codec<?> codec) {
-        event.dataPackRegistry((ResourceKey<Registry<T>>) key, (Codec<T>) codec, (Codec<T>) codec);
+    private static <T> void register(NewDatapackRegistryEvent event, ResourceKey<? extends Registry<?>> key, Codec<?> codec) {
+        event.worldRegistry((ResourceKey<Registry<T>>) key, (Codec<T>) codec, (Codec<T>) codec);
     }
 }

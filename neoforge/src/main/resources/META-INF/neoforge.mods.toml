@@ -16,21 +16,21 @@ description = '''
 [[dependencies.identity2]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21,)"
+versionRange = "[26.3.0.83,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.11,)"
+versionRange = "[26.3,26.4)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.identity2]]
 modId = "architectury"
 type = "required"
-versionRange = "[19.0.1,)"
+versionRange = "[22.0.5,)"
 ordering = "AFTER"
 side = "BOTH"
 

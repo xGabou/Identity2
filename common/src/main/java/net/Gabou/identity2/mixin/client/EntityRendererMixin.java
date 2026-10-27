@@ -47,6 +47,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> {
     @Inject(method = "createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;", at = @At("RETURN"), cancellable = true)
     private void identity2$createRenderState(T entity, float tickProgress, CallbackInfoReturnable<S> cir) {
+        if (MorphRenderStateHelper.isAvatarStateOnly()) {
+            return;
+        }
         EntityRenderState renderState = cir.getReturnValue();
 
         Entity renderIdentity = MorphTransitionHelper.resolveRenderIdentity(entity, ((EntityAccessor) entity).getCurrentIdentity(), tickProgress);
@@ -54,8 +57,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             EntityRenderer renderer = ((MinecraftClientAccessor) Minecraft.getInstance()).getEntityRenderManager().getRenderer(renderIdentity);
             if (renderer != null) {
                 identity2$syncIdentityForRender(entity, renderIdentity);
-                EntityRenderState replacement = renderer.createRenderState();
-                renderer.extractRenderState(renderIdentity, replacement, tickProgress);
+                EntityRenderState replacement = renderer.createRenderState(renderIdentity, tickProgress);
                 identity2$patchMorphRenderState(entity, renderIdentity, replacement, tickProgress);
                 renderState = replacement;
             }
@@ -90,17 +92,18 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
                 target.setPositionScale(origin.getPositionScale());
             }
 
-            livingIdentity.swinging = livingSource.swinging;
-            livingIdentity.swingTime = livingSource.swingTime;
-            livingIdentity.oAttackAnim = livingSource.oAttackAnim;
-            livingIdentity.attackAnim = livingSource.attackAnim;
+            SwingStateAccessor targetSwing = (SwingStateAccessor) ((LivingEntitySwingAccessor) livingIdentity).identity2$getSwingState();
+            SwingStateAccessor sourceSwing = (SwingStateAccessor) ((LivingEntitySwingAccessor) livingSource).identity2$getSwingState();
+            targetSwing.identity2$setCurrentSwing(sourceSwing.identity2$getCurrentSwing());
+            targetSwing.identity2$setTicks(sourceSwing.identity2$getTicks());
+            targetSwing.identity2$setOldAnimation(sourceSwing.identity2$getOldAnimation());
+            targetSwing.identity2$setAnimation(sourceSwing.identity2$getAnimation());
             if (!(livingIdentity instanceof Shulker)) {
                 livingIdentity.yBodyRot = livingSource.yBodyRot;
                 livingIdentity.yBodyRotO = livingSource.yBodyRotO;
             }
             livingIdentity.yHeadRot = livingSource.yHeadRot;
             livingIdentity.yHeadRotO = livingSource.yHeadRotO;
-            livingIdentity.swingingArm = livingSource.swingingArm;
             if (livingSource.isUsingItem()) {
                 livingIdentity.startUsingItem(livingSource.getUsedItemHand());
             } else {
@@ -176,9 +179,9 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         if (renderState instanceof BeeRenderState beeState && source instanceof LivingEntity livingSource) {
-            if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
+            if (livingSource.getSwingAnimation(tickProgress) > 0.0F || livingSource.isSwinging()) {
                 beeState.isAngry = true;
-                beeState.rollAmount = Math.max(beeState.rollAmount, livingSource.attackAnim);
+                beeState.rollAmount = Math.max(beeState.rollAmount, livingSource.getSwingAnimation(tickProgress));
             }
         }
 
@@ -191,7 +194,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         if (renderState instanceof CreakingRenderState creakingState && identity instanceof Creaking && source instanceof LivingEntity livingSource) {
-            if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
+            if (livingSource.getSwingAnimation(tickProgress) > 0.0F || livingSource.isSwinging()) {
                 creakingState.attackAnimationState.startIfStopped(source.tickCount);
             } else {
                 creakingState.attackAnimationState.stop();
@@ -199,7 +202,7 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
         }
 
         if (identity != null && identity.getType() == net.minecraft.world.entity.EntityTypes.ZOMBIE && source instanceof LivingEntity livingSource) {
-            if (livingSource.attackAnim > 0.0F || livingSource.swinging) {
+            if (livingSource.getSwingAnimation(tickProgress) > 0.0F || livingSource.isSwinging()) {
                 identity2$setBooleanFieldIfPresent(renderState, "attacking", true);
                 identity2$setBooleanFieldIfPresent(renderState, "aggressive", true);
                 identity2$setBooleanFieldIfPresent(renderState, "angry", true);
