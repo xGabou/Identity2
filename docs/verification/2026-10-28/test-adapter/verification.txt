@@ -1,0 +1,55 @@
+Minecraft 26.3 automated-test adapter verification, 2026-10-28
+
+Scope: the development-only IdentityTestAdapter API and Minecraft26_3TestAdapter implementation.
+This is not the full future test runner or a claim that every adapter operation was exercised.
+The older acquisition/animation verification under 2026-10-27 used a different harness.
+
+API/contract:
+  ./gradlew.bat :common:checkTestAdapter --offline --console=plain
+  17 contract checks passed. The public API compiles with release=17 and an empty classpath;
+  the contract executable has only that API and the JDK on its classpath.
+
+Runtime:
+  A disposable development bootstrap under build/test-adapter-smoke loaded the API and
+  implementation in separate Fabric and NeoForge 26.3 clients, with a fresh New World each.
+  Bootstrap/scenario code is outside released source sets and is not part of the new API.
+  World creation used the game's UI. The subsequent 16 checks on each loader used adapter calls.
+  See fabric-result.txt and neoforge-result.txt for the exact checks.
+  They include real player.attack kill/unlock hooks, a normal C2S morph request, snapshots
+  from both sides, variant discovery, animation values, menu scroll, capture, dimension
+  travel, and spawned-entity cleanup. Wrong-world and closed calls were rejected.
+  The variant-discovery check does not assert every variant's behavior.
+
+Client exit limitation:
+  After all checks and adapter shutdown had completed, closing each client with Alt+F4
+  saved its worlds but did not exit cleanly. Fabric's post-main shutdown watchdog fired
+  (runClient exit -8); its dump showed waiting pool-1 worker threads and no remaining
+  identity-test timer/image threads. NeoForge's shutdown watchdog could not load
+  ServerWatchdog after the Minecraft module closed; the windowless lingering test JVM
+  was stopped after world saving completed. These client-exit failures are not counted
+  as passing checks. Their cause has not been established or fixed in this adapter task.
+  Full launch logs are retained under build/test-adapter-smoke/; the Fabric shutdown
+  report is copied here as fabric-client-exit.txt, and the NeoForge tail as neoforge-client-exit.txt.
+
+Capture:
+  Each loader produced a PNG screenshot and four timestamped PNG frames at a requested
+  3 fps for 1.2 seconds. The smoke driver checked file existence and increasing timestamps.
+  The frame files are retained here; a Fabric frame was visually inspected showing the cow morph.
+  The adapter returns frames with actual timestamps; no video encoder or clip/report UI is implemented.
+
+Build/isolation:
+  ./gradlew.bat :fabric:build :neoforge:build --offline --console=plain
+  Both builds passed. Both release jars were inspected as ZIP archives: zero entries
+  matching testadapter, AdapterSmoke, or audit/. No source-set outputs are in shadowBundle.
+
+Porting boundary:
+  common/src/testAdapterApi/java/net/Gabou/identity2/testadapter/IdentityTestAdapter.java
+    Pure Java contract and immutable values; portable scenarios depend only on this type.
+  common/src/testAdapter26_3/java/net/Gabou/identity2/testadapter/minecraft/Minecraft26_3TestAdapter.java
+    All Minecraft/Identity2 API integration, scheduling, native variant parsing, rendering and capture.
+  gradle/identity-test-adapter.gradle
+    Development source-set wiring, pure Java compilation guard and checkTestAdapter task.
+
+Use an exact disposable-world directory. Setup edits persist in that fixture world.
+Shutdown releases synthetic input/item use, restores camera/pause preferences, and removes
+entities spawned by that adapter instance. It is not a world rollback.

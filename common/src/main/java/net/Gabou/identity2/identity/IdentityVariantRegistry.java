@@ -26,6 +26,12 @@ public final class IdentityVariantRegistry {
     public static String stableId(Identifier identityId, CompoundTag variant) {
         if (identityId == null) return "";
         CompoundTag normalized = normalize(variant);
+        // Discovery may omit adult flags while kill unlocks store IsBaby=false.
+        // Hash the same reference for equivalent age flags without changing the saved variant.
+        boolean baby = normalized.getBooleanOr("IsBaby", false) || normalized.getBooleanOr("Baby", false);
+        normalized.remove("IsBaby");
+        normalized.remove("Baby");
+        if (baby) normalized.putBoolean("IsBaby", true);
         return normalized.isEmpty() ? "" : UUID.nameUUIDFromBytes((identityId + "\0" + canonical(normalized)).getBytes(StandardCharsets.UTF_8)).toString();
     }
     public static String remember(ServerPlayer player, Identifier id, CompoundTag variant) {
@@ -65,6 +71,8 @@ public final class IdentityVariantRegistry {
     }
     public static void sendReset(ServerPlayer target, int entityId) { if (target != null) NetworkManager.sendToPlayer(target, new IdentityVariantDefinitionS2CPacketPayload(entityId,true,"","",0,0,new byte[0])); }
     private static String canonical(Tag tag) {
+        // Menu discovery uses ints for values such as Color; entity saves use bytes.
+        if (tag instanceof NumericTag number) return "n" + Double.toHexString(number.doubleValue());
         if (tag instanceof CompoundTag c) { List<String> keys=new ArrayList<>(c.keySet()); Collections.sort(keys); StringBuilder s=new StringBuilder("{"); for (String k:keys) s.append(k.length()).append(':').append(k).append('=').append(canonical(c.get(k))).append(';'); return s.append('}').toString(); }
         if (tag instanceof ListTag l) { StringBuilder s=new StringBuilder("["); for (Tag t:l) s.append(canonical(t)).append(';'); return s.append(']').toString(); }
         return tag == null ? "null" : tag.toString();

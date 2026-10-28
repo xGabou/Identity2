@@ -25,6 +25,8 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.fish.Pufferfish;
@@ -104,11 +106,6 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             }
             livingIdentity.yHeadRot = livingSource.yHeadRot;
             livingIdentity.yHeadRotO = livingSource.yHeadRotO;
-            if (livingSource.isUsingItem()) {
-                livingIdentity.startUsingItem(livingSource.getUsedItemHand());
-            } else {
-                livingIdentity.stopUsingItem();
-            }
             if (livingIdentity instanceof Bat batIdentity) {
                 identity2$forceBatFlightAnimation(batIdentity, source.tickCount);
             }
@@ -140,6 +137,14 @@ public class EntityRendererMixin<T extends Entity, S extends EntityRenderState> 
             livingIdentity.setItemSlot(EquipmentSlot.CHEST, livingSource.getItemBySlot(EquipmentSlot.CHEST));
             livingIdentity.setItemSlot(EquipmentSlot.LEGS, livingSource.getItemBySlot(EquipmentSlot.LEGS));
             livingIdentity.setItemSlot(EquipmentSlot.FEET, livingSource.getItemBySlot(EquipmentSlot.FEET));
+            // startUsingItem does not set the synchronized use flags on client entities.
+            // Copy the active item and timer after equipment so bows, shields, and food animate.
+            LivingEntityUseItemAccessor itemUse = (LivingEntityUseItemAccessor) livingIdentity;
+            boolean usingItem = livingSource.isUsingItem();
+            itemUse.identity2$setUseItem(usingItem ? livingSource.getUseItem().copy() : ItemStack.EMPTY);
+            itemUse.identity2$setUseItemRemaining(usingItem ? livingSource.getUseItemRemainingTicks() : 0);
+            itemUse.identity2$setLivingEntityFlag(1, usingItem);
+            itemUse.identity2$setLivingEntityFlag(2, usingItem && livingSource.getUsedItemHand() == InteractionHand.OFF_HAND);
         }
 
         if (source instanceof LivingEntity livingSource && identity instanceof Mob mobIdentity) {

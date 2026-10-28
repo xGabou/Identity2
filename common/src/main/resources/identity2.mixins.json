@@ -6,6 +6,7 @@
   "refmap": "identity2-common-refmap.json",
   "client": [
     "client.LivingEntitySwingAccessor",
+    "client.LivingEntityUseItemAccessor",
     "client.SwingStateAccessor",
     "client.LevelExtractorMixin",
     "client.ClientWorldMixin",

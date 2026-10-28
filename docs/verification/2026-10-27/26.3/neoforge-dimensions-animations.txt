@@ -1,0 +1,141 @@
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bat-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bat-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bat-wing-motion | samples=45, total angular motion=41.43131732940674
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bat-animation-state | resting=false, flying animation=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-parrot-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-parrot-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-parrot-wing-motion | samples=45, total angular motion=131.16451406478882
+[TRAVEL-ANIMATION-AUDIT] PASS fly-parrot-pose | pose=FLYING
+[TRAVEL-ANIMATION-AUDIT] PASS fly-phantom-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-phantom-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-phantom-wing-motion | samples=45, total angular motion=2.9543867111206055
+[TRAVEL-ANIMATION-AUDIT] PASS fly-phantom-flap-clock | before=121.5, after=175.5
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bee-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bee-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bee-wing-motion | samples=45, total angular motion=67.41306400299072
+[TRAVEL-ANIMATION-AUDIT] PASS fly-bee-airborne | isOnGround=false
+[TRAVEL-ANIMATION-AUDIT] PASS fly-allay-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-allay-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-allay-wing-motion | samples=45, total angular motion=17.654882431030273
+[TRAVEL-ANIMATION-AUDIT] PASS fly-ender_dragon-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fly-ender_dragon-flight-permission | mayfly=true, flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS fly-ender_dragon-wing-motion | samples=45, total angular motion=40.92567241191864
+[TRAVEL-ANIMATION-AUDIT] PASS land-parrot-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS land-parrot-pose | onGround=true, state=STANDING
+[TRAVEL-ANIMATION-AUDIT] PASS walk-zombie-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS walk-zombie-limbs | walk speed=0.8007162
+[TRAVEL-ANIMATION-AUDIT] PASS idle-zombie-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS idle-zombie-limbs-stop | walk speed=3.739589E-15, source speed=2.804692E-15, movement=(0.0, 0.0, 0.0), grounded=true, burning=false, raw movement=(0.0, 0.0, 0.0)
+[TRAVEL-ANIMATION-AUDIT] PASS crouch-zombie-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS crouch-zombie-pose | crouching=true
+[TRAVEL-ANIMATION-AUDIT] PASS bow-human-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bow-human-use-animation | using=true, ticks=45.5, source using=true, source item=1 minecraft:bow, proxy using=false
+[TRAVEL-ANIMATION-AUDIT] PASS bow-skeleton-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bow-skeleton-use-animation | using=true, ticks=45.5, source using=true, source item=1 minecraft:bow, proxy using=true
+[TRAVEL-ANIMATION-AUDIT] PASS shield-zombie-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS shield-zombie-offhand-use | using=true, hand=OFF_HAND
+[TRAVEL-ANIMATION-AUDIT] PASS eat-zombie-eating-pose | using=true, ticks=15.5
+[TRAVEL-ANIMATION-AUDIT] PASS eat-zombie-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS eat-zombie-release-stops-animation | using=false, source=false
+[TRAVEL-ANIMATION-AUDIT] PASS swim-dolphin-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS swim-dolphin-swimming | inWater=true, moving=true
+[TRAVEL-ANIMATION-AUDIT] PASS fall-chicken-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS fall-chicken-flapping | flap=1143.5
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-client-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-client-morph | identity=Bat['Bat'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-morph | identity=Bat['Bat'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-health | expected=6.0, actual=6.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-flight | mayfly=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-nether-flying | flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-client-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-client-morph | identity=Bat['Bat'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-morph | identity=Bat['Bat'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-health | expected=6.0, actual=6.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-flight | mayfly=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-overworld-flying | flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-client-dimension | ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-client-morph | identity=Bat['Bat'/-37, l='ClientLevel', x=1.60, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-dimension | ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-morph | identity=Bat['Bat'/-37, l='ServerLevel[New World]', x=1.60, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-health | expected=6.0, actual=6.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-flight | mayfly=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-flying | flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-client-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-client-morph | identity=Bat['Bat'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-morph | identity=Bat['Bat'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-health | expected=6.0, actual=6.0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-flight | mayfly=true
+[TRAVEL-ANIMATION-AUDIT] PASS bat-end-return-flying | flying=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-client-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-client-morph | identity=Sheep['Sheep'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-client-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-morph | identity=Sheep['Sheep'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-health | expected=8.0, actual=8.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-nether-flight | mayfly=false
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-client-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-client-morph | identity=Sheep['Sheep'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-client-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-morph | identity=Sheep['Sheep'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-health | expected=8.0, actual=8.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-overworld-flight | mayfly=false
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-client-dimension | ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-client-morph | identity=Sheep['Sheep'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-client-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-dimension | ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-morph | identity=Sheep['Sheep'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-health | expected=8.0, actual=8.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:the_end]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-flight | mayfly=false
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-client-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-client-morph | identity=Sheep['Sheep'/-37, l='ClientLevel', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-client-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-morph | identity=Sheep['Sheep'/-37, l='ServerLevel[New World]', x=0.50, y=200.00, z=0.50]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-health | expected=8.0, actual=8.0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-proxy-world | proxy level=ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-old-proxy-cleanup | removal reason=DISCARDED, orphan count=0
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-variant | baby blue preserved=true
+[TRAVEL-ANIMATION-AUDIT] PASS baby-blue-end-return-flight | mayfly=false
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-client-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-client-morph | identity=null
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-dimension | ResourceKey[minecraft:dimension / minecraft:the_nether]
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-morph | identity=null
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-health | expected=20.0, actual=20.0
+[TRAVEL-ANIMATION-AUDIT] PASS human-nether-flight | mayfly=false
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-render-ticks | age advanced 45.0
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-client-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-client-morph | identity=null
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-dimension | ResourceKey[minecraft:dimension / minecraft:overworld]
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-morph | identity=null
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-health | expected=20.0, actual=20.0
+[TRAVEL-ANIMATION-AUDIT] PASS human-overworld-flight | mayfly=false

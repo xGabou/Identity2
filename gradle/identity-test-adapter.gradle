@@ -1,0 +1,35 @@
+// Explicit development-only source sets. None are part of main, jar, or shadowBundle.
+sourceSets {
+    testAdapterApi { java.srcDir 'src/testAdapterApi/java' }
+    testAdapter {
+        java.srcDir 'src/testAdapter26_3/java'
+        compileClasspath = sourceSets.main.output + sourceSets.main.compileClasspath + sourceSets.testAdapterApi.output
+        runtimeClasspath = output + compileClasspath
+    }
+    testAdapterContract {
+        java.srcDir 'src/testAdapterContract/java'
+        compileClasspath = sourceSets.testAdapterApi.output
+        runtimeClasspath = output + compileClasspath
+    }
+}
+
+tasks.named('compileTestAdapterApiJava', JavaCompile) {
+    options.release = 17
+    // Keep the public boundary honest: it must compile without Minecraft or loader jars.
+    classpath = files()
+}
+tasks.named('compileTestAdapterContractJava', JavaCompile) { options.release = 17 }
+
+tasks.register('verifyTestAdapterContract', JavaExec) {
+    group = 'verification'
+    description = 'Checks the Minecraft-free test adapter contract and its value objects.'
+    dependsOn tasks.named('testAdapterContractClasses')
+    classpath = sourceSets.testAdapterContract.runtimeClasspath
+    mainClass = 'net.Gabou.identity2.testadapter.IdentityTestAdapterContractCheck'
+}
+tasks.register('checkTestAdapter') {
+    group = 'verification'
+    description = 'Compiles the 26.3 adapter and verifies its pure Java API; does not launch a game.'
+    dependsOn tasks.named('compileTestAdapterJava'), tasks.named('verifyTestAdapterContract')
+}
+tasks.named('check') { dependsOn tasks.named('checkTestAdapter') }

@@ -42,11 +42,11 @@ final class IdentityMenuRenderHelper {
         } catch (Throwable ignored) {
             return null;
         }
-        entity.setId(NEXT_PREVIEW_ENTITY_ID.getAndDecrement());
         if (!(entity instanceof LivingEntity living)) {
             disposeEntity(entity);
             return null;
         }
+        living.setId(NEXT_PREVIEW_ENTITY_ID.getAndDecrement());
 
         if (variantNbt != null && !variantNbt.isEmpty()) {
             applyVariantData(living, variantNbt);

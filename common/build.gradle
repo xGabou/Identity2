@@ -19,3 +19,5 @@ dependencies {
     implementation "dev.architectury:architectury:$rootProject.architectury_api_version"
     compileOnly files(rootProject.file("${rootProject.gaboulibs_local_dir}/neoforge/build/libs/gaboulibs-neoforge-1.9.jar"))
 }
+
+apply from: rootProject.file('gradle/identity-test-adapter.gradle')

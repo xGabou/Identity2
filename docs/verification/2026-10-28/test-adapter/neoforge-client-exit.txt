@@ -1,0 +1,62 @@
+[11:36:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[11:36:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Command Buffer, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[11:36:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[11:36:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Command Buffer, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[11:36:24] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[11:36:25] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Command Buffer, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[11:36:25] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[11:36:25] [Render thread/WARN] (Minecraft) Received passengers for unknown entity
+[11:36:26] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Command Buffer, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[11:36:26] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[11:36:28] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Command Buffer, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[11:36:28] [Render thread/INFO] (Minecraft) Resizing Chunk Sections Instanced, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[11:37:19] [Render thread/INFO] (Minecraft) Stopping!
+[11:37:19] [Server thread/INFO] (Minecraft) Stopping server
+[11:37:19] [Server thread/INFO] (Minecraft) Saving players
+[11:37:19] [Server thread/INFO] (Minecraft) Dev lost connection: Disconnected
+[11:37:19] [Server thread/INFO] (Minecraft) System chat: Dev left the game
+[11:37:19] [Server thread/INFO] (Minecraft) Stopping singleplayer server as player logged out
+[11:37:19] [Server thread/INFO] (Minecraft) Saving worlds
+[11:37:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:overworld
+[11:37:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_end
+[11:37:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[New World]'/minecraft:the_nether
+[11:37:20] [Render thread/INFO] (FMLLoader) Closing FML Loader 4c39ae5
+[11:37:20] [Render thread/INFO] (ModLoader) Clearing ModLoader
+Exception in thread "Client shutdown watchdog #2" java.lang.NoClassDefFoundError: net/minecraft/server/dedicated/ServerWatchdog
+	at TRANSFORMER/minecraft@26.3/com.mojang.blaze3d.platform.ClientShutdownWatchdog.lambda$startShutdownWatchdog$0(ClientShutdownWatchdog.java:32)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.lang.ClassNotFoundException: net.minecraft.server.dedicated.ServerWatchdog
+	at net.neoforged.fml.classloading.ModuleClassLoader.readerToClass(ModuleClassLoader.java:221)
+	at net.neoforged.fml.classloading.ModuleClassLoader.loadClass(ModuleClassLoader.java:245)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	... 2 more
+Caused by: java.io.IOException: Module minecraft has been closed
+	at net.neoforged.fml.classloading.ModuleClassLoader$ModuleInfo.getReader(ModuleClassLoader.java:519)
+	at net.neoforged.fml.classloading.ModuleClassLoader.getClassBytes(ModuleClassLoader.java:202)
+	at net.neoforged.fml.classloading.ModuleClassLoader.readerToClass(ModuleClassLoader.java:219)
+	... 4 more
+
+> Task :neoforge:runClient FAILED
+
+[Incubating] Problems report is available at: file:///G:/mods/identity2-1.21.11/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':neoforge:runClient' (registered by plugin 'dev.architectury.loom').
+> Process 'command 'C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot\bin\java.exe'' finished with non-zero exit value -1 (NTSTATUS 0xFFFFFFFF)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.5.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 29s
+11 actionable tasks: 4 executed, 7 up-to-date

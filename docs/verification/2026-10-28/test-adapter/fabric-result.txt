@@ -1,0 +1,17 @@
+PASS client and server snapshots agree
+PASS rejects WRONG_WORLD
+PASS platform fixture
+PASS real attack kills spawned cow
+PASS kill unlock synchronized to client
+PASS normal morph request synchronized
+PASS variant discovery returns plain Java data
+PASS animation render values available
+PASS morph menu scroll
+PASS PNG screenshot written
+PASS timestamped PNG frame sequence
+PASS capture timestamps increase
+PASS dimension change retains morph on both sides
+PASS clear morph synchronized
+PASS rejects CLOSED
+PASS rejects ENTITY_MISSING
+SUCCESS 16 checks
