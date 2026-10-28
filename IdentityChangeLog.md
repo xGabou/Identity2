@@ -1,6 +1,17 @@
 # Identity2 Public Changelog
-
 ---
+## 2026-10-28
+
+### Release 2.2.4.2
+- Ported to 26.3.
+- **PLEASE, PLEASE, PLEASE REPORT ANY ISSUES YOU FIND!**
+  - This is a major port, so there are likely some issues that slipped through testing.
+  - I'm experimenting with a new automated testing system, but knowing myself, I've probably missed a few things.
+  - Please help me make this release as stable as possible by reporting any bugs or unexpected behavior you encounter. Every report helps!
+  - Thank you for your patience and support!
+---
+
+
 ## 2026-10-27
 
 ### Release 2.2.4.2
